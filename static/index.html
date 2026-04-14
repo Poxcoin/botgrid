@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | BotGrid AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <!-- Vertical Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-square"></div>
+                <span class="brand-name">BotGrid</span>
+            </div>
+            <ul class="sidebar-links">
+                <li class="active"><a href="#">Overview</a></li>
+                <li><a href="#">Trading History</a></li>
+                <li><a href="#">Exchange Keys</a></li>
+                <li><a href="#">System Logs</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <div class="version-badge">v2.4.0-stable</div>
+            </div>
+        </nav>
+
+        <!-- Main Workspace -->
+        <div class="main-workspace">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <h2 class="section-title">Market Overview</h2>
+                </div>
+                <div class="header-right">
+                    <div class="system-monitor">
+                        <span class="monitor-pulse"></span>
+                        <span class="monitor-text">System Live: <span id="clock">00:00:00</span></span>
+                    </div>
+                    <div class="connection-pill" id="system-status">Connected</div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content -->
+            <div class="content-container">
+                <!-- Summary Cards Row -->
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <label>Total Account Balance</label>
+                        <div class="large-value" id="balance-total">0.00 <span class="dim">USDT</span></div>
+                        <div class="sub-value">Free Liquidity: <span id="balance-free">0.00</span></div>
+                    </div>
+                    <div class="summary-card">
+                        <label>Active Intelligence Signals</label>
+                        <div class="large-value" id="stats-total">0</div>
+                        <div class="sub-value">Real-time Feed Coverage</div>
+                    </div>
+                    <div class="summary-card">
+                        <label>Analytic Logic</label>
+                        <div class="large-value small-text">Claude 4.5 Quant</div>
+                        <div class="sub-value">Sentiment Score Weighted</div>
+                    </div>
+                </div>
+
+                <!-- Feed Table -->
+                <div class="data-section">
+                    <div class="data-header">
+                        <h3>Intelligence Feed</h3>
+                        <div class="refresh-info">Syncing every 5s</div>
+                    </div>
+                    <div class="table-scroll-area">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Asset</th>
+                                    <th>Protocol Action</th>
+                                    <th>AI Score</th>
+                                    <th>Primary Analysis</th>
+                                </tr>
+                            </thead>
+                            <tbody id="signals-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

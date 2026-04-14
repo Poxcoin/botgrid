@@ -1,0 +1,286 @@
+[
+  {
+    "coin": "ALL",
+    "action": "SELL_ALL",
+    "total_score": -100.0,
+    "reason": "ГЛОБАЛЬНАЯ МАКРО-ПАНИКА",
+    "news_title": "Bitcoin fades three-week highs as BTC price shrugs off Iran war ceasefire",
+    "timestamp": "2026-04-08T12:55:41.819905"
+  },
+  {
+    "coin": "BTC",
+    "action": "LONG",
+    "total_score": 8.0,
+    "components": {
+      "ai_score": 6,
+      "market_volume_mult": 1.07,
+      "trend_percent": 4.92
+    },
+    "news_title": "MEXC targets EU MiCA compliance as new CEO takes helm",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-08T12:55:45.316670"
+  },
+  {
+    "coin": "SOL",
+    "action": "HOLD",
+    "total_score": -7.0,
+    "components": {
+      "ai_score": -7,
+      "market_volume_mult": 0.62,
+      "trend_percent": 5.79
+    },
+    "news_title": "After the $285M Drift hack, new Solana scare shows crypto’s next security risk may already be inside",
+    "source": "CryptoSlate",
+    "timestamp": "2026-04-08T12:55:53.893971"
+  },
+  {
+    "coin": "ALL",
+    "action": "SELL_ALL",
+    "total_score": -100.0,
+    "reason": "ГЛОБАЛЬНАЯ МАКРО-ПАНИКА",
+    "news_title": "Bitcoin Rallies Above $71K —But Analysts Warn The Peace Is Only Temporary",
+    "timestamp": "2026-04-08T12:55:55.402890"
+  },
+  {
+    "coin": "ALL",
+    "action": "SELL_ALL",
+    "total_score": -100.0,
+    "reason": "ГЛОБАЛЬНАЯ МАКРО-ПАНИКА",
+    "news_title": "Iran ceasefire deal gives Trump a way out of war - but at a high cost",
+    "timestamp": "2026-04-08T12:55:56.017770"
+  },
+  {
+    "coin": "ALL",
+    "action": "SELL_ALL",
+    "total_score": -100.0,
+    "reason": "ГЛОБАЛЬНАЯ МАКРО-ПАНИКА",
+    "news_title": "Israel carries out large wave of air strikes across Lebanon",
+    "timestamp": "2026-04-08T12:55:57.080874"
+  },
+  {
+    "coin": "WLFI",
+    "action": "SHORT",
+    "total_score": -9.0,
+    "size_multiplier": 0.9,
+    "components": {
+      "ai_score": -7,
+      "market_volume_mult": 1.72,
+      "trend_percent": -2.33,
+      "rsi": 61.9
+    },
+    "news_title": "Trump-linked WLFI hits new low as token-backed loan triggers concern",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:14:37.420194"
+  },
+  {
+    "coin": "HYPE",
+    "action": "LONG",
+    "total_score": 9.0,
+    "size_multiplier": 0.9,
+    "components": {
+      "ai_score": 7,
+      "market_volume_mult": 0.84,
+      "trend_percent": 3.08,
+      "rsi": 54.73
+    },
+    "news_title": "Bitwise edges closer to Hyperliquid ETF launch with second amended filing",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:14:56.148402"
+  },
+  {
+    "coin": "XRP",
+    "action": "HOLD",
+    "total_score": 4.0,
+    "size_multiplier": 0.5,
+    "components": {
+      "ai_score": 4,
+      "market_volume_mult": 0.0,
+      "trend_percent": 0.18,
+      "rsi": 47.45
+    },
+    "news_title": "XRP price bottom signals emerge after the altcoin holds key support level",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:15:14.549364"
+  },
+  {
+    "coin": "BTC",
+    "action": "HOLD",
+    "total_score": 6.0,
+    "size_multiplier": 0.6,
+    "components": {
+      "ai_score": 6,
+      "market_volume_mult": 0.07,
+      "trend_percent": 1.14,
+      "rsi": 67.34
+    },
+    "news_title": "CFTC unveils innovation task force members in crypto clarity push",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:15:16.171358"
+  },
+  {
+    "coin": "WLFI",
+    "action": "SHORT",
+    "total_score": -10.0,
+    "size_multiplier": 1.0,
+    "components": {
+      "ai_score": -8,
+      "market_volume_mult": 0.01,
+      "trend_percent": -2.33,
+      "rsi": 61.9
+    },
+    "news_title": "Trump’s World Liberty Financial borrows $75M against illiquid WLFI tokens with 16B token dump incoming",
+    "source": "CryptoSlate",
+    "timestamp": "2026-04-11T08:15:18.642462"
+  },
+  {
+    "coin": "TAO",
+    "action": "HOLD",
+    "total_score": -7.0,
+    "size_multiplier": 0.7,
+    "components": {
+      "ai_score": -7,
+      "market_volume_mult": 0.01,
+      "trend_percent": 1.72,
+      "rsi": 76.74
+    },
+    "news_title": "Bittensor sheds $900 million in market value as key AI developer exits amid in-fighting",
+    "source": "CryptoSlate",
+    "timestamp": "2026-04-11T08:15:37.004226"
+  },
+  {
+    "coin": "XRP",
+    "action": "HOLD",
+    "total_score": 6.0,
+    "size_multiplier": 0.6,
+    "components": {
+      "ai_score": 6,
+      "market_volume_mult": 0.01,
+      "trend_percent": 0.19,
+      "rsi": 47.83
+    },
+    "news_title": "XRP Could Rally Near $20 After Breakout Signal Originating In 2017, Analyst Says",
+    "source": "NewsBTC",
+    "timestamp": "2026-04-11T08:15:38.624054"
+  },
+  {
+    "coin": "ALL",
+    "action": "SELL_ALL",
+    "total_score": -100.0,
+    "reason": "ГЛОБАЛЬНАЯ МАКРО-ПАНИКА",
+    "news_title": "Bittensor (TAO) Crashes 20% Following Covenant AI’s Exit, ‘Decentralization Theater’ Claims",
+    "timestamp": "2026-04-11T08:15:38.624942"
+  },
+  {
+    "coin": "WLFI",
+    "action": "SHORT",
+    "total_score": -9.0,
+    "size_multiplier": 0.9,
+    "components": {
+      "ai_score": -7,
+      "market_volume_mult": 0.02,
+      "trend_percent": -2.33,
+      "rsi": 61.9
+    },
+    "news_title": "Trump-linked WLFI hits new low as token-backed loan triggers concern",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:15:53.809010"
+  },
+  {
+    "coin": "HYPE",
+    "action": "LONG",
+    "total_score": 9.0,
+    "size_multiplier": 0.9,
+    "components": {
+      "ai_score": 7,
+      "market_volume_mult": 0.02,
+      "trend_percent": 3.06,
+      "rsi": 60.32
+    },
+    "news_title": "Bitwise edges closer to Hyperliquid ETF launch with second amended filing",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:16:14.156683"
+  },
+  {
+    "coin": "XRP",
+    "action": "HOLD",
+    "total_score": 4.0,
+    "size_multiplier": 0.5,
+    "components": {
+      "ai_score": 4,
+      "market_volume_mult": 0.14,
+      "trend_percent": 0.19,
+      "rsi": 47.06
+    },
+    "news_title": "XRP price bottom signals emerge after the altcoin holds key support level",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:16:31.612514"
+  },
+  {
+    "coin": "BTC",
+    "action": "HOLD",
+    "total_score": 6.0,
+    "size_multiplier": 0.6,
+    "components": {
+      "ai_score": 6,
+      "market_volume_mult": 0.15,
+      "trend_percent": 1.15,
+      "rsi": 67.77
+    },
+    "news_title": "CFTC unveils innovation task force members in crypto clarity push",
+    "source": "Cointelegraph.com News",
+    "timestamp": "2026-04-11T08:16:33.272708"
+  },
+  {
+    "coin": "XRP",
+    "action": "HOLD",
+    "total_score": 6.0,
+    "size_multiplier": 0.6,
+    "components": {
+      "ai_score": 6,
+      "market_volume_mult": 0.14,
+      "trend_percent": 0.19,
+      "rsi": 47.06
+    },
+    "news_title": "XRP Could Rally Near $20 After Breakout Signal Originating In 2017, Analyst Says",
+    "source": "NewsBTC",
+    "timestamp": "2026-04-11T08:16:34.849426"
+  },
+  {
+    "coin": "ALL",
+    "action": "SELL_ALL",
+    "total_score": -100.0,
+    "reason": "ГЛОБАЛЬНАЯ МАКРО-ПАНИКА",
+    "news_title": "Bittensor (TAO) Crashes 20% Following Covenant AI’s Exit, ‘Decentralization Theater’ Claims",
+    "timestamp": "2026-04-11T08:16:34.850597"
+  },
+  {
+    "coin": "WLFI",
+    "action": "SHORT",
+    "total_score": -10.0,
+    "size_multiplier": 1.0,
+    "components": {
+      "ai_score": -8,
+      "market_volume_mult": 0.03,
+      "trend_percent": -2.21,
+      "rsi": 60.98
+    },
+    "news_title": "Trump’s World Liberty Financial borrows $75M against illiquid WLFI tokens with 16B token dump incoming",
+    "source": "CryptoSlate",
+    "timestamp": "2026-04-11T08:17:17.927870"
+  },
+  {
+    "coin": "TAO",
+    "action": "HOLD",
+    "total_score": -7.0,
+    "size_multiplier": 0.7,
+    "components": {
+      "ai_score": -7,
+      "market_volume_mult": 0.2,
+      "trend_percent": 1.72,
+      "rsi": 70.97
+    },
+    "news_title": "Bittensor sheds $900 million in market value as key AI developer exits amid in-fighting",
+    "source": "CryptoSlate",
+    "timestamp": "2026-04-11T08:17:36.081381"
+  }
+]

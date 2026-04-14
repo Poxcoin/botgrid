@@ -1,0 +1,10 @@
+ccxt
+pybit
+python-dotenv
+requests
+feedparser
+beautifulsoup4
+lxml
+fastapi
+uvicorn
+anthropic
