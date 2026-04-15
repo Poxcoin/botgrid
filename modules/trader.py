@@ -12,10 +12,17 @@ from config.settings import (
     IS_DEMO_TRADING,
 )
 from modules.tg_notifier import send_telegram_message
+from modules import daily_guard, position_monitor
 from typing import Dict, Any
 
 # DRY_RUN=True — логирует сделки без отправки на биржу (для тестов без ключей)
 DRY_RUN = os.getenv("DRY_RUN", "False").lower() == "true"
+
+# Максимум одновременных открытых позиций (оба бота суммарно)
+MAX_CONCURRENT_POSITIONS = 5
+
+# Минимальный size_multiplier для входа (слабый сигнал → пропускаем)
+MIN_SIZE_MULTIPLIER = 0.7
 
 
 def resolve_market_symbol(exchange: ccxt.Exchange, coin: str) -> str:
@@ -186,6 +193,18 @@ def execute_trade(
 
     print(f"\n⚡ ИСПОЛНЯЕМ СДЕЛКУ: {action} {coin} (Оценка: {score})")
 
+    # ─── Проверка 1: size_multiplier — слабый сигнал не торгуем ─────────────
+    size_mult_check = signal.get("size_multiplier", 1.0)
+    if size_mult_check < MIN_SIZE_MULTIPLIER:
+        print(f"⚠️ ПРОПУСК: size_multiplier={size_mult_check} < {MIN_SIZE_MULTIPLIER} — сигнал слишком слабый")
+        return
+
+    # ─── Проверка 2: лимит параллельных позиций ──────────────────────────────
+    open_count = position_monitor.get_tracked_count()
+    if open_count >= MAX_CONCURRENT_POSITIONS:
+        print(f"⚠️ ПРОПУСК: {open_count} открытых позиций — достигнут лимит {MAX_CONCURRENT_POSITIONS}")
+        return
+
     # DRY_RUN — симулируем сделку без отправки на биржу
     if DRY_RUN:
         print(f"🧪 DRY_RUN режим — сделка симулирована, на биржу не отправлена")
@@ -200,6 +219,19 @@ def execute_trade(
         return
 
     exchange = _init_exchange()
+
+    # ─── Проверка 3: дневной лимит убытков ───────────────────────────────────
+    free_check = get_free_usdt(exchange)
+    if not daily_guard.check(free_check):
+        dg = daily_guard.get_status(free_check)
+        msg = (
+            f"🛑 <b>Торговля остановлена — дневной лимит убытков</b>\n"
+            f"Потеряно {dg['loss_pct']:.1f}% за сегодня (лимит {daily_guard.MAX_DAILY_LOSS_PCT}%)\n"
+            f"Возобновится в UTC 00:00"
+        )
+        print(f"⚠️ ПРОПУСК: дневной лимит убытков исчерпан ({dg['loss_pct']:.1f}%)")
+        send_telegram_message(msg, TG_CHAT_ID)
+        return
 
     # -------------------------------------------------
     # 0️⃣ Resolve and validate market symbol
@@ -280,6 +312,11 @@ def execute_trade(
         )
 
         print(f"✅ ОРДЕР ИСПОЛНЕН! ID: {order.get('id', 'unknown')}")
+
+        # -------------------------------------------------
+        # 4.5️⃣ Track position for position monitor
+        # -------------------------------------------------
+        position_monitor.track_open(symbol=symbol, action=action, entry_price=current_price)
 
         # -------------------------------------------------
         # 5️⃣ Send Telegram notification

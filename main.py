@@ -4,8 +4,9 @@ import os
 from datetime import datetime
 from modules.news_parser import get_aggregated_news
 from modules.decision_maker import generate_signal
-from modules.trader import execute_trade, get_free_usdt, close_all_positions
+from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
+from modules import daily_guard, position_monitor
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
@@ -105,6 +106,20 @@ def run_signal_engine():
     Работает 24/7: ищет новости -> считает математику -> сохраняет сигналы.
     """
     print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚀 SIGNAL ENGINE ЗАПУЩЕН! Поиск альткоинов...\n")
+
+    # ─── Инициализация guard-модулей ──────────────────────────────────────────
+    try:
+        ex_init = _init_exchange()
+        start_bal = get_free_usdt(ex_init)
+    except Exception:
+        start_bal = 0.0
+    daily_guard.init(current_balance=start_bal)
+    position_monitor.start_monitor(
+        exchange_factory=_init_exchange,
+        send_tg=send_telegram_message,
+        chat_id=TG_CHAT_ID,
+    )
+
     send_telegram_message("🚀 <b>BotGrid запущен</b>\nСканирование RSS каждые 30 сек. Жду сигналов...", TG_CHAT_ID)
 
     # Загружаем старую историю

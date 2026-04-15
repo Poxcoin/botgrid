@@ -22,8 +22,9 @@ from datetime import datetime
 from modules.news_parser import get_aggregated_news
 from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_funding_rate
-from modules.trader import execute_trade
+from modules.trader import execute_trade, get_free_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
+from modules import daily_guard, position_monitor
 from config.settings import TG_CHAT_ID
 
 # ─── Параметры рискового бота ───────────────────────────────────────────────
@@ -172,6 +173,26 @@ def run_alt_engine():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] 🎯 ALT ENGINE ЗАПУЩЕН!")
     print(f"   TP={ALT_TP}%  SL={ALT_SL}%  x{ALT_LEVERAGE}  Size={ALT_SIZE}%")
     print(f"   Breakeven WR: {BREAKEVEN_WR}%  |  Монет: {len(ALT_COINS)}\n")
+
+    # ─── Инициализация guard-модулей ──────────────────────────────────────────
+    # ALT бот использует ТОТЖЕ daily_guard (STATE_FILE общий) — оба бота
+    # учитывают общий лимит убытков за день.
+    # Position monitor не запускаем повторно — main.py уже запустил поток.
+    # Если ALT стартует раньше main, запускаем здесь.
+    try:
+        ex_init = _init_exchange()
+        start_bal = get_free_usdt(ex_init)
+    except Exception:
+        start_bal = 0.0
+    daily_guard.init(current_balance=start_bal)
+
+    import threading
+    if not any(t.name == "position-monitor" for t in threading.enumerate()):
+        position_monitor.start_monitor(
+            exchange_factory=_init_exchange,
+            send_tg=send_telegram_message,
+            chat_id=TG_CHAT_ID,
+        )
 
     send_telegram_message(
         f"🎯 <b>ALT BOT запущен</b>\n"

@@ -1,5 +1,28 @@
+from datetime import datetime, timezone
 from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics
+
+
+def _time_multiplier() -> float:
+    """
+    Коэффициент размера позиции в зависимости от времени суток (UTC).
+
+    Логика: ликвидность и надёжность объёмных сигналов меняется по времени.
+      08:00–12:00 UTC — открытие Европы, пик активности        → 1.00 (норма)
+      13:00–17:00 UTC — открытие США, максимальный объём       → 1.00 (норма)
+      18:00–01:59 UTC — вечер / поздно, умеренный трафик       → 0.85
+      02:00–07:59 UTC — глубокая ночь, ложные спайки чаще      → 0.70
+
+    Коэффициент применяется к size_multiplier (не к total_score),
+    чтобы сигнал оставался в логе но позиция открывалась меньшего размера.
+    """
+    hour = datetime.now(timezone.utc).hour
+    if 8 <= hour < 18:
+        return 1.00   # Рабочие часы Европы + США
+    if 18 <= hour < 24 or hour == 0:
+        return 0.85   # Вечер / ранняя ночь
+    # 01:00–07:59 UTC
+    return 0.70
 
 
 def _calc_confidence(
@@ -173,16 +196,18 @@ def generate_signal(news_item: dict) -> dict | None:
     elif total_score <= -8.0 and confidence >= 40:
         action = "SHORT"
 
-    # size_multiplier: 0.5–1.5, учитывает и балл, и confidence
+    # size_multiplier: 0.5–1.5, учитывает балл, confidence и время суток UTC
     raw_size = abs(total_score) / 10.0 * (confidence / 100.0) * 2.0
-    size_multiplier = max(0.5, min(1.5, raw_size))
+    time_coeff = _time_multiplier()
+    size_multiplier = max(0.5, min(1.5, raw_size)) * time_coeff
+    size_multiplier = round(size_multiplier, 2)
 
     return {
         "coin": coin,
         "action": action,
         "total_score": round(total_score, 1),
         "confidence": confidence,                      # 0-100%
-        "size_multiplier": round(size_multiplier, 2),
+        "size_multiplier": size_multiplier,
         "components": {
             "ai_score":          news_score,
             "ai_confidence":     ai_confidence,
@@ -194,6 +219,7 @@ def generate_signal(news_item: dict) -> dict | None:
             "whale_active":      whale_active,
             "funding_rate":      funding_rate,
             "oi_change_pct":     oi_change,
+            "time_coeff":        time_coeff,
         },
         "news_title": news_item["title"],
         "source": news_item.get("source", "Unknown"),

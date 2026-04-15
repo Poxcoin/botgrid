@@ -128,13 +128,46 @@ def check_panic_news(title: str, source_url: str = "") -> bool:
     return False
 
 
+
+# Известные тикеры и крипто-термины. Если ни одного нет в заголовке → новость
+# не про крипту и не тратим Claude API токены.
+_CRYPTO_TERMS: frozenset[str] = frozenset({
+    # Общие крипто-термины
+    "crypto", "cryptocurrency", "blockchain", "defi", "nft", "token", "coin",
+    "web3", "dex", "cefi", "altcoin", "protocol", "smart contract", "wallet",
+    "staking", "yield", "airdrop", "mainnet", "testnet", "layer", "l2",
+    "bridge", "liquidity", "tvl", "dao", "dapp", "mint", "burn", "swap",
+    "perpetual", "futures", "bybit", "binance", "coinbase", "kraken", "okx",
+    "stablecoin", "usdt", "usdc", "depeg",
+    # Тикеры / проекты
+    "btc", "bitcoin", "eth", "ethereum", "sol", "solana", "bnb", "xrp", "ripple",
+    "ada", "cardano", "dot", "polkadot", "link", "chainlink", "uni", "uniswap",
+    "aave", "sui", "apt", "aptos", "op", "optimism", "near", "inj", "injective",
+    "fet", "fetch", "arb", "arbitrum", "matic", "polygon", "avax", "avalanche",
+    "atom", "cosmos", "trx", "tron", "ltc", "litecoin", "doge", "dogecoin",
+    "shib", "pepe", "ton", "toncoin", "starknet", "base",
+})
+
+
 def is_altcoin_news(title: str) -> bool:
     """
-    Фильтр волатильности: ищем триггеры для альткоинов.
-    Boring-keywords проверяем ПЕРВЫМИ, чтобы "Bitcoin listing"
-    не просочился через hot-keyword 'listing'.
+    Двухэтапный фильтр:
+
+    1. Крипто-гейт: если нет ни одного крипто-термина/тикера → False (без AI).
+       Это блокирует "Google's Latest AI Update", "Fed raises rates", etc.
+
+    2. Boring-keywords: регуляторика / макро вокруг BTC/ETH → False.
+
+    3. Hot-keywords: конкретные события → True.
+
+    4. Незнакомая крипто-тема → True (прошла гейт, пропускаем на AI).
     """
     title_lower = title.lower()
+
+    # ── Шаг 1: крипто-гейт ───────────────────────────────────────────────────
+    # Хотя бы одно крипто-слово должно присутствовать.
+    if not any(term in title_lower for term in _CRYPTO_TERMS):
+        return False
 
     hot_keywords = [
         "airdrop", "hack", "partner", "listing", "launch", "mainnet",
@@ -150,16 +183,18 @@ def is_altcoin_news(title: str) -> bool:
         "federal reserve", "interest rate", "inflation",
     ]
 
-    # БАГ-ФIX: boring-keywords первыми
+    # ── Шаг 2: boring-keywords первыми ───────────────────────────────────────
     for pattern in boring_keywords:
         if re.search(pattern, title_lower):
             return False
 
+    # ── Шаг 3: hot-keywords ──────────────────────────────────────────────────
     for word in hot_keywords:
         if word in title_lower:
             return True
 
-    return True  # незнакомая тема — пропускаем на анализ ИИ
+    # ── Шаг 4: крипто-тема, но не boring и не hot → AI сам разберётся ────────
+    return True
 
 
 def _get_description(entry) -> str:
