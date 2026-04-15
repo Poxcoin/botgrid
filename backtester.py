@@ -66,7 +66,7 @@ def vol_spike(ohlcv: list, i: int, window: int = 16) -> tuple[bool, float]:
     cur_vol = ohlcv[i][5]
     avg_vol = sum(c[5] for c in ohlcv[i - window:i]) / window
     ratio = cur_vol / avg_vol if avg_vol > 0 else 0
-    return ratio >= 2.5, round(ratio, 2)
+    return ratio >= 2.0, round(ratio, 2)
 
 
 def price_trend(ohlcv: list, i: int, lookback: int = 96) -> tuple[int, float]:
@@ -160,8 +160,10 @@ def simulate_trade(ohlcv: list, entry_idx: int, action: str,
     return result, round(pnl, 4), round(exit_price, 6), exit_idx
 
 
-COOLDOWN_CANDLES = 8    # 8 x 15m = 2 часа между сделками на одной монете
-TREND_PANIC_CAP  = 50  # |trend%| > 50 = паника, не входить
+COOLDOWN_CANDLES = 4    # 4 x 15m = 1 час между сделками на одной монете
+TREND_PANIC_CAP  = 75  # |trend%| > 75 = настоящая паника, не входить
+RSI_SHORT_MIN    = 28  # не шортим если RSI < 28 (уже в полу)
+RSI_LONG_MAX     = 72  # не лонгуем если RSI > 72 (уже в потолке)
 
 def backtest_symbol(ex: ccxt.Exchange, symbol: str) -> dict:
     print(f"\n  📊 {symbol} — скачиваю данные...", end="", flush=True)
@@ -205,11 +207,11 @@ def backtest_symbol(ex: ccxt.Exchange, symbol: str) -> dict:
 
             # ── ФИЛЬТР 2: RSI — не шортим дно, не лонгуем хай ──
             rsi = compute_rsi(ohlcv, i)
-            if action == "SHORT" and rsi < 35:
+            if action == "SHORT" and rsi < RSI_SHORT_MIN:
                 filtered_rsi += 1
                 i += 1
                 continue
-            if action == "LONG" and rsi > 65:
+            if action == "LONG" and rsi > RSI_LONG_MAX:
                 filtered_rsi += 1
                 i += 1
                 continue
