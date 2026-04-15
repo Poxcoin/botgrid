@@ -246,6 +246,20 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket ошибка: {e}")
 
 
+@app.get("/api/logs")
+async def get_logs(lines: int = Query(default=100, ge=1, le=500)):
+    """Последние N строк bot_engine.log для страницы System Logs."""
+    log_path = "bot_engine.log"
+    if not os.path.exists(log_path):
+        return {"lines": ["Log file not found."]}
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            all_lines = f.readlines()
+        return {"lines": [l.rstrip() for l in all_lines[-lines:]]}
+    except Exception as e:
+        return {"lines": [f"Error reading log: {e}"]}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

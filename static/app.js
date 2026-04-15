@@ -35,6 +35,14 @@ function navigateTo(pageId) {
         loadStats();
         loadHistory(1);
     }
+
+    if (pageId === 'logs') {
+        loadLogs();
+        clearInterval(logsInterval);
+        logsInterval = setInterval(loadLogs, 5000);
+    } else {
+        clearInterval(logsInterval);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -190,6 +198,22 @@ async function loadStats() {
     } catch (error) {
         console.error('STATS_LOAD_ERROR:', error);
     }
+}
+
+// ─── System Logs ─────────────────────────────────────────────────────────────
+let logsInterval = null;
+
+async function loadLogs() {
+    try {
+        const res = await fetch('/api/logs');
+        if (!res.ok) return;
+        const data = await res.json();
+        const el = document.getElementById('log-output');
+        if (el && data.lines) {
+            el.textContent = data.lines.join('\n');
+            el.scrollTop = el.scrollHeight;
+        }
+    } catch (_) {}
 }
 
 // ─── WebSocket ───────────────────────────────────────────────────────────────
