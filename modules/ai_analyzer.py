@@ -57,7 +57,7 @@ def analyze_sentiment(news_title: str, news_description: str = "") -> dict:
 
     try:
         response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5-20251001",
             max_tokens=80,
             temperature=0.0,
             timeout=30.0,

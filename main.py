@@ -105,13 +105,15 @@ def run_signal_engine():
     Работает 24/7: ищет новости -> считает математику -> сохраняет сигналы.
     """
     print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚀 SIGNAL ENGINE ЗАПУЩЕН! Поиск альткоинов...\n")
-    
+    send_telegram_message("🚀 <b>BotGrid запущен</b>\nСканирование RSS каждые 30 сек. Жду сигналов...", TG_CHAT_ID)
+
     # Загружаем старую историю
     signal_ledger = load_ledger()
 
     # Загружаем обработанные URL из файла — защита от дублей при перезапуске
     processed_urls = load_processed_urls()
     processed_tg_updates = set()
+    last_error_tg_time = 0      # антиспам: не чаще 1 раза в 5 минут
     
     while True:
         try:
@@ -164,6 +166,14 @@ def run_signal_engine():
             break
         except Exception as e:
             print(f"❌ Ошибка: {e}")
+            # Отправляем в TG не чаще 1 раза в 5 минут (антиспам)
+            now = time.time()
+            if now - last_error_tg_time > 300:
+                last_error_tg_time = now
+                send_telegram_message(
+                    f"❌ <b>BotGrid — критическая ошибка</b>\n<code>{str(e)[:300]}</code>",
+                    TG_CHAT_ID
+                )
             time.sleep(10)
 
 if __name__ == "__main__":

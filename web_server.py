@@ -7,11 +7,20 @@ from typing import Optional
 
 import ccxt
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET
 
 app = FastAPI(title="AI Crypto Trading Dashboard")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Путь к логу сигналов
 LEDGER_FILE = "signals_log.json"
