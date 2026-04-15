@@ -75,6 +75,81 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
         return 0.0
 
 
+def _init_exchange() -> ccxt.Exchange:
+    """Создаёт и настраивает объект биржи с текущими настройками."""
+    exchange = ccxt.bybit({
+        "apiKey": BYBIT_API_KEY,
+        "secret": BYBIT_SECRET,
+        "enableRateLimit": True,
+        "options": {
+            "defaultType": "swap",
+            "adjustForTimeDifference": True,
+            "recvWindow": 10000,
+        },
+    })
+    if IS_DEMO_TRADING:
+        exchange.urls['api'] = {
+            'public': 'https://api-demo.bybit.com',
+            'private': 'https://api-demo.bybit.com',
+        }
+    if USE_TESTNET:
+        exchange.set_sandbox_mode(True)
+    return exchange
+
+
+def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
+    """Проверяет, есть ли уже открытая позиция по монете. Защита от дублей."""
+    try:
+        positions = exchange.fetch_positions([symbol], params={'category': 'linear'})
+        for pos in positions:
+            if abs(float(pos.get('contracts') or 0)) > 0:
+                return True
+        return False
+    except Exception as e:
+        print(f"⚠️ Не удалось проверить позиции: {e}")
+        return False  # Если не смогли проверить — не блокируем
+
+
+def close_all_positions(signal: Dict[str, Any] = None) -> None:
+    """
+    Экстренное закрытие ВСЕХ открытых позиций.
+    Вызывается при сигнале SELL_ALL (глобальная паника).
+    """
+    print("\n🚨 ЭКСТРЕННОЕ ЗАКРЫТИЕ ВСЕХ ПОЗИЦИЙ...")
+    exchange = _init_exchange()
+
+    try:
+        positions = exchange.fetch_positions(params={'category': 'linear'})
+        active = [p for p in positions if abs(float(p.get('contracts') or 0)) > 0]
+
+        if not active:
+            print("   ℹ️ Открытых позиций нет.")
+            return
+
+        for pos in active:
+            coin_symbol = pos['symbol']
+            contracts = abs(float(pos['contracts']))
+            side = 'sell' if pos['side'] == 'long' else 'buy'
+
+            print(f"   🔴 Закрываю {pos['side'].upper()} {coin_symbol} ({contracts} контрактов)...")
+            try:
+                exchange.create_order(
+                    coin_symbol, 'market', side, contracts,
+                    params={'category': 'linear', 'reduceOnly': True}
+                )
+                print(f"   ✅ {coin_symbol} закрыта!")
+            except Exception as e:
+                print(f"   ❌ Ошибка при закрытии {coin_symbol}: {e}")
+
+        msg = "🚨 <b>ПАНИКА! Все позиции закрыты!</b>"
+        if signal:
+            msg += f"\n<b>Причина:</b> {signal.get('news_title', 'Макро-кризис')}"
+        send_telegram_message(msg, TG_CHAT_ID)
+
+    except Exception as e:
+        print(f"❌ Ошибка SELL_ALL: {e}")
+
+
 def execute_trade(signal: Dict[str, Any]) -> None:
     """Execute a market order on Bybit based on the provided signal.
 
@@ -89,28 +164,7 @@ def execute_trade(signal: Dict[str, Any]) -> None:
 
     print(f"\n⚡ ИСПОЛНЯЕМ СДЕЛКУ: {action} {coin} (Оценка: {score})")
 
-    # Initialise Bybit client with time sync options
-    exchange = ccxt.bybit({
-        "apiKey": BYBIT_API_KEY,
-        "secret": BYBIT_SECRET,
-        "enableRateLimit": True,
-        "options": {
-            "defaultType": "swap",
-            "adjustForTimeDifference": True, # Авто-синхронизация времени
-            "recvWindow": 10000             # Окно задержки 10 секунд
-        },
-    })
-
-    # Redirect to Demo Trading host if enabled
-    if IS_DEMO_TRADING:
-        exchange.urls['api'] = {
-            'public': 'https://api-demo.bybit.com',
-            'private': 'https://api-demo.bybit.com',
-        }
-
-    # Use sandbox mode for development if enabled
-    if USE_TESTNET:
-        exchange.set_sandbox_mode(True)
+    exchange = _init_exchange()
 
     # -------------------------------------------------
     # 0️⃣ Resolve and validate market symbol
@@ -118,6 +172,13 @@ def execute_trade(signal: Dict[str, Any]) -> None:
     symbol = resolve_market_symbol(exchange, coin)
     if not symbol:
         print(f"⚠️ ПРОПУСК: Монета {coin} не найдена на бирже (USDT маркет).")
+        return
+
+    # -------------------------------------------------
+    # 0.5️⃣ Проверяем — нет ли уже открытой позиции по этой монете
+    # -------------------------------------------------
+    if has_open_position(exchange, symbol):
+        print(f"⚠️ ПРОПУСК: Позиция по {coin} уже открыта. Дубль заблокирован.")
         return
 
     try:
@@ -188,11 +249,13 @@ def execute_trade(signal: Dict[str, Any]) -> None:
         # -------------------------------------------------
         # 5️⃣ Send Telegram notification
         # -------------------------------------------------
+        confidence = signal.get("confidence", "?")
         msg = (
             f"🚀 <b>СИГНАЛ ИСПОЛНЕН!</b>\n"
             f"<b>Монета:</b> #{coin}\n"
             f"<b>Тип:</b> {action} (Плечо x{LEVERAGE})\n"
             f"<b>Оценка ИИ:</b> {score} баллов\n"
+            f"<b>Уверенность:</b> {confidence}%\n"
             f"<b>Вход:</b> {current_price}$\n"
             f"<b>Take Profit:</b> {tp_price}$\n"
             f"<b>Stop Loss:</b> {sl_price}$"

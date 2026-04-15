@@ -8,3 +8,11 @@ lxml
 fastapi
 uvicorn
 anthropic
+# SaaS / Auth
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+# Real-time
+websockets
+# Database ORM
+sqlalchemy

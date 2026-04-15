@@ -4,13 +4,14 @@ import os
 from datetime import datetime
 from modules.news_parser import get_aggregated_news
 from modules.decision_maker import generate_signal
-from modules.trader import execute_trade, get_free_usdt
+from modules.trader import execute_trade, get_free_usdt, close_all_positions
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
 # Путь к файлу истории
 LEDGER_FILE = "signals_log.json"
+PROCESSED_URLS_FILE = "processed_urls.json"
 
 def load_ledger():
     """Загружает историю сигналов из файла при старте."""
@@ -31,17 +32,38 @@ def save_ledger(ledger):
     except Exception as e:
         print(f"Ошибка при сохранении лога: {e}")
 
+def load_processed_urls():
+    """Загружает список уже обработанных URL из файла — защита от дублей при перезапуске."""
+    if os.path.exists(PROCESSED_URLS_FILE):
+        try:
+            with open(PROCESSED_URLS_FILE, "r") as f:
+                data = json.load(f)
+                return set(data)
+        except Exception:
+            pass
+    return set()
+
+def save_processed_urls(urls: set):
+    """Сохраняет последние 2000 URL чтобы файл не разрастался."""
+    try:
+        with open(PROCESSED_URLS_FILE, "w") as f:
+            json.dump(list(urls)[-2000:], f)
+    except Exception as e:
+        print(f"Ошибка при сохранении processed_urls: {e}")
+
 
 def handle_telegram_commands(processed_updates):
     """
     Обрабатывает новые сообщения из Telegram.
+    Передаём offset = max(seen_id) + 1 чтобы Telegram не возвращал старые сообщения.
     """
-    updates = get_telegram_updates()
+    offset = (max(processed_updates) + 1) if processed_updates else None
+    updates = get_telegram_updates(offset=offset)
     for update in updates:
         update_id = update.get("update_id")
         if update_id in processed_updates:
             continue
-            
+
         processed_updates.add(update_id)
         message = update.get("message", {})
         chat_id = message.get("chat", {}).get("id")
@@ -86,9 +108,9 @@ def run_signal_engine():
     
     # Загружаем старую историю
     signal_ledger = load_ledger()
-    
-    # Чтобы не обрабатывать одни и те же новости дважды
-    processed_urls = set()
+
+    # Загружаем обработанные URL из файла — защита от дублей при перезапуске
+    processed_urls = load_processed_urls()
     processed_tg_updates = set()
     
     while True:
@@ -101,12 +123,14 @@ def run_signal_engine():
             # 1. Тянем свежие новости
             latest_news = get_aggregated_news(limit_per_source=5)
             
+            urls_changed = False
             for news_item in latest_news:
                 if news_item['link'] in processed_urls:
                     continue
-                    
+
                 processed_urls.add(news_item['link'])
-                
+                urls_changed = True
+
                 # 2. Анализ
                 print(f"   Анализ: {news_item['title'][:60]}...")
                 signal = generate_signal(news_item)
@@ -123,9 +147,15 @@ def run_signal_engine():
                         print(json.dumps(signal, indent=2, ensure_ascii=False))
                         print("==================================\n")
                         
-                        if signal['action'] in ["LONG", "SHORT"]:
+                        if signal['action'] == "SELL_ALL":
+                            close_all_positions(signal)
+                        elif signal['action'] in ["LONG", "SHORT"]:
                             execute_trade(signal)
             
+            # Сохраняем URLs один раз после всего цикла, а не на каждую новость
+            if urls_changed:
+                save_processed_urls(processed_urls)
+
             time.sleep(30)
             
         except KeyboardInterrupt:

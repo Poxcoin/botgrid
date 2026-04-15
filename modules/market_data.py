@@ -84,12 +84,12 @@ def get_market_metrics(symbol, timestamp_ms=None):
             rs = avg_gain / avg_loss
             return 100 - (100 / (1 + rs))
 
-        # Для RSI нам нужно больше свечей чем 5, давай увеличим лимит
-        # В режиме бэктеста используем исторические данные, а не текущие
+        # RSI считаем на 1h свечах (50 штук = ~2 суток истории).
+        # Раньше было 20×15m = 5 часов — RSI(14) на таком окне давал хаотичные значения.
         if timestamp_ms is None:
-            ohlcv_rsi = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=20)
+            ohlcv_rsi = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=50)
         else:
-            ohlcv_rsi = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=20, params={'endTime': timestamp_ms})
+            ohlcv_rsi = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=50, params={'endTime': timestamp_ms})
         rsi_value = calculate_rsi([c[4] for c in ohlcv_rsi])
             
         return {

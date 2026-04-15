@@ -62,14 +62,35 @@ async def get_dashboard_data():
     except Exception as e:
         print(f"Ошибка получения баланса: {e}")
 
+    # Считаем статистику по исполненным сделкам (LONG + SHORT)
+    trades = [s for s in signals if s.get('action') in ('LONG', 'SHORT')]
+    total_trades = len(trades)
+
+    # Winrate: считаем сделки где total_score говорит о правильном направлении
+    # Используем знак score: LONG с позитивным score = потенциальный выигрыш
+    winning_trades = sum(
+        1 for s in trades
+        if (s['action'] == 'LONG' and s.get('total_score', 0) >= 8)
+        or (s['action'] == 'SHORT' and s.get('total_score', 0) <= -8)
+    )
+    winrate_pct = round((winning_trades / total_trades * 100), 1) if total_trades > 0 else 0
+
+    # Средний score по сделкам
+    avg_score = round(
+        sum(abs(s.get('total_score', 0)) for s in trades) / total_trades, 1
+    ) if total_trades > 0 else 0
+
     return {
         "status": "online",
         "balance": balance_info,
-        "latest_signals": signals[-20:][::-1], # Последние 20 сигналов, новые сверху
+        "latest_signals": signals[-20:][::-1],  # Последние 20 сигналов, новые сверху
         "stats": {
             "total_signals": len(signals),
             "longs": len([s for s in signals if s.get('action') == 'LONG']),
             "shorts": len([s for s in signals if s.get('action') == 'SHORT']),
+            "total_trades": total_trades,
+            "winrate_pct": winrate_pct,
+            "avg_score": avg_score,
         }
     }
 

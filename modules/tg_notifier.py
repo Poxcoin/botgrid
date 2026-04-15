@@ -34,17 +34,21 @@ def send_telegram_message(text, chat_id):
         return False
 
 
-def get_telegram_updates():
+def get_telegram_updates(offset: int = None):
     """
     Получает последние сообщения от пользователя для обработки команд.
+    offset — ID последнего обработанного update + 1 (Telegram удалит старые).
     """
     if not TG_BOT_TOKEN:
         return []
-        
+
     url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/getUpdates"
+    params = {"limit": 10, "timeout": 5}
+    if offset is not None:
+        params["offset"] = offset
+
     try:
-        # Получаем последние 10 сообщений
-        response = requests.get(url, params={"limit": 10, "timeout": 5}, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
             return response.json().get("result", [])
         return []

@@ -5,3 +5,10 @@ __pycache__/
 bot_pid.txt
 *.log
 .DS_Store
+# Данные и кеш — не нужны в репо
+signals_log.json
+processed_urls.json
+backtest_results.json
+# Локальные service-файлы
+crypto-bot.service
+crypto-web.service
