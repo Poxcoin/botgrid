@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+    <!-- Vertical Sidebar — Навигация внутри дашборда -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-square"></div>
+            <span class="brand-name">Intelligence</span>
+        </div>
+        <ul class="sidebar-links">
+            <li class="active" data-page="overview"><a href="#" data-page="overview">Overview</a></li>
+            <li data-page="history"><a href="#" data-page="history">Trading History</a></li>
+            <li data-page="logs"><a href="#" data-page="logs">System Logs</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="version-badge">v2.5.0-saas</div>
+        </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <div class="main-workspace">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div class="header-left">
+                <h2 class="section-title" id="page-title">Market Overview</h2>
+            </div>
+            <div class="header-right">
+                <div class="system-monitor">
+                    <span class="monitor-pulse"></span>
+                    <span class="monitor-text">Server Time: <span id="clock">00:00:00</span></span>
+                </div>
+                <div class="connection-pill" id="system-status">Secure Session</div>
+            </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <div class="content-container">
+
+            <!-- PAGE: Overview -->
+            <div id="page-overview">
+                <!-- Summary Cards Row -->
+                <div class="summary-cards">
+                    <div class="summary-card">
+                        <label>Account Balance (USDT)</label>
+                        <div class="large-value" id="balance-total">0.00 <span class="dim">USDT</span></div>
+                        <div class="sub-value">Free Liquidity: <span id="balance-free">0.00</span></div>
+                    </div>
+                    <div class="summary-card">
+                        <label>AI Signals Processed</label>
+                        <div class="large-value" id="stats-total">0</div>
+                        <div class="sub-value">Real-time News Coverage</div>
+                    </div>
+                    <div class="summary-card">
+                        <label>Active Identity</label>
+                        <div class="large-value small-text">{{ user.username }}</div>
+                        <div class="sub-value">Role: Platform Admin</div>
+                    </div>
+                </div>
+
+                <!-- Feed Table -->
+                <div class="data-section">
+                    <div class="data-header">
+                        <h3>Intelligence Feed</h3>
+                        <div class="refresh-info">Auto-syncing active</div>
+                    </div>
+                    <div class="table-scroll-area">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Asset</th>
+                                    <th>Action</th>
+                                    <th>AI Score</th>
+                                    <th>Primary Analysis</th>
+                                </tr>
+                            </thead>
+                            <tbody id="signals-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PAGE: Trading History -->
+            <div id="page-history" style="display:none">
+                <!-- Stats Cards Row -->
+                <div class="summary-cards history-stats">
+                    <div class="summary-card">
+                        <label>Total Signals</label>
+                        <div class="large-value" id="hist-total-trades">—</div>
+                    </div>
+                    <div class="summary-card">
+                        <label>Estimated Win Rate</label>
+                        <div class="large-value" id="hist-win-rate">—</div>
+                    </div>
+                    <div class="summary-card">
+                        <label>Bullish (Long)</label>
+                        <div class="large-value" id="hist-long-count" style="color: var(--long)">—</div>
+                    </div>
+                    <div class="summary-card">
+                        <label>Bearish (Short)</label>
+                        <div class="large-value" id="hist-short-count" style="color: var(--short)">—</div>
+                    </div>
+                </div>
+
+                <!-- Filters + Table -->
+                <div class="data-section">
+                    <div class="data-header">
+                        <h3>Historical Intelligence</h3>
+                        <div class="history-filters">
+                            <select id="filter-coin" class="filter-select">
+                                <option value="">ALL Assets</option>
+                                <option value="BTC">BTC</option>
+                                <option value="ETH">ETH</option>
+                                <option value="SOL">SOL</option>
+                            </select>
+                            <select id="filter-action" class="filter-select">
+                                <option value="">ALL Actions</option>
+                                <option value="LONG">LONG</option>
+                                <option value="SHORT">SHORT</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-scroll-area">
+                        <table class="modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Asset</th>
+                                    <th>Action</th>
+                                    <th>Score</th>
+                                    <th>Context</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pagination" id="history-pagination">
+                        <button class="pagination-btn" id="btn-prev" disabled>Previous</button>
+                        <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
+                        <button class="pagination-btn" id="btn-next" disabled>Next</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="/static/app.js"></script>
+{% endblock %}

@@ -74,6 +74,10 @@ document.addEventListener('DOMContentLoaded', () => {
 async function updateDashboard() {
     try {
         const response = await fetch('/api/data');
+        if (response.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
         const data = await response.json();
 
         document.getElementById('balance-total').innerHTML =
@@ -124,6 +128,10 @@ async function loadHistory(page) {
 
     try {
         const res  = await fetch(`/api/signals?${params}`);
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
         const data = await res.json();
 
         totalPages = data.pages || 1;
@@ -164,6 +172,10 @@ async function loadHistory(page) {
 async function loadStats() {
     try {
         const res  = await fetch('/api/stats');
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
         const data = await res.json();
 
         document.getElementById('hist-total-trades').textContent = data.total_trades ?? '—';
