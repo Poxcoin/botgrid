@@ -119,6 +119,35 @@ def generate_signal(news_item: dict) -> dict | None:
     elif news_score < 0 and rsi < 30:
         total_score += 3.0   # Новость плохая, но монета перепродана
 
+    # Фактор Г: Funding Rate (перегрев деривативного рынка)
+    # Высокий позитивный FR = лонги переплачивают = рынок перегрет снизу → риск слива
+    # Высокий негативный FR = шорты переплачивают = шорт-сквиз вероятен → риск шорта
+    funding_rate = market_data.get("funding_rate", 0.0)
+    if news_score > 0:     # планируем LONG
+        if funding_rate > 0.08:
+            total_score -= 2.5   # Лонги перегреты: все уже купили, некому тянуть
+        elif funding_rate > 0.04:
+            total_score -= 1.0   # Умеренно перегрет
+        elif funding_rate < -0.04:
+            total_score += 1.5   # Шорты сожмут — хороший момент для лонга
+    elif news_score < 0:   # планируем SHORT
+        if funding_rate < -0.08:
+            total_score += 2.5   # Шорты перегреты: риск сквиза, опасно шортить
+        elif funding_rate < -0.04:
+            total_score += 1.0   # Умеренно перегрет шортами
+        elif funding_rate > 0.04:
+            total_score -= 1.5   # Лонги перегреты — хороший момент для шорта
+
+    # Фактор Д: Open Interest (сила тренда через деньги в рынке)
+    # Растущий OI при движении цены = деньги входят = тренд настоящий
+    # Падающий OI = позиции закрываются = движение слабеет
+    oi_change = market_data.get("oi_change_pct", 0.0)
+    if abs(oi_change) > 5.0:                          # OI вырос/упал >5% за 4h
+        if (news_score > 0 and oi_change > 0) or (news_score < 0 and oi_change < 0):
+            total_score += 1.5   # OI подтверждает направление сигнала
+        elif (news_score > 0 and oi_change < 0) or (news_score < 0 and oi_change > 0):
+            total_score -= 1.0   # OI против сигнала — слабое движение
+
     # ==========================================
     # 5. CONFIDENCE (уверенность 0-100%)
     # ==========================================
@@ -155,14 +184,16 @@ def generate_signal(news_item: dict) -> dict | None:
         "confidence": confidence,                      # 0-100%
         "size_multiplier": round(size_multiplier, 2),
         "components": {
-            "ai_score": news_score,
-            "ai_confidence": ai_confidence,
-            "source_weight": source_weight,
+            "ai_score":          news_score,
+            "ai_confidence":     ai_confidence,
+            "source_weight":     source_weight,
             "market_volume_mult": vol_mult,
-            "trend_percent": trend_24h,
-            "trend_aligned": trend_aligned,
-            "rsi": rsi,
-            "whale_active": whale_active,
+            "trend_percent":     trend_24h,
+            "trend_aligned":     trend_aligned,
+            "rsi":               rsi,
+            "whale_active":      whale_active,
+            "funding_rate":      funding_rate,
+            "oi_change_pct":     oi_change,
         },
         "news_title": news_item["title"],
         "source": news_item.get("source", "Unknown"),

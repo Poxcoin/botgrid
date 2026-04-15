@@ -159,17 +159,30 @@ def close_all_positions(signal: Dict[str, Any] = None) -> None:
         print(f"❌ Ошибка SELL_ALL: {e}")
 
 
-def execute_trade(signal: Dict[str, Any]) -> None:
+def execute_trade(
+    signal: Dict[str, Any],
+    tp_pct: float = None,
+    sl_pct: float = None,
+    leverage_override: int = None,
+    size_pct: float = None,
+) -> None:
     """Execute a market order on Bybit based on the provided signal.
 
     Parameters
     ----------
     signal: dict
         Expected keys: ``coin``, ``action`` (LONG/SHORT), ``total_score``.
+    tp_pct, sl_pct, leverage_override, size_pct:
+        Опциональные переопределения параметров (для рискового бота).
     """
     coin = signal["coin"]
     action = signal["action"]
     score = signal["total_score"]
+
+    _tp  = tp_pct          if tp_pct          is not None else TAKE_PROFIT_PERCENT
+    _sl  = sl_pct          if sl_pct          is not None else STOP_LOSS_PERCENT
+    _lev = leverage_override if leverage_override is not None else LEVERAGE
+    _sz  = size_pct        if size_pct        is not None else TRADE_PERCENT_SIZE
 
     print(f"\n⚡ ИСПОЛНЯЕМ СДЕЛКУ: {action} {coin} (Оценка: {score})")
 
@@ -212,7 +225,7 @@ def execute_trade(signal: Dict[str, Any]) -> None:
         # 1️⃣ Set leverage
         # -------------------------------------------------
         try:
-            exchange.set_leverage(LEVERAGE, symbol, params={'category': 'linear'})
+            exchange.set_leverage(_lev, symbol, params={'category': 'linear'})
         except Exception as e:
             print(f"⚠️ Плечо: {e}")
 
@@ -226,8 +239,8 @@ def execute_trade(signal: Dict[str, Any]) -> None:
 
         # Use size multiplier from signal if available
         size_mult = signal.get("size_multiplier", 1.0)
-        usdt_to_risk = free_usdt * (TRADE_PERCENT_SIZE / 100.0) * size_mult
-        position_usd = usdt_to_risk * LEVERAGE
+        usdt_to_risk = free_usdt * (_sz / 100.0) * size_mult
+        position_usd = usdt_to_risk * _lev
 
         # Load market data before precision calculations
         exchange.load_markets()
@@ -240,12 +253,12 @@ def execute_trade(signal: Dict[str, Any]) -> None:
         # -------------------------------------------------
         if action.upper() == "LONG":
             side = "buy"
-            tp_price = current_price * (1 + TAKE_PROFIT_PERCENT / 100)
-            sl_price = current_price * (1 - STOP_LOSS_PERCENT / 100)
+            tp_price = current_price * (1 + _tp / 100)
+            sl_price = current_price * (1 - _sl / 100)
         else:  # SHORT
             side = "sell"
-            tp_price = current_price * (1 - TAKE_PROFIT_PERCENT / 100)
-            sl_price = current_price * (1 + STOP_LOSS_PERCENT / 100)
+            tp_price = current_price * (1 - _tp / 100)
+            sl_price = current_price * (1 + _sl / 100)
 
         # Apply exchange‑specific precision
         tp_price = float(exchange.price_to_precision(symbol, tp_price))
@@ -272,15 +285,16 @@ def execute_trade(signal: Dict[str, Any]) -> None:
         # 5️⃣ Send Telegram notification
         # -------------------------------------------------
         confidence = signal.get("confidence", "?")
+        tag = signal.get("bot_tag", "🚀")
         msg = (
-            f"🚀 <b>СИГНАЛ ИСПОЛНЕН!</b>\n"
+            f"{tag} <b>СИГНАЛ ИСПОЛНЕН!</b>\n"
             f"<b>Монета:</b> #{coin}\n"
-            f"<b>Тип:</b> {action} (Плечо x{LEVERAGE})\n"
+            f"<b>Тип:</b> {action} (Плечо x{_lev})\n"
             f"<b>Оценка ИИ:</b> {score} баллов\n"
             f"<b>Уверенность:</b> {confidence}%\n"
             f"<b>Вход:</b> {current_price}$\n"
-            f"<b>Take Profit:</b> {tp_price}$\n"
-            f"<b>Stop Loss:</b> {sl_price}$"
+            f"<b>Take Profit:</b> {tp_price}$ (+{_tp}%)\n"
+            f"<b>Stop Loss:</b> {sl_price}$ (-{_sl}%)"
         )
         send_telegram_message(msg, TG_CHAT_ID)
 

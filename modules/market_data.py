@@ -1,9 +1,57 @@
 import ccxt
 
-# Подключаемся к Binance для получения технической статистики (Без API ключей - только публичные данные)
+# Binance — технические данные (тренд, объём, RSI)
 exchange = ccxt.binance({
     'enableRateLimit': True,
 })
+
+# Bybit mainnet public — funding rate и open interest (не требует ключей)
+_bybit_pub = ccxt.bybit({
+    'enableRateLimit': True,
+    'options': {'defaultType': 'swap'},
+})
+
+
+def get_funding_rate(coin: str) -> float:
+    """
+    Текущая ставка финансирования фьючерса на Bybit.
+    > 0  = лонги платят шортам (рынок перегрет лонгами → риск лонга)
+    < 0  = шорты платят лонгам (рынок перегрет шортами → риск шорта)
+    Возвращает значение в процентах (напр. 0.01 = 0.01%).
+    """
+    try:
+        symbol = f"{coin.upper()}/USDT:USDT"
+        fr = _bybit_pub.fetch_funding_rate(symbol)
+        rate = fr.get('fundingRate', 0.0) or 0.0
+        return round(float(rate) * 100, 5)   # → %
+    except Exception:
+        return 0.0
+
+
+def get_open_interest(coin: str) -> dict:
+    """
+    Открытый интерес (OI) на Bybit.
+    Возвращает {'oi_value': float, 'oi_change_pct': float}.
+    oi_change_pct — изменение OI за последние 4 часа (%).
+    Рост OI при росте цены = сила тренда. Падение OI = накопление прибыли.
+    """
+    try:
+        symbol = f"{coin.upper()}/USDT:USDT"
+        # История OI: последние 8 записей (каждые 30 мин = 4 часа)
+        hist = _bybit_pub.fetch_open_interest_history(
+            symbol, timeframe='30m', limit=8
+        )
+        if not hist or len(hist) < 2:
+            return {'oi_value': 0.0, 'oi_change_pct': 0.0}
+        first_oi = float(hist[0].get('openInterestAmount') or hist[0].get('openInterest') or 0)
+        last_oi  = float(hist[-1].get('openInterestAmount') or hist[-1].get('openInterest') or 0)
+        change_pct = ((last_oi - first_oi) / first_oi * 100) if first_oi > 0 else 0.0
+        return {
+            'oi_value':      round(last_oi, 2),
+            'oi_change_pct': round(change_pct, 2),
+        }
+    except Exception:
+        return {'oi_value': 0.0, 'oi_change_pct': 0.0}
 
 def get_market_metrics(symbol, timestamp_ms=None):
     """
@@ -92,13 +140,23 @@ def get_market_metrics(symbol, timestamp_ms=None):
             ohlcv_rsi = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=50, params={'endTime': timestamp_ms})
         rsi_value = calculate_rsi([c[4] for c in ohlcv_rsi])
             
+        # Funding rate и OI только в боевом режиме (не в бэктесте)
+        funding_rate = 0.0
+        oi_change_pct = 0.0
+        if timestamp_ms is None:
+            funding_rate  = get_funding_rate(coin_base)
+            oi_data       = get_open_interest(coin_base)
+            oi_change_pct = oi_data['oi_change_pct']
+
         return {
-            "symbol": symbol,
+            "symbol":           symbol,
             "trend_24h_percent": round(price_change_percent, 2) if price_change_percent else 0,
             "volume_multiplier": round(volume_multiplier, 2),
-            "is_whale_active": volume_multiplier >= 2.5,
-            "current_price": current_price,
-            "rsi": round(rsi_value, 2)
+            "is_whale_active":   volume_multiplier >= 2.5,
+            "current_price":     current_price,
+            "rsi":               round(rsi_value, 2),
+            "funding_rate":      funding_rate,    # % (напр. 0.01)
+            "oi_change_pct":     oi_change_pct,  # % за 4 часа
         }
         
     except Exception as e:
