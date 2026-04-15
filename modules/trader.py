@@ -1,3 +1,4 @@
+import os
 import ccxt
 from config.settings import (
     BYBIT_API_KEY,
@@ -12,6 +13,9 @@ from config.settings import (
 )
 from modules.tg_notifier import send_telegram_message
 from typing import Dict, Any
+
+# DRY_RUN=True — логирует сделки без отправки на биржу (для тестов без ключей)
+DRY_RUN = os.getenv("DRY_RUN", "False").lower() == "true"
 
 
 def resolve_market_symbol(exchange: ccxt.Exchange, coin: str) -> str:
@@ -93,6 +97,11 @@ def _init_exchange() -> ccxt.Exchange:
             'private': 'https://api-demo.bybit.com',
         }
     if USE_TESTNET:
+        # Явно указываем testnet URL — не полагаемся только на set_sandbox_mode()
+        exchange.urls['api'] = {
+            'public': 'https://api-testnet.bybit.com',
+            'private': 'https://api-testnet.bybit.com',
+        }
         exchange.set_sandbox_mode(True)
     return exchange
 
@@ -163,6 +172,19 @@ def execute_trade(signal: Dict[str, Any]) -> None:
     score = signal["total_score"]
 
     print(f"\n⚡ ИСПОЛНЯЕМ СДЕЛКУ: {action} {coin} (Оценка: {score})")
+
+    # DRY_RUN — симулируем сделку без отправки на биржу
+    if DRY_RUN:
+        print(f"🧪 DRY_RUN режим — сделка симулирована, на биржу не отправлена")
+        signal["simulated"] = True
+        msg = (
+            f"🧪 <b>DRY RUN — СИГНАЛ СИМУЛИРОВАН</b>\n"
+            f"<b>Монета:</b> #{coin}\n"
+            f"<b>Тип:</b> {action}\n"
+            f"<b>Оценка:</b> {score}"
+        )
+        send_telegram_message(msg, TG_CHAT_ID)
+        return
 
     exchange = _init_exchange()
 
