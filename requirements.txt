@@ -1,18 +1,19 @@
-ccxt
-pybit
-python-dotenv
-requests
-feedparser
-beautifulsoup4
-lxml
-fastapi
-uvicorn
-anthropic
-# SaaS / Auth
-python-jose[cryptography]
-passlib[bcrypt]
-python-multipart
-# Real-time
-websockets
-# Database ORM
-sqlalchemy
+# ─── Core trading engine ──────────────────────────────────────────────────────
+anthropic          # Claude AI — sentiment analysis
+ccxt               # Exchange connectivity (Bybit, Binance)
+feedparser         # RSS news parsing
+requests           # Telegram Bot API, HTTP calls
+python-dotenv      # .env config loader
+beautifulsoup4     # HTML parsing in news descriptions
+lxml               # HTML/XML parser backend for bs4
+
+# ─── Web dashboard ────────────────────────────────────────────────────────────
+fastapi            # REST API + WebSocket server
+uvicorn            # ASGI server
+websockets         # WebSocket support
+python-multipart   # Form data (future SaaS uploads)
+
+# ─── SaaS foundation (not active yet — ready for Phase B) ─────────────────────
+sqlalchemy         # ORM for user/trade database
+python-jose[cryptography]  # JWT auth tokens
+passlib[bcrypt]    # Password hashing
