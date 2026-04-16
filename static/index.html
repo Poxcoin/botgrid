@@ -1,196 +1,247 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | BotGrid AI</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>BotGrid — Intelligence Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css?v=3">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="dashboard-wrapper">
-        <!-- Vertical Sidebar -->
-        <nav class="sidebar">
-            <div class="sidebar-brand">
-                <div class="brand-square"></div>
-                <span class="brand-name">BotGrid</span>
+
+<!-- ── Top Bar ──────────────────────────────────────────────────────── -->
+<div class="topbar">
+    <div class="topbar-left">
+        <span class="brand-name">BotGrid</span>
+        <span class="brand-sep"></span>
+        <div class="status-dot">
+            <span class="dot"></span>
+            <span id="clock">00:00:00</span>
+        </div>
+    </div>
+
+    <div class="topbar-right">
+        <!-- Theme toggle -->
+        <button class="theme-btn" id="theme-btn" title="Toggle theme">
+            <svg id="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+        </button>
+
+        <!-- Account -->
+        <div class="account-wrap">
+            <button class="account-btn" id="account-btn">
+                <div class="account-avatar">A</div>
+                <span class="account-name">Admin</span>
+                <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+            <div class="account-dropdown" id="account-dropdown">
+                <div class="dd-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    Profile
+                </div>
+                <div class="dd-item">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    Settings
+                </div>
+                <div class="dd-sep"></div>
+                <div class="dd-item danger">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    Logout
+                </div>
             </div>
-            <ul class="sidebar-links">
-                <li class="active" data-page="overview"><a href="#" data-page="overview">Overview</a></li>
-                <li data-page="history"><a href="#" data-page="history">Trading History</a></li>
-                <li data-page="keys"><a href="#" data-page="keys">Exchange Keys</a></li>
-                <li data-page="logs"><a href="#" data-page="logs">System Logs</a></li>
-            </ul>
-            <div class="sidebar-footer">
-                <div class="version-badge">v2.4.0-stable</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Tab Navigation ─────────────────────────────────────────────── -->
+<div class="tabnav">
+    <div class="tab active" data-page="overview">Overview</div>
+    <div class="tab" data-page="history">Trading History</div>
+    <div class="tab" data-page="keys">Exchange Keys</div>
+    <div class="tab" data-page="logs">System Logs</div>
+</div>
+
+<!-- ── Workspace ──────────────────────────────────────────────────── -->
+<div class="workspace">
+
+    <!-- PAGE: Overview -->
+    <div id="page-overview">
+        <div class="stat-row">
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="0"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                </div>
+                <div class="stat-body">
+                    <div class="stat-label">Account Balance</div>
+                    <div class="stat-value" id="balance-total">0.00<span class="unit">USDT</span></div>
+                    <div class="stat-sub">Free: <span id="balance-free">0.00</span> USDT</div>
+                </div>
             </div>
-        </nav>
-
-        <!-- Main Workspace -->
-        <div class="main-workspace">
-            <!-- Top Header -->
-            <header class="top-header">
-                <div class="header-left">
-                    <h2 class="section-title" id="page-title">Market Overview</h2>
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 </div>
-                <div class="header-right">
-                    <div class="system-monitor">
-                        <span class="monitor-pulse"></span>
-                        <span class="monitor-text">System Live: <span id="clock">00:00:00</span></span>
-                    </div>
-                    <div class="connection-pill" id="system-status">Connected</div>
+                <div class="stat-body">
+                    <div class="stat-label">Total Signals</div>
+                    <div class="stat-value" id="stats-total">0</div>
+                    <div class="stat-sub">Processed today</div>
                 </div>
-            </header>
-
-            <!-- Dashboard Content -->
-            <div class="content-container">
-
-                <!-- PAGE: Overview -->
-                <div id="page-overview">
-                    <!-- Summary Cards Row -->
-                    <div class="summary-cards">
-                        <div class="summary-card">
-                            <label>Total Account Balance</label>
-                            <div class="large-value" id="balance-total">0.00 <span class="dim">USDT</span></div>
-                            <div class="sub-value">Free Liquidity: <span id="balance-free">0.00</span></div>
-                        </div>
-                        <div class="summary-card">
-                            <label>Active Intelligence Signals</label>
-                            <div class="large-value" id="stats-total">0</div>
-                            <div class="sub-value">Real-time Feed Coverage</div>
-                        </div>
-                        <div class="summary-card">
-                            <label>Analytic Logic</label>
-                            <div class="large-value small-text">Claude 4.5 Quant</div>
-                            <div class="sub-value">Sentiment Score Weighted</div>
-                        </div>
-                    </div>
-
-                    <!-- Feed Table -->
-                    <div class="data-section">
-                        <div class="data-header">
-                            <h3>Intelligence Feed</h3>
-                            <div class="refresh-info">Syncing every 5s</div>
-                        </div>
-                        <div class="table-scroll-area">
-                            <table class="modern-table">
-                                <thead>
-                                    <tr>
-                                        <th>Timestamp</th>
-                                        <th>Asset</th>
-                                        <th>Protocol Action</th>
-                                        <th>AI Score</th>
-                                        <th>Primary Analysis</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="signals-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon gray">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
-
-                <!-- PAGE: Trading History -->
-                <div id="page-history" style="display:none">
-                    <!-- Stats Cards Row -->
-                    <div class="summary-cards history-stats">
-                        <div class="summary-card">
-                            <label>Total Trades</label>
-                            <div class="large-value" id="hist-total-trades">—</div>
-                            <div class="sub-value">All recorded signals</div>
-                        </div>
-                        <div class="summary-card">
-                            <label>Win Rate</label>
-                            <div class="large-value" id="hist-win-rate">—</div>
-                            <div class="sub-value">Winning / Losing</div>
-                        </div>
-                        <div class="summary-card">
-                            <label>LONG</label>
-                            <div class="large-value" id="hist-long-count" style="color: var(--long)">—</div>
-                            <div class="sub-value">Bullish signals</div>
-                        </div>
-                        <div class="summary-card">
-                            <label>SHORT</label>
-                            <div class="large-value" id="hist-short-count" style="color: var(--short)">—</div>
-                            <div class="sub-value">Bearish signals</div>
-                        </div>
-                    </div>
-
-                    <!-- Filters + Table -->
-                    <div class="data-section">
-                        <div class="data-header">
-                            <h3>Signal History</h3>
-                            <div class="history-filters">
-                                <select id="filter-coin" class="filter-select">
-                                    <option value="">ALL Coins</option>
-                                    <option value="BTC">BTC</option>
-                                    <option value="ETH">ETH</option>
-                                    <option value="SOL">SOL</option>
-                                </select>
-                                <select id="filter-action" class="filter-select">
-                                    <option value="">ALL Actions</option>
-                                    <option value="LONG">LONG</option>
-                                    <option value="SHORT">SHORT</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="table-scroll-area">
-                            <table class="modern-table">
-                                <thead>
-                                    <tr>
-                                        <th>Timestamp</th>
-                                        <th>Asset</th>
-                                        <th>Action</th>
-                                        <th>Score</th>
-                                        <th>News Title</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="history-tbody">
-                                    <!-- Populated by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Pagination -->
-                        <div class="pagination" id="history-pagination">
-                            <button class="pagination-btn" id="btn-prev" disabled>Previous</button>
-                            <span class="pagination-info" id="pagination-info">Page 1 of 1</span>
-                            <button class="pagination-btn" id="btn-next" disabled>Next</button>
-                        </div>
-                    </div>
+                <div class="stat-body">
+                    <div class="stat-label">Feed Update</div>
+                    <div class="stat-value" style="font-size:17px;padding-top:2px" id="system-status">Live</div>
+                    <div class="stat-sub">Every 30 seconds</div>
                 </div>
+            </div>
+        </div>
 
-                <!-- PAGE: Exchange Keys -->
-                <div id="page-keys" style="display:none">
-                    <div class="data-section">
-                        <div class="data-header">
-                            <h3>Exchange Keys</h3>
-                            <div class="refresh-info">API credentials</div>
-                        </div>
-                        <div class="placeholder-text">
-                            Exchange key management — coming in next release.
-                        </div>
-                    </div>
+        <div class="table-card">
+            <div class="table-head">
+                <span class="table-title">Intelligence Feed</span>
+                <span class="table-meta" id="feed-sync">syncing...</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Asset</th>
+                            <th>Action</th>
+                            <th>Score</th>
+                            <th>News</th>
+                        </tr>
+                    </thead>
+                    <tbody id="signals-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE: Trading History -->
+    <div id="page-history" style="display:none">
+        <div class="stat-row cols-4">
+            <div class="stat-card">
+                <div class="stat-icon gray">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                 </div>
-
-                <!-- PAGE: System Logs -->
-                <div id="page-logs" style="display:none">
-                    <div class="data-section">
-                        <div class="data-header">
-                            <h3>System Logs</h3>
-                            <div class="refresh-info" id="logs-refresh-info">Live</div>
-                        </div>
-                        <div class="table-scroll-area">
-                            <pre id="log-output" class="log-output">Loading logs...</pre>
-                        </div>
-                    </div>
+                <div class="stat-body">
+                    <div class="stat-label">Total Signals</div>
+                    <div class="stat-value" id="hist-total-trades">—</div>
+                    <div class="stat-sub">All recorded</div>
                 </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </div>
+                <div class="stat-body">
+                    <div class="stat-label">Win Rate</div>
+                    <div class="stat-value" id="hist-win-rate">—</div>
+                    <div class="stat-sub" id="hist-wl">— W / — L</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </div>
+                <div class="stat-body">
+                    <div class="stat-label">LONG</div>
+                    <div class="stat-value" id="hist-long-count" style="color:var(--long)">—</div>
+                    <div class="stat-sub">Bullish signals</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+                </div>
+                <div class="stat-body">
+                    <div class="stat-label">SHORT</div>
+                    <div class="stat-value" id="hist-short-count" style="color:var(--short)">—</div>
+                    <div class="stat-sub">Bearish signals</div>
+                </div>
+            </div>
+        </div>
 
-            </div><!-- /content-container -->
-        </div><!-- /main-workspace -->
-    </div><!-- /dashboard-wrapper -->
-    <script src="/static/app.js"></script>
+        <div class="table-card">
+            <div class="table-head">
+                <span class="table-title">Signal History</span>
+                <div class="filters">
+                    <select id="filter-coin" class="f-select">
+                        <option value="">All Assets</option>
+                        <option value="BTC">BTC</option>
+                        <option value="ETH">ETH</option>
+                        <option value="SOL">SOL</option>
+                    </select>
+                    <select id="filter-action" class="f-select">
+                        <option value="">All Actions</option>
+                        <option value="LONG">LONG</option>
+                        <option value="SHORT">SHORT</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Asset</th>
+                            <th>Action</th>
+                            <th>Score</th>
+                            <th>News Title</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="history-pagination">
+                <button class="pg-btn" id="btn-prev" disabled>← Prev</button>
+                <span class="pg-info" id="pagination-info">Page 1 of 1</span>
+                <button class="pg-btn" id="btn-next" disabled>Next →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE: Exchange Keys -->
+    <div id="page-keys" style="display:none">
+        <div class="table-card">
+            <div class="table-head">
+                <span class="table-title">Exchange Keys</span>
+                <span class="table-meta">API credentials</span>
+            </div>
+            <div class="placeholder">Exchange key management — coming in next release.</div>
+        </div>
+    </div>
+
+    <!-- PAGE: System Logs -->
+    <div id="page-logs" style="display:none">
+        <div class="table-card">
+            <div class="table-head">
+                <span class="table-title">System Logs</span>
+                <span class="table-meta" id="logs-refresh-info">Live</span>
+            </div>
+            <pre id="log-output" class="log-viewer">Loading logs...</pre>
+        </div>
+    </div>
+
+</div><!-- /workspace -->
+
+<div class="ver">v2.4.0-stable</div>
+
+<script src="/static/app.js?v=3"></script>
 </body>
 </html>
