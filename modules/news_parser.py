@@ -28,6 +28,11 @@ RSS_SOURCES = [
     {"url": "https://feeds.bbci.co.uk/news/world/rss.xml",            "weight": 1.0},   # BBC World
     {"url": "https://feeds.reuters.com/reuters/businessNews",          "weight": 1.0},   # Reuters Business
     {"url": "https://feeds.reuters.com/reuters/technologyNews",        "weight": 0.9},   # Reuters Tech
+
+    # --- Регуляторика / институционалы (высокий вес — прямое влияние) ---
+    {"url": "https://dlnews.com/arc/outboundfeeds/rss/",               "weight": 0.95},  # DL News — SEC/CFTC/DeFi
+    {"url": "https://bitcoinmagazine.com/.rss/full/",                  "weight": 0.85},  # Bitcoin Magazine
+    {"url": "https://www.federalreserve.gov/feeds/press_all.xml",      "weight": 1.0},   # ФРС — пресс-релизы
 ]
 
 # Для обратной совместимости с кодом, который импортирует RSS_FEEDS

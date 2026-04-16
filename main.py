@@ -1,7 +1,7 @@
 import time
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from modules.news_parser import get_aggregated_news
 from modules.decision_maker import generate_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
@@ -154,7 +154,7 @@ def run_signal_engine():
                 
                 # 3. Сохраняем ВСЕ сигналы (даже HOLD), чтобы сайт был "живым"
                 if signal:
-                    signal['timestamp'] = datetime.now().isoformat()
+                    signal['timestamp'] = datetime.now(timezone.utc).isoformat()
                     signal_ledger.append(signal)
                     save_ledger(signal_ledger)
                     

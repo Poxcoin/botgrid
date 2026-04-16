@@ -12,3 +12,4 @@ backtest_results.json
 # Локальные service-файлы
 crypto-bot.service
 crypto-web.service
+.gitnexus

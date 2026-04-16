@@ -1,4 +1,5 @@
 import os
+import time
 import ccxt
 from config.settings import (
     BYBIT_API_KEY,
@@ -23,6 +24,30 @@ MAX_CONCURRENT_POSITIONS = 5
 
 # Минимальный size_multiplier для входа (слабый сигнал → пропускаем)
 MIN_SIZE_MULTIPLIER = 0.7
+
+# Коды ошибок Bybit которые стоит повторить (транзитные сбои)
+# 10010 = Unmatched IP (кратковременная смена маршрутизации)
+# 10001 = Internal server timeout
+_RETRYABLE_ERRORS = ("10010", "10001")
+_RETRY_DELAY_SEC  = 4
+_MAX_RETRIES      = 2
+
+
+def _exchange_call(fn, *args, **kwargs):
+    """
+    Вызывает API биржи с авто-повтором при транзитных ошибках Bybit.
+    При 10010 (IP mismatch) пересоздаёт соединение и повторяет.
+    """
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            is_retryable = any(code in str(e) for code in _RETRYABLE_ERRORS)
+            if is_retryable and attempt < _MAX_RETRIES:
+                print(f"⚠️ Bybit транзитная ошибка ({e}) — повтор {attempt + 1}/{_MAX_RETRIES}...")
+                time.sleep(_RETRY_DELAY_SEC)
+            else:
+                raise
 
 
 def resolve_market_symbol(exchange: ccxt.Exchange, coin: str) -> str:
@@ -257,7 +282,7 @@ def execute_trade(
         # 1️⃣ Set leverage
         # -------------------------------------------------
         try:
-            exchange.set_leverage(_lev, symbol, params={'category': 'linear'})
+            _exchange_call(exchange.set_leverage, _lev, symbol, params={'category': 'linear'})
         except Exception as e:
             print(f"⚠️ Плечо: {e}")
 
@@ -299,13 +324,14 @@ def execute_trade(
         # -------------------------------------------------
         # 4️⃣ Place market order with TP / SL
         # -------------------------------------------------
-        order = exchange.create_order(
+        order = _exchange_call(
+            exchange.create_order,
             symbol,
             "market",
             side,
             amount,
             params={
-                "takeProfit": tp_price, 
+                "takeProfit": tp_price,
                 "stopLoss": sl_price,
                 "category": "linear"
             },
@@ -333,6 +359,10 @@ def execute_trade(
             f"<b>Take Profit:</b> {tp_price}$ (+{_tp}%)\n"
             f"<b>Stop Loss:</b> {sl_price}$ (-{_sl}%)"
         )
+        if signal.get("macro_event"):
+            msg += f"\n{signal['macro_event']}"
+        if signal.get("funding_event"):
+            msg += f"\n⏱ {signal['funding_event']}"
         send_telegram_message(msg, TG_CHAT_ID)
 
     except Exception as e:

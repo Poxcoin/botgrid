@@ -21,7 +21,7 @@ from datetime import datetime
 
 from modules.news_parser import get_aggregated_news
 from modules.ai_analyzer import analyze_sentiment
-from modules.market_data import get_market_metrics, get_funding_rate
+from modules.market_data import get_market_metrics, get_funding_rate, get_btc_dominance, get_fear_greed_index
 from modules.trader import execute_trade, get_free_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
@@ -142,6 +142,23 @@ def generate_alt_signal(news_item: dict) -> dict | None:
         elif fr < -0.05:
             total += 1.5
 
+    # Фактор 4: BTC Dominance — главный индикатор альт-сезона
+    # Если BTC dom высокий → деньги в BTC, альты страдают → блокируем LONG
+    btc_dom = get_btc_dominance()
+    fng     = get_fear_greed_index()
+    fng_val = fng["value"]
+
+    if score > 0:
+        if btc_dom >= 60:
+            total -= 2.5   # BTC-сезон: лонги на альты опасны
+        elif btc_dom <= 44:
+            total += 1.5   # Альт-сезон подтверждён
+        # Fear & Greed для альтов
+        if fng_val <= 20:
+            total += 1.5   # Extreme Fear = хорошая точка входа
+        elif fng_val >= 78:
+            total -= 1.5   # Extreme Greed = перегрев, коррекция близко
+
     # Решение
     action = "HOLD"
     if total >= ALT_THRESHOLD and score > 0:
@@ -157,10 +174,13 @@ def generate_alt_signal(news_item: dict) -> dict | None:
         "size_multiplier": 1.0,
         "bot_tag":      "🎯",
         "components": {
-            "ai_score":      score,
-            "volume_mult":   vol_mult,
-            "trend_pct":     trend,
-            "funding_rate":  fr,
+            "ai_score":         score,
+            "volume_mult":      vol_mult,
+            "trend_pct":        trend,
+            "funding_rate":     fr,
+            "btc_dominance":    btc_dom,
+            "fear_greed":       fng_val,
+            "fear_greed_label": fng["label"],
         },
         "news_title": news_item["title"],
         "source":     news_item.get("source", "Unknown"),

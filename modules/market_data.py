@@ -1,4 +1,6 @@
 import ccxt
+import httpx
+from datetime import datetime, timezone, timedelta
 
 # Binance — технические данные (тренд, объём, RSI)
 exchange = ccxt.binance({
@@ -10,6 +12,138 @@ _bybit_pub = ccxt.bybit({
     'enableRateLimit': True,
     'options': {'defaultType': 'swap'},
 })
+
+# ─── Кэш глобальных индикаторов (не дёргаем API на каждую новость) ────────────
+_fng_cache: dict = {"value": 50, "label": "Neutral", "ts": None}
+_dom_cache: dict = {"btc_dominance": 50.0, "ts": None}
+
+
+def get_fear_greed_index() -> dict:
+    """
+    Crypto Fear & Greed Index (0–100). Источник: alternative.me (бесплатно, без ключа).
+    Кэш: 1 час (индекс обновляется раз в сутки).
+
+    Значения:
+      0–24   Extreme Fear  → рынок перепродан, хорошее время для покупки (контратрианство)
+      25–44  Fear          → осторожность, но не экстрем
+      45–55  Neutral       → нет сигнала
+      56–74  Greed         → рынок перегрет, осторожно с лонгами
+      75–100 Extreme Greed → пузырь, избегать новых лонгов
+    """
+    now = datetime.now(timezone.utc)
+    if _fng_cache["ts"] and (now - _fng_cache["ts"]) < timedelta(hours=1):
+        return {"value": _fng_cache["value"], "label": _fng_cache["label"]}
+    try:
+        r = httpx.get("https://api.alternative.me/fng/?limit=1", timeout=5)
+        d = r.json()["data"][0]
+        _fng_cache["value"] = int(d["value"])
+        _fng_cache["label"] = d["value_classification"]
+        _fng_cache["ts"]    = now
+    except Exception:
+        pass  # Возвращаем кэшированное значение (или дефолт 50)
+    return {"value": _fng_cache["value"], "label": _fng_cache["label"]}
+
+
+def get_btc_dominance() -> float:
+    """
+    Bitcoin Dominance (% капитализации BTC от всего рынка). Источник: CoinGecko (бесплатно).
+    Кэш: 15 минут.
+
+    Значения:
+      > 60%  → альткоины под давлением, BTC-сезон, снижаем позиции по альтам
+      50–60% → нейтрально
+      42–50% → начало альт-сезона, осторожно
+      < 42%  → полный альт-сезон, альты растут быстрее BTC
+    """
+    now = datetime.now(timezone.utc)
+    if _dom_cache["ts"] and (now - _dom_cache["ts"]) < timedelta(minutes=15):
+        return _dom_cache["btc_dominance"]
+    try:
+        r = httpx.get("https://api.coingecko.com/api/v3/global", timeout=6)
+        dom = r.json()["data"]["market_cap_percentage"]["btc"]
+        _dom_cache["btc_dominance"] = round(float(dom), 1)
+        _dom_cache["ts"] = now
+    except Exception:
+        pass  # Возвращаем кэшированное значение
+    return _dom_cache["btc_dominance"]
+
+
+def detect_whale_trades(coin: str, min_single_usd: float = 50_000) -> dict:
+    """
+    Детектор китов через Binance recent trades (бесплатно, без API ключа).
+
+    Крупные ордера на бирже дробятся на сотни мелких сделок — поэтому
+    анализируем ДВА сигнала сразу:
+
+    1. Единичная сделка >= min_single_usd  (прямой признак кита)
+    2. Доминирующее направление среди крупных сделок (>$10K) — BUY или SELL
+       Если перевес одного направления >= 70% — это организованная покупка/продажа.
+
+    Возвращает:
+      whale_detected  — bool
+      whale_side      — "BUY" / "SELL" / None
+      largest_trade   — размер крупнейшей сделки в USD (тысячи)
+      whale_count     — кол-во сделок >= min_single_usd
+    """
+    try:
+        symbol = f"{coin.upper()}/USDT"
+        trades = exchange.fetch_trades(symbol, limit=500)
+        if not trades:
+            return {"whale_detected": False, "whale_side": None,
+                    "largest_trade": 0.0, "whale_count": 0}
+
+        # Сигнал 1: крупные единичные сделки
+        whale_trades = []
+        for t in trades:
+            usd_size = float(t.get("cost") or 0)
+            if usd_size < min_single_usd:
+                continue
+            raw_side = t.get("side", "")
+            whale_trades.append({
+                "side":     "BUY" if raw_side == "buy" else "SELL",
+                "usd_size": usd_size,
+            })
+
+        # Сигнал 2: агрегированное давление (сделки > $10K)
+        big_trades = [t for t in trades if float(t.get("cost") or 0) >= 10_000]
+        buy_pressure  = sum(float(t.get("cost", 0)) for t in big_trades if t.get("side") == "buy")
+        sell_pressure = sum(float(t.get("cost", 0)) for t in big_trades if t.get("side") == "sell")
+        total_pressure = buy_pressure + sell_pressure
+        pressure_side = None
+        if total_pressure > 0:
+            buy_ratio = buy_pressure / total_pressure
+            if buy_ratio >= 0.70:
+                pressure_side = "BUY"
+            elif buy_ratio <= 0.30:
+                pressure_side = "SELL"
+
+        # Объединяем оба сигнала
+        whale_detected = bool(whale_trades) or (pressure_side is not None)
+        if not whale_detected:
+            return {"whale_detected": False, "whale_side": None,
+                    "largest_trade": 0.0, "whale_count": 0}
+
+        largest = max((w["usd_size"] for w in whale_trades), default=0.0)
+
+        # Направление: если есть крупные сделки — смотрим их перевес,
+        # иначе берём агрегированное давление
+        if whale_trades:
+            buy_vol  = sum(w["usd_size"] for w in whale_trades if w["side"] == "BUY")
+            sell_vol = sum(w["usd_size"] for w in whale_trades if w["side"] == "SELL")
+            dominant_side = "BUY" if buy_vol >= sell_vol else "SELL"
+        else:
+            dominant_side = pressure_side
+
+        return {
+            "whale_detected": True,
+            "whale_side":     dominant_side,
+            "largest_trade":  round(largest / 1_000, 1),  # в тысячах USD
+            "whale_count":    len(whale_trades),
+        }
+
+    except Exception:
+        return {"whale_detected": False, "whale_side": None,
+                "largest_trade": 0.0, "whale_count": 0}
 
 
 def get_funding_rate(coin: str) -> float:
@@ -148,15 +282,28 @@ def get_market_metrics(symbol, timestamp_ms=None):
             oi_data       = get_open_interest(coin_base)
             oi_change_pct = oi_data['oi_change_pct']
 
+        # Детектор китов: объёмный спайк (быстро) + реальные сделки (точно)
+        # В бэктесте пропускаем — нет исторических trade-данных
+        whale_data = {"whale_detected": False, "whale_side": None,
+                      "largest_trade": 0.0, "whale_count": 0}
+        if timestamp_ms is None:
+            whale_data = detect_whale_trades(coin_base)
+
+        # is_whale_active = объёмный спайк ИЛИ найдена реальная китовая сделка
+        is_whale_active = (volume_multiplier >= 2.5) or whale_data["whale_detected"]
+
         return {
-            "symbol":           symbol,
+            "symbol":            symbol,
             "trend_24h_percent": round(price_change_percent, 2) if price_change_percent else 0,
             "volume_multiplier": round(volume_multiplier, 2),
-            "is_whale_active":   volume_multiplier >= 2.5,
+            "is_whale_active":   is_whale_active,
+            "whale_side":        whale_data["whale_side"],      # "BUY"/"SELL"/None
+            "whale_largest_m":   whale_data["largest_trade"],  # млн USD
+            "whale_count":       whale_data["whale_count"],     # кол-во сделок
             "current_price":     current_price,
             "rsi":               round(rsi_value, 2),
-            "funding_rate":      funding_rate,    # % (напр. 0.01)
-            "oi_change_pct":     oi_change_pct,  # % за 4 часа
+            "funding_rate":      funding_rate,
+            "oi_change_pct":     oi_change_pct,
         }
         
     except Exception as e:

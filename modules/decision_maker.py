@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from modules.ai_analyzer import analyze_sentiment
-from modules.market_data import get_market_metrics
+from modules.market_data import get_market_metrics, get_fear_greed_index, get_btc_dominance
+from modules.macro_calendar import get_size_modifier, get_active_macro_event, get_funding_settlement
 
 
 def _time_multiplier() -> float:
@@ -111,14 +112,28 @@ def generate_signal(news_item: dict) -> dict | None:
 
     total_score = float(news_score)
 
-    # Фактор А: Киты (всплески объёмов)
-    vol_mult = market_data["volume_multiplier"]
+    # Фактор А: Киты — объёмный спайк + реальные сделки с Binance
+    vol_mult    = market_data["volume_multiplier"]
     whale_active = market_data["is_whale_active"]
+    whale_side   = market_data.get("whale_side")     # "BUY" / "SELL" / None
+    whale_m      = market_data.get("whale_largest_m", 0)  # млн USD
 
-    if news_score > 0 and whale_active:
-        total_score += 4.0   # Отличная новость + скупают — супер-подтверждение
-    elif news_score < 0 and whale_active:
-        total_score -= 4.0   # Плохая новость + сливают — двойное давление
+    if whale_active and whale_side:
+        # Знаем направление кита — применяем направленно
+        if news_score > 0 and whale_side == "BUY":
+            total_score += 4.0   # Бычья новость + кит покупает — идеально
+        elif news_score < 0 and whale_side == "SELL":
+            total_score -= 4.0   # Медвежья новость + кит продаёт — двойное давление
+        elif news_score > 0 and whale_side == "SELL":
+            total_score += 1.5   # Бычья новость но кит продаёт — осторожно
+        elif news_score < 0 and whale_side == "BUY":
+            total_score -= 1.5   # Медвежья новость но кит покупает — дип-байер?
+    elif whale_active:
+        # Старая логика: спайк без направления
+        if news_score > 0:
+            total_score += 4.0
+        elif news_score < 0:
+            total_score -= 4.0
 
     # Фактор Б: Тренд
     trend_24h = market_data["trend_24h_percent"]
@@ -171,6 +186,49 @@ def generate_signal(news_item: dict) -> dict | None:
         elif (news_score > 0 and oi_change < 0) or (news_score < 0 and oi_change > 0):
             total_score -= 1.0   # OI против сигнала — слабое движение
 
+    # Фактор Е: Fear & Greed Index (настроение всего крипто-рынка)
+    # Логика контратрианства: покупай когда все боятся, продавай когда все жадничают.
+    # Extreme Fear = рынок перепродан = лонги дешевле и безопаснее.
+    # Extreme Greed = рынок перегрет = лонги опасны, коррекция назревает.
+    fng = get_fear_greed_index()
+    fng_value = fng["value"]
+    if news_score > 0:      # планируем LONG
+        if fng_value <= 20:
+            total_score += 2.0    # Extreme Fear: все уже продали, хорошая точка входа
+        elif fng_value <= 40:
+            total_score += 1.0    # Fear: рынок осторожен, хорошее соотношение риск/доход
+        elif fng_value >= 80:
+            total_score -= 2.0    # Extreme Greed: все уже купили, некому тянуть выше
+        elif fng_value >= 65:
+            total_score -= 1.0    # Greed: рынок перегрет, осторожно
+    elif news_score < 0:    # планируем SHORT
+        if fng_value >= 80:
+            total_score -= 1.5    # Extreme Greed подтверждает шорт (коррекция назревает)
+        elif fng_value <= 20:
+            total_score += 1.5    # Extreme Fear: рынок уже перепродан, шорт рискован
+
+    # Фактор Ж: Bitcoin Dominance (альт-сезон vs BTC-сезон)
+    # Когда BTC dominance высокая — капитал уходит в BTC, альты страдают.
+    # Когда dominance низкая — деньги ротируются в альты.
+    # Применяется ТОЛЬКО для монет, которые не BTC и не ETH.
+    btc_dom = get_btc_dominance()
+    coin_upper = coin.upper()
+    if coin_upper not in ("BTC", "ETH"):
+        if news_score > 0:   # планируем LONG на альткоин
+            if btc_dom >= 62:
+                total_score -= 2.0   # BTC-сезон: деньги идут в BTC, альты падают
+            elif btc_dom >= 55:
+                total_score -= 1.0   # Нейтрально-негативно для альтов
+            elif btc_dom <= 42:
+                total_score += 1.5   # Альт-сезон: деньги ротируются в альты
+            elif btc_dom <= 48:
+                total_score += 0.5   # Начало ротации в альты
+        elif news_score < 0:  # планируем SHORT на альткоин
+            if btc_dom >= 62:
+                total_score -= 1.0   # BTC-сезон усиливает шорт альта
+            elif btc_dom <= 42:
+                total_score += 1.0   # Альт-сезон: шортить альты рискованно
+
     # ==========================================
     # 5. CONFIDENCE (уверенность 0-100%)
     # ==========================================
@@ -202,6 +260,22 @@ def generate_signal(news_item: dict) -> dict | None:
     size_multiplier = max(0.5, min(1.5, raw_size)) * time_coeff
     size_multiplier = round(size_multiplier, 2)
 
+    # ==========================================
+    # 7. MACRO CALENDAR — риск перед важными событиями
+    # ==========================================
+    # Снижаем размер позиции перед FOMC/CPI/NFP/PCE/Jobless Claims
+    # и в окне Funding Rate Settlement (±20 мин от 00:00, 08:00, 16:00 UTC).
+    # Если события нет — macro_mod = 1.0, сигнал не меняется.
+    macro_mod, macro_reason = get_size_modifier()
+    macro_event  = get_active_macro_event()
+    funding_info = get_funding_settlement()
+
+    if macro_mod < 1.0:
+        size_multiplier = round(size_multiplier * macro_mod, 2)
+        # Если из-за макро позиция становится слишком маленькой — переводим в HOLD
+        if size_multiplier < 0.3 and action in ("LONG", "SHORT"):
+            action = "HOLD"
+
     return {
         "coin": coin,
         "action": action,
@@ -217,10 +291,18 @@ def generate_signal(news_item: dict) -> dict | None:
             "trend_aligned":     trend_aligned,
             "rsi":               rsi,
             "whale_active":      whale_active,
+            "whale_side":        whale_side,
+            "whale_largest_m":   whale_m,
             "funding_rate":      funding_rate,
             "oi_change_pct":     oi_change,
+            "fear_greed":        fng_value,
+            "fear_greed_label":  fng["label"],
+            "btc_dominance":     btc_dom,
             "time_coeff":        time_coeff,
+            "macro_mod":         macro_mod,
         },
+        "macro_event":   macro_reason if macro_reason else None,
+        "funding_event": funding_info["name"] if funding_info else None,
         "news_title": news_item["title"],
         "source": news_item.get("source", "Unknown"),
     }
