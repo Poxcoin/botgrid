@@ -57,6 +57,8 @@ async def get_dashboard_data():
                 "secret": BYBIT_SECRET,
                 "options": {"defaultType": "swap"},
             })
+            if USE_TESTNET:
+                exchange.set_sandbox_mode(True)
             # Универсальный поиск баланса для V5
             try:
                 # 1. Unified
