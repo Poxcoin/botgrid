@@ -6,7 +6,7 @@ from modules.news_parser import get_aggregated_news
 from modules.decision_maker import generate_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
-from modules import daily_guard, position_monitor
+from modules import daily_guard, position_monitor, pnl_tracker
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
@@ -119,6 +119,7 @@ def run_signal_engine():
         send_tg=send_telegram_message,
         chat_id=TG_CHAT_ID,
     )
+    pnl_tracker.start_pnl_tracker(exchange_factory=_init_exchange)
 
     send_telegram_message("🚀 <b>BotGrid запущен</b>\nСканирование RSS каждые 30 сек. Жду сигналов...", TG_CHAT_ID)
 

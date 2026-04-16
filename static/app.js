@@ -194,12 +194,21 @@ async function loadHistory(page) {
                 const ds   = date.toLocaleDateString([], {month:'short', day:'numeric'});
                 const ts   = date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
+                const result  = sig.result || null;
+                const resCls  = result ? 'td-result ' + result : 'td-result pending';
+                const resText = result || '—';
+                const pnl     = sig.pnl_usdt != null ? sig.pnl_usdt : null;
+                const pnlCls  = pnl == null ? 'td-pnl' : (pnl >= 0 ? 'td-pnl pos' : 'td-pnl neg');
+                const pnlText = pnl == null ? '—' : (pnl >= 0 ? '+' + pnl.toFixed(2) : pnl.toFixed(2)) + ' $';
+
                 const cells = [
-                    ['td-time',   ds + ' ' + ts],
-                    ['td-asset',  sig.coin],
+                    ['td-time',                 ds + ' ' + ts],
+                    ['td-asset',                sig.coin],
                     ['td-action ' + sig.action, sig.action],
-                    ['td-score',  sig.total_score],
-                    ['td-news',   sig.news_title],
+                    ['td-score',                sig.total_score],
+                    [resCls,                    resText],
+                    [pnlCls,                    pnlText],
+                    ['td-news',                 sig.news_title],
                 ];
                 cells.forEach(([cls, val]) => {
                     const td = document.createElement('td');
@@ -232,6 +241,13 @@ async function loadStats() {
 
         const wlEl = document.getElementById('hist-wl');
         if (wlEl) wlEl.textContent = (data.winning_trades ?? 0) + ' W / ' + (data.losing_trades ?? 0) + ' L';
+
+        const pnlEl = document.getElementById('hist-total-pnl');
+        if (pnlEl && data.total_pnl != null) {
+            const p = data.total_pnl;
+            pnlEl.textContent = (p >= 0 ? '+' : '') + p.toFixed(2) + ' $';
+            pnlEl.style.color = p >= 0 ? 'var(--long)' : 'var(--short)';
+        }
 
     } catch (err) { console.error('STATS_ERROR:', err); }
 }

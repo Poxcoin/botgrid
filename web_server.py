@@ -78,35 +78,33 @@ async def get_dashboard_data():
     except Exception as e:
         print(f"Ошибка получения баланса: {e}")
 
-    # Считаем статистику по исполненным сделкам (LONG + SHORT)
+    # Статистика по исполненным сделкам (LONG + SHORT)
     trades = [s for s in signals if s.get('action') in ('LONG', 'SHORT')]
     total_trades = len(trades)
 
-    # Winrate: считаем сделки где total_score говорит о правильном направлении
-    # Используем знак score: LONG с позитивным score = потенциальный выигрыш
-    winning_trades = sum(
-        1 for s in trades
-        if (s['action'] == 'LONG' and s.get('total_score', 0) >= 8)
-        or (s['action'] == 'SHORT' and s.get('total_score', 0) <= -8)
-    )
-    winrate_pct = round((winning_trades / total_trades * 100), 1) if total_trades > 0 else 0
+    # Реальный Win Rate — только по сделкам с известным результатом
+    closed_trades  = [s for s in trades if 'result' in s]
+    winning_trades = sum(1 for s in closed_trades if s['result'] == 'WIN')
+    losing_trades  = sum(1 for s in closed_trades if s['result'] == 'LOSS')
+    winrate_pct    = round(winning_trades / len(closed_trades) * 100, 1) if closed_trades else 0
 
-    # Средний score по сделкам
-    avg_score = round(
-        sum(abs(s.get('total_score', 0)) for s in trades) / total_trades, 1
-    ) if total_trades > 0 else 0
+    # Суммарный PnL
+    total_pnl = round(sum(s.get('pnl_usdt', 0) for s in closed_trades), 2)
 
     return {
         "status": "online",
         "balance": balance_info,
-        "latest_signals": signals[-20:][::-1],  # Последние 20 сигналов, новые сверху
+        "latest_signals": signals[-20:][::-1],
         "stats": {
-            "total_signals": len(signals),
-            "longs": len([s for s in signals if s.get('action') == 'LONG']),
-            "shorts": len([s for s in signals if s.get('action') == 'SHORT']),
-            "total_trades": total_trades,
-            "winrate_pct": winrate_pct,
-            "avg_score": avg_score,
+            "total_signals":   len(signals),
+            "longs":           len([s for s in signals if s.get('action') == 'LONG']),
+            "shorts":          len([s for s in signals if s.get('action') == 'SHORT']),
+            "total_trades":    total_trades,
+            "closed_trades":   len(closed_trades),
+            "winning_trades":  winning_trades,
+            "losing_trades":   losing_trades,
+            "winrate_pct":     winrate_pct,
+            "total_pnl":       total_pnl,
         }
     }
 
@@ -170,31 +168,25 @@ async def get_stats():
     all_signals = _load_signals()
     trades = [s for s in all_signals if s.get("action") in ("LONG", "SHORT")]
 
-    total_trades = len(trades)
-    long_count = sum(1 for s in trades if s.get("action") == "LONG")
-    short_count = sum(1 for s in trades if s.get("action") == "SHORT")
+    total_trades  = len(trades)
+    long_count    = sum(1 for s in trades if s.get("action") == "LONG")
+    short_count   = sum(1 for s in trades if s.get("action") == "SHORT")
 
-    # Когда в записях появится поле result/pnl — заменить эти значения
-    winning_trades = sum(
-        1 for s in trades if s.get("result") == "win"
-    )
-    losing_trades = sum(
-        1 for s in trades if s.get("result") == "loss"
-    )
-    total_profit_usdt = sum(
-        float(s.get("pnl", 0)) for s in trades
-    )
-
-    win_rate = round(winning_trades / total_trades * 100, 1) if total_trades > 0 else 0.0
+    closed_trades  = [s for s in trades if "result" in s]
+    winning_trades = sum(1 for s in closed_trades if s.get("result") == "WIN")
+    losing_trades  = sum(1 for s in closed_trades if s.get("result") == "LOSS")
+    total_pnl      = round(sum(float(s.get("pnl_usdt", 0)) for s in closed_trades), 2)
+    win_rate       = round(winning_trades / len(closed_trades) * 100, 1) if closed_trades else 0.0
 
     return {
-        "total_trades": total_trades,
-        "win_rate": win_rate,
-        "total_profit_usdt": round(total_profit_usdt, 2),
-        "winning_trades": winning_trades,
-        "losing_trades": losing_trades,
-        "long_count": long_count,
-        "short_count": short_count,
+        "total_trades":    total_trades,
+        "closed_trades":   len(closed_trades),
+        "win_rate":        win_rate,
+        "total_pnl":       total_pnl,
+        "winning_trades":  winning_trades,
+        "losing_trades":   losing_trades,
+        "long_count":      long_count,
+        "short_count":     short_count,
     }
 
 

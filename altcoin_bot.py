@@ -24,7 +24,7 @@ from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_funding_rate, get_btc_dominance, get_fear_greed_index
 from modules.trader import execute_trade, get_free_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
-from modules import daily_guard, position_monitor
+from modules import daily_guard, position_monitor, pnl_tracker
 from config.settings import TG_CHAT_ID
 
 # ─── Параметры рискового бота ───────────────────────────────────────────────
@@ -213,6 +213,8 @@ def run_alt_engine():
             send_tg=send_telegram_message,
             chat_id=TG_CHAT_ID,
         )
+    if not any(t.name == "pnl-tracker" for t in threading.enumerate()):
+        pnl_tracker.start_pnl_tracker(exchange_factory=_init_exchange)
 
     send_telegram_message(
         f"🎯 <b>ALT BOT запущен</b>\n"

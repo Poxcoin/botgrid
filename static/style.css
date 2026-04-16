@@ -393,6 +393,25 @@ td { padding: 12px 16px; font-size: 13px; }
 
 .td-news { color: var(--text-2); line-height: 1.4; }
 
+.td-result {
+    font-weight: 700;
+    font-size: 11px;
+    font-family: var(--mono);
+    letter-spacing: 0.3px;
+}
+.td-result.WIN  { color: var(--long); }
+.td-result.LOSS { color: var(--short); }
+.td-result.BE   { color: var(--text-2); }
+.td-result.pending { color: var(--text-3); }
+
+.td-pnl {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 12px;
+}
+.td-pnl.pos { color: var(--long); }
+.td-pnl.neg { color: var(--short); }
+
 /* ─── Filters ─────────────────────────────────────────────────────── */
 .filters { display: flex; gap: 8px; }
 
