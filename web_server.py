@@ -35,6 +35,16 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 async def read_index():
     return FileResponse("static/index.html")
 
+# SPA catch-all: serve index.html for any non-API route (React Router)
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str):
+    if full_path.startswith("api/") or full_path.startswith("static/") or full_path.startswith("ws"):
+        raise HTTPException(status_code=404)
+    index = "static/index.html"
+    if os.path.exists(index):
+        return FileResponse(index)
+    raise HTTPException(status_code=404)
+
 @app.get("/api/data")
 async def get_dashboard_data():
     """Возвращает все данные для фронтенда."""
