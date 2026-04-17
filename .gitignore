@@ -13,3 +13,11 @@ backtest_results.json
 crypto-bot.service
 crypto-web.service
 .gitnexus
+
+# Replay backtester — данные только на сервере, не в репо
+news.db
+backtest_results/
+signals_log_alt.json
+open_positions.json
+daily_guard_state.json
+processed_urls_alt.json
