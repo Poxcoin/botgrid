@@ -9,7 +9,7 @@ import LandingFooter from '@/components/landing/LandingFooter';
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-white text-kado-black">
+    <div className="min-h-screen" style={{ background: 'transparent', color: 'var(--site-fg)', position: 'relative', zIndex: 1 }}>
       <LandingHeader />
       <Hero />
       <Features />

@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import NeuronReveal from '@/components/shared/NeuronReveal';
+import useScrollReveal from '@/lib/useScrollReveal';
 
 const STEPS = [
   { n: '01', t: 'Scan',     d: 'Bot scans news every 30 seconds across 16+ feeds.' },
@@ -9,32 +11,59 @@ const STEPS = [
 ];
 
 export default function HowItWorks() {
+  const [ref, visible] = useScrollReveal(0.08);
+  const [hov, setHov] = useState(-1);
+
   return (
-    <section id="how" className="bg-white border-b border-kado-black">
+    <section id="how" style={{ background: 'transparent', borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-24 md:py-32">
         <div className="flex items-end justify-between mb-16 md:mb-20">
           <div>
-            <div className="font-mono text-[11px] tracking-[0.3em] text-kado-gray mb-4 uppercase">[ PROCESS ]</div>
-            <h2 className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl">How it<br/>works.</h2>
+            <NeuronReveal delay={0} tag="div" className="font-mono text-[11px] tracking-[0.3em] mb-4 uppercase" style={{ color: 'var(--hero-muted)' }}>
+              <span style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 10px', animation: visible ? 'labelPulse 4s ease-in-out 0.5s infinite' : 'none' }}>
+                [ PROCESS ]
+              </span>
+            </NeuronReveal>
+            <NeuronReveal delay={80} tag="h2" className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl" style={{ color: 'var(--site-fg)' }}>
+              How it<br/>works.
+            </NeuronReveal>
           </div>
-          <div className="hidden md:block font-mono text-[11px] tracking-[0.25em] text-kado-gray uppercase">
+          <div className="hidden md:block font-mono text-[11px] tracking-[0.25em] uppercase" style={{ color: 'var(--hero-muted)' }}>
             05 STEPS · EVERY 30s
           </div>
         </div>
 
-        <div className="border-t border-kado-black">
-          {STEPS.map((s) => (
-            <div key={s.n} className="grid grid-cols-12 border-b border-kado-black group hover:bg-kado-black hover:text-white transition-colors">
-              <div className="col-span-2 md:col-span-1 p-6 md:p-8 border-r border-kado-black font-mono text-[11px] tracking-[0.25em] flex items-start opacity-60">
-                {s.n}
+        <div ref={ref} style={{ borderTop: '1px solid var(--hero-border)' }}>
+          {STEPS.map((s, i) => (
+            <div
+              key={s.n}
+              onMouseEnter={() => setHov(i)}
+              onMouseLeave={() => setHov(-1)}
+              className="grid grid-cols-12"
+              style={{
+                borderBottom: '1px solid var(--hero-border)',
+                background: hov === i ? 'var(--site-fg)' : i % 2 === 1 ? 'rgba(128,128,128,0.03)' : 'transparent',
+                color: hov === i ? 'var(--site-bg)' : 'var(--site-fg)',
+                transition: 'background 200ms ease, color 200ms ease, opacity 500ms ease, transform 500ms ease',
+                opacity: visible ? 1 : 0,
+                transform: visible ? 'translateX(0)' : 'translateX(-24px)',
+                transitionDelay: `${i * 80}ms`,
+              }}
+            >
+              <div className="col-span-2 md:col-span-1 p-6 md:p-8 font-mono text-[11px] tracking-[0.25em] flex items-start opacity-60"
+                style={{ borderRight: '1px solid var(--hero-border)' }}>
+                <NeuronReveal delay={i * 80} tag="span">{s.n}</NeuronReveal>
               </div>
-              <div className="col-span-10 md:col-span-4 p-6 md:p-8 md:border-r border-kado-black">
-                <h3 className="font-black text-3xl md:text-5xl tracking-tight leading-[0.9] group-hover:text-kado-blue transition-colors">
+              <div className="col-span-10 md:col-span-4 p-6 md:p-8" style={{ borderRight: '1px solid var(--hero-border)' }}>
+                <NeuronReveal delay={i * 80 + 100} tag="h3" className="font-black text-3xl md:text-5xl tracking-tight leading-[0.9]"
+                  style={{ color: hov === i ? '#0047FF' : 'inherit', transition: 'color 200ms' }}>
                   {s.t}.
-                </h3>
+                </NeuronReveal>
               </div>
-              <div className="col-span-12 md:col-span-7 p-6 md:p-8 border-t md:border-t-0 border-kado-black flex items-center">
-                <p className="text-base md:text-lg opacity-80 leading-relaxed">{s.d}</p>
+              <div className="col-span-12 md:col-span-7 p-6 md:p-8 flex items-center">
+                <NeuronReveal delay={i * 80 + 180} tag="p" className="text-base md:text-lg opacity-80 leading-relaxed">
+                  {s.d}
+                </NeuronReveal>
               </div>
             </div>
           ))}

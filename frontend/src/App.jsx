@@ -1,5 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from '@/lib/ThemeContext';
+import GlobalNeural from '@/components/global/GlobalNeural';
+import CursorTracker from '@/components/global/CursorTracker';
 import Landing from '@/pages/Landing';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
@@ -7,33 +10,39 @@ import ProtectedRoute from '@/lib/ProtectedRoute';
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <div className="min-h-screen flex items-center justify-center">
-              <div className="text-center">
-                <div className="font-black text-8xl text-kado-black/10 mb-4">404</div>
-                <div className="font-mono text-sm tracking-widest uppercase text-kado-gray mb-6">Page not found</div>
-                <a href="/" className="font-mono text-xs tracking-widest uppercase border border-kado-black px-6 py-3 hover:bg-kado-black hover:text-white transition-colors">
-                  Go Home
-                </a>
+    <ThemeProvider>
+      <Router>
+        <GlobalNeural />
+        <CursorTracker />
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--site-bg)' }}>
+                <div className="text-center" style={{ color: 'var(--site-fg)' }}>
+                  <div className="font-black text-8xl mb-4" style={{ opacity: 0.1 }}>404</div>
+                  <div className="font-mono text-sm tracking-widest uppercase mb-6" style={{ color: 'var(--hero-muted)' }}>Page not found</div>
+                  <a href="/" className="font-mono text-xs tracking-widest uppercase px-6 py-3 transition-colors"
+                    style={{ border: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--site-fg)'; e.currentTarget.style.color = 'var(--site-bg)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--site-fg)'; }}
+                  >Go Home</a>
+                </div>
               </div>
-            </div>
-          }
-        />
-      </Routes>
-    </Router>
+            }
+          />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }

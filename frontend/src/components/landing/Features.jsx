@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import NeuronReveal from '@/components/shared/NeuronReveal';
+import useScrollReveal from '@/lib/useScrollReveal';
 
 const ITEMS = [
   { n: '01', h: 'NEWS INTELLIGENCE', p: 'Scans 16+ crypto news feeds in real-time. AI scores every headline for market impact.' },
@@ -6,36 +8,70 @@ const ITEMS = [
   { n: '03', h: 'RISK MANAGEMENT',    p: 'Each signal includes built-in TP/SL levels. Daily loss limits protect your capital automatically.' },
 ];
 
-export default function Features() {
+function FeatureCard({ it, i, sectionVisible }) {
+  const [hov, setHov] = useState(false);
   return (
-    <section className="bg-white border-b border-kado-black">
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        padding: '2.5rem',
+        borderRight: i < ITEMS.length - 1 ? '1px solid var(--hero-border)' : 'none',
+        borderTop: '1px solid var(--hero-border)',
+        background: hov ? 'var(--site-fg)' : 'var(--site-bg-glass)',
+        backdropFilter: 'blur(3px)',
+        color: hov ? 'var(--site-bg)' : 'var(--site-fg)',
+        transition: 'background 250ms ease, color 250ms ease, opacity 600ms ease, transform 600ms ease',
+        opacity: sectionVisible ? 1 : 0,
+        transform: sectionVisible ? 'translateY(0)' : 'translateY(28px)',
+        transitionDelay: `${i * 120}ms`,
+      }}
+    >
+      <div className="flex items-start justify-between mb-10">
+        <NeuronReveal delay={i * 120 + 200} tag="span">
+          <span className="font-mono text-[11px] tracking-[0.25em] opacity-60"
+            style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 10px' }}>
+            {it.n}
+          </span>
+        </NeuronReveal>
+        <span className="font-mono text-[11px] opacity-40">◊</span>
+      </div>
+      <NeuronReveal delay={i * 120 + 80} tag="div">
+        <div className="font-black text-[56px] md:text-[72px] leading-none tracking-tighter mb-8"
+          style={{ color: hov ? '#0047FF' : 'inherit', transition: 'color 250ms' }}>
+          {it.n}
+        </div>
+      </NeuronReveal>
+      <NeuronReveal delay={i * 120 + 160} tag="div">
+        <h3 className="font-black text-xl md:text-2xl tracking-tight mb-4">{it.h}</h3>
+      </NeuronReveal>
+      <NeuronReveal delay={i * 120 + 240} tag="div">
+        <p className="text-[15px] leading-relaxed opacity-75">{it.p}</p>
+      </NeuronReveal>
+    </div>
+  );
+}
+
+export default function Features() {
+  const [ref, visible] = useScrollReveal(0.1);
+
+  return (
+    <section ref={ref} style={{ background: 'transparent', borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-24 md:py-32">
         <div className="flex items-end justify-between mb-16 md:mb-24">
-          <h2 className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl">
+          <NeuronReveal delay={0} tag="h2" className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl"
+            style={{ color: 'var(--site-fg)' }}>
             What it<br/>does.
-          </h2>
-          <div className="hidden md:block font-mono text-[11px] tracking-[0.25em] text-kado-gray uppercase">
-            [ 003 · CORE ]
-          </div>
+          </NeuronReveal>
+          <NeuronReveal delay={100} tag="div" className="hidden md:block font-mono text-[11px] tracking-[0.25em] uppercase"
+            style={{ color: 'var(--hero-muted)' }}>
+            <span style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 10px', animation: visible ? 'labelPulse 4s ease-in-out infinite' : 'none' }}>
+              [ 003 · CORE ]
+            </span>
+          </NeuronReveal>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 border-t border-kado-black">
-          {ITEMS.map((it, i) => (
-            <div
-              key={it.n}
-              className={`p-8 md:p-10 border-b border-kado-black md:border-b-0 ${i < ITEMS.length - 1 ? 'md:border-r border-kado-black' : ''} group hover:bg-kado-black hover:text-white transition-colors duration-300`}
-            >
-              <div className="flex items-start justify-between mb-10">
-                <span className="font-mono text-[11px] tracking-[0.25em] opacity-60">{it.n}</span>
-                <span className="font-mono text-[11px] tracking-[0.25em] opacity-60">◊</span>
-              </div>
-              <div className="font-black text-[56px] md:text-[72px] leading-none tracking-tighter mb-8 group-hover:text-kado-blue transition-colors">
-                {it.n}
-              </div>
-              <h3 className="font-black text-xl md:text-2xl tracking-tight mb-4">{it.h}</h3>
-              <p className="text-[15px] leading-relaxed opacity-75">{it.p}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-3">
+          {ITEMS.map((it, i) => <FeatureCard key={it.n} it={it} i={i} sectionVisible={visible} />)}
         </div>
       </div>
     </section>

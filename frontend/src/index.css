@@ -8,6 +8,27 @@
   :root {
     --font-sans: 'Inter', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    /* light theme vars */
+    --hero-bg:       #ffffff;
+    --hero-fg:       #0A0A0A;
+    --hero-border:   #0A0A0A;
+    --hero-muted:    #737373;
+    --hero-muted-fg: rgba(10,10,10,0.65);
+    --site-bg:       #ffffff;
+    --site-fg:       #0A0A0A;
+    --site-bg-glass: rgba(255,255,255,0.88);
+  }
+
+  .dark {
+    --hero-bg:       #0A0A0A;
+    --hero-fg:       #ffffff;
+    --hero-border:   rgba(255,255,255,0.18);
+    --hero-muted:    rgba(255,255,255,0.4);
+    --hero-muted-fg: rgba(255,255,255,0.55);
+    --site-bg:       #0A0A0A;
+    --site-fg:       #ffffff;
+    --site-bg-glass: rgba(10,10,10,0.88);
   }
 
   * {
@@ -15,10 +36,11 @@
   }
 
   html, body {
-    background: #ffffff;
-    color: #0A0A0A;
+    background: var(--site-bg);
+    color: var(--site-fg);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    transition: background 300ms ease, color 300ms ease;
   }
 
   .font-mono {
@@ -30,11 +52,38 @@
 @layer utilities {
   .kado-grid {
     background-image:
-      linear-gradient(to right,  rgba(10,10,10,0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(10,10,10,0.04) 1px, transparent 1px);
+      linear-gradient(to right, rgba(128,128,128,0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(128,128,128,0.06) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1 }
+  50%       { opacity: 0 }
+}
+@keyframes scanLine {
+  0%   { top: -4%; opacity: 0 }
+  5%   { opacity: 0.4 }
+  95%  { opacity: 0.3 }
+  100% { top: 108%; opacity: 0 }
+}
+@keyframes labelPulse {
+  0%, 100% { opacity: 0.45 }
+  50%       { opacity: 0.9 }
+}
+@keyframes flickerBox {
+  0%, 100% { opacity: 0.6 }
+  50%       { opacity: 1 }
+}
+@keyframes borderDraw {
+  from { clip-path: inset(0 100% 0 0) }
+  to   { clip-path: inset(0 0% 0 0) }
+}
+@keyframes scaleYIn {
+  from { transform: scaleY(0) }
+  to   { transform: scaleY(1) }
 }
