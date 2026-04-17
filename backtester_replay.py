@@ -265,16 +265,19 @@ def run_replay(days: int, min_score: float, use_newsapi: bool) -> None:
             continue
 
         n_signals += 1
-        action = signal["action"]
         sc = signal["total_score"]
         cf = signal["confidence"]
 
-        if action == "SELL_ALL":
+        if signal["action"] == "SELL_ALL":
             open_pos.clear()
             continue
 
-        if action == "HOLD" or abs(sc) < min_score or cf < 35:
-            if abs(sc) >= min_score * 0.75:
+        # В replay режиме переопределяем action из score (generate_signal использует порог 8.0,
+        # но в replay нет whale/OI/funding → реальный эффективный порог должен быть ниже)
+        if abs(sc) >= min_score and cf >= 35:
+            action = "LONG" if sc > 0 else "SHORT"
+        else:
+            if abs(sc) >= min_score * 0.7:
                 print(f"  HOLD  {signal['coin']:<5} score={sc:+.1f} conf={cf}%  "
                       f"«{article['title'][:55]}»")
             n_hold += 1
