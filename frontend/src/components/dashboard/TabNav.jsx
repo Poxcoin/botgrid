@@ -1,11 +1,12 @@
 import React from 'react';
 
 const TABS = [
-  { id: 'overview',  label: 'Overview' },
-  { id: 'history',   label: 'Signal History' },
-  { id: 'analyzer',  label: 'Bot Analyzer' },
-  { id: 'keys',      label: 'Exchange Keys' },
-  { id: 'logs',      label: 'System Logs' },
+  { id: 'overview',    label: 'Overview' },
+  { id: 'history',     label: 'Signal History' },
+  { id: 'analyzer',    label: 'Bot Analyzer' },
+  { id: 'backtester',  label: 'Backtester' },
+  { id: 'keys',        label: 'Exchange Keys' },
+  { id: 'logs',        label: 'System Logs' },
 ];
 
 export default function TabNav({ active, onChange }) {

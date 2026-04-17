@@ -295,6 +295,49 @@ async def websocket_endpoint(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  BACKTEST ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+BACKTEST_DIR = "backtest_results"
+
+@app.get("/api/backtest/runs")
+async def get_backtest_runs(token: str = Depends(require_auth)):
+    if not os.path.exists(BACKTEST_DIR):
+        return {"runs": []}
+    runs = []
+    for fname in sorted(os.listdir(BACKTEST_DIR), reverse=True):
+        if not fname.endswith(".json"):
+            continue
+        path = os.path.join(BACKTEST_DIR, fname)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            runs.append({
+                "run_id":  data.get("run_id", fname.replace(".json", "")),
+                "params":  data.get("params", {}),
+                "summary": data.get("summary", {}),
+            })
+        except Exception:
+            continue
+    return {"runs": runs}
+
+
+@app.get("/api/backtest/run/{run_id}")
+async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
+    import re
+    if not re.match(r'^[\w\-:T]+$', run_id):
+        raise HTTPException(status_code=400, detail="Invalid run_id")
+    path = os.path.join(BACKTEST_DIR, f"{run_id}.json")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Run not found")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  SPA CATCH-ALL  — MUST BE LAST — иначе перехватывает все /api/* маршруты
 # ══════════════════════════════════════════════════════════════════════════════
 
