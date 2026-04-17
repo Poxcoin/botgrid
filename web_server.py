@@ -298,18 +298,19 @@ async def websocket_endpoint(
 #  SPA CATCH-ALL  — MUST BE LAST — иначе перехватывает все /api/* маршруты
 # ══════════════════════════════════════════════════════════════════════════════
 
+_NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
+
 @app.get("/")
 async def read_index():
-    return FileResponse("static/index.html")
+    return FileResponse("static/index.html", headers=_NO_CACHE)
 
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str):
-    # Блокируем попытки получить файлы вне static/
     if full_path.startswith("api/") or full_path.startswith("ws"):
         raise HTTPException(status_code=404)
     index = "static/index.html"
     if os.path.exists(index):
-        return FileResponse(index)
+        return FileResponse(index, headers=_NO_CACHE)
     raise HTTPException(status_code=404)
 
 
