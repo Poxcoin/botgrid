@@ -30,10 +30,11 @@ from modules.news_parser import is_altcoin_news, check_panic_news
 from modules.decision_maker import generate_signal
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-DEFAULT_DAYS  = 7
-BALANCE       = 10_000.0
-MAX_ARTICLES  = 300      # лимит Claude API вызовов за сессию
-CLAUDE_DELAY  = 0.35     # пауза между вызовами
+DEFAULT_DAYS      = 7
+DEFAULT_MIN_SCORE = 6.0  # ниже чем боевые 8.0 — whale/OI/funding отсутствуют в replay
+BALANCE           = 10_000.0
+MAX_ARTICLES      = 300      # лимит Claude API вызовов за сессию
+CLAUDE_DELAY      = 0.35     # пауза между вызовами
 
 # Поисковые запросы для NewsAPI (3 запроса × до 5 страниц = до 1500 статей)
 _NEWSAPI_QUERIES = [
@@ -205,11 +206,12 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int, balance: float) ->
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run_replay(days: int) -> None:
+def run_replay(days: int, min_score: float = DEFAULT_MIN_SCORE) -> None:
     print(f"\n{'='*65}")
     print(f"  REPLAY BACKTESTER — реальные новости NewsAPI + Claude AI")
     print(f"  Период: {days} дней  |  TP={TAKE_PROFIT_PERCENT}%  SL={STOP_LOSS_PERCENT}%  "
-          f"x{LEVERAGE}  Size={TRADE_PERCENT_SIZE}%")
+          f"x{LEVERAGE}  Size={TRADE_PERCENT_SIZE}%  min_score={min_score}")
+    print(f"  (Whale/OI/Funding отключены в replay — нет исторических данных)")
     print(f"{'='*65}\n")
 
     # 1. Загружаем новости
@@ -259,6 +261,17 @@ def run_replay(days: int) -> None:
             continue
 
         if action == "HOLD":
+            # Показываем почему отклонено (для отладки)
+            sc = signal["total_score"]
+            cf = signal["confidence"]
+            if abs(sc) >= min_score * 0.7:  # близко к порогу — выводим
+                print(f"  HOLD  {signal['coin']:<5} score={sc:+.1f} conf={cf}%  "
+                      f"«{article['title'][:55]}»")
+            n_hold += 1
+            continue
+
+        # Replay: применяем мягкий порог вместо боевых 8.0
+        if abs(signal["total_score"]) < min_score or signal["confidence"] < 35:
             n_hold += 1
             continue
 
@@ -377,5 +390,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--days", type=int, default=DEFAULT_DAYS,
                         help="Глубина истории в днях (по умолчанию 7, max 30 для free tier)")
+    parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE,
+                        help=f"Мин. score для входа (по умолчанию {DEFAULT_MIN_SCORE}, боевой: 8.0)")
     args = parser.parse_args()
-    run_replay(days=args.days)
+    run_replay(days=args.days, min_score=args.min_score)
