@@ -1,24 +1,27 @@
 """
 backtester_replay.py — Replay Backtester
 
-Реальные новости (NewsAPI) + реальный Claude AI + реальные исторические цены Binance.
-Точнее backtester.py: не симулирует AI, а прогоняет настоящие новости через бота.
+Источники новостей (по приоритету):
+  1. Локальная news.db — всё что бот собрал за время работы (основной)
+  2. NewsAPI         — дополнение если нужно больше данных (--newsapi флаг)
+
+Реальный Claude AI + реальные исторические цены Binance.
 
 Ограничения:
-  - NewsAPI free tier: до 30 дней истории, 100 req/день
-  - Fear&Greed + BTC Dominance: текущие значения (исторического API нет — норм)
-  - Whale detector: отключён (исторических trade-данных нет)
+  - Fear&Greed + BTC Dominance: текущие значения (нет исторического API)
+  - Whale detector: отключён (нет исторических trade-данных)
+  - NewsAPI free: 100 статей max, до 30 дней
 
 Использование:
-  python backtester_replay.py              # 7 дней
-  python backtester_replay.py --days 14   # 14 дней
-  python backtester_replay.py --days 30   # максимум для free tier
+  python backtester_replay.py              # news.db, все дни
+  python backtester_replay.py --days 14   # news.db за 14 дней
+  python backtester_replay.py --newsapi   # + добавить NewsAPI статьи
+  python backtester_replay.py --min-score 5
 """
 
 import argparse
 import json
 import time
-import httpx
 import ccxt
 from datetime import datetime, timezone, timedelta
 
@@ -27,112 +30,123 @@ from config.settings import (
     TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT,
 )
 from modules.news_parser import is_altcoin_news, check_panic_news
+from modules.news_archive import get_news, init_db
 from modules.decision_maker import generate_signal
 
 # ─── Config ───────────────────────────────────────────────────────────────────
-DEFAULT_DAYS      = 7
-DEFAULT_MIN_SCORE = 6.0  # ниже чем боевые 8.0 — whale/OI/funding отсутствуют в replay
+DEFAULT_DAYS      = 30
+DEFAULT_MIN_SCORE = 6.0   # ниже боевых 8.0 (whale/OI/funding недоступны в replay)
 BALANCE           = 10_000.0
-MAX_ARTICLES      = 300      # лимит Claude API вызовов за сессию
-CLAUDE_DELAY      = 0.35     # пауза между вызовами
-
-# Поисковые запросы для NewsAPI (3 запроса × до 5 страниц = до 1500 статей)
-_NEWSAPI_QUERIES = [
-    "bitcoin OR ethereum OR solana OR crypto",
-    "DeFi blockchain altcoin token",
-    "crypto hack OR listing OR ETF OR mainnet",
-]
+MAX_ARTICLES      = 500
+CLAUDE_DELAY      = 0.35
 
 _binance = ccxt.binance({"enableRateLimit": True})
 
 
-# ─── NewsAPI ──────────────────────────────────────────────────────────────────
+# ─── Источник 1: локальная news.db ───────────────────────────────────────────
 
-def fetch_newsapi(days: int) -> list[dict]:
+def fetch_from_db(days: int) -> list[dict]:
+    """Читает новости из локальной news.db (бот собирал их во время работы)."""
+    init_db()
+    rows = get_news(days=days, limit=MAX_ARTICLES)
+    result = []
+    for r in rows:
+        published_str = r.get("published_at", "")
+        try:
+            pub_dt = datetime.fromisoformat(published_str.replace("Z", "+00:00"))
+            if pub_dt.tzinfo is None:
+                pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+        except Exception:
+            pub_dt = datetime.now(timezone.utc)
+
+        title = (r.get("title") or "").strip()
+        if not title:
+            continue
+
+        result.append({
+            "title":        title,
+            "description":  (r.get("description") or "")[:300],
+            "link":         r.get("link", ""),
+            "source":       r.get("source", "archive"),
+            "source_url":   r.get("link", ""),
+            "source_weight": float(r.get("source_weight") or 0.75),
+            "published_dt": pub_dt.isoformat(),
+            "published_ts": pub_dt.timestamp(),
+            "timestamp_ms": int(pub_dt.timestamp() * 1000),
+            "is_panic":     check_panic_news(title),
+        })
+
+    result.sort(key=lambda x: x["published_ts"])
+    print(f"  news.db: {len(result)} статей за {days} дней")
+    return result
+
+
+# ─── Источник 2: NewsAPI (дополнение) ────────────────────────────────────────
+
+def fetch_from_newsapi(days: int) -> list[dict]:
+    """Дополнительные статьи из NewsAPI (free: 100 max)."""
+    try:
+        import httpx
+    except ImportError:
+        print("  [NewsAPI] httpx не установлен, пропускаю")
+        return []
+
     if not NEWSAPI_KEY:
-        raise RuntimeError("NEWSAPI_KEY не задан в .env")
+        print("  [NewsAPI] ключ не задан, пропускаю")
+        return []
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    seen_urls: set[str] = set()
+    queries = [
+        "bitcoin OR ethereum OR solana OR crypto",
+        "DeFi blockchain altcoin hack listing",
+    ]
+    seen: set[str] = set()
     raw: list[dict] = []
 
-    for query in _NEWSAPI_QUERIES:
-        for page in range(1, 6):  # до 5 страниц на запрос
-            try:
-                r = httpx.get(
-                    "https://newsapi.org/v2/everything",
-                    params={
-                        "q":        query,
-                        "from":     since.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "language": "en",
-                        "sortBy":   "publishedAt",
-                        "pageSize": 100,
-                        "page":     page,
-                        "apiKey":   NEWSAPI_KEY,
-                    },
-                    timeout=15,
-                )
-                data = r.json()
+    for q in queries:
+        try:
+            r = httpx.get(
+                "https://newsapi.org/v2/everything",
+                params={
+                    "q": q, "from": since.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "language": "en", "sortBy": "publishedAt",
+                    "pageSize": 100, "page": 1, "apiKey": NEWSAPI_KEY,
+                },
+                timeout=15,
+            )
+            data = r.json()
+            if data.get("status") != "ok":
+                print(f"  [NewsAPI] {data.get('message', 'ошибка')}")
+                continue
+            for a in data.get("articles", []):
+                url = a.get("url", "")
+                if not url or url in seen:
+                    continue
+                seen.add(url)
+                title = (a.get("title") or "").strip()
+                if not title or title == "[Removed]":
+                    continue
+                try:
+                    pub_dt = datetime.fromisoformat(
+                        a.get("publishedAt", "").replace("Z", "+00:00"))
+                except Exception:
+                    continue
+                raw.append({
+                    "title": title,
+                    "description": (a.get("description") or "")[:300],
+                    "link": url, "source": a.get("source", {}).get("name", "NewsAPI"),
+                    "source_url": url, "source_weight": 0.75,
+                    "published_dt": pub_dt.isoformat(),
+                    "published_ts": pub_dt.timestamp(),
+                    "timestamp_ms": int(pub_dt.timestamp() * 1000),
+                    "is_panic": check_panic_news(title),
+                })
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"  [NewsAPI] {e}")
 
-                if data.get("status") != "ok":
-                    print(f"  [NewsAPI] {data.get('message', 'неизвестная ошибка')}")
-                    break
-
-                articles = data.get("articles", [])
-                if not articles:
-                    break
-
-                for a in articles:
-                    url = a.get("url", "")
-                    if not url or url in seen_urls:
-                        continue
-                    seen_urls.add(url)
-
-                    title = (a.get("title") or "").strip()
-                    if not title or title == "[Removed]":
-                        continue
-
-                    published_at = a.get("publishedAt", "")
-                    try:
-                        pub_dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
-                    except Exception:
-                        continue
-
-                    raw.append({
-                        "title":        title,
-                        "description":  (a.get("description") or "")[:300],
-                        "link":         url,
-                        "source":       a.get("source", {}).get("name", "NewsAPI"),
-                        "source_url":   url,
-                        "source_weight": 0.75,
-                        "published_dt": pub_dt.isoformat(),
-                        "published_ts": pub_dt.timestamp(),
-                        "timestamp_ms": int(pub_dt.timestamp() * 1000),
-                        "is_panic":     check_panic_news(title),
-                    })
-
-                if len(articles) < 100:
-                    break
-                time.sleep(0.4)
-
-            except Exception as e:
-                print(f"  [NewsAPI] ошибка запроса: {e}")
-                break
-
-    # Дедупликация по заголовку
-    seen_titles: set[str] = set()
-    dedup: list[dict] = []
-    for a in raw:
-        key = a["title"].lower()[:80]
-        if key not in seen_titles:
-            seen_titles.add(key)
-            dedup.append(a)
-
-    # Оставляем только крипто-новости
-    crypto = [a for a in dedup if a["is_panic"] or is_altcoin_news(a["title"])]
-    crypto.sort(key=lambda x: x["published_ts"])  # хронологически
-
-    print(f"  NewsAPI: {len(seen_urls)} URL → {len(dedup)} уникальных → {len(crypto)} крипто-новостей")
+    crypto = [a for a in raw if a["is_panic"] or is_altcoin_news(a["title"])]
+    print(f"  NewsAPI: {len(seen)} URL → {len(crypto)} крипто-новостей")
     return crypto
 
 
@@ -145,12 +159,11 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int, balance: float) ->
         if symbol not in _binance.markets:
             return None
 
-        # 300 свечей × 15m = 75 часов вперёд
         ohlcv = _binance.fetch_ohlcv(symbol, "15m", since=signal_ts_ms, limit=302)
         if len(ohlcv) < 2:
             return None
 
-        entry_price = ohlcv[1][1]  # open следующей свечи
+        entry_price = ohlcv[1][1]
         usdt_risk   = balance * (TRADE_PERCENT_SIZE / 100)
 
         tp = entry_price * (1 + TAKE_PROFIT_PERCENT / 100) if action == "LONG" \
@@ -165,40 +178,29 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int, balance: float) ->
         for c in ohlcv[1:]:
             hi, lo = c[2], c[3]
             if action == "LONG":
-                if lo <= sl:
-                    result, exit_price, exit_ts = "LOSS", sl, c[0]; break
-                if hi >= tp:
-                    result, exit_price, exit_ts = "WIN",  tp, c[0]; break
+                if lo <= sl: result, exit_price, exit_ts = "LOSS", sl, c[0]; break
+                if hi >= tp: result, exit_price, exit_ts = "WIN",  tp, c[0]; break
             else:
-                if hi >= sl:
-                    result, exit_price, exit_ts = "LOSS", sl, c[0]; break
-                if lo <= tp:
-                    result, exit_price, exit_ts = "WIN",  tp, c[0]; break
+                if hi >= sl: result, exit_price, exit_ts = "LOSS", sl, c[0]; break
+                if lo <= tp: result, exit_price, exit_ts = "WIN",  tp, c[0]; break
 
         if result is None:
             exit_price = ohlcv[-1][4]
             exit_ts    = ohlcv[-1][0]
             chg = (exit_price - entry_price) / entry_price
-            if action == "SHORT":
-                chg = -chg
+            if action == "SHORT": chg = -chg
             result = "WIN" if chg > 0 else "LOSS"
             pnl = usdt_risk * LEVERAGE * chg
         else:
             pnl = (usdt_risk * LEVERAGE * TAKE_PROFIT_PERCENT / 100) if result == "WIN" \
                   else -(usdt_risk * LEVERAGE * STOP_LOSS_PERCENT / 100)
 
-        def fmt_ts(ms):
-            return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d %H:%M")
-
+        def fmt(ms): return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%Y-%m-%d %H:%M")
         return {
-            "result":      result,
-            "pnl":         round(pnl, 4),
-            "entry_price": round(entry_price, 6),
-            "exit_price":  round(exit_price, 6),
-            "entry_time":  fmt_ts(ohlcv[1][0]),
-            "exit_time":   fmt_ts(exit_ts),
+            "result": result, "pnl": round(pnl, 4),
+            "entry_price": round(entry_price, 6), "exit_price": round(exit_price, 6),
+            "entry_time": fmt(ohlcv[1][0]), "exit_time": fmt(exit_ts),
         }
-
     except Exception as e:
         print(f"  [sim] {coin}: {e}")
         return None
@@ -206,38 +208,47 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int, balance: float) ->
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def run_replay(days: int, min_score: float = DEFAULT_MIN_SCORE) -> None:
+def run_replay(days: int, min_score: float, use_newsapi: bool) -> None:
     print(f"\n{'='*65}")
-    print(f"  REPLAY BACKTESTER — реальные новости NewsAPI + Claude AI")
+    print(f"  REPLAY BACKTESTER — реальные новости + Claude AI")
     print(f"  Период: {days} дней  |  TP={TAKE_PROFIT_PERCENT}%  SL={STOP_LOSS_PERCENT}%  "
           f"x{LEVERAGE}  Size={TRADE_PERCENT_SIZE}%  min_score={min_score}")
-    print(f"  (Whale/OI/Funding отключены в replay — нет исторических данных)")
     print(f"{'='*65}\n")
 
-    # 1. Загружаем новости
-    print("1. Загружаем новости из NewsAPI...")
-    articles = fetch_newsapi(days)
-    print()
+    print("1. Загружаем новости...")
+    articles = fetch_from_db(days)
+
+    if use_newsapi:
+        extra = fetch_from_newsapi(days)
+        # Объединяем, убираем дубли по заголовку
+        existing = {a["title"].lower()[:80] for a in articles}
+        added = [a for a in extra if a["title"].lower()[:80] not in existing]
+        articles.extend(added)
+        if added:
+            print(f"  NewsAPI добавил {len(added)} новых статей")
+
+    articles.sort(key=lambda x: x["published_ts"])
+
+    total_avail = len(articles)
+    if total_avail > MAX_ARTICLES:
+        print(f"  Ограничено до {MAX_ARTICLES} из {total_avail}")
+        articles = articles[-MAX_ARTICLES:]
+
+    print(f"  Итого: {len(articles)} статей для анализа\n")
 
     if not articles:
-        print("  Новостей не найдено. Проверь NEWSAPI_KEY и количество дней.")
+        print("  Нет данных. Бот ещё не набрал историю — запусти его на VPS и подожди.")
         return
 
-    if len(articles) > MAX_ARTICLES:
-        print(f"  Ограничено до {MAX_ARTICLES} из {len(articles)} (бюджет Claude API).")
-        articles = articles[-MAX_ARTICLES:]  # самые свежие
+    print(f"2. Анализирую через Claude Haiku + 8-факторную формулу...\n")
 
-    # 2. Прогоняем через AI + 8-факторную формулу
-    print(f"2. Анализирую {len(articles)} статей (Claude Haiku + формула)...\n")
-
-    balance       = BALANCE
-    peak_bal      = BALANCE
-    max_dd        = 0.0
-    trades: list  = []
-    open_pos: dict = {}  # coin -> True = занята
-
-    n_signals = 0
-    n_hold    = 0
+    balance    = BALANCE
+    peak_bal   = BALANCE
+    max_dd     = 0.0
+    trades     = []
+    open_pos   = {}
+    n_signals  = 0
+    n_hold     = 0
 
     for idx, article in enumerate(articles):
         if idx > 0 and idx % 25 == 0:
@@ -247,7 +258,7 @@ def run_replay(days: int, min_score: float = DEFAULT_MIN_SCORE) -> None:
             signal = generate_signal(article)
             time.sleep(CLAUDE_DELAY)
         except Exception as e:
-            print(f"  [!] signal error: {e}")
+            print(f"  [!] {e}")
             continue
 
         if not signal:
@@ -255,29 +266,23 @@ def run_replay(days: int, min_score: float = DEFAULT_MIN_SCORE) -> None:
 
         n_signals += 1
         action = signal["action"]
+        sc = signal["total_score"]
+        cf = signal["confidence"]
 
         if action == "SELL_ALL":
             open_pos.clear()
             continue
 
-        if action == "HOLD":
-            # Показываем почему отклонено (для отладки)
-            sc = signal["total_score"]
-            cf = signal["confidence"]
-            if abs(sc) >= min_score * 0.7:  # близко к порогу — выводим
+        if action == "HOLD" or abs(sc) < min_score or cf < 35:
+            if abs(sc) >= min_score * 0.75:
                 print(f"  HOLD  {signal['coin']:<5} score={sc:+.1f} conf={cf}%  "
                       f"«{article['title'][:55]}»")
             n_hold += 1
             continue
 
-        # Replay: применяем мягкий порог вместо боевых 8.0
-        if abs(signal["total_score"]) < min_score or signal["confidence"] < 35:
-            n_hold += 1
-            continue
-
         coin = signal["coin"]
         if open_pos.get(coin):
-            continue  # позиция уже открыта
+            continue
 
         trade = simulate_trade(coin, action, article["timestamp_ms"], balance)
         if not trade:
@@ -287,30 +292,26 @@ def run_replay(days: int, min_score: float = DEFAULT_MIN_SCORE) -> None:
         balance += trade["pnl"]
         open_pos[coin] = False
 
-        if balance > peak_bal:
-            peak_bal = balance
+        if balance > peak_bal: peak_bal = balance
         dd = (peak_bal - balance) / peak_bal * 100
-        if dd > max_dd:
-            max_dd = dd
+        if dd > max_dd: max_dd = dd
+
+        icon = "✅" if trade["result"] == "WIN" else "❌"
+        pnl_s = f"+${trade['pnl']:.2f}" if trade["pnl"] >= 0 else f"-${abs(trade['pnl']):.2f}"
+        print(f"  {icon} {action:<5} {coin:<5} {sc:+.1f} conf={cf}%  {pnl_s}  "
+              f"«{article['title'][:45]}»")
 
         trades.append({
-            "news_time":   article["published_dt"][:16],
-            "coin":        coin,
-            "action":      action,
-            "score":       signal["total_score"],
-            "confidence":  signal["confidence"],
-            "entry_time":  trade["entry_time"],
-            "exit_time":   trade["exit_time"],
-            "entry":       trade["entry_price"],
-            "exit":        trade["exit_price"],
-            "result":      trade["result"],
-            "pnl":         trade["pnl"],
-            "balance":     round(balance, 2),
-            "news":        article["title"][:80],
-            "source":      article["source"],
+            "news_time":  article["published_dt"][:16],
+            "coin": coin, "action": action,
+            "score": sc, "confidence": cf,
+            "entry_time": trade["entry_time"], "exit_time": trade["exit_time"],
+            "entry": trade["entry_price"],      "exit": trade["exit_price"],
+            "result": trade["result"],          "pnl": trade["pnl"],
+            "balance": round(balance, 2),
+            "news": article["title"][:80],      "source": article["source"],
         })
 
-    # 3. Отчёт
     wins   = sum(1 for t in trades if t["result"] == "WIN")
     losses = sum(1 for t in trades if t["result"] == "LOSS")
     total  = wins + losses
@@ -319,78 +320,51 @@ def run_replay(days: int, min_score: float = DEFAULT_MIN_SCORE) -> None:
     print(f"\n{'='*65}")
     print(f"  РЕЗУЛЬТАТЫ — {days} дней")
     print(f"{'='*65}")
-    print(f"  Статей обработано:     {len(articles)}")
-    print(f"  Сигналов всего:        {n_signals}")
-    print(f"  HOLD (отфильтровано):  {n_hold}")
-    print(f"  Сделок совершено:      {total}")
+    print(f"  Статей: {len(articles)}  |  Сигналов: {n_signals}  |  HOLD: {n_hold}  |  Сделок: {total}")
 
     if total > 0:
-        wr   = wins / total * 100
-        bew  = STOP_LOSS_PERCENT / (TAKE_PROFIT_PERCENT + STOP_LOSS_PERCENT) * 100
-        ev   = (wr / 100 * TAKE_PROFIT_PERCENT * LEVERAGE) \
-             - ((100 - wr) / 100 * STOP_LOSS_PERCENT * LEVERAGE)
-        roi  = profit / BALANCE * 100
+        wr  = wins / total * 100
+        bew = STOP_LOSS_PERCENT / (TAKE_PROFIT_PERCENT + STOP_LOSS_PERCENT) * 100
+        ev  = (wr / 100 * TAKE_PROFIT_PERCENT * LEVERAGE) \
+            - ((100 - wr) / 100 * STOP_LOSS_PERCENT * LEVERAGE)
+        roi = profit / BALANCE * 100
 
-        print(f"\n  WIN: {wins}  |  LOSS: {losses}  |  WinRate: {wr:.1f}%  "
-              f"(breakeven: {bew:.0f}%)")
-        print(f"  Начало: ${BALANCE:,.2f}   →   Конец: ${balance:,.2f}")
+        print(f"\n  WIN: {wins}  LOSS: {losses}  WinRate: {wr:.1f}%  (breakeven: {bew:.0f}%)")
         pstr = f"+${profit:,.2f}" if profit >= 0 else f"-${abs(profit):,.2f}"
         rstr = f"+{roi:.2f}%" if roi >= 0 else f"{roi:.2f}%"
-        print(f"  Профит: {pstr}  ({rstr})")
-        print(f"  EV на сделку: {ev:+.2f}%   |   Max Drawdown: {max_dd:.1f}%")
+        print(f"  Баланс: ${BALANCE:,.0f} → ${balance:,.2f}  ({pstr}  {rstr})")
+        print(f"  EV на сделку: {ev:+.2f}%   |   Max DD: {max_dd:.1f}%")
 
         verdict = "✅ СТРАТЕГИЯ ПРИБЫЛЬНА" if profit > 0 and wr > bew \
-                  else "⚠️  Стратегия требует доработки"
+                  else "⚠️  Требует доработки"
         print(f"\n  {verdict}")
-
-        print(f"\n  ── СДЕЛКИ ───────────────────────────────────────────────────")
-        print(f"  {'Новость':<17}  {'Монета':<6} {'Акция':<6} {'Score':>6} "
-              f"{'Conf':>5} {'PnL':>9}  Итог")
-        print(f"  {'-'*67}")
-        for t in trades:
-            pnl_s = f"+${t['pnl']:.2f}" if t["pnl"] >= 0 else f"-${abs(t['pnl']):.2f}"
-            icon  = "✅" if t["result"] == "WIN" else "❌"
-            print(f"  {t['news_time']:<17}  {t['coin']:<6} {t['action']:<6} "
-                  f"{t['score']:>6.1f} {t['confidence']:>5}% {pnl_s:>9}  {icon}")
-
     else:
-        print(f"\n  Сделок нет. Вероятные причины:")
-        print(f"    — за {days} дней мало событий с score ≥ 8")
-        print(f"    — попробуй --days 14 или --days 30")
+        print(f"\n  Сделок нет — score не достиг {min_score} ни разу.")
+        print(f"  Попробуй: --min-score 4  или  подожди больше данных в news.db")
 
     print(f"{'='*65}")
 
-    output = {
-        "meta": {
-            "days": days,
-            "articles": len(articles),
-            "signals": n_signals,
-            "hold_filtered": n_hold,
-        },
-        "stats": {
-            "trades": total,
-            "wins": wins,
-            "losses": losses,
-            "win_rate": round(wins / total * 100, 1) if total else 0,
-            "initial": BALANCE,
-            "final": round(balance, 2),
-            "profit": round(profit, 2),
-            "roi_pct": round(profit / BALANCE * 100, 2),
-            "max_drawdown_pct": round(max_dd, 2),
-        },
+    out = {
+        "meta": {"days": days, "min_score": min_score, "articles": len(articles),
+                 "signals": n_signals, "hold": n_hold},
+        "stats": {"trades": total, "wins": wins, "losses": losses,
+                  "win_rate": round(wins / total * 100, 1) if total else 0,
+                  "initial": BALANCE, "final": round(balance, 2),
+                  "profit": round(profit, 2), "roi_pct": round(profit / BALANCE * 100, 2),
+                  "max_dd_pct": round(max_dd, 2)},
         "trades": trades,
     }
-
     with open("backtest_replay_results.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-    print(f"\n  Детальный лог → backtest_replay_results.json")
+        json.dump(out, f, indent=2, ensure_ascii=False)
+    print(f"\n  Лог → backtest_replay_results.json")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--days", type=int, default=DEFAULT_DAYS,
-                        help="Глубина истории в днях (по умолчанию 7, max 30 для free tier)")
-    parser.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE,
-                        help=f"Мин. score для входа (по умолчанию {DEFAULT_MIN_SCORE}, боевой: 8.0)")
-    args = parser.parse_args()
-    run_replay(days=args.days, min_score=args.min_score)
+    p = argparse.ArgumentParser()
+    p.add_argument("--days",      type=int,   default=DEFAULT_DAYS)
+    p.add_argument("--min-score", type=float, default=DEFAULT_MIN_SCORE,
+                   dest="min_score")
+    p.add_argument("--newsapi",   action="store_true",
+                   help="Дополнить локальный архив статьями из NewsAPI")
+    args = p.parse_args()
+    run_replay(days=args.days, min_score=args.min_score, use_newsapi=args.newsapi)
