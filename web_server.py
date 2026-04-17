@@ -2,10 +2,11 @@ import asyncio
 import json
 import math
 import os
+import re
 import secrets
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import ccxt
@@ -34,6 +35,26 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
+# ─── Real IP: работаем за Cloudflare proxy ───────────────────────────────────
+def _real_ip(request: Request) -> str:
+    """Берём реальный IP из CF-Connecting-IP (Cloudflare) или X-Forwarded-For."""
+    cf = request.headers.get("CF-Connecting-IP")
+    if cf:
+        return cf.strip()
+    fwd = request.headers.get("X-Forwarded-For")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host
+
+# ─── Global API rate limit middleware ────────────────────────────────────────
+@app.middleware("http")
+async def global_rate_limit(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        ip = _real_ip(request)
+        if not _check_rate_limit(f"api:{ip}", window=60, max_hits=120):
+            return Response("Rate limit exceeded", status_code=429)
+    return await call_next(request)
+
 # ─── Security headers middleware ──────────────────────────────────────────────
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -43,36 +64,52 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
-    # Убираем раскрытие сервера — удаляем uvicorn header и заменяем
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173; "
+        "img-src 'self' data:; "
+        "frame-ancestors 'none';"
+    )
     if "server" in response.headers:
         del response.headers["server"]
     response.headers.append("server", "kado")
     return response
 
-# ─── Rate limiting (in-memory, per IP) ───────────────────────────────────────
-_login_attempts: dict = defaultdict(list)
-_LOGIN_WINDOW  = 60    # секунд
-_LOGIN_MAX     = 10    # попыток в окне
+# ─── Rate limiting (in-memory, per real IP) ──────────────────────────────────
+_rate_buckets: dict = defaultdict(list)
 
-def _check_rate_limit(ip: str) -> bool:
-    """Возвращает True если запрос разрешён, False если лимит исчерпан."""
+def _check_rate_limit(ip: str, window: int = 60, max_hits: int = 10) -> bool:
     now = time.time()
-    attempts = _login_attempts[ip]
-    # Удаляем старые попытки
-    _login_attempts[ip] = [t for t in attempts if now - t < _LOGIN_WINDOW]
-    if len(_login_attempts[ip]) >= _LOGIN_MAX:
+    hits = _rate_buckets[ip]
+    _rate_buckets[ip] = [t for t in hits if now - t < window]
+    if len(_rate_buckets[ip]) >= max_hits:
         return False
-    _login_attempts[ip].append(now)
+    _rate_buckets[ip].append(now)
     return True
 
-# ─── Auth tokens (in-memory) ──────────────────────────────────────────────────
-_active_tokens: set[str] = set()
+# ─── Auth tokens (in-memory, с TTL 24ч) ──────────────────────────────────────
+_TOKEN_TTL = 86_400  # 24 часа
+
+# {token: expires_at_unix}
+_active_tokens: dict[str, float] = {}
 security = HTTPBearer()
 
+def _purge_expired():
+    now = time.time()
+    expired = [t for t, exp in _active_tokens.items() if exp < now]
+    for t in expired:
+        del _active_tokens[t]
+
 def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    if credentials.credentials not in _active_tokens:
+    _purge_expired()
+    token = credentials.credentials
+    exp = _active_tokens.get(token)
+    if exp is None or exp < time.time():
+        _active_tokens.pop(token, None)
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    return credentials.credentials
+    return token
 
 LEDGER_FILE = "signals_log.json"
 
@@ -93,18 +130,18 @@ class LoginRequest(BaseModel):
 
 @app.post("/api/auth/login")
 async def login(body: LoginRequest, request: Request):
-    ip = request.client.host
-    if not _check_rate_limit(ip):
+    ip = _real_ip(request)
+    if not _check_rate_limit(ip, window=60, max_hits=10):
         raise HTTPException(status_code=429, detail="Too many attempts. Wait 60s.")
     if body.password != DASHBOARD_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid password")
     token = secrets.token_hex(32)
-    _active_tokens.add(token)
+    _active_tokens[token] = time.time() + _TOKEN_TTL
     return {"token": token}
 
 @app.post("/api/auth/logout")
 async def logout(token: str = Depends(require_auth)):
-    _active_tokens.discard(token)
+    _active_tokens.pop(token, None)
     return {"ok": True}
 
 
@@ -263,15 +300,20 @@ def _get_file_mtime() -> float:
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = Query(default=None),
-):
-    if not token or token not in _active_tokens:
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    # Ждём первое сообщение с токеном — не передаём токен в URL (логи)
+    try:
+        auth_msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+        token = auth_msg.strip()
+    except (asyncio.TimeoutError, Exception):
         await websocket.close(code=4001)
         return
-
-    await websocket.accept()
+    _purge_expired()
+    exp = _active_tokens.get(token)
+    if not exp or exp < time.time():
+        await websocket.close(code=4001)
+        return
     last_mtime = _get_file_mtime()
     try:
         while True:
