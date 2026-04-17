@@ -13,6 +13,9 @@ TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 # Dashboard auth — set a strong password in .env
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme123")
 
+# NewsAPI — для бутстрапа архива новостей (replay backtester)
+NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
+
 # ==========================================
 # ТОРГОВЫЕ НАСТРОЙКИ (РИСК-МЕНЕДЖМЕНТ)
 # ==========================================
