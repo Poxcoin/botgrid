@@ -3,6 +3,7 @@ anthropic          # Claude AI — sentiment analysis
 ccxt               # Exchange connectivity (Bybit, Binance)
 feedparser         # RSS news parsing
 requests           # Telegram Bot API, HTTP calls
+httpx              # Async HTTP client (market data, NewsAPI)
 python-dotenv      # .env config loader
 beautifulsoup4     # HTML parsing in news descriptions
 lxml               # HTML/XML parser backend for bs4
