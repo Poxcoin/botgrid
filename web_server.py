@@ -80,6 +80,8 @@ LEDGER_FILE = "signals_log.json"
 if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+if os.path.exists("static/assets"):
+    app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
