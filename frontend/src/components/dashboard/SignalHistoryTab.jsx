@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import StatCard from './StatCard';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { authFetch } from '@/lib/api';
 
 const PAGE_SIZE = 20;
 
@@ -17,14 +18,14 @@ export default function SignalHistoryTab() {
     if (c) params.set('coin', c);
     if (a) params.set('action', a);
     try {
-      const res = await fetch('/api/signals?' + params);
+      const res = await authFetch('/api/signals?' + params);
       if (res.ok) setData(await res.json());
     } catch {}
   };
 
   const loadStats = async () => {
     try {
-      const res = await fetch('/api/stats');
+      const res = await authFetch('/api/stats');
       if (res.ok) setStats(await res.json());
     } catch {}
   };

@@ -10,6 +10,9 @@ BYBIT_SECRET = os.getenv("BYBIT_SECRET")
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
+# Dashboard auth — set a strong password in .env
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme123")
+
 # ==========================================
 # ТОРГОВЫЕ НАСТРОЙКИ (РИСК-МЕНЕДЖМЕНТ)
 # ==========================================

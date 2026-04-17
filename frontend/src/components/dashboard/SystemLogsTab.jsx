@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { authFetch } from '@/lib/api';
 
 const COLOR = {
   INFO: 'text-gray-400',
@@ -21,7 +22,7 @@ export default function SystemLogsTab() {
 
   const load = async () => {
     try {
-      const res = await fetch('/api/logs?lines=200');
+      const res = await authFetch('/api/logs?lines=200');
       if (!res.ok) return;
       const data = await res.json();
       if (data.lines) setLines(data.lines);

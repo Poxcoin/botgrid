@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from './StatCard';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { authFetch } from '@/lib/api';
 
 export default function OverviewTab() {
   const [data, setData] = useState(null);
@@ -8,7 +9,7 @@ export default function OverviewTab() {
 
   const load = async () => {
     try {
-      const res = await fetch('/api/data');
+      const res = await authFetch('/api/data');
       if (!res.ok) throw new Error();
       setData(await res.json());
       setError(false);

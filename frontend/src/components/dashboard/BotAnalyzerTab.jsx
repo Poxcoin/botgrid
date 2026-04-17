@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LIVE_FACTORS, WIN_RATE_SERIES } from '@/lib/mockData';
+import { authFetch } from '@/lib/api';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell,
@@ -29,7 +30,7 @@ export default function BotAnalyzerTab() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
-    fetch('/api/stats').then(r => r.ok ? r.json() : null).then(d => d && setStats(d)).catch(() => {});
+    authFetch('/api/stats').then(r => r.ok ? r.json() : null).then(d => d && setStats(d)).catch(() => {});
   }, []);
 
   const composite = LIVE_FACTORS.reduce((acc, f) => acc + Math.abs(f.value) * f.weight, 0).toFixed(1);

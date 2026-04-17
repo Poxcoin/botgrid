@@ -27,15 +27,24 @@ export default function Auth() {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.email || !form.password) { setError('Email and password required'); return; }
-    if (mode === 'register' && form.password !== form.confirm) { setError('Passwords do not match'); return; }
-    const token = btoa(`${form.email}:${Date.now()}`);
-    localStorage.setItem('kado_token', token);
-    localStorage.setItem('kado_user', JSON.stringify({ email: form.email }));
-    navigate('/dashboard');
+    if (!form.password) { setError('Password required'); return; }
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: form.password }),
+      });
+      if (!res.ok) { setError('Invalid password'); return; }
+      const { token } = await res.json();
+      localStorage.setItem('kado_token', token);
+      localStorage.setItem('kado_user', JSON.stringify({ email: form.email || 'admin' }));
+      navigate('/dashboard');
+    } catch {
+      setError('Connection error — server unreachable');
+    }
   };
 
   return (
