@@ -93,6 +93,11 @@ def generate_signal(news_item: dict) -> dict | None:
     coin = ai_result["coin"]
     ai_confidence = ai_result["confidence"]  # 0-10
 
+    # Стейблкоины — не торгуем фьючерсами на них
+    _STABLECOINS = {"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"}
+    if coin.upper() in _STABLECOINS:
+        return None
+
     # Слабая новость — не рискуем
     if abs(news_score) < 4:
         return None
