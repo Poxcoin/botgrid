@@ -17,7 +17,13 @@ crypto-web.service
 # Replay backtester — данные только на сервере, не в репо
 news.db
 backtest_results/
+backtest_replay_results.json
 signals_log_alt.json
 open_positions.json
 daily_guard_state.json
 processed_urls_alt.json
+
+# Runtime files
+web_server_pid.txt
+*_pid.txt
+saas_database.sqlite

@@ -80,11 +80,19 @@ def resolve_market_symbol(exchange: ccxt.Exchange, coin: str) -> str:
 
 
 def get_free_usdt(exchange: ccxt.Exchange) -> float:
-    """Universal balance fetcher for Bybit V5.
-    Scans all account types to find USDT.
-    """
+    """Universal balance fetcher for Bybit V5 (Unified / Contract / Demo)."""
     try:
-        # 1. Пробуем Unified (самый частый вариант)
+        # Demo trading: ccxt fetch_balance не работает с demo endpoint,
+        # используем прямой API вызов к /v5/account/wallet-balance
+        if IS_DEMO_TRADING:
+            r = exchange.private_get_v5_account_wallet_balance(params={'accountType': 'UNIFIED'})
+            coins = r.get('result', {}).get('list', [{}])[0].get('coin', [])
+            for c in coins:
+                if c.get('coin') == 'USDT':
+                    return float(c.get('availableToWithdraw') or c.get('walletBalance') or 0)
+            return 0.0
+
+        # 1. Unified (Testnet / Mainnet)
         try:
             balance = exchange.fetch_balance({'accountType': 'unified'})
             if "USDT" in balance and balance["USDT"].get("total", 0) > 0:
@@ -92,7 +100,7 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
         except:
             pass
 
-        # 2. Пробуем Contract/Regular
+        # 2. Contract
         try:
             balance = exchange.fetch_balance({'accountType': 'contract'})
             if "USDT" in balance and balance["USDT"].get("total", 0) > 0:
@@ -100,7 +108,7 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
         except:
             pass
 
-        # 3. Крайний вариант - стандартный запрос
+        # 3. Fallback
         balance = exchange.fetch_balance()
         if "USDT" in balance:
             return float(balance["USDT"].get("free", balance["USDT"].get("total", 0.0)))
