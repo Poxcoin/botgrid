@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import NeuronReveal from '@/components/shared/NeuronReveal';
+import CharReveal from '@/components/shared/CharReveal';
 
 function HeroLocalCanvas({ mouseRef }) {
   const canvasRef = useRef(null);
@@ -119,7 +120,7 @@ export default function Hero() {
         style={{ minHeight: '100vh', zIndex: 10, paddingBottom: '3.5rem', paddingTop: '2rem' }}>
 
         {/* label */}
-        <NeuronReveal delay={0} tag="div" style={{ marginBottom: '2.5rem' }}>
+        <div style={{ marginBottom: '2.5rem' }}>
           <span
             className="font-mono text-[11px] md:text-[12px] tracking-[0.35em] uppercase select-none"
             style={{
@@ -128,40 +129,42 @@ export default function Hero() {
               padding: '6px 14px',
               border: '1px solid currentColor',
               animation: labelDrawn ? 'labelPulse 4s ease-in-out infinite' : 'none',
-              clipPath: labelDrawn ? 'inset(0 0% 0 0)' : 'inset(0 100% 0 0)',
-              transition: 'clip-path 600ms ease-out',
             }}
           >
-            AI-DRIVEN CRYPTO SIGNAL INTELLIGENCE
+            <CharReveal text="AI-DRIVEN CRYPTO SIGNAL INTELLIGENCE" delay={80} charDelay={28} tag="span" />
           </span>
-        </NeuronReveal>
+        </div>
 
         {/* KADO with scan-line */}
-        <NeuronReveal delay={150} tag="div" style={{ position: 'relative', padding: '0.15em 0.05em' }}>
+        <div style={{ position: 'relative', padding: '0.15em 0.05em' }}>
           <h1
             className="font-black leading-none select-none"
             style={{ fontSize: 'clamp(80px, 18vw, 220px)', letterSpacing: '-0.06em', color: 'var(--hero-fg)' }}
           >
-            KADO
+            <CharReveal text="KADO" delay={200} charDelay={120} tag="span" />
           </h1>
           <div style={{
             position: 'absolute', left: 0, right: 0, height: '2px',
             background: 'var(--hero-fg)', opacity: 0, pointerEvents: 'none',
             animation: 'scanLine 4s ease-in-out 1.5s infinite',
           }} />
-        </NeuronReveal>
+        </div>
 
         {/* subtitle */}
-        <NeuronReveal delay={350} tag="div" style={{ marginTop: '2.5rem', display: 'flex', alignItems: 'center' }}>
+        <div style={{ marginTop: '2.5rem', display: 'flex', alignItems: 'center' }}>
           <div style={{
             width: 2, background: 'var(--hero-fg)', alignSelf: 'stretch', marginRight: 16,
-            transformOrigin: 'top', animation: 'scaleYIn 600ms ease 500ms both',
+            transformOrigin: 'top', animation: 'scaleYIn 600ms ease 700ms both',
           }} />
           <p className="text-sm md:text-base leading-relaxed text-left max-w-xs" style={{ color: 'var(--hero-muted-fg)' }}>
-            A quantitative newsroom that listens to the market — scores every headline,
-            validates every move, and executes with discipline.
+            <CharReveal
+              text="A quantitative newsroom that listens to the market — scores every headline, validates every move, and executes with discipline."
+              delay={700}
+              charDelay={18}
+              tag="span"
+            />
           </p>
-        </NeuronReveal>
+        </div>
 
         {/* CTA */}
         <NeuronReveal delay={500} tag="div" style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>

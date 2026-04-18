@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import NeuronReveal from '@/components/shared/NeuronReveal';
+import CharReveal from '@/components/shared/CharReveal';
 import useScrollReveal from '@/lib/useScrollReveal';
 
 const ITEMS = [
@@ -42,12 +43,12 @@ function FeatureCard({ it, i, sectionVisible }) {
           {it.n}
         </div>
       </NeuronReveal>
-      <NeuronReveal delay={i * 120 + 160} tag="div">
-        <h3 className="font-black text-xl md:text-2xl tracking-tight mb-4">{it.h}</h3>
-      </NeuronReveal>
-      <NeuronReveal delay={i * 120 + 240} tag="div">
-        <p className="text-[15px] leading-relaxed opacity-75">{it.p}</p>
-      </NeuronReveal>
+      <div className="mb-4">
+        <CharReveal text={it.h} delay={i * 120 + 160} charDelay={30} tag="h3" className="font-black text-xl md:text-2xl tracking-tight" />
+      </div>
+      <div>
+        <CharReveal text={it.p} delay={i * 120 + 300} charDelay={12} tag="p" className="text-[15px] leading-relaxed opacity-75" />
+      </div>
     </div>
   );
 }
@@ -59,10 +60,10 @@ export default function Features() {
     <section ref={ref} style={{ background: 'transparent', borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
       <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-24 md:py-32">
         <div className="flex items-end justify-between mb-16 md:mb-24">
-          <NeuronReveal delay={0} tag="h2" className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl"
-            style={{ color: 'var(--site-fg)' }}>
-            What it<br/>does.
-          </NeuronReveal>
+          <h2 className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl" style={{ color: 'var(--site-fg)' }}>
+            <CharReveal text="What it" delay={100} charDelay={55} tag="span" /><br/>
+            <CharReveal text="does." delay={550} charDelay={80} tag="span" />
+          </h2>
           <NeuronReveal delay={100} tag="div" className="hidden md:block font-mono text-[11px] tracking-[0.25em] uppercase"
             style={{ color: 'var(--hero-muted)' }}>
             <span style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 10px', animation: visible ? 'labelPulse 4s ease-in-out infinite' : 'none' }}>

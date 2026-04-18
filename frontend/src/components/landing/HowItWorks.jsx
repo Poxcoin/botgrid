@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import NeuronReveal from '@/components/shared/NeuronReveal';
+import CharReveal from '@/components/shared/CharReveal';
 import useScrollReveal from '@/lib/useScrollReveal';
 
 const STEPS = [
@@ -24,9 +25,10 @@ export default function HowItWorks() {
                 [ PROCESS ]
               </span>
             </NeuronReveal>
-            <NeuronReveal delay={80} tag="h2" className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl" style={{ color: 'var(--site-fg)' }}>
-              How it<br/>works.
-            </NeuronReveal>
+            <h2 className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl" style={{ color: 'var(--site-fg)' }}>
+              <CharReveal text="How it" delay={100} charDelay={60} tag="span" /><br/>
+              <CharReveal text="works." delay={560} charDelay={80} tag="span" />
+            </h2>
           </div>
           <div className="hidden md:block font-mono text-[11px] tracking-[0.25em] uppercase" style={{ color: 'var(--hero-muted)' }}>
             05 STEPS · EVERY 30s
@@ -55,15 +57,13 @@ export default function HowItWorks() {
                 <NeuronReveal delay={i * 80} tag="span">{s.n}</NeuronReveal>
               </div>
               <div className="col-span-10 md:col-span-4 p-6 md:p-8" style={{ borderRight: '1px solid var(--hero-border)' }}>
-                <NeuronReveal delay={i * 80 + 100} tag="h3" className="font-black text-3xl md:text-5xl tracking-tight leading-[0.9]"
-                  style={{ color: hov === i ? '#0047FF' : 'inherit', transition: 'color 200ms' }}>
-                  {s.t}.
-                </NeuronReveal>
+                <CharReveal text={s.t + '.'} delay={i * 80 + 100} charDelay={60} tag="h3"
+                  className="font-black text-3xl md:text-5xl tracking-tight leading-[0.9]"
+                  style={{ color: hov === i ? '#0047FF' : 'inherit', transition: 'color 200ms' }} />
               </div>
               <div className="col-span-12 md:col-span-7 p-6 md:p-8 flex items-center">
-                <NeuronReveal delay={i * 80 + 180} tag="p" className="text-base md:text-lg opacity-80 leading-relaxed">
-                  {s.d}
-                </NeuronReveal>
+                <CharReveal text={s.d} delay={i * 80 + 200} charDelay={14} tag="p"
+                  className="text-base md:text-lg opacity-80 leading-relaxed" />
               </div>
             </div>
           ))}

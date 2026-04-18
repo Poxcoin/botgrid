@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import NeuronReveal from '@/components/shared/NeuronReveal';
+import CharReveal from '@/components/shared/CharReveal';
 import useScrollReveal from '@/lib/useScrollReveal';
 
 export default function LandingCTA() {
@@ -12,12 +13,13 @@ export default function LandingCTA() {
         <NeuronReveal delay={0} tag="div" className="font-mono text-[11px] tracking-[0.3em] uppercase mb-10" style={{ color: 'rgba(255,255,255,0.4)' }}>
           <span style={{ border: '1px solid rgba(255,255,255,0.15)', padding: '3px 10px' }}>[ 05 / ENTRY ]</span>
         </NeuronReveal>
-        <NeuronReveal delay={80} tag="h2" className="font-black tracking-[-0.05em] leading-[0.85] text-6xl md:text-[140px]">
-          READY TO<br/>START?
-        </NeuronReveal>
-        <NeuronReveal delay={200} tag="p" className="mt-10 max-w-xl text-lg leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
-          Join the waitlist or request early access. No credit card. No ceremony.
-        </NeuronReveal>
+        <h2 className="font-black tracking-[-0.05em] leading-[0.85] text-6xl md:text-[140px]">
+          <CharReveal text="READY TO" delay={100} charDelay={70} tag="span" /><br/>
+          <CharReveal text="START?" delay={720} charDelay={90} tag="span" />
+        </h2>
+        <p className="mt-10 max-w-xl text-lg leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+          <CharReveal text="Join the waitlist or request early access. No credit card. No ceremony." delay={1200} charDelay={16} tag="span" />
+        </p>
 
         <div className="mt-14 flex flex-col sm:flex-row gap-6">
           <NeuronReveal delay={320} tag="div">
