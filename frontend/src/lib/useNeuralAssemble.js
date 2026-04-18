@@ -8,7 +8,12 @@ export default function useNeuralAssemble(threshold = 0.1) {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setTriggered(true); },
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTriggered(true);
+          obs.disconnect();
+        }
+      },
       { threshold }
     );
     obs.observe(el);
