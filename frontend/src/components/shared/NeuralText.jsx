@@ -10,7 +10,7 @@ function sampleContour(text, rect, fontWeight) {
   off.width = W; off.height = H;
   const ctx = off.getContext('2d');
 
-  // Binary search: find font size that fills 80–92% of element width.
+  // Iterative scaling: find font size that fills 80–92% of element width.
   // Needed because font size is a CSS clamp() value — we only know the
   // rendered bounding rect, not the resolved px value.
   let fs = Math.round(H * 0.85);
@@ -55,10 +55,11 @@ export default function NeuralText({
 
   useEffect(() => {
     if (!triggered || firedRef.current) return;
+    if (!window.__neuronField) return;
+    firedRef.current = true;
     // Wait one frame so layout is painted and getBoundingClientRect is accurate
     requestAnimationFrame(() => {
-      if (!ref.current || !window.__neuronField) return;
-      firedRef.current = true;
+      if (!ref.current) return;
       const rect = ref.current.getBoundingClientRect();
       const pts = sampleContour(text, rect, fontWeight);
       if (pts.length > 0) window.__neuronField.assembleAt(pts);
