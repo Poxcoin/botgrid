@@ -20,7 +20,10 @@ export default function NeuronReveal({ children, delay = 0, tag: Tag = 'div', cl
     if (!wrap || !canvas) { setTextVisible(true); return; }
 
     const { width, height } = wrap.getBoundingClientRect();
-    if (!width || !height) { setTextVisible(true); animRef.current = false; return; }
+    if (!width || !height) {
+      setTimeout(() => { setTextVisible(true); animRef.current = false; }, 100);
+      return;
+    }
 
     canvas.width = width;
     canvas.height = height;
@@ -92,7 +95,7 @@ export default function NeuronReveal({ children, delay = 0, tag: Tag = 'div', cl
           if (once) obs.disconnect();
         }
       },
-      { threshold: 0.08 }
+      { threshold: 0.01, rootMargin: '0px 0px -20px 0px' }
     );
     obs.observe(el);
     return () => obs.disconnect();

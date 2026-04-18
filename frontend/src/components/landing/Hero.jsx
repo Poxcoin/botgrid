@@ -137,9 +137,9 @@ export default function Hero() {
         </NeuronReveal>
 
         {/* KADO with scan-line */}
-        <NeuronReveal delay={150} tag="div" style={{ position: 'relative', overflow: 'hidden' }}>
+        <NeuronReveal delay={150} tag="div" style={{ position: 'relative', padding: '0.15em 0.05em' }}>
           <h1
-            className="font-black leading-[0.82] select-none"
+            className="font-black leading-none select-none"
             style={{ fontSize: 'clamp(80px, 18vw, 220px)', letterSpacing: '-0.06em', color: 'var(--hero-fg)' }}
           >
             KADO
@@ -157,42 +157,54 @@ export default function Hero() {
             width: 2, background: 'var(--hero-fg)', alignSelf: 'stretch', marginRight: 16,
             transformOrigin: 'top', animation: 'scaleYIn 600ms ease 500ms both',
           }} />
-          <p className="text-base md:text-lg leading-relaxed text-left max-w-sm" style={{ color: 'var(--hero-muted-fg)' }}>
+          <p className="text-sm md:text-base leading-relaxed text-left max-w-xs" style={{ color: 'var(--hero-muted-fg)' }}>
             A quantitative newsroom that listens to the market — scores every headline,
             validates every move, and executes with discipline.
           </p>
         </NeuronReveal>
 
         {/* CTA */}
-        <NeuronReveal delay={500} tag="div" style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <NeuronReveal delay={500} tag="div" style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <Link
             to="/auth?mode=register"
             onMouseEnter={() => { setArrowHover(true); setCtaHover(true); }}
             onMouseLeave={() => { setArrowHover(false); setCtaHover(false); }}
             style={{
-              position: 'relative',
-              color: ctaHover ? '#0047FF' : 'var(--hero-fg)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 28px',
+              background: ctaHover ? '#0047FF' : 'var(--hero-fg)',
+              color: ctaHover ? '#fff' : 'var(--hero-bg, #fff)',
               fontFamily: 'var(--font-mono)',
-              fontSize: '13px',
-              letterSpacing: '0.25em',
+              fontSize: '12px',
+              letterSpacing: '0.2em',
               textTransform: 'uppercase',
               textDecoration: 'none',
+              border: '1px solid var(--hero-fg)',
+              transition: 'background 200ms ease, color 200ms ease',
+              userSelect: 'none',
+            }}
+          >
+            Get Access
+            <span style={{ display: 'inline-block', transform: arrowHover ? 'translateX(4px)' : 'translateX(0)', transition: 'transform 200ms ease' }}>→</span>
+          </Link>
+          <a
+            href="#how"
+            className="font-mono text-[12px] tracking-[0.2em] uppercase"
+            style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              transition: 'color 200ms ease',
-              padding: '4px 0',
+              padding: '12px 20px',
+              color: 'var(--hero-muted-fg)',
+              border: '1px solid var(--hero-border)',
+              textDecoration: 'none',
+              transition: 'border-color 200ms ease, color 200ms ease',
             }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#0047FF'; e.currentTarget.style.color = '#0047FF'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hero-border)'; e.currentTarget.style.color = 'var(--hero-muted-fg)'; }}
           >
-            <span style={{ position: 'absolute', top: -2, left: -14, opacity: ctaHover ? 1 : 0, transform: ctaHover ? 'translate(0,0)' : 'translate(4px,4px)', transition: 'opacity 150ms, transform 150ms', color: '#0047FF', fontFamily: 'monospace', fontSize: '14px', pointerEvents: 'none' }}>⌐</span>
-            Get Access
-            <span style={{ display: 'inline-block', transform: arrowHover ? 'translateX(5px)' : 'translateX(0)', transition: 'transform 200ms ease' }}>→</span>
-            <span style={{ position: 'absolute', bottom: -2, right: -16, opacity: ctaHover ? 1 : 0, transform: ctaHover ? 'translate(0,0)' : 'translate(-4px,-4px)', transition: 'opacity 150ms, transform 150ms', color: '#0047FF', fontFamily: 'monospace', fontSize: '14px', pointerEvents: 'none' }}>¬</span>
-          </Link>
-          <span style={{ color: 'var(--hero-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>/</span>
-          <a href="#how" className="font-mono text-[12px] tracking-[0.2em] uppercase" style={{ color: 'var(--hero-muted)', transition: 'color 200ms ease', textDecoration: 'none' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#0047FF'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--hero-muted)'; }}>
             Learn how it works
           </a>
         </NeuronReveal>
