@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import NeuronReveal from '@/components/shared/NeuronReveal';
 import CharReveal from '@/components/shared/CharReveal';
+import NeuralText from '@/components/shared/NeuralText';
 
 function HeroLocalCanvas({ mouseRef }) {
   const canvasRef = useRef(null);
@@ -141,7 +142,11 @@ export default function Hero() {
             className="font-black leading-none select-none"
             style={{ fontSize: 'clamp(80px, 18vw, 220px)', letterSpacing: '-0.06em', color: 'var(--hero-fg)' }}
           >
-            <CharReveal text="KADO" delay={200} charDelay={120} tag="span" />
+            <NeuralText
+              text="KADO"
+              fontWeight={900}
+              style={{ fontSize: 'clamp(80px, 18vw, 220px)', letterSpacing: '-0.06em' }}
+            />
           </h1>
           <div style={{
             position: 'absolute', left: 0, right: 0, height: '2px',
