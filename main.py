@@ -127,9 +127,14 @@ def run_signal_engine():
     # Загружаем старую историю
     signal_ledger = load_ledger()
 
-    # Cooldown: coin -> (last_action, timestamp) — не торгуем одну монету чаще раз в 4 часа
-    _coin_cooldown: dict = {}   # coin -> last_trade_ts (float)
-    COIN_COOLDOWN_SEC = 4 * 3600  # 4 часа
+    # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 4 часа
+    _coin_cooldown: dict = {}
+    COIN_COOLDOWN_SEC = 4 * 3600
+
+    # Дедупликация сигналов: (coin, action) -> last_signal_ts
+    # Один и тот же сигнал по одной монете не логируем чаще раз в 30 мин
+    _signal_dedup: dict = {}
+    SIGNAL_DEDUP_SEC = 30 * 60
 
     # Загружаем обработанные URL из файла — защита от дублей при перезапуске
     processed_urls = load_processed_urls()
@@ -161,8 +166,17 @@ def run_signal_engine():
                 print(f"   Анализ: {news_item['title'][:60]}...")
                 signal = generate_signal(news_item)
                 
-                # 3. Сохраняем ВСЕ сигналы (даже HOLD), чтобы сайт был "живым"
+                # 3. Сохраняем сигналы (дедупликация: один сигнал на монету за 30 мин)
                 if signal:
+                    now_ts = datetime.now(timezone.utc).timestamp()
+                    dedup_key = (signal.get("coin", ""), signal.get("action", ""))
+                    last_sig_ts = _signal_dedup.get(dedup_key, 0)
+                    if signal["action"] in ("LONG", "SHORT") and \
+                            now_ts - last_sig_ts < SIGNAL_DEDUP_SEC:
+                        print(f"   ⏭ Дубль сигнала {dedup_key[1]} {dedup_key[0]} — пропускаем")
+                        continue
+                    _signal_dedup[dedup_key] = now_ts
+
                     signal['timestamp'] = datetime.now(timezone.utc).isoformat()
                     signal_ledger.append(signal)
                     save_ledger(signal_ledger)
