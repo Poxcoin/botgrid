@@ -9,7 +9,7 @@ const STATS = [
   { raw: null, v: 'BYBIT', l: 'Futures venue', isNum: false },
 ];
 
-function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
 
 function CountUp({ target, started, pad = 0 }) {
   const [val, setVal] = useState(0);
@@ -22,7 +22,7 @@ function CountUp({ target, started, pad = 0 }) {
     const duration = 1200;
     function tick(now) {
       const p = Math.min(1, (now - start) / duration);
-      setVal(Math.round(easeOutQuart(p) * target));
+      setVal(Math.round(easeOutExpo(p) * target));
       if (p < 1) { raf.current = requestAnimationFrame(tick); }
       else { setTimeout(() => { setGlitch(true); setTimeout(() => setGlitch(false), 120); }, 80); }
     }
@@ -31,14 +31,27 @@ function CountUp({ target, started, pad = 0 }) {
   }, [started, target]);
 
   return (
-    <span style={{ display: 'inline-block', transform: glitch ? `translateX(${Math.random() > 0.5 ? 2 : -2}px)` : 'none', transition: glitch ? 'none' : 'transform 80ms ease' }}>
+    <span style={{
+      display: 'inline-block',
+      transform: glitch ? `translateX(${Math.random() > 0.5 ? 2 : -2}px)` : 'none',
+      transition: glitch ? 'none' : 'transform 80ms ease',
+    }}>
       {String(val).padStart(pad, '0')}
     </span>
   );
 }
 
 export default function StatsBar() {
-  const [ref, visible] = useScrollReveal(0.2);
+  const [ref, visible] = useScrollReveal(0.1);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (visible && !firedRef.current && ref.current) {
+      firedRef.current = true;
+      const rect = ref.current.getBoundingClientRect();
+      window.__neuronPulse?.(rect.left + rect.width / 2, rect.top + rect.height / 2, 1.0);
+    }
+  }, [visible]);
 
   return (
     <section id="stats" ref={ref} style={{ background: 'rgba(10,10,10,0.9)', color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -51,17 +64,34 @@ export default function StatsBar() {
           <span className="w-1.5 h-1.5 bg-kado-blue animate-blink" /> OPERATIONAL
         </span>
       </div>
+
       <div className="max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-4">
         {STATS.map((s, i) => (
-          <div key={s.l}
+          <div
+            key={s.l}
             className={`px-6 md:px-10 py-10 md:py-14 ${i < STATS.length - 1 ? 'md:border-r border-white/10' : ''} ${i < 2 ? 'border-b md:border-b-0 border-white/10' : ''}`}
-            style={{ opacity: visible ? 1 : 0, transition: `opacity 600ms ease ${i * 120}ms` }}>
-            <NeuronReveal delay={i * 120 + 100} tag="div" className="font-black font-mono text-5xl md:text-6xl tracking-tighter leading-none mb-4">
-              {s.isNum ? <CountUp target={s.raw} started={visible} pad={s.v.length} /> : s.v}
+            style={{
+              opacity: visible ? 1 : 0,
+              transform: visible ? 'translateY(0)' : 'translateY(20px)',
+              transition: `opacity 600ms ease ${i * 120}ms, transform 600ms ease ${i * 120}ms`,
+              willChange: 'opacity, transform',
+            }}
+          >
+            <NeuronReveal delay={i * 120 + 100} tag="div"
+              className="font-black font-mono text-5xl md:text-6xl tracking-tighter leading-none mb-4">
+              {s.isNum
+                ? <CountUp target={s.raw} started={visible} pad={s.v.length} />
+                : s.v}
             </NeuronReveal>
-            <NeuronReveal delay={i * 120 + 220} tag="div" className="font-mono text-[11px] tracking-[0.25em] uppercase"
+            <NeuronReveal delay={i * 120 + 220} tag="div"
+              className="font-mono text-[11px] tracking-[0.25em] uppercase"
               style={{ color: 'rgba(255,255,255,0.55)' }}>
-              <span style={{ border: '1px solid rgba(255,255,255,0.15)', padding: '3px 8px', display: 'inline-block', animation: visible ? `flickerBox ${2 + i * 0.8}s ease-in-out ${i * 0.5}s infinite` : 'none' }}>
+              <span style={{
+                border: '1px solid rgba(255,255,255,0.15)',
+                padding: '3px 8px',
+                display: 'inline-block',
+                animation: visible ? `flickerBox ${2 + i * 0.8}s ease-in-out ${i * 0.5}s infinite` : 'none',
+              }}>
                 {s.l}
               </span>
             </NeuronReveal>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
@@ -9,6 +9,12 @@ import Dashboard from '@/pages/Dashboard';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 
 export default function App() {
+  useEffect(() => {
+    const onScroll = () => window.__neuronField?.setScrollY(window.scrollY);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
     <ThemeProvider>
       <Router>
