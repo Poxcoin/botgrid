@@ -253,10 +253,14 @@ def generate_signal(news_item: dict) -> dict | None:
 
     action = "HOLD"
 
-    # Минимальный порог confidence для реального торгового сигнала
-    if total_score >= 8.0 and confidence >= 40:
+    # BTC/ETH — огромная ликвидность, RSS-новость практически не двигает цену.
+    # Требуем более сильный сигнал: порог 11.0 вместо 8.0.
+    btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+    min_score = 11.0 if coin_upper in btc_eth_coins else 8.0
+
+    if total_score >= min_score and confidence >= 40:
         action = "LONG"
-    elif total_score <= -8.0 and confidence >= 40:
+    elif total_score <= -min_score and confidence >= 40:
         action = "SHORT"
 
     # size_multiplier: 0.5–1.5, учитывает балл, confidence и время суток UTC

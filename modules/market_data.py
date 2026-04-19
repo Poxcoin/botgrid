@@ -289,8 +289,8 @@ def get_market_metrics(symbol, timestamp_ms=None):
         if timestamp_ms is None:
             whale_data = detect_whale_trades(coin_base)
 
-        # is_whale_active = объёмный спайк ИЛИ найдена реальная китовая сделка
-        is_whale_active = (volume_multiplier >= 2.5) or whale_data["whale_detected"]
+        # is_whale_active = объёмный спайк (4x — снижен шум) ИЛИ реальная китовая сделка
+        is_whale_active = (volume_multiplier >= 4.0) or whale_data["whale_detected"]
 
         return {
             "symbol":            symbol,
