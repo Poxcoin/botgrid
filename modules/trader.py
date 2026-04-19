@@ -149,14 +149,18 @@ def _init_exchange() -> ccxt.Exchange:
 def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
     """Проверяет, есть ли уже открытая позиция по монете. Защита от дублей."""
     try:
-        positions = exchange.fetch_positions([symbol], params={'category': 'linear'})
-        for pos in positions:
-            if abs(float(pos.get('contracts') or 0)) > 0:
+        # Demo и Testnet: прямой API вызов (ccxt fetch_positions несовместим с demo)
+        r = exchange.private_get_v5_position_list(params={
+            'category': 'linear',
+            'symbol': symbol,
+        })
+        for pos in r.get('result', {}).get('list', []):
+            if abs(float(pos.get('size') or 0)) > 0:
                 return True
         return False
     except Exception as e:
         print(f"⚠️ Не удалось проверить позиции: {e}")
-        return True  # При ошибке — блокируем вход (безопаснее чем дублировать)
+        return True  # При ошибке — блокируем вход
 
 
 def close_all_positions(signal: Dict[str, Any] = None) -> None:
