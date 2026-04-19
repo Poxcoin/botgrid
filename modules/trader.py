@@ -156,7 +156,7 @@ def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
         return False
     except Exception as e:
         print(f"⚠️ Не удалось проверить позиции: {e}")
-        return False  # Если не смогли проверить — не блокируем
+        return True  # При ошибке — блокируем вход (безопаснее чем дублировать)
 
 
 def close_all_positions(signal: Dict[str, Any] = None) -> None:

@@ -127,6 +127,10 @@ def run_signal_engine():
     # Загружаем старую историю
     signal_ledger = load_ledger()
 
+    # Cooldown: coin -> (last_action, timestamp) — не торгуем одну монету чаще раз в 4 часа
+    _coin_cooldown: dict = {}   # coin -> last_trade_ts (float)
+    COIN_COOLDOWN_SEC = 4 * 3600  # 4 часа
+
     # Загружаем обработанные URL из файла — защита от дублей при перезапуске
     processed_urls = load_processed_urls()
     processed_tg_updates = set()
@@ -170,9 +174,18 @@ def run_signal_engine():
                         print("==================================\n")
                         
                         if signal['action'] == "SELL_ALL":
+                            _coin_cooldown.clear()
                             close_all_positions(signal)
                         elif signal['action'] in ["LONG", "SHORT"]:
-                            execute_trade(signal)
+                            coin = signal.get("coin", "")
+                            now_ts = datetime.now(timezone.utc).timestamp()
+                            last_ts = _coin_cooldown.get(coin, 0)
+                            if now_ts - last_ts < COIN_COOLDOWN_SEC:
+                                remaining = int((COIN_COOLDOWN_SEC - (now_ts - last_ts)) / 60)
+                                print(f"⏳ Cooldown {coin}: ещё {remaining} мин до следующей сделки")
+                            else:
+                                _coin_cooldown[coin] = now_ts
+                                execute_trade(signal)
             
             # Сохраняем URLs один раз после всего цикла, а не на каждую новость
             if urls_changed:
