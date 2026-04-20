@@ -17,6 +17,11 @@ TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 # Сессия генерируется один раз через setup_telegram_session.py
 TELEGRAM_SESSION = os.getenv("TELEGRAM_SESSION", "")
 
+# Gemini API (Google AI Studio)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# Groq API (бесплатно 14400 req/day, LLaMA-3.1) — фильтр новостей
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+
 # Dashboard auth — set a strong password in .env
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme123")
 
