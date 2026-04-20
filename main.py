@@ -9,6 +9,7 @@ from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker
 from modules.news_archive import archive_news
 from modules.telegram_monitor import start_telegram_monitor, tg_news_queue
+from modules.liquidation_monitor import start_liquidation_monitor
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
@@ -123,6 +124,7 @@ def run_signal_engine():
     )
     pnl_tracker.start_pnl_tracker(exchange_factory=_init_exchange)
     tg_enabled = start_telegram_monitor()
+    start_liquidation_monitor()
 
     sources = "RSS + Telegram каналы" if tg_enabled else "RSS"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nИсточники: {sources}\nСканирование каждые 30 сек.", TG_CHAT_ID)

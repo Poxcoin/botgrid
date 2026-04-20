@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_fear_greed_index, get_btc_dominance
 from modules.macro_calendar import get_size_modifier, get_active_macro_event, get_funding_settlement
+from modules.liquidation_monitor import get_liquidation_signal
 
 _STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"})
 
@@ -208,6 +209,19 @@ def generate_signal(news_item: dict) -> dict | None:
         elif (news_score > 0 and oi_change < 0) or (news_score < 0 and oi_change > 0):
             total_score -= 1.0   # OI против сигнала — слабое движение
 
+    # Фактор Д2: Ликвидации (Binance реалтайм)
+    liq = get_liquidation_signal(coin)
+    liq_score = liq["signal_score"]
+    # Применяем только если совпадает с направлением сигнала
+    if news_score > 0 and liq["signal"] == "BULLISH":
+        total_score += liq_score    # шорты сквизятся — лонг усиливается
+    elif news_score < 0 and liq["signal"] == "BEARISH":
+        total_score += abs(liq_score)  # лонги каскадят — шорт усиливается
+    elif news_score > 0 and liq["signal"] == "BEARISH":
+        total_score -= abs(liq_score) * 0.5  # идём против ликвидационного потока — осторожно
+    elif news_score < 0 and liq["signal"] == "BULLISH":
+        total_score += liq_score * 0.5  # шортим при сквизе — опасно
+
     # Фактор Е: Fear & Greed Index (настроение всего крипто-рынка)
     # Логика контратрианства: покупай когда все боятся, продавай когда все жадничают.
     # Extreme Fear = рынок перепродан = лонги дешевле и безопаснее.
@@ -332,6 +346,9 @@ def generate_signal(news_item: dict) -> dict | None:
             "btc_dominance":     btc_dom,
             "time_coeff":        time_coeff,
             "macro_mod":         macro_mod,
+            "liq_signal":        liq["signal"],
+            "liq_long_usd":      liq["long_liq_usd"],
+            "liq_short_usd":     liq["short_liq_usd"],
         },
         "macro_event":   macro_reason if macro_reason else None,
         "funding_event": funding_info["name"] if funding_info else None,
