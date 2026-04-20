@@ -371,6 +371,9 @@ def execute_trade(
             f"<b>Take Profit:</b> {tp_price}$ (+{_tp}%)\n"
             f"<b>Stop Loss:</b> {sl_price}$ (-{_sl}%)"
         )
+        age = signal.get("news_age_minutes")
+        if age is not None:
+            msg += f"\n⏰ <b>Возраст новости:</b> {age} мин"
         if signal.get("macro_event"):
             msg += f"\n{signal['macro_event']}"
         if signal.get("funding_event"):

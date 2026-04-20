@@ -8,6 +8,7 @@ from modules.trader import execute_trade, get_free_usdt, close_all_positions, _i
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker
 from modules.news_archive import archive_news
+from modules.telegram_monitor import start_telegram_monitor, tg_news_queue
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
@@ -121,8 +122,10 @@ def run_signal_engine():
         chat_id=TG_CHAT_ID,
     )
     pnl_tracker.start_pnl_tracker(exchange_factory=_init_exchange)
+    tg_enabled = start_telegram_monitor()
 
-    send_telegram_message("🚀 <b>BotGrid запущен</b>\nСканирование RSS каждые 30 сек. Жду сигналов...", TG_CHAT_ID)
+    sources = "RSS + Telegram каналы" if tg_enabled else "RSS"
+    send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nИсточники: {sources}\nСканирование каждые 30 сек.", TG_CHAT_ID)
 
     # Загружаем старую историю
     signal_ledger = load_ledger()
@@ -146,10 +149,22 @@ def run_signal_engine():
             # 0. Проверка команд из Telegram
             handle_telegram_commands(processed_tg_updates)
             
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканирование RSS...")
-            
-            # 1. Тянем свежие новости
+            # 1a. Telegram-очередь — реалтайм новости (приоритет выше RSS)
+            tg_news = []
+            while not tg_news_queue.empty():
+                try:
+                    tg_news.append(tg_news_queue.get_nowait())
+                except Exception:
+                    break
+
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканирование RSS" +
+                  (f" + {len(tg_news)} TG новостей" if tg_news else "") + "...")
+
+            # 1b. Тянем свежие RSS новости
             latest_news = get_aggregated_news(limit_per_source=5)
+
+            # Telegram первыми — они свежее
+            latest_news = tg_news + latest_news
             
             urls_changed = False
             for news_item in latest_news:

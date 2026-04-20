@@ -62,10 +62,10 @@ def _parse_published(entry) -> datetime | None:
 
 
 def _is_fresh(entry) -> bool:
-    """True, если новость не старше _MAX_AGE_HOURS."""
+    """True, если новость не старше _MAX_AGE_HOURS. Без даты — блокируем."""
     pub = _parse_published(entry)
     if pub is None:
-        return True  # нет даты — пропускаем фильтрацию (не блокируем)
+        return False  # нет даты — невозможно оценить свежесть, пропускаем
     age = datetime.now(timezone.utc) - pub
     return age <= timedelta(hours=_MAX_AGE_HOURS)
 
@@ -183,9 +183,7 @@ def is_altcoin_news(title: str) -> bool:
     ]
 
     boring_keywords = [
-        "bitcoin", "ethereum", "mining", "taxes", "regulation",
-        r"\bsec\b", r"\betf\b", "president", "congress", "senate",
-        "federal reserve", "interest rate", "inflation",
+        "mining", "taxes",
     ]
 
     # ── Шаг 2: boring-keywords первыми ───────────────────────────────────────

@@ -3,6 +3,20 @@ from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_fear_greed_index, get_btc_dominance
 from modules.macro_calendar import get_size_modifier, get_active_macro_event, get_funding_settlement
 
+_STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"})
+
+
+def _news_age_minutes(published_dt: str) -> int | None:
+    """Возраст новости в минутах относительно UTC now. None если нет даты."""
+    if not published_dt:
+        return None
+    try:
+        pub = datetime.fromisoformat(published_dt)
+        age = datetime.now(timezone.utc) - pub
+        return max(0, int(age.total_seconds() / 60))
+    except Exception:
+        return None
+
 
 def _time_multiplier() -> float:
     """
@@ -73,6 +87,11 @@ def generate_signal(news_item: dict) -> dict | None:
     Возвращает None, если новость слабая или данных нет.
     """
 
+    # 0. Возраст новости — старые сигналы торгуем осторожнее или не торгуем
+    age_min = _news_age_minutes(news_item.get("published_dt", ""))
+    if age_min is not None and age_min > 90:
+        return None  # Новость старше 90 мин — цена давно отработала
+
     # 1. Защита от глобальной паники
     if news_item.get("is_panic"):
         return {
@@ -93,8 +112,6 @@ def generate_signal(news_item: dict) -> dict | None:
     coin = ai_result["coin"]
     ai_confidence = ai_result["confidence"]  # 0-10
 
-    # Стейблкоины — не торгуем фьючерсами на них
-    _STABLECOINS = {"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"}
     if coin.upper() in _STABLECOINS:
         return None
 
@@ -281,9 +298,15 @@ def generate_signal(news_item: dict) -> dict | None:
 
     if macro_mod < 1.0:
         size_multiplier = round(size_multiplier * macro_mod, 2)
-        # Если из-за макро позиция становится слишком маленькой — переводим в HOLD
         if size_multiplier < 0.3 and action in ("LONG", "SHORT"):
             action = "HOLD"
+
+    # Штраф за возраст: 30-60 мин → -25% размер, >60 мин → -50% размер
+    if age_min is not None:
+        if age_min > 60:
+            size_multiplier = round(size_multiplier * 0.5, 2)
+        elif age_min > 30:
+            size_multiplier = round(size_multiplier * 0.75, 2)
 
     return {
         "coin": coin,
@@ -314,6 +337,7 @@ def generate_signal(news_item: dict) -> dict | None:
         "funding_event": funding_info["name"] if funding_info else None,
         "news_title": news_item["title"],
         "source": news_item.get("source", "Unknown"),
+        "news_age_minutes": age_min,
     }
 
 
