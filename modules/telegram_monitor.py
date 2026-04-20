@@ -18,7 +18,7 @@ MONITOR_CHANNELS = [
     "lookonchain",       # On-chain аналитика, whale движения
     "WuBlockchain",      # Китайский рынок — часто первыми
     "whale_alert_io",    # Whale Alert официальный канал
-    "CoinDeskMarkets",   # CoinDesk оперативные новости
+    "cointelegraph",     # Cointelegraph — оперативные новости
 ]
 
 _HTML_RE = re.compile(r"<[^>]+>")
