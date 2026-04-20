@@ -68,7 +68,22 @@ async def _run_client():
 
     await client.start()
 
-    @client.on(events.NewMessage(chats=MONITOR_CHANNELS))
+    # Проверяем доступность каналов и фильтруем недоступные
+    active_channels = []
+    for ch in MONITOR_CHANNELS:
+        try:
+            await client.get_entity(ch)
+            active_channels.append(ch)
+        except Exception as e:
+            print(f"[TG] ⚠️ Канал @{ch} недоступен (не подписан?): {type(e).__name__}")
+
+    if not active_channels:
+        print("[TG] ❌ Ни один канал недоступен — подпишись на каналы в Telegram")
+        return
+
+    print(f"[TG] ✅ Слушаем {len(active_channels)} каналов: {', '.join(active_channels)}")
+
+    @client.on(events.NewMessage(chats=active_channels))
     async def _handler(event):
         try:
             channel = getattr(event.chat, "username", None) or str(event.chat_id)
@@ -79,7 +94,6 @@ async def _run_client():
         except Exception as e:
             print(f"[TG] Ошибка обработки сообщения: {e}")
 
-    print(f"[TG] ✅ Слушаем {len(MONITOR_CHANNELS)} каналов: {', '.join(MONITOR_CHANNELS)}")
     await client.run_until_disconnected()
 
 
