@@ -16,7 +16,7 @@ tg_news_queue: queue.Queue = queue.Queue()
 MONITOR_CHANNELS = [
     "WatcherGuru",       # Breaking crypto news, очень быстрые
     "lookonchain",       # On-chain аналитика, whale движения
-    "WuBlockchain",      # Китайский рынок — часто первыми
+    "wublockchainenglish",  # Wu Blockchain English — часто первыми
     "whale_alert_io",    # Whale Alert официальный канал
     "cointelegraph",     # Cointelegraph — оперативные новости
 ]
