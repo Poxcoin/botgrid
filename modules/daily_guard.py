@@ -79,6 +79,20 @@ def init(current_balance: float) -> None:
         _save(_state)
         print(f"[daily_guard] 📅 Новый день ({today}). Start balance: ${current_balance:.2f}  Лимит: -{MAX_DAILY_LOSS_PCT}%")
     else:
+        # Защита от устаревшего баланса (смена testnet→demo или ручное пополнение)
+        # Если текущий баланс отличается от сохранённого более чем в 3 раза — сброс
+        saved_start = _state.get("start_balance", 0)
+        if saved_start > 0 and current_balance > 0:
+            ratio = current_balance / saved_start
+            if ratio < 0.33 or ratio > 3.0:
+                _state = {
+                    "date": today,
+                    "start_balance": round(current_balance, 4),
+                    "stopped": False,
+                }
+                _save(_state)
+                print(f"[daily_guard] ⚠️ Баланс изменился кардинально (${saved_start:.2f} → ${current_balance:.2f}) — сброс стартового баланса")
+                return
         status = "🛑 СТОП" if _state.get("stopped") else "✅ ОК"
         print(f"[daily_guard] Сегодня ({today}). Start: ${_state.get('start_balance', 0):.2f}  Статус: {status}")
 
