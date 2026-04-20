@@ -3,6 +3,8 @@ from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_fear_greed_index, get_btc_dominance
 from modules.macro_calendar import get_size_modifier, get_active_macro_event, get_funding_settlement
 from modules.liquidation_monitor import get_liquidation_signal
+from modules.onchain_monitor import get_onchain_signal
+from modules.gemini_filter import analyze_news as gemini_analyze
 
 _STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"})
 
@@ -104,9 +106,27 @@ def generate_signal(news_item: dict) -> dict | None:
             "news_title": news_item["title"],
         }
 
-    # 2. Анализ ИИ (с описанием для лучшего контекста)
-    ai_result = analyze_sentiment(
+    # 1.5. Gemini pre-filter — проверяем новизну и рыночное влияние до Claude
+    gemini = gemini_analyze(
         news_item["title"],
+        news_item.get("description", ""),
+        age_minutes=age_min,
+    )
+    if gemini:
+        # Уже отработана рынком — пропускаем
+        if gemini["priced_in"] and gemini["novelty"] < 4:
+            return None
+        # Gemini считает влияние нулевым
+        if gemini["market_impact"] == "NONE":
+            return None
+
+    # 2. Анализ ИИ (с описанием для лучшего контекста + контекст от Gemini)
+    gemini_context = ""
+    if gemini:
+        gemini_context = f" [Gemini: {gemini['market_impact']} impact, {gemini['expected_move']}, novelty={gemini['novelty']}]"
+
+    ai_result = analyze_sentiment(
+        news_item["title"] + gemini_context,
         news_item.get("description", ""),
     )
     news_score = ai_result["score"]       # -10 до +10
@@ -242,6 +262,19 @@ def generate_signal(news_item: dict) -> dict | None:
             total_score -= 1.5    # Extreme Greed подтверждает шорт (коррекция назревает)
         elif fng_value <= 20:
             total_score += 1.5    # Extreme Fear: рынок уже перепродан, шорт рискован
+
+    # Фактор Е2: On-chain (whale переводы на/с бирж)
+    onchain = get_onchain_signal("ETH")
+    onchain_score = onchain["signal_score"]
+    if coin_upper in ("ETH", "ETHEREUM") or coin_upper == "BTC":
+        if news_score > 0 and onchain["signal"] == "BULLISH":
+            total_score += onchain_score
+        elif news_score < 0 and onchain["signal"] == "BEARISH":
+            total_score += abs(onchain_score)
+        elif news_score > 0 and onchain["signal"] == "BEARISH":
+            total_score -= abs(onchain_score) * 0.5
+        elif news_score < 0 and onchain["signal"] == "BULLISH":
+            total_score += onchain_score * 0.5
 
     # Фактор Ж: Bitcoin Dominance (альт-сезон vs BTC-сезон)
     # Когда BTC dominance высокая — капитал уходит в BTC, альты страдают.

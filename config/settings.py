@@ -21,6 +21,8 @@ TELEGRAM_SESSION = os.getenv("TELEGRAM_SESSION", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 # Groq API (бесплатно 14400 req/day, LLaMA-3.1) — фильтр новостей
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+# Alchemy API — on-chain whale мониторинг (Ethereum)
+ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY", "")
 
 # Dashboard auth — set a strong password in .env
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme123")
