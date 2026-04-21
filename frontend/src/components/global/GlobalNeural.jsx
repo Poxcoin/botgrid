@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTheme } from '@/lib/ThemeContext';
 
 export const cursorStateRef = { x: -9999, y: -9999, vx: 0, vy: 0, moving: false };
 
 function buildAxons(W, H, isMobile) {
-  const count = isMobile ? 22 : 48;
+  const count = isMobile ? 12 : 28;
   return Array.from({ length: count }, () => ({
     ox: W * 0.05 + Math.random() * W * 0.28,
     oy: H * 0.62 + Math.random() * H * 0.48,
@@ -42,15 +43,19 @@ export default function GlobalNeural() {
   const canvasRef = useRef(null);
   const { theme } = useTheme();
   const themeRef = useRef(theme);
+  const location = useLocation();
   useEffect(() => { themeRef.current = theme; }, [theme]);
+
+  // Дашборд — без нейросети, только данные
+  if (location.pathname === '/dashboard') return null;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const isMobile = window.matchMedia('(pointer: coarse)').matches;
-    const BASE = isMobile ? 130 : 300;
-    const CONN = isMobile ? 72 : 95;
+    const BASE = isMobile ? 40 : 80;
+    const CONN = isMobile ? 60 : 80;
     const STORM_MS = 800;
 
     let W, H, raf;

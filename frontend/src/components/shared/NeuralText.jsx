@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import useNeuralAssemble from '@/lib/useNeuralAssemble';
 
 function sampleContour(text, rect, fontWeight) {
@@ -52,17 +52,29 @@ export default function NeuralText({
 }) {
   const [ref, triggered] = useNeuralAssemble(0.1);
   const firedRef = useRef(false);
+  const [fallback, setFallback] = useState(false);
+
+  useEffect(() => {
+    // Если через 1.5с текст всё ещё не собрался — показываем напрямую
+    const t = setTimeout(() => setFallback(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!triggered || firedRef.current) return;
-    if (!window.__neuronField) return;
+    if (!window.__neuronField) { setFallback(true); return; }
     firedRef.current = true;
-    // Wait one frame so layout is painted and getBoundingClientRect is accurate
     requestAnimationFrame(() => {
       if (!ref.current) return;
       const rect = ref.current.getBoundingClientRect();
       const pts = sampleContour(text, rect, fontWeight);
-      if (pts.length > 0) window.__neuronField.assembleAt(pts);
+      if (pts.length > 0) {
+        window.__neuronField.assembleAt(pts);
+        // После сборки тоже показываем текст (поверх нейронов как ghost)
+        setTimeout(() => setFallback(true), 1200);
+      } else {
+        setFallback(true);
+      }
     });
   }, [triggered, text, fontWeight]);
 
@@ -77,11 +89,10 @@ export default function NeuralText({
       ref={ref}
       className={className}
       style={{
-        // Invisible — nodes build the visible letter
-        color: 'transparent',
+        color: fallback ? 'inherit' : 'transparent',
         display: 'inline-block',
         userSelect: 'none',
-        // Keep layout identical to what CharReveal would produce
+        transition: fallback ? 'color 400ms ease' : 'none',
         ...style,
       }}
     >
