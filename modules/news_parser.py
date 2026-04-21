@@ -10,29 +10,17 @@ from difflib import SequenceMatcher
 # Вес влияет на итоговый confidence signal в decision_maker.
 # ---------------------------------------------------------------------------
 RSS_SOURCES = [
-    # --- Первый эшелон (профессиональные СМИ, высокий вес) ---
-    {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/",        "weight": 1.0},
-    {"url": "https://theblock.co/rss.xml",                             "weight": 1.0},
-    {"url": "https://blockworks.co/feed",                              "weight": 0.9},
-
-    # --- Второй эшелон (качественный агрегатор, средний вес) ---
-    {"url": "https://cointelegraph.com/rss",                           "weight": 0.85},
-    {"url": "https://decrypt.co/feed",                                 "weight": 0.85},
-    {"url": "https://cryptobriefing.com/feed/",                        "weight": 0.80},
-    {"url": "https://cryptoslate.com/feed/",                           "weight": 0.75},
-    {"url": "https://beincrypto.com/feed/",                            "weight": 0.70},
-    {"url": "https://www.newsbtc.com/feed/",                           "weight": 0.65},
-    {"url": "https://ambcrypto.com/feed/",                             "weight": 0.60},
-
-    # --- Макро / Финансы (геополитика и глобальная экономика) ---
+    # --- Макро / Геополітика (планові події — лаг не критичний) ---
     {"url": "https://feeds.bbci.co.uk/news/world/rss.xml",            "weight": 1.0},   # BBC World
     {"url": "https://feeds.reuters.com/reuters/businessNews",          "weight": 1.0},   # Reuters Business
-    {"url": "https://feeds.reuters.com/reuters/technologyNews",        "weight": 0.9},   # Reuters Tech
 
-    # --- Регуляторика / институционалы (высокий вес — прямое влияние) ---
+    # --- Регуляторика (SEC/CFTC/ФРС — важливо для крипти) ---
+    {"url": "https://www.federalreserve.gov/feeds/press_all.xml",      "weight": 1.0},   # ФРС прес-релізи
     {"url": "https://dlnews.com/arc/outboundfeeds/rss/",               "weight": 0.95},  # DL News — SEC/CFTC/DeFi
-    {"url": "https://bitcoinmagazine.com/.rss/full/",                  "weight": 0.85},  # Bitcoin Magazine
-    {"url": "https://www.federalreserve.gov/feeds/press_all.xml",      "weight": 1.0},   # ФРС — пресс-релизы
+
+    # --- Криптомедіа (залишаємо тільки топ-2 — решту замінив Telegram) ---
+    {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/",        "weight": 1.0},
+    {"url": "https://theblock.co/rss.xml",                             "weight": 1.0},
 ]
 
 # Для обратной совместимости с кодом, который импортирует RSS_FEEDS

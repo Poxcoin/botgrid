@@ -11,6 +11,7 @@ from modules.news_archive import archive_news
 from modules.telegram_monitor import start_telegram_monitor, tg_news_queue
 from modules.liquidation_monitor import start_liquidation_monitor
 from modules.onchain_monitor import start_onchain_monitor
+from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.analytics_db import save_signal, init_db
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
@@ -155,9 +156,10 @@ def run_signal_engine():
     tg_enabled = start_telegram_monitor()
     start_liquidation_monitor()
     start_onchain_monitor()
+    start_announcements_monitor()
 
-    sources = "RSS + Telegram каналы" if tg_enabled else "RSS"
-    send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nИсточники: {sources}\nСканирование каждые 30 сек.", TG_CHAT_ID)
+    sources = "Binance/Bybit Announcements + Telegram + Macro RSS"
+    send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
 
     init_db()
     signal_ledger = load_ledger()
@@ -181,7 +183,15 @@ def run_signal_engine():
             # 0. Проверка команд из Telegram
             handle_telegram_commands(processed_tg_updates)
             
-            # 1a. Telegram-очередь — реалтайм новости (приоритет выше RSS)
+            # 1a. Анонси бірж — НАЙВИЩИЙ ПРІОРИТЕТ (listing pumps)
+            ann_news = []
+            while not ann_queue.empty():
+                try:
+                    ann_news.append(ann_queue.get_nowait())
+                except Exception:
+                    break
+
+            # 1b. Telegram-черга — реалтайм новини
             tg_news = []
             while not tg_news_queue.empty():
                 try:
@@ -189,14 +199,17 @@ def run_signal_engine():
                 except Exception:
                     break
 
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканирование RSS" +
-                  (f" + {len(tg_news)} TG новостей" if tg_news else "") + "...")
+            ann_count = len(ann_news)
+            tg_count = len(tg_news)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
+                  (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
+                  (f" | TG: {tg_count}" if tg_count else "") + "...")
 
-            # 1b. Тянем свежие RSS новости
+            # 1c. Macro RSS (тільки планові події)
             latest_news = get_aggregated_news(limit_per_source=5)
 
-            # Telegram первыми — они свежее
-            latest_news = tg_news + latest_news
+            # Пріоритет: Анонси бірж > Telegram > RSS
+            latest_news = ann_news + tg_news + latest_news
             
             urls_changed = False
             for news_item in latest_news:
