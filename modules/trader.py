@@ -126,7 +126,7 @@ def _init_exchange() -> ccxt.Exchange:
         "secret": BYBIT_SECRET,
         "enableRateLimit": True,
         "options": {
-            "defaultType": "swap",
+            "defaultType": "linear",
             "adjustForTimeDifference": True,
             "recvWindow": 10000,
         },
@@ -136,6 +136,7 @@ def _init_exchange() -> ccxt.Exchange:
             'public': 'https://api-demo.bybit.com',
             'private': 'https://api-demo.bybit.com',
         }
+        exchange.options['defaultType'] = 'linear'
     if USE_TESTNET:
         # Явно указываем testnet URL — не полагаемся только на set_sandbox_mode()
         exchange.urls['api'] = {

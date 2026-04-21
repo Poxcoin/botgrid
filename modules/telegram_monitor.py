@@ -14,11 +14,17 @@ tg_news_queue: queue.Queue = queue.Queue()
 # Каналы для мониторинга (публичные, проверенные)
 # Добавляй/убирай по своему усмотрению — только username без @
 MONITOR_CHANNELS = [
-    "WatcherGuru",       # Breaking crypto news, очень быстрые
-    "lookonchain",       # On-chain аналитика, whale движения
-    "wublockchainenglish",  # Wu Blockchain English — часто первыми
-    "whale_alert_io",    # Whale Alert официальный канал
-    "cointelegraph",     # Cointelegraph — оперативные новости
+    # --- Найшвидші (breaking news, listing alerts) ---
+    "WatcherGuru",           # Breaking crypto news, репостить топ твіти
+    "AltcoinGordon",         # Listing pumps, швидкі алерти
+    "CryptoNewsAlerts",      # Breaking news бот, <1 хв
+    # --- On-chain / Whale ---
+    "lookonchain",           # On-chain аналітика, whale рухи
+    "whale_alert_io",        # Whale Alert офіційний
+    # --- Crypto media ---
+    "wublockchainenglish",   # Wu Blockchain — часто першими
+    "cointelegraph",         # Cointelegraph оперативні новини
+    "theblockres",           # The Block — інституційні новини
 ]
 
 _HTML_RE = re.compile(r"<[^>]+>")
