@@ -11,6 +11,7 @@ from modules.news_archive import archive_news
 from modules.telegram_monitor import start_telegram_monitor, tg_news_queue
 from modules.liquidation_monitor import start_liquidation_monitor
 from modules.onchain_monitor import start_onchain_monitor
+from modules.analytics_db import save_signal, init_db
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
@@ -131,7 +132,7 @@ def run_signal_engine():
     sources = "RSS + Telegram каналы" if tg_enabled else "RSS"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nИсточники: {sources}\nСканирование каждые 30 сек.", TG_CHAT_ID)
 
-    # Загружаем старую историю
+    init_db()
     signal_ledger = load_ledger()
 
     # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 4 часа
@@ -200,6 +201,10 @@ def run_signal_engine():
                     signal_ledger.append(signal)
                     save_ledger(signal_ledger)
                     
+                    # Сохраняем в аналитическую БД
+                    executed = signal['action'] in ("LONG", "SHORT")
+                    save_signal(signal, executed=executed)
+
                     if signal['action'] in ["LONG", "SHORT", "SELL_ALL"]:
                         print("\n==================================")
                         print(f"🚨 АХТУНГ! НАЙДЕН РЕАЛЬНЫЙ ТРЕЙД!")
