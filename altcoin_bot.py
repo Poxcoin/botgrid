@@ -24,6 +24,7 @@ from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_funding_rate, get_btc_dominance, get_fear_greed_index
 from modules.trader import execute_trade, get_free_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
+from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules import daily_guard, position_monitor, pnl_tracker
 from config.settings import TG_CHAT_ID
 
@@ -216,6 +217,8 @@ def run_alt_engine():
     if not any(t.name == "pnl-tracker" for t in threading.enumerate()):
         pnl_tracker.start_pnl_tracker(exchange_factory=_init_exchange)
 
+    start_announcements_monitor()
+
     send_telegram_message(
         f"🎯 <b>ALT BOT запущен</b>\n"
         f"TP={ALT_TP}% | SL={ALT_SL}% | x{ALT_LEVERAGE} | {len(ALT_COINS)} монет\n"
@@ -229,8 +232,18 @@ def run_alt_engine():
 
     while True:
         try:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 ALT сканирование...")
-            news_list = get_aggregated_news(limit_per_source=8)
+            # Announcements — найвищий пріоритет
+            ann_news = []
+            while not ann_queue.empty():
+                try:
+                    ann_news.append(ann_queue.get_nowait())
+                except Exception:
+                    break
+
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 ALT сканирование..." +
+                  (f" | 🔔 {len(ann_news)} анонсів" if ann_news else ""))
+
+            news_list = ann_news + get_aggregated_news(limit_per_source=8)
 
             urls_changed = False
             for item in news_list:
