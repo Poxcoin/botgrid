@@ -178,7 +178,8 @@ def _ws_thread():
             pass
 
     def on_error(ws, err):
-        print(f"[ONCHAIN] WebSocket ошибка: {err}")
+        # Не логируем err напрямую — websocket-client включает URL (с API key) в текст ошибки
+        print(f"[ONCHAIN] WebSocket ошибка: {type(err).__name__}")
 
     def on_close(ws, *args):
         print("[ONCHAIN] WebSocket закрыт — переподключение через 15 сек...")

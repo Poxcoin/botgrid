@@ -24,8 +24,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 # Alchemy API — on-chain whale мониторинг (Ethereum)
 ALCHEMY_API_KEY = os.getenv("ALCHEMY_API_KEY", "")
 
-# Dashboard auth — set a strong password in .env
-DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme123")
+# Dashboard auth — MUST be set in .env, no insecure default
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "")
+if not DASHBOARD_PASSWORD:
+    raise RuntimeError("DASHBOARD_PASSWORD is not set in .env — refusing to start with no auth")
 
 # NewsAPI — для бутстрапа архива новостей (replay backtester)
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")

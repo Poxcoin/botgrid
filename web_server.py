@@ -79,9 +79,18 @@ async def add_security_headers(request: Request, call_next):
 
 # ─── Rate limiting (in-memory, per real IP) ──────────────────────────────────
 _rate_buckets: dict = defaultdict(list)
+_rate_buckets_last_cleanup: float = 0.0
 
 def _check_rate_limit(ip: str, window: int = 60, max_hits: int = 10) -> bool:
+    global _rate_buckets_last_cleanup
     now = time.time()
+    # Чистим старые записи раз в 5 минут чтобы избежать memory leak
+    if now - _rate_buckets_last_cleanup > 300:
+        cutoff = now - 3600
+        stale = [k for k, v in _rate_buckets.items() if not v or max(v) < cutoff]
+        for k in stale:
+            del _rate_buckets[k]
+        _rate_buckets_last_cleanup = now
     hits = _rate_buckets[ip]
     _rate_buckets[ip] = [t for t in hits if now - t < window]
     if len(_rate_buckets[ip]) >= max_hits:
@@ -94,6 +103,8 @@ _TOKEN_TTL = 86_400  # 24 часа
 
 # {token: expires_at_unix}
 _active_tokens: dict[str, float] = {}
+_ws_connections: dict = defaultdict(int)  # ip → open connection count
+_WS_MAX_PER_IP = 5
 security = HTTPBearer()
 
 def _purge_expired():
@@ -223,10 +234,6 @@ async def get_signals(
 ):
     all_signals = _load_signals()
 
-    filtered = [
-        s for s in all_signals
-        if s.get("action") in (action.upper() if action else ("LONG", "SHORT"))
-    ]
     if action:
         filtered = [s for s in all_signals if s.get("action") == action.upper()]
     else:
@@ -316,21 +323,26 @@ def _get_file_mtime() -> float:
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    ip = _real_ip(websocket)
+    if _ws_connections[ip] >= _WS_MAX_PER_IP:
+        await websocket.close(code=4029)
+        return
     await websocket.accept()
-    # Ждём первое сообщение с токеном — не передаём токен в URL (логи)
+    _ws_connections[ip] += 1
     try:
-        auth_msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
-        token = auth_msg.strip()
-    except (asyncio.TimeoutError, Exception):
-        await websocket.close(code=4001)
-        return
-    _purge_expired()
-    exp = _active_tokens.get(token)
-    if not exp or exp < time.time():
-        await websocket.close(code=4001)
-        return
-    last_mtime = _get_file_mtime()
-    try:
+        # Ждём первое сообщение с токеном — не передаём токен в URL (логи)
+        try:
+            auth_msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+            token = auth_msg.strip()
+        except (asyncio.TimeoutError, Exception):
+            await websocket.close(code=4001)
+            return
+        _purge_expired()
+        exp = _active_tokens.get(token)
+        if not exp or exp < time.time():
+            await websocket.close(code=4001)
+            return
+        last_mtime = _get_file_mtime()
         while True:
             await asyncio.sleep(5)
             current_mtime = _get_file_mtime()
@@ -342,13 +354,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 signals = _load_signals()
                 await websocket.send_json({
                     "type": "ping",
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "signals_count": sum(1 for s in signals if s.get("action") in ("LONG", "SHORT")),
                 })
     except WebSocketDisconnect:
         pass
     except Exception as e:
         print(f"WebSocket ошибка: {e}")
+    finally:
+        _ws_connections[ip] = max(0, _ws_connections[ip] - 1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -390,8 +404,8 @@ async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to read backtest result")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

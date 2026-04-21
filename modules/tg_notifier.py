@@ -30,7 +30,8 @@ def send_telegram_message(text, chat_id):
             return False
             
     except requests.exceptions.RequestException as e:
-        print(f"❌ Ошибка сети при отправке в TG: {e}")
+        # Не логируем e напрямую — requests может включить URL (с токеном) в строку ошибки
+        print(f"❌ Ошибка сети при отправке в TG: {type(e).__name__}")
         return False
 
 
@@ -53,5 +54,5 @@ def get_telegram_updates(offset: int = None):
             return response.json().get("result", [])
         return []
     except Exception as e:
-        print(f"⚠️ Ошибка получения обновлений TG: {e}")
+        print(f"⚠️ Ошибка получения обновлений TG: {type(e).__name__}")
         return []
