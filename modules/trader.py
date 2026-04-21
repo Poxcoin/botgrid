@@ -334,7 +334,7 @@ def execute_trade(
         sl_price = float(exchange.price_to_precision(symbol, sl_price))
 
         # -------------------------------------------------
-        # 4️⃣ Place market order with TP / SL
+        # 4️⃣ Place market order (без TP/SL — Demo не підтримує inline)
         # -------------------------------------------------
         order = _exchange_call(
             exchange.create_order,
@@ -343,14 +343,31 @@ def execute_trade(
             side,
             amount,
             params={
-                "takeProfit": tp_price,
-                "stopLoss": sl_price,
                 "category": "linear",
                 "positionIdx": 0,
             },
         )
 
         print(f"✅ ОРДЕР ИСПОЛНЕН! ID: {order.get('id', 'unknown')}")
+
+        # -------------------------------------------------
+        # 4.5️⃣ Set TP/SL separately (сумісно з Demo та Live)
+        # -------------------------------------------------
+        try:
+            exchange.set_trading_stop(
+                symbol,
+                params={
+                    "category": "linear",
+                    "positionIdx": 0,
+                    "takeProfit": str(tp_price),
+                    "stopLoss": str(sl_price),
+                    "tpTriggerBy": "MarkPrice",
+                    "slTriggerBy": "MarkPrice",
+                }
+            )
+            print(f"✅ TP/SL встановлено: TP={tp_price} SL={sl_price}")
+        except Exception as e:
+            print(f"⚠️ TP/SL не вдалося встановити: {e}")
 
         # -------------------------------------------------
         # 4.5️⃣ Track position for position monitor
