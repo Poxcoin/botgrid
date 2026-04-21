@@ -16,14 +16,13 @@ tg_news_queue: queue.Queue = queue.Queue()
 MONITOR_CHANNELS = [
     # --- Найшвидші (breaking news) ---
     "WatcherGuru",           # Breaking crypto news, репостить топ твіти
-    "CoinDesk",              # CoinDesk офіційний канал
     # --- On-chain / Whale ---
     "lookonchain",           # On-chain аналітика, whale рухи
     "whale_alert_io",        # Whale Alert офіційний
     # --- Crypto media ---
     "wublockchainenglish",   # Wu Blockchain — часто першими
     "cointelegraph",         # Cointelegraph оперативні новини
-    "DecryptMedia",          # Decrypt — швидкі крипто новини
+    "crypto",                # Великий крипто агрегатор
 ]
 
 _HTML_RE = re.compile(r"<[^>]+>")
