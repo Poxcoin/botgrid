@@ -4,7 +4,8 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { authFetch } from '@/lib/api';
 
 export default function OverviewTab() {
-  const [data, setData] = useState(null);
+  const [data,  setData]  = useState(null);
+  const [intel, setIntel] = useState(null);
   const [error, setError] = useState(false);
 
   const load = async () => {
@@ -18,9 +19,16 @@ export default function OverviewTab() {
     }
   };
 
+  const loadIntel = async () => {
+    try {
+      const res = await authFetch('/api/intel');
+      if (res.ok) setIntel(await res.json());
+    } catch {}
+  };
+
   useEffect(() => {
-    load();
-    const id = setInterval(load, 30000);
+    load(); loadIntel();
+    const id = setInterval(() => { load(); loadIntel(); }, 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -53,9 +61,60 @@ export default function OverviewTab() {
               {error ? 'OFFLINE' : 'LIVE'}
             </span>
           }
-          sub="16 / 16 SOURCES"
+          sub={intel ? [
+            intel.sources?.rss        && 'RSS',
+            intel.sources?.telegram   && 'TG',
+            intel.sources?.liquidations && 'LIQ',
+            intel.sources?.onchain    && 'CHAIN',
+          ].filter(Boolean).join(' · ') : '...'}
         />
       </div>
+
+      {/* Live Intel Panel */}
+      {intel && (
+        <div className="border border-kado-black">
+          <div className="px-5 h-10 border-b border-kado-black flex items-center">
+            <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray">Live Intel /</span>
+            {intel.updated_at && (
+              <span className="ml-3 font-mono text-[10px] text-kado-gray/60">
+                {formatDistanceToNowStrict(new Date(intel.updated_at))} ago
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-kado-black/20">
+            {['BTC','ETH','SOL','BNB'].map(coin => {
+              const liq = intel.liquidations?.[coin];
+              if (!liq) return null;
+              const sig = liq.signal;
+              const color = sig === 'BEARISH' ? 'text-red-600' : sig === 'BULLISH' ? 'text-green-600' : 'text-kado-gray';
+              return (
+                <div key={coin} className="p-4">
+                  <div className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray mb-1">{coin} Liq</div>
+                  <div className={`font-mono font-bold text-sm ${color}`}>{sig}</div>
+                  <div className="font-mono text-[10px] text-kado-gray/70 mt-1">
+                    ↑${(liq.long_liq_usd/1000).toFixed(0)}K ↓${(liq.short_liq_usd/1000).toFixed(0)}K
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {intel.onchain && (
+            <div className="border-t border-kado-black/20 px-5 py-3 flex items-center gap-6">
+              <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">On-chain ETH /</span>
+              <span className={`font-mono text-sm font-bold ${
+                intel.onchain.signal === 'BEARISH' ? 'text-red-600' :
+                intel.onchain.signal === 'BULLISH' ? 'text-green-600' : 'text-kado-gray'
+              }`}>{intel.onchain.signal}</span>
+              <span className="font-mono text-[11px] text-kado-gray">
+                → Exchange: {intel.onchain.to_exchange_eth} ETH
+              </span>
+              <span className="font-mono text-[11px] text-kado-gray">
+                ← From Exchange: {intel.onchain.from_exchange_eth} ETH
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="border border-kado-black">
         <div className="flex items-center justify-between px-5 h-12 border-b border-kado-black">

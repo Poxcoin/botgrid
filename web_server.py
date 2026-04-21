@@ -272,6 +272,21 @@ async def get_stats(token: str = Depends(require_auth)):
     }
 
 
+@app.get("/api/intel")
+async def get_intel(token: str = Depends(require_auth)):
+    """Live данные: источники, ликвидации, on-chain."""
+    try:
+        with open("live_intel.json") as f:
+            return json.load(f)
+    except Exception:
+        return {
+            "updated_at": None,
+            "sources": {"rss": False, "telegram": False, "liquidations": False, "onchain": False},
+            "liquidations": {},
+            "onchain": {},
+        }
+
+
 @app.get("/api/logs")
 async def get_logs(
     lines: int = Query(default=100, ge=1, le=500),

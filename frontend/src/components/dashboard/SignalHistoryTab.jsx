@@ -86,15 +86,18 @@ export default function SignalHistoryTab() {
                 <th className="text-left px-5 h-10">Asset</th>
                 <th className="text-left px-5 h-10">Action</th>
                 <th className="text-left px-5 h-10">Score</th>
+                <th className="text-left px-5 h-10">Groq</th>
+                <th className="text-left px-5 h-10">Source</th>
+                <th className="text-left px-5 h-10">Age</th>
                 <th className="text-left px-5 h-10">Result</th>
                 <th className="text-left px-5 h-10">PnL</th>
-                <th className="text-left px-5 h-10">News Title</th>
+                <th className="text-left px-5 h-10">News</th>
               </tr>
             </thead>
             <tbody>
               {data.signals.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center font-mono text-[11px] tracking-widest uppercase text-kado-gray">
+                  <td colSpan={10} className="px-5 py-10 text-center font-mono text-[11px] tracking-widest uppercase text-kado-gray">
                     No signals found
                   </td>
                 </tr>
@@ -113,6 +116,23 @@ export default function SignalHistoryTab() {
                     </td>
                     <td className="px-5 py-3 font-mono font-bold tabular-nums">
                       {typeof s.total_score === 'number' ? s.total_score.toFixed(1) : s.total_score}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-[10px]">
+                      {s.groq?.market_impact ? (
+                        <span className={`px-1.5 py-0.5 font-bold tracking-wider ${
+                          s.groq.market_impact === 'HIGH'   ? 'bg-red-100 text-red-700' :
+                          s.groq.market_impact === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-500'
+                        }`}>{s.groq.market_impact}</span>
+                      ) : <span className="text-kado-gray">—</span>}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-[10px] text-kado-gray max-w-[120px] truncate">
+                      {s.source?.startsWith('Telegram') ? (
+                        <span className="text-blue-600 font-bold">{s.source.replace('Telegram @','@')}</span>
+                      ) : s.source || '—'}
+                    </td>
+                    <td className="px-5 py-3 font-mono text-[11px] tabular-nums text-kado-gray">
+                      {s.news_age_minutes != null ? `${s.news_age_minutes}m` : '—'}
                     </td>
                     <td className="px-5 py-3 font-mono text-[11px] tracking-[0.2em]">
                       {s.result === 'WIN'  ? <span className="text-green-700 font-bold">WIN</span>

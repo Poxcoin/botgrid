@@ -12,6 +12,8 @@ from modules.telegram_monitor import start_telegram_monitor, tg_news_queue
 from modules.liquidation_monitor import start_liquidation_monitor
 from modules.onchain_monitor import start_onchain_monitor
 from modules.analytics_db import save_signal, init_db
+from modules.liquidation_monitor import get_liquidation_signal
+from modules.onchain_monitor import get_onchain_signal
 from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
 import ccxt
 
@@ -104,6 +106,31 @@ def handle_telegram_commands(processed_updates):
             
         elif text == "/start":
             send_telegram_message("👋 Привет! Я твой торговый бот.\nДоступные команды:\n/status - состояние бота\n/balance - текущий баланс USDT", chat_id)
+
+LIVE_INTEL_FILE = "live_intel.json"
+
+def _write_live_intel(tg_enabled: bool) -> None:
+    """Пишет текущий статус источников и live данные для дашборда."""
+    try:
+        coins = ["BTC", "ETH", "SOL", "BNB", "XRP"]
+        liq = {c: get_liquidation_signal(c) for c in coins}
+        onchain = get_onchain_signal("ETH")
+        intel = {
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "sources": {
+                "rss":         True,
+                "telegram":    tg_enabled,
+                "liquidations": True,
+                "onchain":     True,
+            },
+            "liquidations": liq,
+            "onchain":       onchain,
+        }
+        with open(LIVE_INTEL_FILE, "w") as f:
+            json.dump(intel, f)
+    except Exception:
+        pass
+
 
 def run_signal_engine():
     """
@@ -225,9 +252,11 @@ def run_signal_engine():
                                 _coin_cooldown[coin] = now_ts
                                 execute_trade(signal)
             
-            # Сохраняем URLs один раз после всего цикла, а не на каждую новость
             if urls_changed:
                 save_processed_urls(processed_urls)
+
+            # Пишем live intel для дашборда
+            _write_live_intel(tg_enabled)
 
             time.sleep(30)
             

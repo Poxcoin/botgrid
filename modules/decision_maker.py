@@ -388,6 +388,7 @@ def generate_signal(news_item: dict) -> dict | None:
         "news_title": news_item["title"],
         "source": news_item.get("source", "Unknown"),
         "news_age_minutes": age_min,
+        "groq": gemini if gemini else {},
     }
 
 
