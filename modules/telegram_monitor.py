@@ -23,7 +23,7 @@ MONITOR_CHANNELS = [
     # --- Crypto media ---
     "wublockchainenglish",   # Wu Blockchain — часто першими
     "cointelegraph",         # Cointelegraph оперативні новини
-    "TheBlock_io",           # The Block — інституційні новини
+    "theblockdotco",         # The Block — інституційні новини
 ]
 
 _HTML_RE = re.compile(r"<[^>]+>")
