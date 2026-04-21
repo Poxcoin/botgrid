@@ -345,7 +345,8 @@ def execute_trade(
             params={
                 "takeProfit": tp_price,
                 "stopLoss": sl_price,
-                "category": "linear"
+                "category": "linear",
+                "positionIdx": 0,
             },
         )
 

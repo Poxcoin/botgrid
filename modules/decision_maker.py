@@ -131,9 +131,10 @@ def generate_signal(news_item: dict) -> dict | None:
     )
     news_score = ai_result["score"]       # -10 до +10
     coin = ai_result["coin"]
+    coin_upper = coin.upper()
     ai_confidence = ai_result["confidence"]  # 0-10
 
-    if coin.upper() in _STABLECOINS:
+    if coin_upper in _STABLECOINS:
         return None
 
     # Слабая новость — не рискуем
@@ -281,7 +282,6 @@ def generate_signal(news_item: dict) -> dict | None:
     # Когда dominance низкая — деньги ротируются в альты.
     # Применяется ТОЛЬКО для монет, которые не BTC и не ETH.
     btc_dom = get_btc_dominance()
-    coin_upper = coin.upper()
     if coin_upper not in ("BTC", "ETH"):
         if news_score > 0:   # планируем LONG на альткоин
             if btc_dom >= 62:
