@@ -8,6 +8,53 @@ from modules.gemini_filter import analyze_news as gemini_analyze
 
 _STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"})
 
+import re as _re
+
+_TICKER_RE = _re.compile(r'\(([A-Z]{2,10})\)')  # "Binance Will List Chip (CHIP)" → CHIP
+_USDT_RE   = _re.compile(r'\b([A-Z]{2,10})USDT\b')  # "New listing: CHIPUSDT" → CHIP
+
+
+def generate_listing_signal(news_item: dict) -> dict | None:
+    """
+    Fast-path для анонсів лістингів бірж.
+    Байпасить Claude/Groq — лістинг майже завжди = LONG.
+    Викликати ТІЛЬКИ якщо news_item['is_listing'] == True.
+    """
+    title = news_item.get("title", "")
+    title_upper = title.upper()
+
+    # Пропускаємо stablecoins і futures-only анонси (не spot)
+    if any(s in title_upper for s in ("USDC", "USDT PERPETUAL", "USDⓈ-MARGINED")):
+        if "SPOT" not in title_upper and "WILL LIST" not in title_upper:
+            return None
+
+    # Витягуємо тікер
+    coin = None
+    m = _TICKER_RE.search(title)
+    if m:
+        coin = m.group(1)
+    else:
+        m = _USDT_RE.search(title)
+        if m:
+            coin = m.group(1)
+
+    if not coin or coin in _STABLECOINS:
+        return None
+
+    source = news_item.get("source", "Exchange")
+    print(f"[LISTING] 🚀 {source}: {coin} — fast-path LONG сигнал")
+
+    return {
+        "coin":           coin,
+        "action":         "LONG",
+        "total_score":    12.0,
+        "confidence":     85,
+        "size_multiplier": 1.0,
+        "reason":         f"Exchange listing: {source}",
+        "news_title":     title,
+        "is_listing":     True,
+    }
+
 
 def _news_age_minutes(published_dt: str) -> int | None:
     """Возраст новости в минутах относительно UTC now. None если нет даты."""

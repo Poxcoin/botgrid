@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timezone
 from modules.news_parser import get_aggregated_news
-from modules.decision_maker import generate_signal
+from modules.decision_maker import generate_signal, generate_listing_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker
@@ -222,9 +222,12 @@ def run_signal_engine():
                 # 2. Архивируем новость для Replay бэктестера
                 archive_news(news_item)
 
-                # 3. Анализ
-                print(f"   Анализ: {news_item['title'][:60]}...")
-                signal = generate_signal(news_item)
+                # 3. Аналіз — listing fast-path або повний pipeline
+                if news_item.get("is_listing"):
+                    signal = generate_listing_signal(news_item)
+                else:
+                    print(f"   Анализ: {news_item['title'][:60]}...")
+                    signal = generate_signal(news_item)
                 
                 # 3. Сохраняем сигналы (дедупликация: один сигнал на монету за 30 мин)
                 if signal:
