@@ -1,4 +1,12 @@
+# Secrets — NEVER commit
 .env
+.env.local
+.env.production
+*secret*
+*credentials*
+# Allow example file
+!.env.example
+
 venv/
 __pycache__/
 *.pyc
@@ -22,6 +30,9 @@ signals_log_alt.json
 open_positions.json
 daily_guard_state.json
 processed_urls_alt.json
+
+# Local MCP config (пути специфичны для каждой машины)
+.mcp.json
 
 # Runtime files
 web_server_pid.txt
