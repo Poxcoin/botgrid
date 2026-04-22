@@ -94,10 +94,7 @@ def handle_telegram_commands(processed_updates):
             
             # Redirect to Demo Trading host if enabled
             if IS_DEMO_TRADING:
-                ex.urls['api'] = {
-                    'public': 'https://api-demo.bybit.com',
-                    'private': 'https://api-demo.bybit.com',
-                }
+                ex.urls['api'] = ex.urls['demotrading']
                 
             if USE_TESTNET: ex.set_sandbox_mode(True)
             ex.options['adjustForTimeDifference'] = True

@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, DASHBOARD_PASSWORD
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
@@ -181,9 +181,11 @@ async def get_dashboard_data(token: str = Depends(require_auth)):
             exchange = ccxt.bybit({
                 "apiKey": BYBIT_API_KEY,
                 "secret": BYBIT_SECRET,
-                "options": {"defaultType": "swap"},
+                "options": {"defaultType": "linear"},
             })
-            if USE_TESTNET:
+            if IS_DEMO_TRADING:
+                exchange.urls['api'] = exchange.urls['demotrading']
+            elif USE_TESTNET:
                 exchange.set_sandbox_mode(True)
             try:
                 balance = exchange.fetch_balance({'accountType': 'unified'})
