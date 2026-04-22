@@ -132,11 +132,11 @@ def _init_exchange() -> ccxt.Exchange:
         },
     })
     if IS_DEMO_TRADING:
-        exchange.urls['api'] = {
-            'public': 'https://api-demo.bybit.com',
-            'private': 'https://api-demo.bybit.com',
-        }
+        exchange.urls['api'] = exchange.urls['demotrading']
         exchange.options['defaultType'] = 'linear'
+        # Bybit Demo не поддерживает /v5/asset/coin/query-info (fetchCurrencies).
+        # ccxt вызывает его внутри load_markets() → 10032. Отключаем явно.
+        exchange.has['fetchCurrencies'] = False
     if USE_TESTNET:
         # Явно указываем testnet URL — не полагаемся только на set_sandbox_mode()
         exchange.urls['api'] = {
@@ -271,22 +271,22 @@ def execute_trade(
         send_telegram_message(msg, TG_CHAT_ID)
         return
 
-    # -------------------------------------------------
-    # 0️⃣ Resolve and validate market symbol
-    # -------------------------------------------------
-    symbol = resolve_market_symbol(exchange, coin)
-    if not symbol:
-        print(f"⚠️ ПРОПУСК: Монета {coin} не найдена на бирже (USDT маркет).")
-        return
-
-    # -------------------------------------------------
-    # 0.5️⃣ Проверяем — нет ли уже открытой позиции по этой монете
-    # -------------------------------------------------
-    if has_open_position(exchange, symbol):
-        print(f"⚠️ ПРОПУСК: Позиция по {coin} уже открыта. Дубль заблокирован.")
-        return
-
     try:
+        # -------------------------------------------------
+        # 0️⃣ Resolve and validate market symbol
+        # -------------------------------------------------
+        symbol = resolve_market_symbol(exchange, coin)
+        if not symbol:
+            print(f"⚠️ ПРОПУСК: Монета {coin} не найдена на бирже (USDT маркет).")
+            return
+
+        # -------------------------------------------------
+        # 0.5️⃣ Проверяем — нет ли уже открытой позиции по этой монете
+        # -------------------------------------------------
+        if has_open_position(exchange, symbol):
+            print(f"⚠️ ПРОПУСК: Позиция по {coin} уже открыта. Дубль заблокирован.")
+            return
+
         # Current market price
         ticker = exchange.fetch_ticker(symbol)
         current_price = ticker["last"]
