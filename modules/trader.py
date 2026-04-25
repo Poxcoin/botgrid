@@ -150,10 +150,12 @@ def _init_exchange() -> ccxt.Exchange:
 def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
     """Проверяет, есть ли уже открытая позиция по монете. Защита от дублей."""
     try:
+        # Bybit V5 raw API требует нативный формат символа (BTCUSDT), не ccxt (BTC/USDT:USDT)
+        market_id = exchange.market_id(symbol)
         # Demo и Testnet: прямой API вызов (ccxt fetch_positions несовместим с demo)
         r = exchange.private_get_v5_position_list(params={
             'category': 'linear',
-            'symbol': symbol,
+            'symbol': market_id,
         })
         for pos in r.get('result', {}).get('list', []):
             if abs(float(pos.get('size') or 0)) > 0:
