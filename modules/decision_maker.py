@@ -56,6 +56,33 @@ def generate_listing_signal(news_item: dict) -> dict | None:
     }
 
 
+def generate_whale_signal(news_item: dict) -> dict | None:
+    """
+    Fast-path для whale transfers з @whale_alert_io.
+    Байпасить Claude/Groq — on-chain факт не потребує AI аналізу.
+    coin/action вже розпарсені в telegram_monitor._parse_whale_alert().
+    """
+    coin   = news_item.get("whale_coin", "")
+    action = news_item.get("whale_action", "")
+    if not coin or action not in ("LONG", "SHORT"):
+        return None
+    if coin in _STABLECOINS:
+        return None
+    score = 8.0 if action == "LONG" else -8.0
+    return {
+        "coin":           coin,
+        "action":         action,
+        "total_score":    score,
+        "ai_score":       0,
+        "confidence":     70,
+        "size_multiplier": 0.8,
+        "reason":         f"Whale Alert: {news_item.get('title', '')[:80]}",
+        "news_title":     news_item.get("title", ""),
+        "bot_tag":        "🐋",
+        "is_whale_alert": True,
+    }
+
+
 def _news_age_minutes(published_dt: str) -> int | None:
     """Возраст новости в минутах относительно UTC now. None если нет даты."""
     if not published_dt:

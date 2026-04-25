@@ -28,6 +28,36 @@ MONITOR_CHANNELS = [
 _HTML_RE = re.compile(r"<[^>]+>")
 _URL_RE  = re.compile(r"https?://\S+")
 
+_EXCHANGES = {"binance", "coinbase", "kraken", "bybit", "okx", "huobi", "kucoin",
+              "gemini", "bitfinex", "bitget", "gate", "mexc"}
+_STABLECOINS = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"}
+
+# 🚨 500,000,000 XRP transferred from Binance to unknown wallet
+_WHALE_RE = re.compile(
+    r"[\d,\.]+\s+([A-Z]{2,10})\s+(?:transferred|moved|sent)"
+    r".+?\bfrom\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+)",
+    re.IGNORECASE,
+)
+
+
+def _parse_whale_alert(text: str) -> dict | None:
+    """Повертає {coin, action} якщо повідомлення — whale transfer з/до біржі."""
+    m = _WHALE_RE.search(text)
+    if not m:
+        return None
+    coin = m.group(1).upper()
+    if coin in _STABLECOINS:
+        return None
+    src = m.group(2).lower().strip()
+    dst = m.group(3).lower().strip()
+    src_is_ex = any(ex in src for ex in _EXCHANGES)
+    dst_is_ex = any(ex in dst for ex in _EXCHANGES)
+    if src_is_ex and not dst_is_ex:
+        return {"coin": coin, "action": "LONG"}   # виводять з біржі = тримають
+    if dst_is_ex and not src_is_ex:
+        return {"coin": coin, "action": "SHORT"}  # несуть на біржу = продають
+    return None
+
 
 def _clean(text: str) -> str:
     text = _HTML_RE.sub("", text)
@@ -49,11 +79,17 @@ def _message_to_news_item(message, channel_name: str) -> dict | None:
     description = " ".join(lines[1:])[:300] if len(lines) > 1 else ""
 
     is_panic = check_panic_news(title)
-    if not is_panic and not is_altcoin_news(title):
+
+    # Whale Alert fast-path — @whale_alert_io pattern matching без Claude
+    whale = None
+    if channel_name == "whale_alert_io":
+        whale = _parse_whale_alert(raw)
+
+    if not whale and not is_panic and not is_altcoin_news(title):
         return None
 
     now = datetime.now(timezone.utc)
-    return {
+    item = {
         "title": title,
         "description": description,
         "link": f"tg://{channel_name}/{message.id}",
@@ -61,9 +97,14 @@ def _message_to_news_item(message, channel_name: str) -> dict | None:
         "published_dt": now.isoformat(),
         "source": f"Telegram @{channel_name}",
         "source_url": f"https://t.me/{channel_name}",
-        "source_weight": 0.92,  # выше среднего RSS — каналы быстрее
+        "source_weight": 0.92,
         "is_panic": is_panic,
     }
+    if whale:
+        item["is_whale_alert"] = True
+        item["whale_coin"]     = whale["coin"]
+        item["whale_action"]   = whale["action"]
+    return item
 
 
 async def _run_client():
