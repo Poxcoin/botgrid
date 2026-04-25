@@ -364,10 +364,9 @@ def generate_signal(news_item: dict) -> dict | None:
 
     action = "HOLD"
 
-    # BTC/ETH — огромная ликвидность, RSS-новость практически не двигает цену.
-    # Требуем более сильный сигнал: порог 11.0 вместо 8.0.
+    # BTC/ETH — поріг знижено з 11.0 до 9.0: TG-канали реалтайм, RSS лаг вже не головна проблема.
     btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
-    min_score = 11.0 if coin_upper in btc_eth_coins else 8.0
+    min_score = 9.0 if coin_upper in btc_eth_coins else 8.0
 
     if total_score >= min_score and confidence >= 40:
         action = "LONG"
