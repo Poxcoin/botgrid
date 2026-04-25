@@ -356,6 +356,15 @@ def execute_trade(
         # -------------------------------------------------
         # 4.5️⃣ Set TP/SL separately (сумісно з Demo та Live)
         # -------------------------------------------------
+        # Перераховуємо TP/SL від реальної ціни виконання (не стейл ticker)
+        fill_price = float(order.get('average') or order.get('price') or current_price)
+        if action.upper() == "LONG":
+            tp_price = float(exchange.price_to_precision(symbol, fill_price * (1 + _tp / 100)))
+            sl_price = float(exchange.price_to_precision(symbol, fill_price * (1 - _sl / 100)))
+        else:
+            tp_price = float(exchange.price_to_precision(symbol, fill_price * (1 - _tp / 100)))
+            sl_price = float(exchange.price_to_precision(symbol, fill_price * (1 + _sl / 100)))
+
         try:
             exchange.set_trading_stop(
                 symbol,
@@ -364,11 +373,11 @@ def execute_trade(
                     "positionIdx": 0,
                     "takeProfit": str(tp_price),
                     "stopLoss": str(sl_price),
-                    "tpTriggerBy": "MarkPrice",
-                    "slTriggerBy": "MarkPrice",
+                    "tpTriggerBy": "LastPrice",
+                    "slTriggerBy": "LastPrice",
                 }
             )
-            print(f"✅ TP/SL встановлено: TP={tp_price} SL={sl_price}")
+            print(f"✅ TP/SL встановлено: TP={tp_price} SL={sl_price} (fill={fill_price})")
         except Exception as e:
             print(f"⚠️ TP/SL не вдалося встановити: {e}")
 
