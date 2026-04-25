@@ -137,10 +137,12 @@ def generate_signal(news_item: dict) -> dict | None:
     Возвращает None, если новость слабая или данных нет.
     """
 
-    # 0. Возраст новости — старые сигналы торгуем осторожнее или не торгуем
+    # 0. Возраст новости — RSS старше 15 мин пропускаем (рынок уже отреагировал)
+    # TG-каналы реалтайм (age≈0) и не фильтруются; листинги обходят этот блок раньше
     age_min = _news_age_minutes(news_item.get("published_dt", ""))
-    if age_min is not None and age_min > 90:
-        return None  # Новость старше 90 мин — цена давно отработала
+    is_tg = str(news_item.get("source", "")).startswith("Telegram")
+    if not is_tg and age_min is not None and age_min > 15:
+        return None
 
     # 1. Защита от глобальной паники
     if news_item.get("is_panic"):
