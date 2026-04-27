@@ -13,6 +13,7 @@ from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.funding_strategy import start_funding_strategy, funding_queue
+from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
 from modules.analytics_db import save_signal, init_db
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
@@ -160,6 +161,7 @@ def run_signal_engine():
     start_announcements_monitor()
     start_dex_scanner()
     start_funding_strategy()
+    start_smart_wallet_tracker()
 
     sources = "Binance/Bybit Announcements + Telegram"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
@@ -202,6 +204,14 @@ def run_signal_engine():
                 except Exception:
                     break
 
+            # 1b2. Smart wallet moves — Alchemy WebSocket реалтайм
+            smart_news = []
+            while not smart_wallet_queue.empty():
+                try:
+                    smart_news.append(smart_wallet_queue.get_nowait())
+                except Exception:
+                    break
+
             # 1c. Telegram-черга — реалтайм новини
             tg_news = []
             while not tg_news_queue.empty():
@@ -210,16 +220,18 @@ def run_signal_engine():
                 except Exception:
                     break
 
-            ann_count = len(ann_news)
-            tg_count  = len(tg_news)
-            dex_count = len(dex_news)
+            ann_count   = len(ann_news)
+            tg_count    = len(tg_news)
+            dex_count   = len(dex_news)
+            smart_count = len(smart_news)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
                   (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
                   (f" | TG: {tg_count}" if tg_count else "") +
-                  (f" | DEX: {dex_count}" if dex_count else "") + "...")
+                  (f" | DEX: {dex_count}" if dex_count else "") +
+                  (f" | 🐳 Smart: {smart_count}" if smart_count else "") + "...")
 
-            # Пріоритет: Анонси бірж > TG > DEX spikes
-            latest_news = ann_news + tg_news + dex_news
+            # Пріоритет: Анонси > TG > Smart Wallets > DEX spikes
+            latest_news = ann_news + tg_news + smart_news + dex_news
             
             urls_changed = False
             for news_item in latest_news:
