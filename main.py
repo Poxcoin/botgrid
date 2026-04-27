@@ -2,20 +2,22 @@ import time
 import json
 import os
 from datetime import datetime, timezone
-from modules.news_parser import get_aggregated_news
-from modules.decision_maker import generate_signal, generate_listing_signal, generate_whale_signal
+from modules.decision_maker import generate_signal, generate_whale_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker
 from modules.news_archive import archive_news
-from modules.telegram_monitor import start_telegram_monitor, tg_news_queue
+from modules.telegram_monitor import start_telegram_monitor, tg_news_queue, tg_news_event
 from modules.liquidation_monitor import start_liquidation_monitor
 from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.analytics_db import save_signal, init_db
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
-from config.settings import BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID
+from config.settings import (
+    BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
+    ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
+)
 import ccxt
 
 # Путь к файлу истории
@@ -116,7 +118,7 @@ def _write_live_intel(tg_enabled: bool) -> None:
         intel = {
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "sources": {
-                "rss":         True,
+                "rss":         False,
                 "telegram":    tg_enabled,
                 "liquidations": True,
                 "onchain":     True,
@@ -155,7 +157,7 @@ def run_signal_engine():
     start_onchain_monitor()
     start_announcements_monitor()
 
-    sources = "Binance/Bybit Announcements + Telegram + Macro RSS"
+    sources = "Binance/Bybit Announcements + Telegram"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
 
     init_db()
@@ -202,11 +204,8 @@ def run_signal_engine():
                   (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
                   (f" | TG: {tg_count}" if tg_count else "") + "...")
 
-            # 1c. Macro RSS (тільки планові події)
-            latest_news = get_aggregated_news(limit_per_source=5)
-
-            # Пріоритет: Анонси бірж > Telegram > RSS
-            latest_news = ann_news + tg_news + latest_news
+            # Пріоритет: Анонси бірж > Telegram
+            latest_news = ann_news + tg_news
             
             urls_changed = False
             for news_item in latest_news:
@@ -221,7 +220,7 @@ def run_signal_engine():
 
                 # 3. Аналіз — fast-path або повний pipeline
                 if news_item.get("is_listing"):
-                    signal = generate_listing_signal(news_item)
+                    continue  # лістинги обробляє crypto-alt (уникаємо double-trade)
                 elif news_item.get("is_whale_alert"):
                     print(f"   🐋 Whale Alert: {news_item['title'][:60]}...")
                     signal = generate_whale_signal(news_item)
@@ -266,7 +265,24 @@ def run_signal_engine():
                                 print(f"⏳ Cooldown {coin}: ещё {remaining} мин до следующей сделки")
                             else:
                                 _coin_cooldown[coin] = now_ts
-                                execute_trade(signal, signal_id=signal_id)
+                                _btc_eth = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                                if signal.get("is_listing"):
+                                    execute_trade(signal,
+                                        leverage_override=LISTING_LEVERAGE,
+                                        tp_pct=LISTING_TP, sl_pct=LISTING_SL,
+                                        size_pct=LISTING_SIZE, signal_id=signal_id)
+                                elif coin.upper() not in _btc_eth:
+                                    mkt = signal.get("_market", {})
+                                    vol = mkt.get("quote_volume_24h", 0) if mkt else 0
+                                    if vol > 0 and vol < MIN_ALTCOIN_VOLUME_USD:
+                                        print(f"⚠️ {coin} об'єм ${vol/1e6:.1f}M < $5M — пропускаємо")
+                                    else:
+                                        execute_trade(signal,
+                                            leverage_override=ALT_LEVERAGE,
+                                            tp_pct=ALT_TP, sl_pct=ALT_SL,
+                                            size_pct=ALT_SIZE, signal_id=signal_id)
+                                else:
+                                    execute_trade(signal, signal_id=signal_id)
             
             if urls_changed:
                 save_processed_urls(processed_urls)
@@ -274,7 +290,9 @@ def run_signal_engine():
             # Пишем live intel для дашборда
             _write_live_intel(tg_enabled)
 
-            time.sleep(30)
+            # Чекаємо TG-повідомлення АБО таймаут 30s для ann_queue / live_intel
+            tg_news_event.wait(timeout=30)
+            tg_news_event.clear()
             
         except KeyboardInterrupt:
             print("\nОстановка...")

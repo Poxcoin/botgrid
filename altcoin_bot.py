@@ -1,17 +1,10 @@
 """
-altcoin_bot.py — Рисковый бот для альткоинов.
+altcoin_bot.py — Listing pump bot.
 
-Стратегия: поймать быстрые памп/дамп движения на волатильных монетах.
-  TP = 25%  SL = 5%  Плечо = 2x  Размер = 2% баланса
-  Breakeven WR = 5 / (25 + 5) = 16.7%  (намного легче достичь)
-
-Отличия от main.py:
-  - Отдельный список монет (альткоины + мемы)
-  - Нижний порог сигнала: score >= 6 (более агрессивный вход)
-  - Нет RSI фильтра (альткоины могут оставаться перекупленными днями)
-  - Funding Rate фильтр усилен (основная защита от плохих входов)
-  - Отдельный лог: signals_log_alt.json
-  - TG-сообщения с префиксом 🎯 ALT
+Стратегія: ловити памп одразу після лістингу на Binance/Bybit.
+  TP = 20%  SL = 5%  Плечо = 5x  Розмір = 2% балансу
+  Джерело: ТІЛЬКИ exchange announcements (ann_queue)
+  Будь-яка нова монета — без whitelist.
 """
 
 import time
@@ -19,35 +12,16 @@ import json
 import os
 from datetime import datetime
 
-from modules.news_parser import get_aggregated_news
-from modules.ai_analyzer import analyze_sentiment
-from modules.market_data import get_market_metrics, get_funding_rate, get_btc_dominance, get_fear_greed_index
+from modules.decision_maker import generate_listing_signal
 from modules.trader import execute_trade, get_free_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules import daily_guard, position_monitor, pnl_tracker
-from config.settings import TG_CHAT_ID
+from config.settings import TG_CHAT_ID, LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE
 
-# ─── Параметры рискового бота ───────────────────────────────────────────────
-ALT_TP          = 25.0   # Take Profit %
-ALT_SL          = 5.0    # Stop Loss %
-ALT_LEVERAGE    = 2      # Плечо
-ALT_SIZE        = 2.0    # % от баланса на сделку
-ALT_THRESHOLD   = 6.0    # Минимальный score для входа (ниже чем у main)
-ALT_VOL_SPIKE   = 3.0    # Кратность объёма для подтверждения кита
-
-# Монеты: только те где протокольные новости реально двигают цену.
-# DOGE/SHIB/PEPE исключены — движутся на соцсетях, объём не предиктивен.
-ALT_COINS = [
-    "XRP",  "ADA",  "DOT",           # Layer-1 альты — реагируют на регуляторику
-    "LINK", "UNI",  "AAVE",          # DeFi — листинги, апдейты протоколов, TVL
-    "SUI",  "APT",  "OP",            # новые L1/L2 — сильные реакции на апдейты
-    "NEAR", "INJ",  "FET",           # ecosystem + AI narrative
-]
-
-LEDGER_FILE       = "signals_log_alt.json"
-PROCESSED_URLS    = "processed_urls_alt.json"
-BREAKEVEN_WR      = round(ALT_SL / (ALT_TP + ALT_SL) * 100, 1)
+LEDGER_FILE    = "signals_log_alt.json"
+PROCESSED_URLS = "processed_urls_alt.json"
+BREAKEVEN_WR   = round(LISTING_SL / (LISTING_TP + LISTING_SL) * 100, 1)
 
 # ─── Утилиты ─────────────────────────────────────────────────────────────────
 
@@ -87,113 +61,12 @@ def save_processed_urls(urls: set) -> None:
         print(f"Ошибка сохранения URLs: {e}")
 
 
-# ─── Скоринг для альткоинов ──────────────────────────────────────────────────
-
-def generate_alt_signal(news_item: dict) -> dict | None:
-    """
-    Упрощённая формула для альткоинов.
-    Меньше фильтров, более агрессивный вход.
-    Основная защита — Funding Rate (не входим в перегретый рынок).
-    """
-    if news_item.get("is_panic"):
-        return None  # Паника — пропускаем, не рискуем
-
-    ai_result  = analyze_sentiment(news_item["title"], news_item.get("description", ""))
-    score      = ai_result["score"]
-    coin       = ai_result["coin"]
-    confidence = ai_result["confidence"]
-
-    # Слабая новость или ИИ не уверен
-    if abs(score) < 3 or confidence < 2:
-        return None
-
-    # Монета должна быть в нашем списке альтов
-    if coin not in ALT_COINS and coin not in ("BTC", "ETH"):
-        return None
-
-    market = get_market_metrics(coin)
-    if not market:
-        return None
-
-    total = float(score)
-
-    # Фактор 1: Объём (кит вошёл?)
-    vol_mult = market["volume_multiplier"]
-    if vol_mult >= ALT_VOL_SPIKE:
-        total += 3.0 if score > 0 else -3.0
-
-    # Фактор 2: Тренд 24h
-    trend = market["trend_24h_percent"]
-    if score > 0 and trend > 2.0:
-        total += 1.5
-    elif score < 0 and trend < -2.0:
-        total -= 1.5
-
-    # Фактор 3: Funding Rate — главная защита
-    # Альтам можно войти при более агрессивных значениях
-    fr = market.get("funding_rate", 0.0)
-    if score > 0:
-        if fr > 0.1:
-            total -= 3.0   # Очень перегрет лонгами — пропустить
-        elif fr > 0.05:
-            total -= 1.5
-    elif score < 0:
-        if fr < -0.1:
-            total += 3.0   # Очень перегрет шортами — риск сквиза
-        elif fr < -0.05:
-            total += 1.5
-
-    # Фактор 4: BTC Dominance — главный индикатор альт-сезона
-    # Если BTC dom высокий → деньги в BTC, альты страдают → блокируем LONG
-    btc_dom = get_btc_dominance()
-    fng     = get_fear_greed_index()
-    fng_val = fng["value"]
-
-    if score > 0:
-        if btc_dom >= 60:
-            total -= 2.5   # BTC-сезон: лонги на альты опасны
-        elif btc_dom <= 44:
-            total += 1.5   # Альт-сезон подтверждён
-        # Fear & Greed для альтов
-        if fng_val <= 20:
-            total += 1.5   # Extreme Fear = хорошая точка входа
-        elif fng_val >= 78:
-            total -= 1.5   # Extreme Greed = перегрев, коррекция близко
-
-    # Решение
-    action = "HOLD"
-    if total >= ALT_THRESHOLD and score > 0:
-        action = "LONG"
-    elif total <= -ALT_THRESHOLD and score < 0:
-        action = "SHORT"
-
-    return {
-        "coin":         coin,
-        "action":       action,
-        "total_score":  round(total, 1),
-        "confidence":   confidence,
-        "size_multiplier": 1.0,
-        "bot_tag":      "🎯",
-        "components": {
-            "ai_score":         score,
-            "volume_mult":      vol_mult,
-            "trend_pct":        trend,
-            "funding_rate":     fr,
-            "btc_dominance":    btc_dom,
-            "fear_greed":       fng_val,
-            "fear_greed_label": fng["label"],
-        },
-        "news_title": news_item["title"],
-        "source":     news_item.get("source", "Unknown"),
-    }
-
-
 # ─── Главный цикл ────────────────────────────────────────────────────────────
 
 def run_alt_engine():
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🎯 ALT ENGINE ЗАПУЩЕН!")
-    print(f"   TP={ALT_TP}%  SL={ALT_SL}%  x{ALT_LEVERAGE}  Size={ALT_SIZE}%")
-    print(f"   Breakeven WR: {BREAKEVEN_WR}%  |  Монет: {len(ALT_COINS)}\n")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚀 LISTING BOT ЗАПУЩЕН!")
+    print(f"   TP={LISTING_TP}%  SL={LISTING_SL}%  x{LISTING_LEVERAGE}  Size={LISTING_SIZE}%")
+    print(f"   Breakeven WR: {BREAKEVEN_WR}%  |  Джерело: Exchange Announcements\n")
 
     # ─── Инициализация guard-модулей ──────────────────────────────────────────
     # ALT бот использует ТОТЖЕ daily_guard (STATE_FILE общий) — оба бота
@@ -220,8 +93,8 @@ def run_alt_engine():
     start_announcements_monitor()
 
     send_telegram_message(
-        f"🎯 <b>ALT BOT запущен</b>\n"
-        f"TP={ALT_TP}% | SL={ALT_SL}% | x{ALT_LEVERAGE} | {len(ALT_COINS)} монет\n"
+        f"🚀 <b>Listing Bot запущен</b>\n"
+        f"TP={LISTING_TP}% | SL={LISTING_SL}% | x{LISTING_LEVERAGE} | Будь-яка нова монета\n"
         f"Breakeven WR: {BREAKEVEN_WR}%",
         TG_CHAT_ID
     )
@@ -240,21 +113,20 @@ def run_alt_engine():
                 except Exception:
                     break
 
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 ALT сканирование..." +
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 LISTING сканування..." +
                   (f" | 🔔 {len(ann_news)} анонсів" if ann_news else ""))
 
-            news_list = ann_news + get_aggregated_news(limit_per_source=8)
-
             urls_changed = False
-            for item in news_list:
+            for item in ann_news:
                 if item["link"] in processed_urls:
                     continue
                 processed_urls.add(item["link"])
                 urls_changed = True
 
-                print(f"   [ALT] Анализ: {item['title'][:60]}...")
-                signal = generate_alt_signal(item)
+                if not item.get("is_listing"):
+                    continue
 
+                signal = generate_listing_signal(item)
                 if not signal:
                     continue
 
@@ -262,18 +134,17 @@ def run_alt_engine():
                 ledger.append(signal)
                 save_ledger(ledger)
 
-                if signal["action"] in ("LONG", "SHORT"):
-                    print(f"\n{'='*50}")
-                    print(f"🎯 ALT СИГНАЛ: {signal['action']} {signal['coin']}  score={signal['total_score']}")
-                    print(f"{'='*50}\n")
+                print(f"\n{'='*50}")
+                print(f"🚀 LISTING: {signal['action']} {signal['coin']}  score={signal['total_score']}")
+                print(f"{'='*50}\n")
 
-                    execute_trade(
-                        signal,
-                        tp_pct=ALT_TP,
-                        sl_pct=ALT_SL,
-                        leverage_override=ALT_LEVERAGE,
-                        size_pct=ALT_SIZE,
-                    )
+                execute_trade(
+                    signal,
+                    tp_pct=LISTING_TP,
+                    sl_pct=LISTING_SL,
+                    leverage_override=LISTING_LEVERAGE,
+                    size_pct=LISTING_SIZE,
+                )
 
             if urls_changed:
                 save_processed_urls(processed_urls)

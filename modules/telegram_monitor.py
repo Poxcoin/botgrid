@@ -10,6 +10,8 @@ from modules.news_parser import is_altcoin_news, check_panic_news
 
 # Очередь куда кладём новости — main.py читает из неё в основном цикле
 tg_news_queue: queue.Queue = queue.Queue()
+# Event: сигналізує main loop що є нові повідомлення — прокинутись негайно
+tg_news_event: threading.Event = threading.Event()
 
 # Каналы для мониторинга (публичные, проверенные)
 # Добавляй/убирай по своему усмотрению — только username без @
@@ -135,6 +137,7 @@ async def _run_client():
             item = _message_to_news_item(event.message, channel)
             if item:
                 tg_news_queue.put_nowait(item)
+                tg_news_event.set()  # будимо main loop негайно
                 print(f"[TG] 📨 @{channel}: {item['title'][:70]}")
         except Exception as e:
             print(f"[TG] Ошибка обработки сообщения: {e}")

@@ -226,6 +226,7 @@ def get_market_metrics(symbol, timestamp_ms=None):
             ticker = exchange.fetch_ticker(symbol)
             price_change_percent = ticker['percentage']
             current_price = ticker['last']
+            quote_volume_24h = float(ticker.get('quoteVolume') or 0)
             ohlcv = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=5)
         else:
             # === РЕЖИМ БЭКТЕСТА (Historical Time) ===
@@ -242,6 +243,7 @@ def get_market_metrics(symbol, timestamp_ms=None):
             if not ohlcv:
                 return None
             current_price = ohlcv[-1][4] # Текущая цена на тот исторический момент
+            quote_volume_24h = 0.0  # недоступно в режиме бэктеста
 
         # Вытаскиваем объемы торгов
         volumes = [candle[5] for candle in ohlcv]
@@ -296,6 +298,7 @@ def get_market_metrics(symbol, timestamp_ms=None):
             "symbol":            symbol,
             "trend_24h_percent": round(price_change_percent, 2) if price_change_percent else 0,
             "volume_multiplier": round(volume_multiplier, 2),
+            "quote_volume_24h":  quote_volume_24h,
             "is_whale_active":   is_whale_active,
             "whale_side":        whale_data["whale_side"],      # "BUY"/"SELL"/None
             "whale_largest_m":   whale_data["largest_trade"],  # млн USD

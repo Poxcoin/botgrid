@@ -464,6 +464,7 @@ def generate_signal(news_item: dict) -> dict | None:
         "source": news_item.get("source", "Unknown"),
         "news_age_minutes": age_min,
         "groq": gemini if gemini else {},
+        "_market": {"quote_volume_24h": market_data.get("quote_volume_24h", 0)},
     }
 
 

@@ -140,7 +140,12 @@ def _monitor_loop(
                     )
 
                 except Exception as e:
-                    print(f"[monitor] ❌ Ошибка закрытия {symbol}: {e}")
+                    err = str(e)
+                    if "110017" in err or "position is zero" in err.lower():
+                        untrack(symbol)
+                        print(f"[monitor] ⚠️ {symbol} — позиция нулевая на бирже, убираем из трекера")
+                    else:
+                        print(f"[monitor] ❌ Ошибка закрытия {symbol}: {e}")
 
         except Exception as e:
             print(f"[monitor] ❌ Ошибка цикла: {e}")

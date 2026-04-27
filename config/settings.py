@@ -40,7 +40,20 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 USE_TESTNET = os.getenv("USE_TESTNET", "True").lower() == "true"
 IS_DEMO_TRADING = os.getenv("IS_DEMO_TRADING", "False").lower() == "true"
 TRADE_PERCENT_SIZE = 5      # Мы заходим на 5% от свободного баланса USDT
-LEVERAGE = 2                # Кредитное плечо x2 (снижено с 3x — меньше случайных SL)
+LEVERAGE = 2                # Плечо BTC/ETH (стабільні, менше шуму)
 
-TAKE_PROFIT_PERCENT = 10.0  # Целевая прибыль: закрываем позицию в плюс при +10% роста/падения
-STOP_LOSS_PERCENT = 3.0     # Защита от потери: фиксируем убыток, если цена ушла против нас на 3%
+TAKE_PROFIT_PERCENT = 10.0  # TP для BTC/ETH
+STOP_LOSS_PERCENT = 3.0     # SL для BTC/ETH
+
+# Параметри для альткоінів (будь-яка монета крім BTC/ETH)
+ALT_LEVERAGE = 3            # Вищий потенціал руху у альтів
+ALT_TP = 20.0               # Ширший TP — альти рухаються більше
+ALT_SL = 6.0                # Ширший SL — більше шуму
+ALT_SIZE = 3.0              # % балансу на угоду
+MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм щоб уникнути неліквіду
+
+# Параметри для нових лістингів (listing fast-path)
+LISTING_LEVERAGE = 5        # Перші години після лістингу = великий памп
+LISTING_TP = 20.0
+LISTING_SL = 7.0            # 7% / 5x = 1.4% реального руху ціни — нормальний шум
+LISTING_SIZE = 2.0          # Малий розмір бо ризик підвищений
