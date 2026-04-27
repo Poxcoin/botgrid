@@ -366,17 +366,16 @@ def execute_trade(
             sl_price = float(exchange.price_to_precision(symbol, fill_price * (1 + _sl / 100)))
 
         try:
-            exchange.set_trading_stop(
-                symbol,
-                params={
-                    "category": "linear",
-                    "positionIdx": 0,
-                    "takeProfit": str(tp_price),
-                    "stopLoss": str(sl_price),
-                    "tpTriggerBy": "LastPrice",
-                    "slTriggerBy": "LastPrice",
-                }
-            )
+            market_id = exchange.market_id(symbol)
+            exchange.private_post_v5_position_trading_stop({
+                "category": "linear",
+                "symbol": market_id,
+                "positionIdx": 0,
+                "takeProfit": str(tp_price),
+                "stopLoss": str(sl_price),
+                "tpTriggerBy": "LastPrice",
+                "slTriggerBy": "LastPrice",
+            })
             print(f"✅ TP/SL встановлено: TP={tp_price} SL={sl_price} (fill={fill_price})")
         except Exception as e:
             print(f"⚠️ TP/SL не вдалося встановити: {e}")
