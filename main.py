@@ -12,6 +12,7 @@ from modules.liquidation_monitor import start_liquidation_monitor
 from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.dex_scanner import start_dex_scanner, dex_queue
+from modules.funding_strategy import start_funding_strategy, funding_queue
 from modules.analytics_db import save_signal, init_db
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
@@ -158,6 +159,7 @@ def run_signal_engine():
     start_onchain_monitor()
     start_announcements_monitor()
     start_dex_scanner()
+    start_funding_strategy()
 
     sources = "Binance/Bybit Announcements + Telegram"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
@@ -298,6 +300,29 @@ def run_signal_engine():
             
             if urls_changed:
                 save_processed_urls(processed_urls)
+
+            # Funding Rate сигнали — окремий pipeline (без Claude)
+            while not funding_queue.empty():
+                try:
+                    fsig = funding_queue.get_nowait()
+                except Exception:
+                    break
+                coin    = fsig.get("coin", "")
+                now_ts  = datetime.now(timezone.utc).timestamp()
+                last_ts = _coin_cooldown.get(coin, 0)
+                if now_ts - last_ts < COIN_COOLDOWN_SEC:
+                    remaining = int((COIN_COOLDOWN_SEC - (now_ts - last_ts)) / 60)
+                    print(f"[FR] ⏳ Cooldown {coin}: ще {remaining} хв")
+                    continue
+                _coin_cooldown[coin] = now_ts
+                _btc_eth = {"BTC", "ETH"}
+                if coin.upper() in _btc_eth:
+                    execute_trade(fsig)
+                else:
+                    execute_trade(fsig,
+                        leverage_override=ALT_LEVERAGE,
+                        tp_pct=ALT_TP, sl_pct=ALT_SL,
+                        size_pct=ALT_SIZE)
 
             # Пишем live intel для дашборда
             _write_live_intel(tg_enabled)
