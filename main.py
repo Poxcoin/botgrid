@@ -11,6 +11,7 @@ from modules.telegram_monitor import start_telegram_monitor, tg_news_queue, tg_n
 from modules.liquidation_monitor import start_liquidation_monitor
 from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
+from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.analytics_db import save_signal, init_db
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
@@ -156,6 +157,7 @@ def run_signal_engine():
     start_liquidation_monitor()
     start_onchain_monitor()
     start_announcements_monitor()
+    start_dex_scanner()
 
     sources = "Binance/Bybit Announcements + Telegram"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
@@ -190,7 +192,15 @@ def run_signal_engine():
                 except Exception:
                     break
 
-            # 1b. Telegram-черга — реалтайм новини
+            # 1b. DEX scanner — volume spikes (кожні 5 хв)
+            dex_news = []
+            while not dex_queue.empty():
+                try:
+                    dex_news.append(dex_queue.get_nowait())
+                except Exception:
+                    break
+
+            # 1c. Telegram-черга — реалтайм новини
             tg_news = []
             while not tg_news_queue.empty():
                 try:
@@ -199,13 +209,15 @@ def run_signal_engine():
                     break
 
             ann_count = len(ann_news)
-            tg_count = len(tg_news)
+            tg_count  = len(tg_news)
+            dex_count = len(dex_news)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
                   (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
-                  (f" | TG: {tg_count}" if tg_count else "") + "...")
+                  (f" | TG: {tg_count}" if tg_count else "") +
+                  (f" | DEX: {dex_count}" if dex_count else "") + "...")
 
-            # Пріоритет: Анонси бірж > Telegram
-            latest_news = ann_news + tg_news
+            # Пріоритет: Анонси бірж > TG > DEX spikes
+            latest_news = ann_news + tg_news + dex_news
             
             urls_changed = False
             for news_item in latest_news:
