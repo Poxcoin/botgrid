@@ -14,6 +14,7 @@ from config.settings import (
 )
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
+from modules.analytics_db import save_trade
 from typing import Dict, Any
 
 # DRY_RUN=True — логирует сделки без отправки на биржу (для тестов без ключей)
@@ -212,6 +213,7 @@ def execute_trade(
     sl_pct: float = None,
     leverage_override: int = None,
     size_pct: float = None,
+    signal_id: int = None,
 ) -> None:
     """Execute a market order on Bybit based on the provided signal.
 
@@ -358,6 +360,14 @@ def execute_trade(
         # -------------------------------------------------
         # Перераховуємо TP/SL від реальної ціни виконання (не стейл ticker)
         fill_price = float(order.get('average') or order.get('price') or current_price)
+
+        # Зберігаємо відкриту угоду в analytics.db
+        try:
+            from datetime import datetime, timezone
+            ts_open = datetime.now(timezone.utc).isoformat()
+            save_trade(signal_id, coin, action, fill_price, ts_open)
+        except Exception as e:
+            print(f"[analytics] save_trade error: {e}")
         if action.upper() == "LONG":
             tp_price = float(exchange.price_to_precision(symbol, fill_price * (1 + _tp / 100)))
             sl_price = float(exchange.price_to_precision(symbol, fill_price * (1 - _sl / 100)))

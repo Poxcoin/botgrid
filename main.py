@@ -246,7 +246,7 @@ def run_signal_engine():
                     
                     # Сохраняем в аналитическую БД
                     executed = signal['action'] in ("LONG", "SHORT")
-                    save_signal(signal, executed=executed)
+                    signal_id = save_signal(signal, executed=executed)
 
                     if signal['action'] in ["LONG", "SHORT", "SELL_ALL"]:
                         print("\n==================================")
@@ -266,7 +266,7 @@ def run_signal_engine():
                                 print(f"⏳ Cooldown {coin}: ещё {remaining} мин до следующей сделки")
                             else:
                                 _coin_cooldown[coin] = now_ts
-                                execute_trade(signal)
+                                execute_trade(signal, signal_id=signal_id)
             
             if urls_changed:
                 save_processed_urls(processed_urls)
