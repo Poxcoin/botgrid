@@ -66,7 +66,7 @@ GRID_CONFIGS = [
 POLL_INTERVAL      = 60    # секунд між перевірками
 RANGE_BUFFER       = 0.05  # 5% буфер від 30d high/low
 MAX_REBUILDS_DAY   = 3     # макс перебудов сітки за день на монету
-MAX_LOSS_USD       = 50.0  # жорсткий стоп: загальний збиток по монеті ($)
+MAX_LOSS_PCT       = 0.03  # жорсткий стоп: 3% від балансу на монету
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
@@ -280,12 +280,14 @@ def _run_single(cfg: dict) -> None:
                 if price < levels[0]:
                     unreal = _unrealized_loss(state["positions"], price, leverage)
                     total_loss = state["total_pnl"] + unreal
+                    balance = get_free_usdt(exchange)
+                    max_loss_usd = balance * MAX_LOSS_PCT
 
-                    hard_stop = total_loss <= -MAX_LOSS_USD
+                    hard_stop = total_loss <= -max_loss_usd
                     no_rebuilds = rebuilds_today >= MAX_REBUILDS_DAY
 
                     if hard_stop or no_rebuilds:
-                        reason = f"збиток ${total_loss:.2f}" if hard_stop else f"вичерпано перебудов ({rebuilds_today})"
+                        reason = f"збиток ${total_loss:.2f} (ліміт ${max_loss_usd:.0f}, {MAX_LOSS_PCT*100:.0f}% балансу)" if hard_stop else f"вичерпано перебудов ({rebuilds_today})"
                         print(f"[GRID:{symbol}] 🛑 СТОП — {reason}. Закриваємо всі позиції.")
                         realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price)
                         state["total_pnl"] += realized
