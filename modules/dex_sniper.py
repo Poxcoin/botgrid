@@ -678,8 +678,8 @@ def run_sniper():
                     current_block = w3.eth.block_number
                     if current_block > last_block:
                         events = factory.events.PairCreated.get_logs(
-                            fromBlock=last_block,
-                            toBlock=current_block,
+                            from_block=last_block,
+                            to_block=current_block,
                         )
                         for event in events:
                             try:
