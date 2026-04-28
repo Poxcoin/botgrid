@@ -63,8 +63,10 @@ GRID_CONFIGS = [
     },
 ]
 
-POLL_INTERVAL = 60     # секунд між перевірками (спільний для всіх монет)
-RANGE_BUFFER  = 0.05   # 5% буфер від 30d high/low
+POLL_INTERVAL      = 60    # секунд між перевірками
+RANGE_BUFFER       = 0.05  # 5% буфер від 30d high/low
+MAX_REBUILDS_DAY   = 3     # макс перебудов сітки за день на монету
+MAX_LOSS_USD       = 50.0  # жорсткий стоп: загальний збиток по монеті ($)
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
@@ -108,6 +110,37 @@ def _calc_levels(upper: float, lower: float, n: int) -> list[float]:
     """Рівномірно ділимо діапазон на n рівнів."""
     step = (upper - lower) / n
     return [round(lower + step * i, 4) for i in range(n + 1)]
+
+
+# ─── Допоміжні функції ───────────────────────────────────────────────────────
+
+def _close_all_positions(exchange, symbol: str, positions: dict, leverage: int, price: float) -> float:
+    """Закриває всі відкриті позиції, повертає реалізований збиток (від'ємне число)."""
+    total_pnl = 0.0
+    for idx_str, entry in list(positions.items()):
+        try:
+            order = exchange.create_order(
+                symbol, "market", "sell", entry["qty"],
+                params={"category": "linear", "reduceOnly": True},
+            )
+            fill = float(order.get("average") or order.get("price") or price)
+            pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
+            total_pnl += pnl
+            print(f"[GRID:{symbol}] CLOSE level {idx_str} @ {fill:.4f} | PnL≈${pnl:.2f}")
+        except Exception as e:
+            print(f"[GRID:{symbol}] CLOSE error level {idx_str}: {e}")
+    positions.clear()
+    return total_pnl
+
+
+def _unrealized_loss(positions: dict, price: float, leverage: int) -> float:
+    """Поточний нереалізований збиток по всіх відкритих позиціях."""
+    loss = 0.0
+    for entry in positions.values():
+        pnl = (price - entry["fill_price"]) * entry["qty"] * leverage
+        if pnl < 0:
+            loss += pnl
+    return loss
 
 
 # ─── Core логіка ─────────────────────────────────────────────────────────────
@@ -218,10 +251,19 @@ def _run_single(cfg: dict) -> None:
     last_price = _get_current_price(exchange, symbol)
     print(f"[GRID:{symbol}] Поточна ціна: ${last_price:.4f}")
 
+    rebuilds_today  = 0
+    rebuild_day     = datetime.now(timezone.utc).date()
+
     while True:
         try:
             time.sleep(POLL_INTERVAL)
             price = _get_current_price(exchange, symbol)
+
+            # Скидаємо лічильник перебудов о опівночі UTC
+            today = datetime.now(timezone.utc).date()
+            if today != rebuild_day:
+                rebuilds_today = 0
+                rebuild_day    = today
 
             current_zone = None
             for i in range(len(levels) - 1):
@@ -230,12 +272,53 @@ def _run_single(cfg: dict) -> None:
                     break
 
             if current_zone is None:
-                if price < levels[0]:
-                    print(f"[GRID:{symbol}] Ціна ${price:.2f} нижче сітки (${levels[0]:.2f})")
-                elif price >= levels[-1]:
+                if price >= levels[-1]:
                     print(f"[GRID:{symbol}] Ціна ${price:.2f} вище сітки (${levels[-1]:.2f})")
-                last_price = price
-                continue
+                    last_price = price
+                    continue
+
+                if price < levels[0]:
+                    unreal = _unrealized_loss(state["positions"], price, leverage)
+                    total_loss = state["total_pnl"] + unreal
+
+                    hard_stop = total_loss <= -MAX_LOSS_USD
+                    no_rebuilds = rebuilds_today >= MAX_REBUILDS_DAY
+
+                    if hard_stop or no_rebuilds:
+                        reason = f"збиток ${total_loss:.2f}" if hard_stop else f"вичерпано перебудов ({rebuilds_today})"
+                        print(f"[GRID:{symbol}] 🛑 СТОП — {reason}. Закриваємо всі позиції.")
+                        realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price)
+                        state["total_pnl"] += realized
+                        state["positions"] = {}
+                        _save_state(symbol, state)
+                        send_telegram_message(
+                            f"🛑 <b>Grid ЗУПИНЕНО</b> {symbol}\n"
+                            f"Причина: {reason}\n"
+                            f"Загальний PnL: ${state['total_pnl']:.2f}",
+                            TG_CHAT_ID,
+                        )
+                        return  # зупиняємо потік
+
+                    # Перебудова сітки навколо поточної ціни
+                    print(f"[GRID:{symbol}] 🔄 Перебудова сітки (#{rebuilds_today + 1}) — ціна ${price:.2f} нижче межі")
+                    realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price)
+                    state["total_pnl"] += realized
+                    state["positions"] = {}
+                    upper, lower = _detect_range(exchange, symbol)
+                    levels = _calc_levels(upper, lower, grid_levels)
+                    state["upper"]  = upper
+                    state["lower"]  = lower
+                    state["levels"] = levels
+                    _save_state(symbol, state)
+                    rebuilds_today += 1
+                    send_telegram_message(
+                        f"🔄 <b>Grid перебудова #{rebuilds_today}</b> {symbol}\n"
+                        f"Новий діапазон: ${lower:.2f} — ${upper:.2f}\n"
+                        f"Реалізований PnL: ${realized:.2f} | Загалом: ${state['total_pnl']:.2f}",
+                        TG_CHAT_ID,
+                    )
+                    last_price = price
+                    continue
 
             positions = state["positions"]
 
