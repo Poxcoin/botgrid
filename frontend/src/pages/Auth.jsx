@@ -18,8 +18,9 @@ export default function Auth() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [mode, setMode] = useState(params.get('mode') === 'register' ? 'register' : 'login');
-  const [form, setForm] = useState({ email: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ email: '', username: '', password: '', confirm: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setMode(params.get('mode') === 'register' ? 'register' : 'login');
@@ -30,20 +31,40 @@ export default function Auth() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.password) { setError('Password required'); return; }
+
+    if (mode === 'register') {
+      if (!form.username) { setError('Username required'); return; }
+      if (form.password.length < 8) { setError('Password must be at least 8 characters'); return; }
+      if (form.password !== form.confirm) { setError('Passwords do not match'); return; }
+    }
+    if (!form.email || !form.password) { setError('All fields required'); return; }
+
+    setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
+      const endpoint = mode === 'login' ? '/api/users/login' : '/api/users/register';
+      const body = mode === 'login'
+        ? { email: form.email, password: form.password }
+        : { email: form.email, username: form.username, password: form.password, referral_source: 'direct' };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: form.password }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) { setError('Invalid password'); return; }
-      const { token } = await res.json();
-      localStorage.setItem('kado_token', token);
-      localStorage.setItem('kado_user', JSON.stringify({ email: form.email || 'admin' }));
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Something went wrong');
+        return;
+      }
+
+      localStorage.setItem('kado_token', data.token);
+      localStorage.setItem('kado_user', JSON.stringify(data.user));
       navigate('/dashboard');
     } catch {
       setError('Connection error — server unreachable');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +97,7 @@ export default function Auth() {
             {['login', 'register'].map((m) => (
               <button
                 key={m}
-                onClick={() => setMode(m)}
+                onClick={() => { setMode(m); setError(''); }}
                 className={`flex-1 h-12 font-mono text-[11px] tracking-[0.25em] uppercase transition-colors border-b-2 -mb-px ${mode === m ? 'border-kado-blue text-kado-black' : 'border-transparent text-kado-black/40 hover:text-kado-black'}`}
               >
                 {m === 'login' ? 'Login' : 'Create account'}
@@ -92,28 +113,31 @@ export default function Auth() {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <Field label="Email" type="email" value={form.email} onChange={set('email')} placeholder="you@domain.com" />
-            <Field label="Password" type="password" value={form.password} onChange={set('password')} placeholder="••••••••" />
+            <Field label="Email" type="email" value={form.email} onChange={set('email')} placeholder="you@domain.com" autoComplete="email" />
             {mode === 'register' && (
-              <Field label="Confirm Password" type="password" value={form.confirm} onChange={set('confirm')} placeholder="••••••••" />
+              <Field label="Username" type="text" value={form.username} onChange={set('username')} placeholder="yourname" autoComplete="username" />
+            )}
+            <Field label="Password" type="password" value={form.password} onChange={set('password')} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+            {mode === 'register' && (
+              <Field label="Confirm Password" type="password" value={form.confirm} onChange={set('confirm')} placeholder="••••••••" autoComplete="new-password" />
             )}
             {error && (
               <div className="border border-red-600 px-4 py-3 text-red-600 font-mono text-[12px] tracking-wide">
                 ! {error}
               </div>
             )}
-            <KadoButton type="submit" variant="blue" className="w-full">
-              {mode === 'login' ? 'Login →' : 'Create Account →'}
+            <KadoButton type="submit" variant="blue" className="w-full" disabled={loading}>
+              {loading ? 'Please wait...' : mode === 'login' ? 'Login →' : 'Create Account →'}
             </KadoButton>
           </form>
 
           <div className="mt-8 font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/60">
             {mode === 'login' ? (
-              <button type="button" onClick={() => setMode('register')} className="hover:text-kado-blue transition-colors">
+              <button type="button" onClick={() => { setMode('register'); setError(''); }} className="hover:text-kado-blue transition-colors">
                 No account? Register →
               </button>
             ) : (
-              <button type="button" onClick={() => setMode('login')} className="hover:text-kado-blue transition-colors">
+              <button type="button" onClick={() => { setMode('login'); setError(''); }} className="hover:text-kado-blue transition-colors">
                 Already have an account? Login →
               </button>
             )}
