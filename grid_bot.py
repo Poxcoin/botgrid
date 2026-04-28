@@ -166,7 +166,7 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
 
 # ─── Один потік на монету ─────────────────────────────────────────────────────
 
-def _run_single(cfg: dict, exchange) -> None:
+def _run_single(cfg: dict) -> None:
     """Запускаємо grid-цикл для однієї монети (виконується у власному потоці)."""
     symbol       = cfg["symbol"]
     grid_levels  = cfg["levels"]
@@ -175,6 +175,7 @@ def _run_single(cfg: dict, exchange) -> None:
     auto_range   = cfg["auto_range"]
     max_pos      = cfg["max_positions"]
 
+    exchange = _init_exchange()  # окремий об'єкт на кожен потік — ccxt не thread-safe
     _set_leverage(exchange, symbol, leverage)
 
     if auto_range:
@@ -289,13 +290,11 @@ def _run_single(cfg: dict, exchange) -> None:
 
 def run_grid_engine():
     """Запускає кожну монету з GRID_CONFIGS у власному потоці."""
-    exchange = _init_exchange()
-
     threads = []
     for cfg in GRID_CONFIGS:
         t = threading.Thread(
             target=_run_single,
-            args=(cfg, exchange),
+            args=(cfg,),
             name=f"grid-{cfg['symbol']}",
             daemon=True,
         )
