@@ -669,17 +669,24 @@ def run_sniper():
                 abi=FACTORY_ABI,
             )
 
-            event_filter = factory.events.PairCreated.create_filter(fromBlock="latest")
-            logger.info("Слухаємо PairCreated на PancakeSwap V2 Factory...")
+            # web3.py v7 — використовуємо get_logs замість create_filter
+            last_block = w3.eth.block_number
+            logger.info("Слухаємо PairCreated на PancakeSwap V2 Factory (від блоку %d)...", last_block)
 
             while True:
                 try:
-                    new_entries = event_filter.get_new_entries()
-                    for event in new_entries:
-                        try:
-                            _handle_new_pair(w3, account, event)
-                        except Exception as exc:
-                            logger.error("_handle_new_pair error: %s", exc)
+                    current_block = w3.eth.block_number
+                    if current_block > last_block:
+                        events = factory.events.PairCreated.get_logs(
+                            fromBlock=last_block,
+                            toBlock=current_block,
+                        )
+                        for event in events:
+                            try:
+                                _handle_new_pair(w3, account, event)
+                            except Exception as exc:
+                                logger.error("_handle_new_pair error: %s", exc)
+                        last_block = current_block + 1
 
                     if len(_active_snipes) > 0:
                         logger.debug("Активні позиції: %d", len(_active_snipes))
@@ -687,7 +694,7 @@ def run_sniper():
                 except Exception as exc:
                     logger.warning("Помилка polling: %s", exc)
 
-                time.sleep(2)
+                time.sleep(3)
 
         except KeyboardInterrupt:
             logger.info("DEX Sniper зупинено користувачем.")
