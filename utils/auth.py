@@ -1,20 +1,18 @@
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
+import bcrypt
 from jose import JWTError, jwt
 
 SECRET_KEY  = "kado-secret-change-in-production-please"
 ALGORITHM   = "HS256"
-TOKEN_TTL_H = 24  # годин
-
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+TOKEN_TTL_H = 24
 
 
 def hash_password(password: str) -> str:
-    return pwd_ctx.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_ctx.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def create_token(user_id: int, email: str) -> str:
