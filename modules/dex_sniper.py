@@ -634,7 +634,9 @@ def run_sniper():
         w3 = None
         try:
             logger.info("Підключення до BSC: %s", BSC_WSS_URL)
-            w3 = Web3(Web3.WebsocketProvider(BSC_WSS_URL))
+            # web3.py v7 — використовуємо HTTP замість WebSocket для синхронного коду
+            http_url = BSC_WSS_URL.replace("wss://", "https://").replace("ws://", "http://")
+            w3 = Web3(Web3.HTTPProvider(http_url))
 
             if not w3.is_connected():
                 raise ConnectionError("WebSocket не підключено")
