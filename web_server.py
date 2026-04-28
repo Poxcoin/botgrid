@@ -16,7 +16,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
+from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
+from database import get_db, User
+from utils.auth import hash_password, verify_password, create_token, decode_token
+from sqlalchemy.orm import Session
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
@@ -153,6 +157,105 @@ async def login(body: LoginRequest, request: Request):
 @app.post("/api/auth/logout")
 async def logout(token: str = Depends(require_auth)):
     _active_tokens.pop(token, None)
+    return {"ok": True}
+
+
+# ─── SaaS User Auth ──────────────────────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email: str
+    username: str
+    password: str
+    referral_source: str = "direct"
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UpdateProfileRequest(BaseModel):
+    bybit_api_key: str = ""
+    bybit_secret: str = ""
+    tg_chat_id: str = ""
+    leverage: int = 3
+    trade_size_percent: float = 5.0
+
+def _get_user_from_token(token: str, db: Session):
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+    return user
+
+@app.post("/api/users/register")
+async def register(body: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(ip, window=3600, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many registrations. Wait 1h.")
+    if db.query(User).filter(User.email == body.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    if db.query(User).filter(User.username == body.username).first():
+        raise HTTPException(status_code=400, detail="Username already taken")
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    user = User(
+        email=body.email,
+        username=body.username,
+        password_hash=hash_password(body.password),
+        referral_source=body.referral_source,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    token = create_token(user.id, user.email)
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan}}
+
+@app.post("/api/users/login")
+async def user_login(body: UserLoginRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(ip, window=60, max_hits=10):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 60s.")
+    user = db.query(User).filter(User.email == body.email).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account disabled")
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    token = create_token(user.id, user.email)
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "subscribed": user.is_subscribed}}
+
+@app.get("/api/users/me")
+async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    return {
+        "id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "plan": user.subscription_plan,
+        "subscribed": user.is_subscribed,
+        "subscription_expires": user.subscription_expires.isoformat() if user.subscription_expires else None,
+        "tg_chat_id": user.tg_chat_id,
+        "leverage": user.leverage,
+        "trade_size_percent": user.trade_size_percent,
+        "has_api_keys": bool(user.bybit_api_key),
+        "referral_source": user.referral_source,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+@app.put("/api/users/me")
+async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    if body.bybit_api_key:
+        user.bybit_api_key = body.bybit_api_key
+    if body.bybit_secret:
+        user.bybit_secret = body.bybit_secret
+    if body.tg_chat_id:
+        user.tg_chat_id = body.tg_chat_id
+    user.leverage = max(1, min(body.leverage, 10))
+    user.trade_size_percent = max(1.0, min(body.trade_size_percent, 20.0))
+    db.commit()
     return {"ok": True}
 
 
