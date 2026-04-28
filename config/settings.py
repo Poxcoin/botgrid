@@ -69,3 +69,5 @@ SNIPER_STOP_LOSS_PCT = 50.0      # -50%
 SNIPER_MAX_TAX_PCT = 8.0         # max buy+sell tax
 SNIPER_MIN_LIQUIDITY_BNB = 10.0  # min BNB in pool
 SNIPER_TIME_LIMIT_MIN = 30       # exit after 30 min if no movement
+# JWT
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")

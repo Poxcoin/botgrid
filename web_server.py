@@ -20,6 +20,7 @@ from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
 from database import get_db, User
 from utils.auth import hash_password, verify_password, create_token, decode_token
+from utils.crypto import encrypt_field, decrypt_field
 from sqlalchemy.orm import Session
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
@@ -248,9 +249,9 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
 async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
     if body.bybit_api_key:
-        user.bybit_api_key = body.bybit_api_key
+        user.bybit_api_key = encrypt_field(body.bybit_api_key)
     if body.bybit_secret:
-        user.bybit_secret = body.bybit_secret
+        user.bybit_secret = encrypt_field(body.bybit_secret)
     if body.tg_chat_id:
         user.tg_chat_id = body.tg_chat_id
     user.leverage = max(1, min(body.leverage, 10))
