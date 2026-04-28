@@ -42,13 +42,13 @@ IS_DEMO_TRADING = os.getenv("IS_DEMO_TRADING", "False").lower() == "true"
 TRADE_PERCENT_SIZE = 5      # Мы заходим на 5% от свободного баланса USDT
 LEVERAGE = 2                # Плечо BTC/ETH (стабільні, менше шуму)
 
-TAKE_PROFIT_PERCENT = 10.0  # TP для BTC/ETH
-STOP_LOSS_PERCENT = 3.0     # SL для BTC/ETH
+TAKE_PROFIT_PERCENT = 5.0   # TP для BTC/ETH — новинний рух 2-4%, 5% реально
+STOP_LOSS_PERCENT = 2.0     # SL для BTC/ETH — якщо не пішло одразу, виходимо
 
 # Параметри для альткоінів (будь-яка монета крім BTC/ETH)
 ALT_LEVERAGE = 3            # Вищий потенціал руху у альтів
-ALT_TP = 20.0               # Ширший TP — альти рухаються більше
-ALT_SL = 6.0                # Ширший SL — більше шуму
+ALT_TP = 10.0               # Альти рухаються більше, але 20% це занадто довго чекати
+ALT_SL = 4.0                # Тісніший SL — менше збитків на поганих угодах
 ALT_SIZE = 3.0              # % балансу на угоду
 MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм щоб уникнути неліквіду
 
