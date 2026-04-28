@@ -102,9 +102,14 @@ def run_alt_engine():
     ledger          = load_ledger()
     processed_urls  = load_processed_urls()
     last_error_tg   = 0
+    # coin -> timestamp: блокуємо повторну угоду по тій самій монеті 30 хвилин
+    traded_coins: dict = {}
+    COIN_TTL = 30 * 60
 
     while True:
         try:
+            now_ts = time.time()
+
             # Announcements — найвищий пріоритет
             ann_news = []
             while not ann_queue.empty():
@@ -129,6 +134,15 @@ def run_alt_engine():
                 signal = generate_listing_signal(item)
                 if not signal:
                     continue
+
+                coin = signal.get("coin", "")
+                last_traded = traded_coins.get(coin, 0)
+                if now_ts - last_traded < COIN_TTL:
+                    remaining = int((COIN_TTL - (now_ts - last_traded)) / 60)
+                    print(f"[ALT] ⏭ {coin} вже торгували — пропускаємо (ще {remaining} хв)")
+                    continue
+
+                traded_coins[coin] = now_ts
 
                 signal["timestamp"] = datetime.now().isoformat()
                 ledger.append(signal)
