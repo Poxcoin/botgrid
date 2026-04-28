@@ -57,3 +57,15 @@ LISTING_LEVERAGE = 5        # Перші години після лістинг�
 LISTING_TP = 20.0
 LISTING_SL = 7.0            # 7% / 5x = 1.4% реального руху ціни — нормальний шум
 LISTING_SIZE = 2.0          # Малий розмір бо ризик підвищений
+
+# ==========================================
+# DEX Sniper (BSC/PancakeSwap)
+# ==========================================
+BSC_WSS_URL = os.getenv("BSC_WSS_URL", "wss://bsc-ws-node.nariox.org:443")
+SNIPER_PRIVATE_KEY = os.getenv("SNIPER_PRIVATE_KEY", "")
+SNIPER_BUY_AMOUNT_BNB = float(os.getenv("SNIPER_BUY_AMOUNT_BNB", "0.05"))
+SNIPER_TAKE_PROFIT_PCT = 100.0   # +100% = 2x
+SNIPER_STOP_LOSS_PCT = 50.0      # -50%
+SNIPER_MAX_TAX_PCT = 8.0         # max buy+sell tax
+SNIPER_MIN_LIQUIDITY_BNB = 10.0  # min BNB in pool
+SNIPER_TIME_LIMIT_MIN = 30       # exit after 30 min if no movement

@@ -169,14 +169,19 @@ def run_signal_engine():
     init_db()
     signal_ledger = load_ledger()
 
-    # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 4 часа
+    # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 2 часа
     _coin_cooldown: dict = {}
-    COIN_COOLDOWN_SEC = 4 * 3600
+    COIN_COOLDOWN_SEC = 2 * 3600
 
     # Дедупликация сигналов: (coin, action) -> last_signal_ts
     # Один и тот же сигнал по одной монете не логируем чаще раз в 30 мин
     _signal_dedup: dict = {}
     SIGNAL_DEDUP_SEC = 30 * 60
+
+    # Підрахунок дублікатів: (coin, action) -> кількість за останні 10 хвилин
+    # Повторний сигнал = підтвердження → підсилення score
+    _signal_duplicates: dict = {}  # coin -> count за останні 10 хвилин
+    DUPLICATE_WINDOW_SEC = 600     # 10 хвилин
 
     # Загружаем обработанные URL из файла — защита от дублей при перезапуске
     processed_urls = load_processed_urls()
@@ -261,8 +266,19 @@ def run_signal_engine():
                     last_sig_ts = _signal_dedup.get(dedup_key, 0)
                     if signal["action"] in ("LONG", "SHORT") and \
                             now_ts - last_sig_ts < SIGNAL_DEDUP_SEC:
-                        print(f"   ⏭ Дубль сигнала {dedup_key[1]} {dedup_key[0]} — пропускаем")
-                        continue
+                        # Підсилюємо score замість пропуску
+                        dup_count = _signal_duplicates.get(dedup_key, 0) + 1
+                        _signal_duplicates[dedup_key] = dup_count
+                        if dup_count >= 2:
+                            signal["total_score"] = signal["total_score"] * (1 + dup_count * 0.3)
+                            print(f"   🔥 Дубль x{dup_count}: {dedup_key[0]} {dedup_key[1]} — score підсилено до {signal['total_score']:.1f}")
+                        else:
+                            print(f"   ⏭ Дубль сигнала {dedup_key[1]} {dedup_key[0]} — пропускаємо")
+                            continue
+                    else:
+                        # Новий сигнал — скидаємо лічильник дублікатів якщо вийшли за вікно
+                        if now_ts - _signal_dedup.get(dedup_key, 0) >= DUPLICATE_WINDOW_SEC:
+                            _signal_duplicates.pop(dedup_key, None)
                     _signal_dedup[dedup_key] = now_ts
 
                     signal['timestamp'] = datetime.now(timezone.utc).isoformat()
@@ -285,6 +301,33 @@ def run_signal_engine():
                         elif signal['action'] in ["LONG", "SHORT"]:
                             coin = signal.get("coin", "")
                             now_ts = datetime.now(timezone.utc).timestamp()
+
+                            # Перевіряємо чи є протилежна відкрита позиція
+                            from modules.position_monitor import _load_tracked, untrack
+                            tracked = _load_tracked()
+                            symbol_key = f"{coin.upper()}/USDT:USDT"
+                            if symbol_key in tracked:
+                                existing_action = tracked[symbol_key].get("action", "")
+                                if existing_action and existing_action != signal["action"]:
+                                    # Протилежний сигнал — закриваємо існуючу позицію
+                                    print(f"[SIGNAL] 🔄 Протилежний сигнал для {coin}: закриваємо {existing_action}, готуємо {signal['action']}")
+                                    try:
+                                        ex = _init_exchange()
+                                        sym = f"{coin.upper()}/USDT:USDT"
+                                        live = ex.fetch_positions([sym], params={"category": "linear"})
+                                        active = [p for p in live if abs(float(p.get("contracts") or 0)) > 0]
+                                        if active:
+                                            pos = active[0]
+                                            contracts = abs(float(pos["contracts"]))
+                                            close_side = "sell" if pos["side"] == "long" else "buy"
+                                            ex.create_order(sym, "market", close_side, contracts,
+                                                params={"category": "linear", "reduceOnly": True})
+                                            untrack(sym)
+                                            print(f"[SIGNAL] ✅ {coin} закрито, входимо в {signal['action']}")
+                                            _coin_cooldown[coin] = 0  # скидаємо cooldown щоб одразу відкрити нову
+                                    except Exception as e:
+                                        print(f"[SIGNAL] ❌ Помилка закриття {coin}: {e}")
+
                             last_ts = _coin_cooldown.get(coin, 0)
                             if now_ts - last_ts < COIN_COOLDOWN_SEC:
                                 remaining = int((COIN_COOLDOWN_SEC - (now_ts - last_ts)) / 60)

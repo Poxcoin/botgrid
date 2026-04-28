@@ -171,6 +171,9 @@ def generate_signal(news_item: dict) -> dict | None:
     if not is_tg and age_min is not None and age_min > 15:
         return None
 
+    # Smart wallet сигнал — знижений поріг (не потрібно 9 балів)
+    is_smart_wallet = str(news_item.get("source", "")).startswith("Smart Wallet")
+
     # 1. Защита от глобальной паники
     if news_item.get("is_panic"):
         return {
@@ -224,6 +227,17 @@ def generate_signal(news_item: dict) -> dict | None:
     # 3. Рыночные метрики
     market_data = get_market_metrics(coin, timestamp_ms=news_item.get("timestamp_ms"))
     if not market_data:
+        return None
+
+    # 3.5. Перевіряємо чи ціна вже рухнула без нас
+    # Якщо volume spike > 8x І trend вже > 3% в нашому напрямку — занадто пізно
+    _vol_mult_check = market_data.get("volume_multiplier", 1)
+    _recent_change  = market_data.get("trend_24h_percent", 0)
+    if _vol_mult_check > 8 and news_score > 0 and _recent_change > 3:
+        print(f"   ⏰ {coin} вже рухнув +{_recent_change:.1f}% з volume {_vol_mult_check}x — запізнились")
+        return None
+    if _vol_mult_check > 8 and news_score < 0 and _recent_change < -3:
+        print(f"   ⏰ {coin} вже впав {_recent_change:.1f}% з volume {_vol_mult_check}x — запізнились")
         return None
 
     # ==========================================
@@ -395,7 +409,12 @@ def generate_signal(news_item: dict) -> dict | None:
 
     # BTC/ETH — поріг знижено з 11.0 до 9.0: TG-канали реалтайм, RSS лаг вже не головна проблема.
     btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
-    min_score = 9.0 if coin_upper in btc_eth_coins else 8.0
+    if is_smart_wallet:
+        min_score = 5.0  # smart money = більше довіри, нижчий поріг
+    elif coin_upper in btc_eth_coins:
+        min_score = 9.0
+    else:
+        min_score = 8.0
 
     if total_score >= min_score and confidence >= 40:
         action = "LONG"
