@@ -9,7 +9,6 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 
-import re
 import pyotp
 import qrcode
 import io
