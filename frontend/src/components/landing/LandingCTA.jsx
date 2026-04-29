@@ -58,7 +58,7 @@ export default function LandingCTA() {
         <div className="mt-14 flex flex-col sm:flex-row gap-6">
           <NeuronReveal delay={320} tag="div">
             <Link
-              to="/auth?mode=register"
+              to="/waitlist"
               onMouseEnter={() => setCtaHov(true)}
               onMouseLeave={() => setCtaHov(false)}
               className="inline-flex items-center h-12 px-8 font-mono text-[13px] tracking-[0.2em] uppercase"
@@ -72,7 +72,7 @@ export default function LandingCTA() {
                 willChange: 'box-shadow',
               }}
             >
-              Create Account
+              Join Waitlist
             </Link>
           </NeuronReveal>
 

@@ -18,7 +18,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
-from database import get_db, User
+from database import get_db, User, WaitlistEntry
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from sqlalchemy.orm import Session
@@ -258,6 +258,34 @@ async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCr
     user.trade_size_percent = max(1.0, min(body.trade_size_percent, 20.0))
     db.commit()
     return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  WAITLIST
+# ══════════════════════════════════════════════════════════════════════════════
+
+class WaitlistRequest(BaseModel):
+    email: str
+
+@app.post("/api/waitlist")
+async def join_waitlist(body: WaitlistRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(ip, window=3600, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many requests. Try later.")
+    email = body.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+    if db.query(WaitlistEntry).filter(WaitlistEntry.email == email).first():
+        return {"ok": True, "message": "Already on the list"}
+    entry = WaitlistEntry(email=email)
+    db.add(entry)
+    db.commit()
+    return {"ok": True, "message": "Added to waitlist"}
+
+@app.get("/api/waitlist/count")
+async def waitlist_count(db: Session = Depends(get_db)):
+    count = db.query(WaitlistEntry).count()
+    return {"count": count}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -174,7 +174,7 @@ export default function Hero() {
         {/* CTA */}
         <NeuronReveal delay={500} tag="div" style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <Link
-            to="/auth?mode=register"
+            to="/waitlist"
             onMouseEnter={() => { setArrowHover(true); setCtaHover(true); }}
             onMouseLeave={() => { setArrowHover(false); setCtaHover(false); }}
             style={{

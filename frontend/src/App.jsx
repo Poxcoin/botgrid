@@ -6,6 +6,7 @@ import CursorTracker from '@/components/global/CursorTracker';
 import Landing from '@/pages/Landing';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
+import Waitlist from '@/pages/Waitlist';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/waitlist" element={<Waitlist />} />
           <Route
             path="/dashboard"
             element={

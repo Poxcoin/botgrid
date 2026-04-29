@@ -50,7 +50,7 @@ export default function LandingHeader() {
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--site-fg)'; }}>
             Login
           </Link>
-          <Link to="/auth?mode=register" className="hidden sm:inline-flex items-center h-9 px-4 font-mono text-[11px] tracking-[0.2em] uppercase"
+          <Link to="/waitlist" className="hidden sm:inline-flex items-center h-9 px-4 font-mono text-[11px] tracking-[0.2em] uppercase"
             style={{ background: 'var(--site-fg)', color: 'var(--site-bg)', border: '1px solid var(--site-fg)', textDecoration: 'none', transition: 'background 200ms, color 200ms' }}
             onMouseEnter={e => { e.currentTarget.style.background = '#0047FF'; e.currentTarget.style.borderColor = '#0047FF'; e.currentTarget.style.color = '#fff'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'var(--site-fg)'; e.currentTarget.style.borderColor = 'var(--site-fg)'; e.currentTarget.style.color = 'var(--site-bg)'; }}>
