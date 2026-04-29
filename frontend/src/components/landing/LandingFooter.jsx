@@ -5,10 +5,9 @@ const COL = [
   {
     title: 'Product',
     links: [
-      { label: 'Bots', href: '#bots' },
-      { label: 'Strategies', href: '#strategies' },
-      { label: 'How it works', href: '#how' },
-      { label: 'Pricing', href: '#pricing' },
+      { label: 'Bots', to: '/bots' },
+      { label: 'Strategies', to: '/strategies' },
+      { label: 'Pricing', to: '/pricing' },
     ],
   },
   {

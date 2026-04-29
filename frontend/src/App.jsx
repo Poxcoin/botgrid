@@ -4,6 +4,9 @@ import { ThemeProvider } from '@/lib/ThemeContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
 import CursorTracker from '@/components/global/CursorTracker';
 import Landing from '@/pages/Landing';
+import BotsPage from '@/pages/BotsPage';
+import StrategiesPage from '@/pages/StrategiesPage';
+import PricingPage from '@/pages/PricingPage';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import Waitlist from '@/pages/Waitlist';
@@ -23,6 +26,9 @@ export default function App() {
         <CursorTracker />
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/bots" element={<BotsPage />} />
+          <Route path="/strategies" element={<StrategiesPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/waitlist" element={<Waitlist />} />
           <Route
