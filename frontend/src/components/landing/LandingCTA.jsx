@@ -21,78 +21,59 @@ export default function LandingCTA() {
   }, [visible]);
 
   return (
-    <section ref={ref} style={{ background: 'rgba(10,10,10,0.92)', color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-24 md:py-36">
-        <NeuronReveal delay={0} tag="div" className="font-mono text-[11px] tracking-[0.3em] uppercase mb-10"
-          style={{ color: 'rgba(255,255,255,0.4)' }}>
-          <span style={{ border: '1px solid rgba(255,255,255,0.15)', padding: '3px 10px' }}>[ 05 / ENTRY ]</span>
-        </NeuronReveal>
-
-        <h2 className="font-black tracking-[-0.05em] leading-[0.85] text-6xl md:text-[140px]">
-          <span style={{ display: 'block' }}>
-            <NeuralText
-              text="READY TO"
-              fontWeight={900}
-              style={{ fontSize: 'clamp(48px,10vw,140px)', letterSpacing: '-0.05em' }}
-            />
+    <section ref={ref} style={{ background: 'rgba(10,10,10,0.95)', color: '#fff', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+      <div className="px-6 md:px-10 py-20 md:py-32">
+        {/* Top: label left, counter right */}
+        <div className="flex items-start justify-between mb-12">
+          <span className="font-mono text-[10px] tracking-[0.3em] uppercase"
+            style={{ color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.12)', padding: '3px 10px' }}>
+            [ 05 / EARLY ACCESS ]
           </span>
-          <span style={{ display: 'block' }}>
-            <NeuralText
-              text="START?"
-              fontWeight={900}
-              style={{ fontSize: 'clamp(48px,10vw,140px)', letterSpacing: '-0.05em' }}
-            />
+          <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            Limited spots
           </span>
-        </h2>
-
-        <div style={{
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'translateY(0)' : 'translateY(20px)',
-          transition: 'opacity 600ms ease 400ms, transform 600ms ease 400ms',
-        }}>
-          <p className="mt-10 max-w-xl text-lg leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
-            Join the waitlist or request early access. No credit card. No ceremony.
-          </p>
         </div>
 
-        <div className="mt-14 flex flex-col sm:flex-row gap-6">
-          <NeuronReveal delay={320} tag="div">
-            <Link
-              to="/waitlist"
+        {/* Title — left-aligned */}
+        <h2 className="font-black leading-[0.85] tracking-[-0.05em]" style={{ fontSize: 'clamp(52px, 10vw, 130px)' }}>
+          <NeuralText text="READY TO" fontWeight={900} style={{ fontSize: 'clamp(52px,10vw,130px)', letterSpacing: '-0.05em', display: 'block' }} />
+          <NeuralText text="START?" fontWeight={900} style={{ fontSize: 'clamp(52px,10vw,130px)', letterSpacing: '-0.05em', display: 'block' }} />
+        </h2>
+
+        {/* Bottom: desc left, CTAs right */}
+        <div className="mt-14 flex flex-col md:flex-row items-start md:items-end justify-between gap-10">
+          <p className="max-w-md text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            Join the waitlist to get early access. No credit card required.
+            Start in demo mode, switch to live when you're ready.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link to="/waitlist"
               onMouseEnter={() => setCtaHov(true)}
               onMouseLeave={() => setCtaHov(false)}
-              className="inline-flex items-center h-12 px-8 font-mono text-[13px] tracking-[0.2em] uppercase"
+              className="inline-flex items-center h-12 px-8 font-mono text-[12px] tracking-[0.2em] uppercase"
               style={{
                 background: ctaHov ? 'transparent' : '#fff',
                 color: ctaHov ? '#fff' : '#0A0A0A',
                 border: '1px solid #fff',
                 textDecoration: 'none',
                 transition: 'background 200ms, color 200ms',
-                animation: 'ctaPulse 2s ease-in-out infinite',
-                willChange: 'box-shadow',
-              }}
-            >
-              Join Waitlist
+              }}>
+              Join Waitlist →
             </Link>
-          </NeuronReveal>
-
-          <NeuronReveal delay={400} tag="div">
-            <Link
-              to="/auth?mode=login"
-              className="inline-flex items-center h-12 px-8 font-mono text-[13px] tracking-[0.2em] uppercase"
-              style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', textDecoration: 'none', transition: 'border-color 200ms' }}
+            <Link to="/auth?mode=login"
+              className="inline-flex items-center h-12 px-8 font-mono text-[12px] tracking-[0.2em] uppercase"
+              style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.25)', textDecoration: 'none' }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#fff'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }}
-            >
-              See Live Signals
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'; }}>
+              Login
             </Link>
-          </NeuronReveal>
+          </div>
         </div>
 
-        <div className="mt-20 pt-8 flex flex-wrap justify-between font-mono text-[10px] tracking-[0.3em] uppercase gap-3"
-          style={{ borderTop: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.3)' }}>
-          {['// Intelligence feeds', '// Signals execute', '// Risk is managed'].map((t, i) => (
-            <NeuronReveal key={t} delay={500 + i * 80} tag="span">{t}</NeuronReveal>
+        <div className="mt-16 pt-6 flex flex-wrap justify-between font-mono text-[9px] tracking-[0.3em] uppercase gap-3"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.25)' }}>
+          {['// Intelligence feeds', '// Signals execute', '// Risk is managed', '// 24/7 uptime'].map((t) => (
+            <span key={t}>{t}</span>
           ))}
         </div>
       </div>

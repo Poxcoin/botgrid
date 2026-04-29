@@ -3,122 +3,102 @@ import NeuronReveal from '@/components/shared/NeuronReveal';
 import useScrollReveal from '@/lib/useScrollReveal';
 
 const ITEMS = [
-  { n: '01', h: 'NEWS INTELLIGENCE', p: 'Scans 16+ crypto news feeds in real-time. AI scores every headline for market impact.' },
-  { n: '02', h: 'SIGNAL GENERATION',  p: 'Produces LONG / SHORT signals with confidence scores. Filters noise using volume, funding rate, and market sentiment.' },
-  { n: '03', h: 'RISK MANAGEMENT',    p: 'Each signal includes built-in TP/SL levels. Daily loss limits protect your capital automatically.' },
+  {
+    n: '01', tag: 'NEWS BOT', h: 'News Intelligence',
+    p: 'Monitors 6 Telegram channels + Binance/Bybit announcements in real-time. Groq LLaMA pre-filters noise, Claude Haiku scores market impact. Executes within seconds of the signal.',
+    params: [['BTC/ETH', '2× · 5% TP · 2% SL'], ['Altcoins', '3× · 10% TP · 4% SL'], ['Scan rate', '30 sec']],
+  },
+  {
+    n: '02', tag: 'GRID BOT', h: 'Grid Trading',
+    p: 'Runs three parallel grids on SOL, BTC and ETH simultaneously. Buys low, sells high on every grid level — earns on sideways and trending markets alike without prediction.',
+    params: [['SOL', '10 levels · $30/level'], ['BTC', '8 levels · $20/level'], ['ETH', '10 levels · $25/level']],
+  },
+  {
+    n: '03', tag: 'LISTING BOT', h: 'Listing Sniper',
+    p: 'Detects new token listings on Binance and Bybit announcements the moment they are published. Enters with high leverage before the pump peak.',
+    params: [['Leverage', '5×'], ['Take profit', '20%'], ['Stop loss', '7%']],
+  },
+  {
+    n: '04', tag: 'DEX SNIPER', h: 'DEX / On-Chain',
+    p: 'Hunts new liquidity pools on PancakeSwap (BSC). Checks token safety via GoPlus API before every entry. Catches early launches before CEX discovery.',
+    params: [['Chain', 'BSC / BEP-20'], ['Take profit', '+100%'], ['Safety', 'GoPlus check']],
+  },
 ];
 
 function FeatureCard({ it, i, sectionVisible }) {
   const [hov, setHov] = useState(false);
-  const cardRef = useRef(null);
-  const firedRef = useRef(false);
-
-  useEffect(() => {
-    if (sectionVisible && !firedRef.current && cardRef.current) {
-      firedRef.current = true;
-      setTimeout(() => {
-        const rect = cardRef.current?.getBoundingClientRect();
-        if (rect) window.__neuronPulse?.(rect.left + rect.width / 2, rect.top + rect.height / 2, 0.5);
-      }, i * 150 + 200);
-    }
-  }, [sectionVisible]);
 
   return (
     <div
-      ref={cardRef}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
         position: 'relative',
-        padding: '2.5rem',
+        padding: '2rem',
         borderRight: i < ITEMS.length - 1 ? '1px solid var(--hero-border)' : 'none',
         borderTop: '1px solid var(--hero-border)',
-        background: hov ? 'var(--site-fg)' : 'var(--site-bg-glass)',
-        backdropFilter: 'blur(3px)',
+        background: hov ? 'var(--site-fg)' : 'transparent',
         color: hov ? 'var(--site-bg)' : 'var(--site-fg)',
-        transition: 'background 250ms ease, color 250ms ease, opacity 600ms ease, transform 600ms ease',
+        transition: 'background 220ms, color 220ms, opacity 500ms, transform 500ms',
         opacity: sectionVisible ? 1 : 0,
-        transform: sectionVisible ? 'scale(1) translateY(0)' : 'scale(0.92) translateY(24px)',
-        transitionDelay: `${i * 120}ms`,
-        willChange: 'opacity, transform',
-        overflow: 'hidden',
+        transform: sectionVisible ? 'translateY(0)' : 'translateY(24px)',
+        transitionDelay: `${i * 90}ms`,
       }}
     >
-      {hov && (
-        <span style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          boxShadow: 'inset 0 0 0 1.5px #0047FF',
-          animation: 'electricBorder 600ms ease forwards',
-        }} />
-      )}
-
-      <div className="flex items-start justify-between mb-10">
-        <NeuronReveal delay={i * 120 + 200} tag="span">
-          <span className="font-mono text-[11px] tracking-[0.25em] opacity-60"
-            style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 10px' }}>
-            {it.n}
-          </span>
-        </NeuronReveal>
-        <span
-          className="font-mono text-[11px] opacity-40"
-          style={{ transition: 'transform 400ms ease', transform: hov ? 'rotate(360deg)' : 'rotate(0deg)' }}>
-          ◊
+      {/* Top: number + tag */}
+      <div className="flex items-center justify-between mb-8">
+        <span className="font-mono text-[10px] tracking-[0.3em] uppercase opacity-50"
+          style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '2px 8px' }}>
+          {it.tag}
+        </span>
+        <span className="font-black text-5xl leading-none tracking-tighter"
+          style={{ color: hov ? '#0047FF' : 'rgba(128,128,128,0.2)', transition: 'color 220ms' }}>
+          {it.n}
         </span>
       </div>
 
-      <NeuronReveal delay={i * 120 + 80} tag="div">
-        <div className="font-black text-[56px] md:text-[72px] leading-none tracking-tighter mb-8"
-          style={{ color: hov ? '#0047FF' : 'inherit', transition: 'color 250ms' }}>
-          {it.n}
-        </div>
-      </NeuronReveal>
+      {/* Title */}
+      <h3 className="font-black text-2xl md:text-3xl tracking-tight leading-tight mb-4">{it.h}</h3>
 
-      <NeuronReveal delay={i * 120 + 160} tag="div">
-        <h3 className="font-black text-xl md:text-2xl tracking-tight mb-4">{it.h}</h3>
-      </NeuronReveal>
+      {/* Description */}
+      <p className="text-[14px] leading-relaxed mb-6" style={{ opacity: 0.7 }}>{it.p}</p>
 
-      <NeuronReveal delay={i * 120 + 240} tag="div">
-        <p className="text-[15px] leading-relaxed opacity-75">{it.p}</p>
-      </NeuronReveal>
+      {/* Params table */}
+      <div className="space-y-1 pt-4" style={{ borderTop: `1px solid ${hov ? 'rgba(255,255,255,0.2)' : 'var(--hero-border)'}` }}>
+        {it.params.map(([k, v]) => (
+          <div key={k} className="flex items-center justify-between font-mono text-[11px]">
+            <span style={{ opacity: 0.5 }}>{k}</span>
+            <span style={{ color: hov ? '#7dd3fc' : '#0047FF' }}>{v}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 export default function Features() {
-  const [ref, visible] = useScrollReveal(0.1);
+  const [ref, visible] = useScrollReveal(0.08);
 
   return (
-    <section ref={ref} style={{ background: 'transparent', borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
-      <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-24 md:py-32">
-        <div className="flex items-end justify-between mb-16 md:mb-24">
-          <h2 className="font-black tracking-[-0.04em] leading-[0.9] text-5xl md:text-7xl" style={{ color: 'var(--site-fg)' }}>
-            {['What', 'it', 'does.'].map((word, wi) => (
-              <span key={wi} style={{ display: 'inline-block', marginRight: wi < 2 ? '0.25em' : 0 }}>
-                {word.split('').map((char, ci) => (
-                  <span key={ci} style={{
-                    display: 'inline-block',
-                    opacity: visible ? 1 : 0,
-                    transform: visible ? 'translateY(0)' : 'translateY(100%)',
-                    transition: `opacity 400ms ease ${(wi * 3 + ci) * 40}ms, transform 400ms ease ${(wi * 3 + ci) * 40}ms`,
-                    willChange: 'opacity, transform',
-                  }}>{char}</span>
-                ))}
-                {wi === 1 && <br />}
-              </span>
-            ))}
+    <section id="bots" ref={ref} style={{ background: 'transparent', borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
+      {/* Section header — left + right corners */}
+      <div className="px-6 md:px-10 pt-20 pb-12 flex items-end justify-between">
+        <div>
+          <div className="font-mono text-[10px] tracking-[0.3em] uppercase mb-4" style={{ color: 'var(--hero-muted)' }}>
+            [ 01 / BOTS ]
+          </div>
+          <h2 className="font-black tracking-[-0.04em] leading-[0.88] text-5xl md:text-7xl">
+            Four bots.<br />One system.
           </h2>
-
-          <NeuronReveal delay={100} tag="div" className="hidden md:block font-mono text-[11px] tracking-[0.25em] uppercase"
-            style={{ color: 'var(--hero-muted)' }}>
-            <span style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 10px', animation: visible ? 'labelPulse 4s ease-in-out infinite' : 'none' }}>
-              [ 003 · CORE ]
-            </span>
-          </NeuronReveal>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3">
-          {ITEMS.map((it, i) => <FeatureCard key={it.n} it={it} i={i} sectionVisible={visible} />)}
+        <div className="hidden md:block text-right font-mono text-[11px] uppercase" style={{ color: 'var(--hero-muted)' }}>
+          <div>News · Grid</div>
+          <div>Listing · DEX</div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4" style={{ borderTop: '1px solid var(--hero-border)' }}>
+        {ITEMS.map((it, i) => <FeatureCard key={it.n} it={it} i={i} sectionVisible={visible} />)}
       </div>
     </section>
   );

@@ -2,8 +2,10 @@ import React from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
+import Strategies from '@/components/landing/Strategies';
 import StatsBar from '@/components/landing/StatsBar';
 import HowItWorks from '@/components/landing/HowItWorks';
+import Pricing from '@/components/landing/Pricing';
 import LandingCTA from '@/components/landing/LandingCTA';
 import LandingFooter from '@/components/landing/LandingFooter';
 
@@ -13,8 +15,10 @@ export default function Landing() {
       <LandingHeader />
       <Hero />
       <Features />
-      <StatsBar />
+      <Strategies />
       <HowItWorks />
+      <StatsBar />
+      <Pricing />
       <LandingCTA />
       <LandingFooter />
     </div>

@@ -3,10 +3,12 @@ import NeuronReveal from '@/components/shared/NeuronReveal';
 import useScrollReveal from '@/lib/useScrollReveal';
 
 const STATS = [
-  { raw: 16,   v: '16',    l: 'News sources',  isNum: true },
-  { raw: 2,    v: '02',    l: 'Active bots',   isNum: true },
-  { raw: null, v: '30s',   l: 'Scan interval', isNum: false },
-  { raw: null, v: 'BYBIT', l: 'Futures venue', isNum: false },
+  { raw: 4,    v: '04',    l: 'Autonomous bots',   isNum: true },
+  { raw: 6,    v: '06',    l: 'TG channels live',  isNum: true },
+  { raw: null, v: '30s',   l: 'Scan interval',     isNum: false },
+  { raw: null, v: '24/7',  l: 'Uptime target',     isNum: false },
+  { raw: null, v: 'BYBIT', l: 'Futures exchange',  isNum: false },
+  { raw: null, v: 'BSC',   l: 'DEX chain',         isNum: false },
 ];
 
 function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
@@ -65,11 +67,11 @@ export default function StatsBar() {
         </span>
       </div>
 
-      <div className="max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-4">
+      <div className="max-w-[1400px] mx-auto grid grid-cols-2 md:grid-cols-6">
         {STATS.map((s, i) => (
           <div
             key={s.l}
-            className={`px-6 md:px-10 py-10 md:py-14 ${i < STATS.length - 1 ? 'md:border-r border-white/10' : ''} ${i < 2 ? 'border-b md:border-b-0 border-white/10' : ''}`}
+            className={`px-5 md:px-8 py-8 md:py-10 ${i < STATS.length - 1 ? 'border-r border-white/10' : ''} ${i < 2 ? 'border-b md:border-b-0 border-white/10' : ''}`}
             style={{
               opacity: visible ? 1 : 0,
               transform: visible ? 'translateY(0)' : 'translateY(20px)',
@@ -78,7 +80,7 @@ export default function StatsBar() {
             }}
           >
             <NeuronReveal delay={i * 120 + 100} tag="div"
-              className="font-black font-mono text-5xl md:text-6xl tracking-tighter leading-none mb-4">
+              className="font-black font-mono text-4xl md:text-5xl tracking-tighter leading-none mb-3">
               {s.isNum
                 ? <CountUp target={s.raw} started={visible} pad={s.v.length} />
                 : s.v}

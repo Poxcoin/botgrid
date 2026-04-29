@@ -117,115 +117,83 @@ export default function Hero() {
         BYBIT · PERP
       </div>
 
-      <div className="relative flex flex-col items-center justify-center text-center px-6 md:px-10"
-        style={{ minHeight: '100vh', zIndex: 10, paddingBottom: '3.5rem', paddingTop: '2rem' }}>
+      {/* Main content — left-aligned, pinned to edges */}
+      <div className="relative px-6 md:px-10" style={{ minHeight: '100vh', zIndex: 10, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingTop: '5rem', paddingBottom: '3rem' }}>
 
-        {/* label */}
-        <div style={{ marginBottom: '2.5rem' }}>
+        {/* Top row */}
+        <div className="flex items-start justify-between">
           <span
-            className="font-mono text-[11px] md:text-[12px] tracking-[0.35em] uppercase select-none"
-            style={{
-              color: 'var(--hero-muted)',
-              display: 'inline-block',
-              padding: '6px 14px',
-              border: '1px solid currentColor',
-              animation: labelDrawn ? 'labelPulse 4s ease-in-out infinite' : 'none',
-            }}
+            className="font-mono text-[11px] tracking-[0.3em] uppercase select-none"
+            style={{ color: 'var(--hero-muted)', border: '1px solid currentColor', padding: '4px 10px', animation: labelDrawn ? 'labelPulse 4s ease-in-out infinite' : 'none' }}
           >
-            <CharReveal text="AI-DRIVEN CRYPTO SIGNAL INTELLIGENCE" delay={80} charDelay={28} tag="span" />
+            <CharReveal text="AI-DRIVEN SIGNAL INTELLIGENCE" delay={80} charDelay={22} tag="span" />
+          </span>
+          <span className="font-mono text-[10px] tracking-[0.25em] uppercase flex items-center gap-2" style={{ color: 'var(--hero-muted)' }}>
+            <span className="w-1.5 h-1.5 bg-kado-blue animate-blink" /> BYBIT · PERP · LIVE
           </span>
         </div>
 
-        {/* KADO with scan-line */}
-        <div style={{ position: 'relative', padding: '0.15em 0.05em' }}>
-          <h1
-            className="font-black leading-none select-none"
-            style={{ fontSize: 'clamp(80px, 18vw, 220px)', letterSpacing: '-0.06em', color: 'var(--hero-fg)' }}
-          >
-            <NeuralText
-              text="KADO"
-              fontWeight={900}
-              style={{ fontSize: 'clamp(80px, 18vw, 220px)', letterSpacing: '-0.06em' }}
-            />
+        {/* Giant title — left-aligned */}
+        <div style={{ position: 'relative' }}>
+          <h1 className="font-black leading-none select-none" style={{ fontSize: 'clamp(72px, 16vw, 200px)', letterSpacing: '-0.06em', color: 'var(--hero-fg)' }}>
+            <NeuralText text="KADO" fontWeight={900} style={{ fontSize: 'clamp(72px, 16vw, 200px)', letterSpacing: '-0.06em' }} />
           </h1>
-          <div style={{
-            position: 'absolute', left: 0, right: 0, height: '2px',
-            background: 'var(--hero-fg)', opacity: 0, pointerEvents: 'none',
-            animation: 'scanLine 4s ease-in-out 1.5s infinite',
-          }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, height: '2px', background: 'var(--hero-fg)', opacity: 0, pointerEvents: 'none', animation: 'scanLine 4s ease-in-out 1.5s infinite' }} />
         </div>
 
-        {/* subtitle */}
-        <div style={{ marginTop: '2.5rem', display: 'flex', alignItems: 'center' }}>
-          <div style={{
-            width: 2, background: 'var(--hero-fg)', alignSelf: 'stretch', marginRight: 16,
-            transformOrigin: 'top', animation: 'scaleYIn 600ms ease 700ms both',
-          }} />
-          <p className="text-sm md:text-base leading-relaxed text-left max-w-xs" style={{ color: 'var(--hero-muted-fg)' }}>
-            <CharReveal
-              text="A quantitative newsroom that listens to the market — scores every headline, validates every move, and executes with discipline."
-              delay={700}
-              charDelay={18}
-              tag="span"
-            />
-          </p>
+        {/* Bottom row — description left, CTA right */}
+        <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10 md:gap-0">
+          {/* Left: tagline + steps */}
+          <div style={{ maxWidth: 460 }}>
+            <div style={{ width: 2, height: 40, background: 'var(--hero-fg)', marginBottom: 16, animation: 'scaleYIn 600ms ease 600ms both' }} />
+            <p className="text-base md:text-lg leading-relaxed" style={{ color: 'var(--hero-muted-fg)', marginBottom: '1.5rem' }}>
+              <CharReveal
+                text="Four autonomous bots — news scanner, grid trader, listing sniper, DEX hunter — running 24/7 on Bybit Futures."
+                delay={700} charDelay={14} tag="span"
+              />
+            </p>
+            <div className="flex gap-6 font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: 'var(--hero-muted)' }}>
+              {['Scan 30s', 'Claude AI', '4 Bots'].map((t, i) => (
+                <span key={t} style={{ border: '1px solid rgba(128,128,128,0.3)', padding: '3px 8px', animation: `flickerBox ${2.5 + i}s ease-in-out ${i * 0.6}s infinite` }}>{t}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: CTA */}
+          <NeuronReveal delay={500} tag="div" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <Link
+              to="/waitlist"
+              onMouseEnter={() => { setArrowHover(true); setCtaHover(true); }}
+              onMouseLeave={() => { setArrowHover(false); setCtaHover(false); }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '10px',
+                padding: '14px 32px',
+                background: ctaHover ? '#0047FF' : 'var(--hero-fg)',
+                color: ctaHover ? '#fff' : 'var(--hero-bg, #fff)',
+                fontFamily: 'var(--font-mono)', fontSize: '12px',
+                letterSpacing: '0.2em', textTransform: 'uppercase',
+                textDecoration: 'none', border: '1px solid var(--hero-fg)',
+                transition: 'background 200ms, color 200ms',
+              }}
+            >
+              Join Waitlist
+              <span style={{ display: 'inline-block', transform: arrowHover ? 'translateX(4px)' : 'translateX(0)', transition: 'transform 200ms' }}>→</span>
+            </Link>
+            <a href="#bots" className="font-mono text-[11px] tracking-[0.2em] uppercase"
+              style={{ color: 'var(--hero-muted)', textDecoration: 'none' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--site-fg)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--hero-muted)'; }}>
+              See all bots ↓
+            </a>
+          </NeuronReveal>
         </div>
 
-        {/* CTA */}
-        <NeuronReveal delay={500} tag="div" style={{ marginTop: '3rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link
-            to="/waitlist"
-            onMouseEnter={() => { setArrowHover(true); setCtaHover(true); }}
-            onMouseLeave={() => { setArrowHover(false); setCtaHover(false); }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 28px',
-              background: ctaHover ? '#0047FF' : 'var(--hero-fg)',
-              color: ctaHover ? '#fff' : 'var(--hero-bg, #fff)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              textDecoration: 'none',
-              border: '1px solid var(--hero-fg)',
-              transition: 'background 200ms ease, color 200ms ease',
-              userSelect: 'none',
-            }}
-          >
-            Get Access
-            <span style={{ display: 'inline-block', transform: arrowHover ? 'translateX(4px)' : 'translateX(0)', transition: 'transform 200ms ease' }}>→</span>
-          </Link>
-          <a
-            href="#how"
-            className="font-mono text-[12px] tracking-[0.2em] uppercase"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '12px 20px',
-              color: 'var(--hero-muted-fg)',
-              border: '1px solid var(--hero-border)',
-              textDecoration: 'none',
-              transition: 'border-color 200ms ease, color 200ms ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#0047FF'; e.currentTarget.style.color = '#0047FF'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hero-border)'; e.currentTarget.style.color = 'var(--hero-muted-fg)'; }}
-          >
-            Learn how it works
-          </a>
-        </NeuronReveal>
-
-        {/* bottom bar */}
-        <div className="absolute bottom-0 left-0 right-0" style={{ borderTop: '1px solid var(--hero-border)', zIndex: 10 }}>
-          <div className="max-w-[1400px] mx-auto px-6 md:px-10 h-10 flex items-center justify-between font-mono text-[10px] tracking-[0.25em] uppercase" style={{ color: 'var(--hero-muted)' }}>
-            {['// Scroll', 'Intelligence feeds. Signals execute.', 'EST. 2026'].map((txt, i) => (
-              <span key={txt} className={i === 1 ? 'hidden md:inline' : ''}
-                style={{ border: '1px solid rgba(128,128,128,0.25)', padding: '2px 8px', animation: `flickerBox ${2 + i * 1.3}s ease-in-out ${i * 0.7}s infinite` }}>
-                {txt}
-              </span>
-            ))}
+        {/* Bottom edge bar */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, borderTop: '1px solid var(--hero-border)', zIndex: 10 }}>
+          <div className="px-6 md:px-10 h-9 flex items-center justify-between font-mono text-[9px] tracking-[0.25em] uppercase" style={{ color: 'var(--hero-muted)' }}>
+            <span>↓ Scroll to explore</span>
+            <span className="hidden md:inline">Intelligence feeds. Signals execute. Risk is managed.</span>
+            <span>EST. 2026</span>
           </div>
         </div>
       </div>
