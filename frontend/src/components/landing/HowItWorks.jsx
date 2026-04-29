@@ -3,11 +3,11 @@ import NeuronReveal from '@/components/shared/NeuronReveal';
 import useScrollReveal from '@/lib/useScrollReveal';
 
 const STEPS = [
-  { n: '01', t: 'Scan',     d: 'Bot scans news every 30 seconds across 16+ feeds.' },
-  { n: '02', t: 'Score',    d: 'Claude AI scores sentiment on a -10 to +10 scale.' },
-  { n: '03', t: 'Validate', d: 'Market metrics validated — volume, funding, trend direction.' },
-  { n: '04', t: 'Signal',   d: 'Signal generated only when composite score ≥ 8.' },
-  { n: '05', t: 'Execute',  d: 'Trade executed on Bybit with TP and SL attached.' },
+  { n: '01', t: 'Listen',   d: '6 Telegram channels + Binance/Bybit announcements monitored every 30 seconds. Smart wallet tracker listens via Alchemy WebSocket.' },
+  { n: '02', t: 'Filter',   d: 'Groq LLaMA-3.1 reads each event in under 1 second and discards generic market noise before Claude sees it.' },
+  { n: '03', t: 'Score',    d: 'Claude Haiku rates signal strength −10 to +10. Volume, funding rate, and trend direction are factored into the composite score.' },
+  { n: '04', t: 'Validate', d: 'Signal fires only when composite score ≥ 8. Opposite signals auto-close existing positions. Duplicates increase score weight.' },
+  { n: '05', t: 'Execute',  d: 'Trade placed on Bybit Futures with leverage, TP, and SL attached. Daily hard stop limits total loss to 3% of balance.' },
 ];
 
 function AxonLine({ visible }) {
