@@ -1,0 +1,12 @@
+{
+  "sessionId": "session-1776728284395-upsipa",
+  "name": "botgrid/session8_major_upgrade",
+  "description": "Session 8: Groq filter + Telegram monitor + Binance liquidations + 5 bug fixes + duplicate service removed",
+  "savedAt": "2026-04-20T23:38:04.396Z",
+  "stats": {
+    "tasks": 0,
+    "agents": 0,
+    "memoryEntries": 0,
+    "totalSize": 307
+  }
+}

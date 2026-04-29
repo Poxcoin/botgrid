@@ -137,11 +137,12 @@ function HomeHero() {
 }
 
 /* ── Bot Preview Cards ─────────────────────────────────────────────────────── */
+const G = 'var(--neon-green)';
 const BOT_CARDS = [
-  { num: '01', name: 'News Intelligence', desc: 'Claude AI scores signals from 6 Telegram channels every 30 seconds.', stat: 'Score ≥ 8 / 10', color: 'var(--neon-cyan)', href: '/bots' },
-  { num: '02', name: 'Grid Trading',       desc: 'Parallel grids on SOL · BTC · ETH. Earns on every price oscillation.', stat: '3 grids · 2× lev', color: '#9945FF', href: '/bots' },
-  { num: '03', name: 'Listing Sniper',     desc: 'Detects Binance & Bybit listings, enters before the initial pump.', stat: '5× · 20% TP', color: 'var(--neon-gold)', href: '/bots' },
-  { num: '04', name: 'DEX Sniper',         desc: 'Hunts new PancakeSwap pools with GoPlus contract safety checks.', stat: 'BSC · +100% TP', color: 'var(--neon-pink)', href: '/bots' },
+  { num: '01', name: 'News Intelligence', desc: 'Claude AI scores signals from 6 Telegram channels every 30 seconds.', stat: 'Score ≥ 8 / 10', href: '/bots' },
+  { num: '02', name: 'Grid Trading',       desc: 'Parallel grids on SOL · BTC · ETH. Earns on every price oscillation.', stat: '3 grids · 2× lev', href: '/bots' },
+  { num: '03', name: 'Listing Sniper',     desc: 'Detects Binance & Bybit listings, enters before the initial pump.', stat: '5× · 20% TP', href: '/bots' },
+  { num: '04', name: 'DEX Sniper',         desc: 'Hunts new PancakeSwap pools with GoPlus contract safety checks.', stat: 'BSC · +100% TP', href: '/bots' },
 ];
 
 function BotPreview() {
@@ -176,16 +177,16 @@ function BotPreview() {
           }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: bot.color, marginBottom: 20, opacity: 0.8 }}>{bot.num}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: G, marginBottom: 20, opacity: 0.7 }}>{bot.num}</div>
             <div className="font-black text-xl mb-3" style={{ letterSpacing: '-0.02em', lineHeight: 1.1 }}>{bot.name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7, color: 'var(--muted-fg)', marginBottom: 24 }}>{bot.desc}</div>
             <div style={{
               fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase',
-              border: `1px solid ${bot.color}`, color: bot.color, padding: '3px 10px', display: 'inline-block',
+              border: '1px solid rgba(0,255,136,0.35)', color: G, padding: '3px 10px', display: 'inline-block',
             }}>
               {bot.stat}
             </div>
-            <div style={{ position: 'absolute', bottom: 20, right: 20, fontFamily: 'var(--font-mono)', fontSize: 10, color: bot.color, opacity: 0.5 }}>→</div>
+            <div style={{ position: 'absolute', bottom: 20, right: 20, fontFamily: 'var(--font-mono)', fontSize: 10, color: G, opacity: 0.4 }}>→</div>
           </Link>
         ))}
       </div>
@@ -195,9 +196,9 @@ function BotPreview() {
 
 /* ── Strategy Preview ──────────────────────────────────────────────────────── */
 const STRAT_CARDS = [
-  { num: '01', name: 'Conservative', return: '3–8%', risk: 25, color: '#22c55e', bots: ['Grid Bot'], desc: 'Grid bot only. Steady yield, no directional bias.' },
-  { num: '02', name: 'Moderate',     return: '10–25%', risk: 55, color: 'var(--neon-cyan)', bots: ['Grid', 'News'], desc: 'Grid base + AI news signals. Two independent income streams.' },
-  { num: '03', name: 'Aggressive',   return: '50%+', risk: 90, color: 'var(--neon-gold)', bots: ['All 4'], desc: 'All four bots active. Maximum edge. High variance.' },
+  { num: '01', name: 'Conservative', return: '3–8%',   risk: 25, bots: ['Grid Bot'],    desc: 'Grid bot only. Steady yield, no directional bias.' },
+  { num: '02', name: 'Moderate',     return: '10–25%', risk: 55, bots: ['Grid', 'News'], desc: 'Grid base + AI news signals. Two independent income streams.' },
+  { num: '03', name: 'Aggressive',   return: '50%+',   risk: 90, bots: ['All 4'],        desc: 'All four bots active. Maximum edge. High variance.' },
 ];
 
 function StrategyPreview() {
@@ -229,28 +230,28 @@ function StrategyPreview() {
           }}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: s.color, marginBottom: 16, opacity: 0.8 }}>{s.num}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: G, marginBottom: 16, opacity: 0.7 }}>{s.num}</div>
             <div className="font-black text-2xl mb-2" style={{ letterSpacing: '-0.03em' }}>{s.name}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7, color: 'var(--muted-fg)', marginBottom: 24, flex: 1 }}>{s.desc}</div>
 
             {/* Return */}
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', color: s.color, lineHeight: 1, marginBottom: 4 }}>{s.return}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, letterSpacing: '-0.04em', color: G, lineHeight: 1, marginBottom: 4, textShadow: '0 0 30px rgba(0,255,136,0.3)' }}>{s.return}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 16 }}>EST. / MONTH</div>
 
             {/* Risk bar */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>
-                <span>Risk</span><span style={{ color: s.color }}>{s.risk}%</span>
+                <span>Risk</span><span style={{ color: G }}>{s.risk}%</span>
               </div>
               <div style={{ height: 2, background: 'var(--border)' }}>
-                <div style={{ height: '100%', width: `${s.risk}%`, background: s.color }} />
+                <div style={{ height: '100%', width: `${s.risk}%`, background: G, opacity: 0.7 }} />
               </div>
             </div>
 
             {/* Bot tags */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {s.bots.map(b => (
-                <span key={b} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', border: `1px solid ${s.color}`, color: s.color, padding: '2px 8px', opacity: 0.7 }}>{b}</span>
+                <span key={b} style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', border: '1px solid rgba(0,255,136,0.3)', color: G, padding: '2px 8px', opacity: 0.7 }}>{b}</span>
               ))}
             </div>
           </Link>

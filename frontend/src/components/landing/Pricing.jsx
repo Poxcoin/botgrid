@@ -99,7 +99,7 @@ export default function Pricing() {
                   {plan.label}
                 </span>
                 {plan.highlight && (
-                  <span className="font-mono text-[9px] tracking-[0.2em] uppercase px-2 py-0.5" style={{ background: '#0047FF', color: '#fff' }}>
+                  <span className="font-mono text-[9px] tracking-[0.2em] uppercase px-2 py-0.5" style={{ background: 'var(--neon-green)', color: '#fff' }}>
                     Popular
                   </span>
                 )}
@@ -113,7 +113,7 @@ export default function Pricing() {
               <ul className="space-y-2 mb-6">
                 {plan.features.map(f => (
                   <li key={f} className="font-mono text-[12px] flex items-start gap-2">
-                    <span style={{ color: plan.highlight ? '#7dd3fc' : '#0047FF', flexShrink: 0 }}>✓</span>
+                    <span style={{ color: 'var(--neon-green)', flexShrink: 0 }}>✓</span>
                     {f}
                   </li>
                 ))}
@@ -130,18 +130,18 @@ export default function Pricing() {
               <Link to={plan.href}
                 className="block w-full h-11 flex items-center justify-center font-mono text-[11px] tracking-[0.2em] uppercase transition-colors"
                 style={{
-                  background: plan.highlight ? '#0047FF' : 'transparent',
-                  color: plan.highlight ? '#fff' : 'var(--site-fg)',
-                  border: `1px solid ${plan.highlight ? '#0047FF' : 'var(--hero-border)'}`,
+                  background: plan.highlight ? 'var(--neon-green)' : 'transparent',
+                  color: plan.highlight ? '#000' : 'var(--site-fg)',
+                  border: `1px solid ${plan.highlight ? 'var(--neon-green)' : 'var(--hero-border)'}`,
                   textDecoration: 'none',
                 }}
                 onMouseEnter={e => {
                   if (!plan.highlight) { e.currentTarget.style.background = 'var(--site-fg)'; e.currentTarget.style.color = 'var(--site-bg)'; e.currentTarget.style.borderColor = 'var(--site-fg)'; }
-                  else { e.currentTarget.style.background = '#0035cc'; }
+                  else { e.currentTarget.style.background = '#00cc6a'; }
                 }}
                 onMouseLeave={e => {
                   if (!plan.highlight) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--site-fg)'; e.currentTarget.style.borderColor = 'var(--hero-border)'; }
-                  else { e.currentTarget.style.background = '#0047FF'; }
+                  else { e.currentTarget.style.background = 'var(--neon-green)'; }
                 }}
               >
                 {plan.cta} →

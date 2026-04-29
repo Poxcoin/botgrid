@@ -13,7 +13,7 @@ function PageHero() {
           </div>
           <h1 className="font-black tracking-[-0.05em] leading-[0.85]" style={{ fontSize: 'clamp(52px, 10vw, 120px)', color: 'var(--fg)' }}>
             The<br />
-            <span style={{ color: 'var(--neon-cyan)', textShadow: '0 0 60px rgba(0,212,255,0.4)' }}>Arsenal.</span>
+            <span style={{ color: 'var(--neon-green)', textShadow: '0 0 60px rgba(0,255,136,0.4)' }}>Arsenal.</span>
           </h1>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.8, color: 'var(--muted-fg)', maxWidth: 520, marginTop: 20 }}>
             Four autonomous trading systems running in parallel 24/7. Each bot specializes in a different market opportunity — from AI news signals to DEX sniping.

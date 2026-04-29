@@ -7,7 +7,7 @@ const DATA = [
     id: 'strat-conservative',
     label: 'Conservative',
     num: '01',
-    color: '#22c55e',
+    color: 'var(--neon-green)',
     bots: ['Grid Bot'],
     est: '3–8%',
     risk: 25,
@@ -25,7 +25,7 @@ const DATA = [
     id: 'strat-moderate',
     label: 'Moderate',
     num: '02',
-    color: '#0047FF',
+    color: 'var(--neon-green)',
     bots: ['Grid Bot', 'News Bot'],
     est: '10–25%',
     risk: 55,
@@ -43,7 +43,7 @@ const DATA = [
     id: 'strat-aggressive',
     label: 'Aggressive',
     num: '03',
-    color: '#f59e0b',
+    color: 'var(--neon-green)',
     bots: ['Grid Bot', 'News Bot', 'Listing Sniper', 'DEX Sniper'],
     est: '50%+',
     risk: 90,
@@ -105,7 +105,7 @@ function StrategySection({ s }) {
           <div className="font-mono text-[10px] tracking-[0.25em] uppercase mb-3" style={{ color: 'var(--hero-muted)' }}>Pros</div>
           {s.pros.map(p => (
             <div key={p} className="flex gap-2 py-1.5 font-mono text-[12px]" style={{ color: 'var(--hero-muted-fg)' }}>
-              <span style={{ color: '#22c55e', flexShrink: 0 }}>+</span>{p}
+              <span style={{ color: 'var(--neon-green)', flexShrink: 0 }}>+</span>{p}
             </div>
           ))}
           <div className="font-mono text-[10px] tracking-[0.25em] uppercase mt-4 mb-3" style={{ color: 'var(--hero-muted)' }}>Cons</div>
@@ -128,7 +128,7 @@ function StrategySection({ s }) {
           ))}
           <Link to="/waitlist"
             className="mt-6 flex items-center justify-center h-10 font-mono text-[11px] tracking-[0.2em] uppercase transition-colors"
-            style={{ background: s.color, color: '#fff', textDecoration: 'none', border: `1px solid ${s.color}` }}
+            style={{ background: 'var(--neon-green)', color: '#000', textDecoration: 'none', border: '1px solid var(--neon-green)', fontWeight: 700 }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}>
             Start with {s.label} →

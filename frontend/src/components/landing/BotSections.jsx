@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import useScrollReveal from '@/lib/useScrollReveal';
 
-function Tag({ children, color = '#0047FF' }) {
+function Tag({ children, color = 'var(--neon-green)' }) {
   return (
     <span className="font-mono text-[9px] tracking-[0.25em] uppercase px-2 py-0.5"
       style={{ border: `1px solid ${color}`, color }}>
@@ -15,7 +15,7 @@ function ParamRow({ label, value, accent }) {
     <div className="flex items-center justify-between py-3 font-mono text-[12px]"
       style={{ borderBottom: '1px solid var(--hero-border)' }}>
       <span style={{ color: 'var(--hero-muted)' }}>{label}</span>
-      <span style={{ color: accent ? '#0047FF' : 'var(--site-fg)', fontWeight: accent ? 700 : 400 }}>{value}</span>
+      <span style={{ color: accent ? 'var(--neon-green)' : 'var(--site-fg)', fontWeight: accent ? 700 : 400 }}>{value}</span>
     </div>
   );
 }
@@ -57,7 +57,7 @@ function NewsBotSection() {
             'DEX volume spikes (GeckoTerminal)',
           ].map(s => (
             <div key={s} className="flex items-start gap-3 py-2 font-mono text-[12px]" style={{ borderBottom: '1px solid var(--hero-border)', color: 'var(--hero-muted-fg)' }}>
-              <span style={{ color: '#0047FF', flexShrink: 0 }}>→</span>{s}
+              <span style={{ color: 'var(--neon-green)', flexShrink: 0 }}>→</span>{s}
             </div>
           ))}
         </div>
@@ -105,7 +105,7 @@ function GridBotSection() {
     <section id="bot-grid" ref={ref} style={{ borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
       <div className="px-6 md:px-12 pt-16 pb-6">
         <div className="flex items-start justify-between mb-2">
-          <Tag color="#22c55e">02 / Grid Bot</Tag>
+          <Tag>02 / Grid Bot</Tag>
           <span className="font-mono text-[10px]" style={{ color: 'var(--hero-muted)' }}>SOL · BTC · ETH</span>
         </div>
         <h2 className="font-black text-4xl md:text-6xl tracking-[-0.04em] leading-[0.88] mt-6 mb-4">
@@ -124,15 +124,15 @@ function GridBotSection() {
         transition: 'opacity 500ms, transform 500ms',
       }}>
         {[
-          { symbol: 'SOL/USDT', levels: 10, size: '$30', leverage: '2×', color: '#9945FF' },
-          { symbol: 'BTC/USDT', levels: 8,  size: '$20', leverage: '2×', color: '#F7931A' },
-          { symbol: 'ETH/USDT', levels: 10, size: '$25', leverage: '2×', color: '#627EEA' },
+          { symbol: 'SOL/USDT', levels: 10, size: '$30', leverage: '2×' },
+          { symbol: 'BTC/USDT', levels: 8,  size: '$20', leverage: '2×' },
+          { symbol: 'ETH/USDT', levels: 10, size: '$25', leverage: '2×' },
         ].map((g, i) => (
           <div key={g.symbol} style={{
             padding: '2rem',
             borderRight: i < 2 ? '1px solid var(--hero-border)' : 'none',
           }}>
-            <div className="font-black text-2xl mb-1" style={{ color: g.color }}>{g.symbol}</div>
+            <div className="font-black text-2xl mb-1" style={{ color: 'var(--neon-green)' }}>{g.symbol}</div>
             <div className="space-y-0">
               <ParamRow label="Grid levels" value={g.levels} />
               <ParamRow label="Capital per level" value={g.size} accent />
@@ -169,7 +169,7 @@ function ListingSection() {
     <section id="bot-listing" ref={ref} style={{ borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
       <div className="px-6 md:px-12 pt-16 pb-6">
         <div className="flex items-start justify-between mb-2">
-          <Tag color="#f59e0b">03 / Listing Sniper</Tag>
+          <Tag>03 / Listing Sniper</Tag>
           <span className="font-mono text-[10px]" style={{ color: 'var(--hero-muted)' }}>Binance · Bybit</span>
         </div>
         <h2 className="font-black text-4xl md:text-6xl tracking-[-0.04em] leading-[0.88] mt-6 mb-4">
@@ -217,7 +217,7 @@ function DexSection() {
     <section id="bot-dex" ref={ref} style={{ borderBottom: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}>
       <div className="px-6 md:px-12 pt-16 pb-6">
         <div className="flex items-start justify-between mb-2">
-          <Tag color="#ef4444">04 / DEX Sniper</Tag>
+          <Tag>04 / DEX Sniper</Tag>
           <span className="font-mono text-[10px]" style={{ color: 'var(--hero-muted)' }}>BSC / PancakeSwap</span>
         </div>
         <h2 className="font-black text-4xl md:text-6xl tracking-[-0.04em] leading-[0.88] mt-6 mb-4">
