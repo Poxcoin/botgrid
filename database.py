@@ -44,6 +44,14 @@ class User(Base):
     # Реферал
     referral_source     = Column(String, default="")  # bybit_ref | direct | other
 
+    # Email верификация
+    email_verified      = Column(Boolean, default=False)
+    email_verify_token  = Column(String, nullable=True)
+
+    # 2FA (TOTP)
+    totp_secret         = Column(String, nullable=True)   # None = 2FA выключена
+    totp_enabled        = Column(Boolean, default=False)
+
     # Мета
     created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login          = Column(DateTime, nullable=True)

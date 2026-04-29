@@ -9,6 +9,11 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional
 
+import re
+import pyotp
+import qrcode
+import io
+import base64
 import ccxt
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -198,19 +203,29 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         raise HTTPException(status_code=400, detail="Email already registered")
     if db.query(User).filter(User.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already taken")
-    if len(body.password) < 8:
+    pw = body.password
+    if len(pw) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    if not re.search(r'[A-Z]', pw):
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
+    if not re.search(r'[0-9]', pw):
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
+    if not re.search(r'[^A-Za-z0-9]', pw):
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
+    verify_token = secrets.token_urlsafe(32)
     user = User(
         email=body.email,
         username=body.username,
         password_hash=hash_password(body.password),
         referral_source=body.referral_source,
+        email_verified=False,
+        email_verify_token=verify_token,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "email_verified": False}}
 
 @app.post("/api/users/login")
 async def user_login(body: UserLoginRequest, request: Request, db: Session = Depends(get_db)):
@@ -224,8 +239,13 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         raise HTTPException(status_code=403, detail="Account disabled")
     user.last_login = datetime.now(timezone.utc)
     db.commit()
+    if user.totp_enabled:
+        # Возвращаем partial token — фронтенд должен передать TOTP код
+        partial = secrets.token_hex(16)
+        _active_tokens[f"2fa:{partial}"] = {"user_id": user.id, "exp": time.time() + 300}
+        return {"requires_2fa": True, "partial_token": partial}
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "subscribed": user.is_subscribed}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "subscribed": user.is_subscribed, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
 
 @app.get("/api/users/me")
 async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -243,6 +263,8 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "has_api_keys": bool(user.bybit_api_key),
         "referral_source": user.referral_source,
         "created_at": user.created_at.isoformat() if user.created_at else None,
+        "email_verified": bool(user.email_verified),
+        "totp_enabled": bool(user.totp_enabled),
     }
 
 @app.put("/api/users/me")
@@ -258,6 +280,70 @@ async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCr
     user.trade_size_percent = max(1.0, min(body.trade_size_percent, 20.0))
     db.commit()
     return {"ok": True}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  2FA endpoints
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TotpVerifyRequest(BaseModel):
+    code: str
+
+class TotpLoginRequest(BaseModel):
+    partial_token: str
+    code: str
+
+@app.post("/api/users/2fa/setup")
+async def totp_setup(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    if user.totp_enabled:
+        raise HTTPException(status_code=400, detail="2FA already enabled")
+    secret = pyotp.random_base32()
+    user.totp_secret = secret
+    db.commit()
+    uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="Kado")
+    img = qrcode.make(uri)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    return {"secret": secret, "qr": f"data:image/png;base64,{qr_b64}"}
+
+@app.post("/api/users/2fa/enable")
+async def totp_enable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    if not user.totp_secret:
+        raise HTTPException(status_code=400, detail="Run /2fa/setup first")
+    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    user.totp_enabled = True
+    db.commit()
+    return {"ok": True}
+
+@app.post("/api/users/2fa/disable")
+async def totp_disable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    if not user.totp_enabled or not user.totp_secret:
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    user.totp_enabled = False
+    user.totp_secret = None
+    db.commit()
+    return {"ok": True}
+
+@app.post("/api/users/2fa/verify")
+async def totp_verify_login(body: TotpLoginRequest, db: Session = Depends(get_db)):
+    entry = _active_tokens.get(f"2fa:{body.partial_token}")
+    if not entry or time.time() > entry["exp"]:
+        raise HTTPException(status_code=401, detail="Session expired. Login again.")
+    user = db.query(User).filter(User.id == entry["user_id"]).first()
+    if not user or not user.totp_secret:
+        raise HTTPException(status_code=401, detail="User not found")
+    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid authenticator code")
+    _active_tokens.pop(f"2fa:{body.partial_token}", None)
+    token = create_token(user.id, user.email)
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "subscribed": user.is_subscribed, "email_verified": bool(user.email_verified), "totp_enabled": True}}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
