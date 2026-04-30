@@ -15,6 +15,7 @@ main.py читає funding_queue і викликає execute_trade напрям�
 import time
 import threading
 import queue
+from collections import deque
 from datetime import datetime, timezone
 
 from modules.market_data import get_market_metrics
@@ -24,28 +25,38 @@ funding_queue: queue.Queue = queue.Queue()
 POLL_INTERVAL   = 900   # перевіряємо кожні 15 хвилин
 COIN_SLEEP      = 1.5   # пауза між монетами — не спамимо API
 
-# Funding rate пороги (% за 8 годин)
-FR_SHORT_MIN = 0.06    # лонги починають переплачувати
-FR_SHORT_HOT = 0.10    # дуже перегріто — сильний сигнал
-FR_LONG_MIN  = -0.06
-FR_LONG_HOT  = -0.10
+# Tiered funding rate пороги (% за 8 годин)
+# Tier 1 (слабкий сигнал): FR > 0.04% → size_multiplier 0.5
+# Tier 2 (нормальний):     FR > 0.06% → size_multiplier 1.0
+# Tier 3 (сильний):        FR > 0.10% → size_multiplier 1.5
+FR_SHORT_T1 = 0.04
+FR_SHORT_T2 = 0.06
+FR_SHORT_T3 = 0.10
+FR_LONG_T1  = -0.04
+FR_LONG_T2  = -0.06
+FR_LONG_T3  = -0.10
 
-RSI_OB = 65    # overbought для SHORT підтвердження
-RSI_OS = 35    # oversold для LONG підтвердження
-TREND_CONFIRM = 3.0    # % 24h trend для підтвердження напрямку
-SIGNAL_THRESHOLD = 5.0  # мінімальний score для торгівлі
+RSI_OB = 65
+RSI_OS = 35
+TREND_CONFIRM    = 3.0
+SIGNAL_THRESHOLD = 4.0   # знижено з 5.0 щоб включити tier-1 сигнали
+FR_TREND_BONUS   = 1.5   # бонус якщо FR зростає 3 цикли підряд
 
-COIN_COOLDOWN_SEC = 4 * 3600   # не торгуємо одну монету частіше 4h
+COIN_COOLDOWN_SEC = 4 * 3600
 
-# Монети для моніторингу — топ за ліквідністю на Bybit futures
+# Розширений watchlist: 30 монет (було 20)
 WATCHLIST = [
     "BTC",  "ETH",  "SOL",  "BNB",  "XRP",
     "ADA",  "DOGE", "AVAX", "DOT",  "LINK",
     "INJ",  "SUI",  "APT",  "OP",   "ARB",
     "NEAR", "FET",  "TON",  "TRX",  "ATOM",
+    "AAVE", "UNI",  "LDO",  "CRV",  "RUNE",
+    "STX",  "WLD",  "JUP",  "PENDLE", "ONDO",
 ]
 
-_cooldowns: dict[str, float] = {}  # coin → last_signal_ts
+_cooldowns:  dict[str, float]  = {}
+# FR trend: зберігаємо останні 3 значення FR на монету
+_fr_history: dict[str, deque]  = {}  # coin → last_signal_ts
 
 
 def _calc_signal(coin: str) -> dict | None:
@@ -60,43 +71,60 @@ def _calc_signal(coin: str) -> dict | None:
 
     score = 0.0
 
-    if fr > FR_SHORT_MIN:
+    # ── Tier-based scoring ───────────────────────────────────────────────────
+    if fr > FR_SHORT_T1:
         # Лонги переплачують — потенційний SHORT
-        score -= (fr - 0.04) * 150                        # 0.06% → -3, 0.10% → -9
+        score -= (fr - 0.02) * 150          # T1(0.04%)→-3, T2(0.06%)→-6, T3(0.10%)→-12
         if rsi > RSI_OB:
-            score -= (rsi - RSI_OB) * 0.15               # RSI 70 → -0.75
+            score -= (rsi - RSI_OB) * 0.15
         if trend > TREND_CONFIRM:
-            score -= min(trend * 0.4, 3.0)               # вже pumped → підтверджує
-        if fr > FR_SHORT_HOT:
-            score -= 2.0                                  # екстремально перегріто
+            score -= min(trend * 0.4, 3.0)
 
-    elif fr < FR_LONG_MIN:
+    elif fr < FR_LONG_T1:
         # Шорти переплачують — потенційний LONG (squeeze)
-        score += (abs(fr) - 0.04) * 150
+        score += (abs(fr) - 0.02) * 150
         if rsi < RSI_OS:
             score += (RSI_OS - rsi) * 0.15
         if trend < -TREND_CONFIRM:
             score += min(abs(trend) * 0.4, 3.0)
-        if fr < FR_LONG_HOT:
-            score += 2.0
+
+    # ── FR trend bonus: FR зростає 3 цикли підряд → сигнал посилюється ──────
+    hist = _fr_history.setdefault(coin, deque(maxlen=3))
+    hist.append(fr)
+    if len(hist) == 3:
+        h = list(hist)
+        if h[0] < h[1] < h[2] and fr > FR_SHORT_T1:   # FR зростає → SHORT сильніший
+            score -= FR_TREND_BONUS
+        elif h[0] > h[1] > h[2] and fr < FR_LONG_T1:  # FR падає → LONG сильніший
+            score += FR_TREND_BONUS
 
     if abs(score) < SIGNAL_THRESHOLD:
         return None
 
     action = "SHORT" if score < 0 else "LONG"
 
-    reason_parts = [f"FR={fr:+.4f}%", f"RSI={rsi:.0f}", f"trend={trend:+.1f}%"]
-    if action == "SHORT":
-        reason_parts.append("лонги перегріті → очікуємо розворот вниз")
+    # ── Tiered size multiplier ────────────────────────────────────────────────
+    abs_fr = abs(fr)
+    if abs_fr >= abs(FR_SHORT_T3):
+        size_mult = 1.5
+    elif abs_fr >= abs(FR_SHORT_T2):
+        size_mult = 1.0
     else:
-        reason_parts.append("шорти перегріті → очікуємо squeeze вгору")
+        size_mult = 0.5
+
+    trend_flag = " 📈趨" if len(hist) == 3 and list(hist)[0] < list(hist)[1] < list(hist)[2] else ""
+    reason_parts = [f"FR={fr:+.4f}%{trend_flag}", f"RSI={rsi:.0f}", f"trend={trend:+.1f}%"]
+    if action == "SHORT":
+        reason_parts.append("лонги перегріті → розворот вниз")
+    else:
+        reason_parts.append("шорти перегріті → squeeze вгору")
 
     return {
         "coin":            coin,
         "action":          action,
         "total_score":     round(score, 1),
         "confidence":      min(int(abs(score) * 7), 100),
-        "size_multiplier": min(abs(score) / 10, 1.2),
+        "size_multiplier": size_mult,
         "source":          "Funding Rate Strategy",
         "news_title":      f"[FR Strategy] {coin} {action}: {', '.join(reason_parts)}",
         "bot_tag":         "📊",
