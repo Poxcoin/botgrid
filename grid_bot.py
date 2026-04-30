@@ -189,7 +189,13 @@ def _close_all_positions(exchange, symbol: str, positions: dict, leverage: int, 
                 symbol, "market", "sell", entry["qty"],
                 params={"category": "linear", "reduceOnly": True},
             )
-            fill = float(order.get("average") or order.get("price") or price)
+            info = order.get("info", {})
+            fill = float(
+                order.get("average") or
+                info.get("avgPrice") or
+                info.get("lastPriceOnCreated") or
+                order.get("price") or price
+            )
             pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
             total_pnl += pnl
             print(f"[GRID:{symbol}] CLOSE level {idx_str} @ {fill:.4f} | PnL≈${pnl:.2f}")
@@ -240,7 +246,14 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
             symbol, "market", "buy", qty,
             params={"category": "linear"},
         )
-        fill = float(order.get("average") or order.get("price") or level_price)
+        info = order.get("info", {})
+        fill = float(
+            order.get("average") or
+            info.get("avgPrice") or
+            info.get("lastPriceOnCreated") or
+            order.get("price") or
+            level_price
+        )
         print(f"[GRID:{symbol}] BUY level {level_idx} @ {fill:.4f} | qty={qty}")
         return {"fill_price": fill, "qty": qty, "order_id": order.get("id")}
     except Exception as e:
@@ -248,20 +261,27 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
         return None
 
 
-def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int) -> tuple[bool, float]:
-    """Закриває позицію. Повертає (success, realized_pnl)."""
+def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int) -> tuple[bool, float, float]:
+    """Закриває позицію. Повертає (success, realized_pnl, fill_price)."""
     try:
         order = exchange.create_order(
             symbol, "market", "sell", entry["qty"],
             params={"category": "linear", "reduceOnly": True},
         )
-        fill = float(order.get("average") or order.get("price") or entry["fill_price"])
+        info = order.get("info", {})
+        fill = float(
+            order.get("average") or
+            info.get("avgPrice") or
+            info.get("lastPriceOnCreated") or
+            order.get("price") or
+            entry["fill_price"]
+        )
         pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
         print(f"[GRID:{symbol}] SELL level {level_idx} @ {fill:.4f} | PnL=${pnl:.2f}")
-        return True, pnl
+        return True, pnl, fill
     except Exception as e:
         print(f"[GRID:{symbol}] SELL error level {level_idx}: {e}")
-        return False, 0.0
+        return False, 0.0, 0.0
 
 
 # ─── Один потік на монету ─────────────────────────────────────────────────────
@@ -444,7 +464,7 @@ def _run_single(cfg: dict) -> None:
                 idx = int(idx_str)
                 sell_level = levels[idx + 1] if idx + 1 < len(levels) else None
                 if sell_level and price >= sell_level:
-                    success, realized_pnl = _close_long(exchange, symbol, entry, idx, leverage)
+                    success, realized_pnl, fill_price = _close_long(exchange, symbol, entry, idx, leverage)
                     if success:
                         state["total_pnl"] += realized_pnl
                         state["completed"] += 1
@@ -453,7 +473,7 @@ def _run_single(cfg: dict) -> None:
                         send_telegram_message(
                             f"✅ <b>Grid SELL</b> {symbol}\n"
                             f"Рівень {idx} → {idx + 1}\n"
-                            f"Вхід: ${entry['fill_price']:.4f} | Вихід: ${price:.4f}\n"
+                            f"Вхід: ${entry['fill_price']:.4f} | Вихід: ${fill_price:.4f}\n"
                             f"PnL: +${realized_pnl:.2f} | Всього циклів: {state['completed']}\n"
                             f"Загальний PnL: ${state['total_pnl']:.2f}",
                             TG_CHAT_ID,
