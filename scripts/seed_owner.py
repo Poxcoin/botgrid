@@ -44,7 +44,7 @@ if not api_key or not secret:
 
 owner_email    = "glorimanunited@gmail.com"
 owner_username = "owner"
-owner_password = os.getenv("DASHBOARD_PASSWORD", "changeme123")
+owner_password = os.getenv("DASHBOARD_PASSWORD", "changeme123")[:72]  # bcrypt limit
 
 # ── Step 3: create DB records ──────────────────────────────────────────────────
 from database import SessionLocal, User, UserApiKey, Subscription, Base, engine
