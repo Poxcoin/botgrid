@@ -26,7 +26,10 @@ import ccxt
 from modules.trader import _init_exchange, get_free_usdt
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard
+from modules.market_data import get_btc_2h_change
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING
+
+BTC_DUMP_THRESHOLD = -2.5  # % за 2h — призупиняємо нові BUY на альти
 
 # ─── Конфігурація сіток (одна або більше монет) ────────────────────────────────
 
@@ -34,7 +37,8 @@ GRID_CONFIGS = [
     {
         "symbol":        "SOL/USDT:USDT",
         "levels":        10,
-        "size_usd":      30.0,
+        "size_pct":      1.5,    # % від балансу на рівень (замість фіксованого $)
+        "size_usd_min":  10.0,   # мінімум на рівень
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  200.0,
@@ -44,7 +48,8 @@ GRID_CONFIGS = [
     {
         "symbol":        "BTC/USDT:USDT",
         "levels":        8,
-        "size_usd":      20.0,
+        "size_pct":      1.0,
+        "size_usd_min":  10.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  100000.0,
@@ -54,7 +59,8 @@ GRID_CONFIGS = [
     {
         "symbol":        "ETH/USDT:USDT",
         "levels":        10,
-        "size_usd":      25.0,
+        "size_pct":      1.2,
+        "size_usd_min":  10.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  4000.0,
@@ -182,19 +188,20 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
         return None
 
 
-def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int) -> bool:
+def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int) -> tuple[bool, float]:
+    """Закриває позицію. Повертає (success, realized_pnl)."""
     try:
         order = exchange.create_order(
             symbol, "market", "sell", entry["qty"],
             params={"category": "linear", "reduceOnly": True},
         )
-        fill = float(order.get("average") or order.get("price") or 0)
+        fill = float(order.get("average") or order.get("price") or entry["fill_price"])
         pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
-        print(f"[GRID:{symbol}] SELL level {level_idx} @ {fill:.4f} | PnL≈${pnl:.2f}")
-        return True
+        print(f"[GRID:{symbol}] SELL level {level_idx} @ {fill:.4f} | PnL=${pnl:.2f}")
+        return True, pnl
     except Exception as e:
         print(f"[GRID:{symbol}] SELL error level {level_idx}: {e}")
-        return False
+        return False, 0.0
 
 
 # ─── Один потік на монету ─────────────────────────────────────────────────────
@@ -203,13 +210,19 @@ def _run_single(cfg: dict) -> None:
     """Запускаємо grid-цикл для однієї монети (виконується у власному потоці)."""
     symbol       = cfg["symbol"]
     grid_levels  = cfg["levels"]
-    size_usd     = cfg["size_usd"]
     leverage     = cfg["leverage"]
     auto_range   = cfg["auto_range"]
     max_pos      = cfg["max_positions"]
+    size_pct     = cfg.get("size_pct", 1.0)
+    size_usd_min = cfg.get("size_usd_min", 10.0)
 
     exchange = _init_exchange()  # окремий об'єкт на кожен потік — ccxt не thread-safe
     _set_leverage(exchange, symbol, leverage)
+
+    # Розмір позиції = % від балансу (перераховується при кожному запуску)
+    _balance = get_free_usdt(exchange)
+    size_usd = max(round(_balance * size_pct / 100.0, 2), size_usd_min)
+    print(f"[GRID:{symbol}] size_usd=${size_usd:.2f} ({size_pct}% від ${_balance:.2f})")
 
     if auto_range:
         upper, lower = _detect_range(exchange, symbol)
@@ -236,6 +249,10 @@ def _run_single(cfg: dict) -> None:
             "started_at": datetime.now(timezone.utc).isoformat(),
         }
         _save_state(symbol, state)
+
+    # Таймер: фіксуємо коли ціна вперше вийшла за межу (затримка перед перебудовою)
+    _out_of_range_since: Optional[float] = None
+    OUT_OF_RANGE_DELAY = 30 * 60  # 30 хвилин
 
     free = get_free_usdt(exchange)
     send_telegram_message(
@@ -272,8 +289,43 @@ def _run_single(cfg: dict) -> None:
                     break
 
             if current_zone is None:
+                if price >= levels[-1] or price < levels[0]:
+                    # Ціна вийшла за межу — запускаємо таймер затримки
+                    if _out_of_range_since is None:
+                        _out_of_range_since = time.time()
+                        direction = "вище" if price >= levels[-1] else "нижче"
+                        print(f"[GRID:{symbol}] Ціна ${price:.2f} {direction} межі — чекаємо 30 хв перед перебудовою")
+                        last_price = price
+                        continue
+
+                    waited = time.time() - _out_of_range_since
+                    if waited < OUT_OF_RANGE_DELAY:
+                        mins_left = int((OUT_OF_RANGE_DELAY - waited) / 60)
+                        print(f"[GRID:{symbol}] Out-of-range {waited/60:.0f} хв — ще {mins_left} хв до перебудови")
+                        last_price = price
+                        continue
+
+                    # 30 хвилин минуло — перебудовуємо
+                    _out_of_range_since = None
+
                 if price >= levels[-1]:
-                    print(f"[GRID:{symbol}] Ціна ${price:.2f} вище сітки (${levels[-1]:.2f})")
+                    # Ціна вище верхньої межі 30 хв → перебудовуємо сітку вгору
+                    if rebuilds_today < MAX_REBUILDS_DAY:
+                        print(f"[GRID:{symbol}] 🔄 Перебудова вгору (#{rebuilds_today + 1}) — ціна ${price:.2f} > ${levels[-1]:.2f}")
+                        realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price)
+                        state["total_pnl"] += realized
+                        state["positions"] = {}
+                        upper, lower = _detect_range(exchange, symbol)
+                        levels = _calc_levels(upper, lower, grid_levels)
+                        state.update({"upper": upper, "lower": lower, "levels": levels})
+                        _save_state(symbol, state)
+                        rebuilds_today += 1
+                        send_telegram_message(
+                            f"🔄 <b>Grid перебудова вгору #{rebuilds_today}</b> {symbol}\n"
+                            f"Новий діапазон: ${lower:.2f} — ${upper:.2f}\n"
+                            f"Реалізований PnL: ${realized:.2f}",
+                            TG_CHAT_ID,
+                        )
                     last_price = price
                     continue
 
@@ -322,6 +374,9 @@ def _run_single(cfg: dict) -> None:
                     last_price = price
                     continue
 
+            # Ціна повернулась в діапазон — скидаємо таймер
+            _out_of_range_since = None
+
             positions = state["positions"]
 
             # SELL: якщо ціна виросла вище рівня де маємо позицію
@@ -329,9 +384,9 @@ def _run_single(cfg: dict) -> None:
                 idx = int(idx_str)
                 sell_level = levels[idx + 1] if idx + 1 < len(levels) else None
                 if sell_level and price >= sell_level:
-                    if _close_long(exchange, symbol, entry, idx, leverage):
-                        pnl = (price - entry["fill_price"]) * entry["qty"] * leverage
-                        state["total_pnl"] += pnl
+                    success, realized_pnl = _close_long(exchange, symbol, entry, idx, leverage)
+                    if success:
+                        state["total_pnl"] += realized_pnl
                         state["completed"] += 1
                         del positions[idx_str]
                         _save_state(symbol, state)
@@ -339,13 +394,21 @@ def _run_single(cfg: dict) -> None:
                             f"✅ <b>Grid SELL</b> {symbol}\n"
                             f"Рівень {idx} → {idx + 1}\n"
                             f"Вхід: ${entry['fill_price']:.4f} | Вихід: ${price:.4f}\n"
-                            f"PnL: +${pnl:.2f} | Всього циклів: {state['completed']}\n"
+                            f"PnL: +${realized_pnl:.2f} | Всього циклів: {state['completed']}\n"
                             f"Загальний PnL: ${state['total_pnl']:.2f}",
                             TG_CHAT_ID,
                         )
 
             # BUY: якщо ціна в зоні рівня і позиції тут немає
             if str(current_zone) not in positions:
+                # BTC dump filter: не відкриваємо нові позиції якщо BTC сильно падає
+                _btc_chg = get_btc_2h_change()
+                _is_btc = symbol.startswith("BTC")
+                if not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
+                    print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — BUY призупинено")
+                    last_price = price
+                    continue
+
                 if len(positions) < max_pos:
                     result = _open_long(exchange, symbol, price, current_zone,
                                         size_usd, leverage)
@@ -373,27 +436,42 @@ def _run_single(cfg: dict) -> None:
 
 # ─── Головний цикл ───────────────────────────────────────────────────────────
 
+def _start_thread(cfg: dict) -> threading.Thread:
+    """Створює і запускає потік для однієї монети."""
+    t = threading.Thread(
+        target=_run_single,
+        args=(cfg,),
+        name=f"grid-{cfg['symbol']}",
+        daemon=True,
+    )
+    t.start()
+    return t
+
+
 def run_grid_engine():
-    """Запускає кожну монету з GRID_CONFIGS у власному потоці."""
-    threads = []
+    """Запускає кожну монету з GRID_CONFIGS у власному потоці.
+    Авто-рестарт: якщо потік впав — перезапускаємо через 60 секунд.
+    """
+    # cfg -> thread
+    thread_map: dict[str, threading.Thread] = {}
     for cfg in GRID_CONFIGS:
-        t = threading.Thread(
-            target=_run_single,
-            args=(cfg,),
-            name=f"grid-{cfg['symbol']}",
-            daemon=True,
-        )
-        t.start()
-        threads.append(t)
-        print(f"[GRID] Запущено потік для {cfg['symbol']}")
+        sym = cfg["symbol"]
+        thread_map[sym] = _start_thread(cfg)
+        print(f"[GRID] Запущено потік для {sym}")
 
     try:
         while True:
             time.sleep(60)
-            alive = [t.name for t in threads if t.is_alive()]
-            dead  = [t.name for t in threads if not t.is_alive()]
-            if dead:
-                print(f"[GRID] Мертві потоки: {dead}")
+            for cfg in GRID_CONFIGS:
+                sym = cfg["symbol"]
+                t   = thread_map.get(sym)
+                if t and not t.is_alive():
+                    print(f"[GRID] ⚠️ Потік {sym} впав — перезапуск...")
+                    send_telegram_message(
+                        f"⚠️ <b>Grid потік перезапущено</b>\n<code>{sym}</code>",
+                        TG_CHAT_ID,
+                    )
+                    thread_map[sym] = _start_thread(cfg)
     except KeyboardInterrupt:
         print("\n[GRID] Зупинено всі сітки.")
 

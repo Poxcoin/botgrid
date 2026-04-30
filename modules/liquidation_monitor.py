@@ -21,10 +21,12 @@ _THRESHOLD_BIG = {
     "DEFAULT": 300_000, # $300K для остальных
 }
 
-_WINDOW_SEC = 300  # 5 минут скользящее окно
+_WINDOW_SEC = 300   # 5 минут скользящее окно
+_WINDOW_1H  = 3600  # 1 час для boost-сигнала
 
 # {coin: deque[(timestamp, side, usd_value)]}
-_liq_data: dict = defaultdict(deque)
+_liq_data:    dict = defaultdict(deque)
+_liq_data_1h: dict = defaultdict(deque)  # часовой аккумулятор
 _lock = threading.Lock()
 _running = False
 
@@ -53,6 +55,7 @@ def _process_message(raw: str):
         now = datetime.now(timezone.utc).timestamp()
         with _lock:
             _liq_data[coin].append((now, side, usd_value))
+            _liq_data_1h[coin].append((now, side, usd_value))
 
     except Exception:
         pass
@@ -121,6 +124,45 @@ def get_liquidation_signal(coin: str) -> dict:
         "signal_score": round(score, 1),
         "above_threshold": above,
     }
+
+
+def get_liquidation_1h_boost(coin: str) -> float:
+    """Дополнительный буст к total_score на основе ликвидаций за последний час.
+
+    Пороги (USD за 1 час):
+      шортов > $5M  → +1.5  (масштабный шорт-сквиз, momentum сильный)
+      шортов > $20M → +3.0  (каскадный сквиз, очень бычий сигнал)
+      лонгов > $5M  → -1.5  (масштабный cascade вниз, опасно для лонга)
+      лонгов > $20M → -3.0  (обвал, очень медвежий сигнал)
+
+    Возвращает float от -3.0 до +3.0. 0.0 = нет значимого сигнала.
+    """
+    coin = coin.upper()
+    now  = datetime.now(timezone.utc).timestamp()
+
+    with _lock:
+        dq = _liq_data_1h[coin]
+        # очищаем старые записи
+        while dq and now - dq[0][0] > _WINDOW_1H:
+            dq.popleft()
+        entries = list(dq)
+
+    long_liq  = sum(v for _, s, v in entries if s == "SELL")  # лонги ликвидированы
+    short_liq = sum(v for _, s, v in entries if s == "BUY")   # шорты ликвидированы
+
+    # Применяем буст только когда одна сторона явно доминирует (2:1)
+    if short_liq > long_liq * 2:
+        if short_liq >= 20_000_000:
+            return 3.0
+        if short_liq >= 5_000_000:
+            return 1.5
+    elif long_liq > short_liq * 2:
+        if long_liq >= 20_000_000:
+            return -3.0
+        if long_liq >= 5_000_000:
+            return -1.5
+
+    return 0.0
 
 
 def _ws_thread():

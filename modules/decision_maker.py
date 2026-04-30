@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_fear_greed_index, get_btc_dominance
 from modules.macro_calendar import get_size_modifier, get_active_macro_event, get_funding_settlement
-from modules.liquidation_monitor import get_liquidation_signal
+from modules.liquidation_monitor import get_liquidation_signal, get_liquidation_1h_boost
 from modules.onchain_monitor import get_onchain_signal
 from modules.gemini_filter import analyze_news as gemini_analyze
 
@@ -164,10 +164,14 @@ def generate_signal(news_item: dict) -> dict | None:
     Возвращает None, если новость слабая или данных нет.
     """
 
-    # 0. Возраст новости — RSS старше 15 мин пропускаем (рынок уже отреагировал)
-    # TG-каналы реалтайм (age≈0) и не фильтруются; листинги обходят этот блок раньше
+    # 0. Возраст новости: RSS > 15 мин → пропуск; TG > 45 мин → пропуск
+    # TG использует реальный message.date (timestamp поста в канале).
+    # Канал мог переслать старую новость — фильтр это ловит.
     age_min = _news_age_minutes(news_item.get("published_dt", ""))
     is_tg = str(news_item.get("source", "")).startswith("Telegram")
+    if is_tg and age_min is not None and age_min > 45:
+        print(f"   ⏰ TG новость устарела ({age_min} мин) — пропускаем")
+        return None
     if not is_tg and age_min is not None and age_min > 15:
         return None
 
@@ -320,7 +324,7 @@ def generate_signal(news_item: dict) -> dict | None:
         elif (news_score > 0 and oi_change < 0) or (news_score < 0 and oi_change > 0):
             total_score -= 1.0   # OI против сигнала — слабое движение
 
-    # Фактор Д2: Ликвидации (Binance реалтайм)
+    # Фактор Д2: Ликвидации 5 мин (Binance реалтайм)
     liq = get_liquidation_signal(coin)
     liq_score = liq["signal_score"]
     # Применяем только если совпадает с направлением сигнала
@@ -332,6 +336,17 @@ def generate_signal(news_item: dict) -> dict | None:
         total_score -= abs(liq_score) * 0.5  # идём против ликвидационного потока — осторожно
     elif news_score < 0 and liq["signal"] == "BULLISH":
         total_score += liq_score * 0.5  # шортим при сквизе — опасно
+
+    # Фактор Д3: Ликвидации 1 час — масштабный каскад/сквиз
+    # Пороги: >$5M за 1ч = +/-1.5, >$20M = +/-3.0
+    liq_1h_boost = get_liquidation_1h_boost(coin)
+    if liq_1h_boost != 0.0:
+        if (news_score > 0 and liq_1h_boost > 0) or (news_score < 0 and liq_1h_boost < 0):
+            total_score += liq_1h_boost  # совпадает с сигналом — усиливаем
+            print(f"   ⚡ Liq 1h boost {coin}: {liq_1h_boost:+.1f} (совпадает с сигналом)")
+        else:
+            total_score += liq_1h_boost * 0.4  # противоположный — осторожно
+            print(f"   ⚠️ Liq 1h boost {coin}: {liq_1h_boost * 0.4:+.1f} (против сигнала, снижен)")
 
     # Фактор Е: Fear & Greed Index (настроение всего крипто-рынка)
     # Логика контратрианства: покупай когда все боятся, продавай когда все жадничают.
@@ -421,10 +436,22 @@ def generate_signal(news_item: dict) -> dict | None:
     elif total_score <= -min_score and confidence >= 40:
         action = "SHORT"
 
-    # size_multiplier: 0.5–1.5, учитывает балл, confidence и время суток UTC
-    raw_size = abs(total_score) / 10.0 * (confidence / 100.0) * 2.0
+    # size_multiplier: 0.4–2.0, ступенчатые тиры по скору + confidence + время суток
+    # Высокий скор = больше денег в игру; низкий — осторожнее
     time_coeff = _time_multiplier()
-    size_multiplier = max(0.5, min(1.5, raw_size)) * time_coeff
+    score_abs = abs(total_score)
+    conf_factor = confidence / 100.0
+    if score_abs >= 14:
+        tier_mult = 2.0
+    elif score_abs >= 12:
+        tier_mult = 1.6
+    elif score_abs >= 10:
+        tier_mult = 1.2
+    elif score_abs >= 8:
+        tier_mult = 0.9
+    else:
+        tier_mult = 0.6
+    size_multiplier = max(0.4, min(2.0, tier_mult * conf_factor)) * time_coeff
     size_multiplier = round(size_multiplier, 2)
 
     # ==========================================

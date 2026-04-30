@@ -17,9 +17,14 @@ from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_walle
 from modules.analytics_db import save_signal, init_db
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
+from modules.market_data import get_btc_2h_change
+from modules.post_trade_analyzer import (
+    start_analyzer, get_score_threshold_boost, is_coin_paused
+)
 from config.settings import (
     BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
+    LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
 )
 import ccxt
 
@@ -112,6 +117,23 @@ def handle_telegram_commands(processed_updates):
 
 LIVE_INTEL_FILE = "live_intel.json"
 
+
+def _dynamic_leverage(signal: dict, is_btc_eth: bool) -> int:
+    """Возвращает плечо на основе скора сигнала.
+
+    Размер позиции уже масштабирует decision_maker через size_multiplier.
+    Здесь только плечо — чтобы не было двойного скалирования.
+    """
+    score = abs(signal.get("total_score", 0))
+    base_lev = 2 if is_btc_eth else ALT_LEVERAGE
+
+    if score >= 14:
+        return min(base_lev + 2, 5)
+    elif score >= 12:
+        return min(base_lev + 1, 4)
+    else:
+        return base_lev
+
 def _write_live_intel(tg_enabled: bool) -> None:
     """Пишет текущий статус источников и live данные для дашборда."""
     try:
@@ -162,6 +184,7 @@ def run_signal_engine():
     start_dex_scanner()
     start_funding_strategy()
     start_smart_wallet_tracker()
+    start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
 
     sources = "Binance/Bybit Announcements + Telegram"
     send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
@@ -172,6 +195,9 @@ def run_signal_engine():
     # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 2 часа
     _coin_cooldown: dict = {}
     COIN_COOLDOWN_SEC = 2 * 3600
+
+    # Лимит суммарной экспозиции: не более MAX_EXPOSURE_PCT% баланса в открытых позициях
+    MAX_EXPOSURE_PCT = 15.0
 
     # Дедупликация сигналов: (coin, action) -> last_signal_ts
     # Один и тот же сигнал по одной монете не логируем чаще раз в 30 мин
@@ -335,6 +361,42 @@ def run_signal_engine():
                             else:
                                 _coin_cooldown[coin] = now_ts
                                 _btc_eth = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+
+                                # Проверка лимита суммарной экспозиции
+                                open_count = position_monitor.get_tracked_count()
+                                if open_count > 0:
+                                    try:
+                                        # Грубая оценка: N открытых позиций * средний размер 5%
+                                        _estimated_exposure_pct = open_count * 5.0
+                                        if _estimated_exposure_pct >= MAX_EXPOSURE_PCT:
+                                            print(f"⚠️ ЭКСПОЗИЦИЯ: ~{_estimated_exposure_pct:.0f}% баланса в {open_count} позициях — лимит {MAX_EXPOSURE_PCT}%, пропускаем")
+                                            continue
+                                    except Exception:
+                                        pass
+
+                                # BTC Correlation Filter: блокируем LONG/SHORT на альтах
+                                # если BTC сильно двигается в обратную сторону за 2h
+                                _btc_2h = get_btc_2h_change()
+                                _is_alt = coin.upper() not in _btc_eth
+                                if _is_alt and signal["action"] == "LONG" and _btc_2h < -2.5:
+                                    print(f"🚫 BTC correlation filter: BTC {_btc_2h:.1f}% за 2h — LONG {coin} заблокирован")
+                                    continue
+                                if _is_alt and signal["action"] == "SHORT" and _btc_2h > 2.5:
+                                    print(f"🚫 BTC correlation filter: BTC +{_btc_2h:.1f}% за 2h — SHORT {coin} заблокирован")
+                                    continue
+
+                                # Adaptive post-trade filter
+                                if is_coin_paused(coin):
+                                    print(f"⏸ {coin} приостановлен (серия потерь) — пропускаем")
+                                    continue
+                                _score_boost = get_score_threshold_boost(coin)
+                                if _score_boost > 0:
+                                    _btc_eth_local = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                                    _base_min = 9.0 if coin.upper() in _btc_eth_local else 8.0
+                                    if abs(signal["total_score"]) < _base_min + _score_boost:
+                                        print(f"⚙️ {coin}: адаптивный порог {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не прошёл")
+                                        continue
+
                                 if signal.get("is_listing"):
                                     execute_trade(signal,
                                         leverage_override=LISTING_LEVERAGE,
@@ -346,12 +408,18 @@ def run_signal_engine():
                                     if vol > 0 and vol < MIN_ALTCOIN_VOLUME_USD:
                                         print(f"⚠️ {coin} об'єм ${vol/1e6:.1f}M < $5M — пропускаємо")
                                     else:
+                                        dyn_lev = _dynamic_leverage(signal, is_btc_eth=False)
+                                        print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
                                         execute_trade(signal,
-                                            leverage_override=ALT_LEVERAGE,
+                                            leverage_override=dyn_lev,
                                             tp_pct=ALT_TP, sl_pct=ALT_SL,
                                             size_pct=ALT_SIZE, signal_id=signal_id)
                                 else:
-                                    execute_trade(signal, signal_id=signal_id)
+                                    dyn_lev = _dynamic_leverage(signal, is_btc_eth=True)
+                                    print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
+                                    execute_trade(signal,
+                                        leverage_override=dyn_lev,
+                                        signal_id=signal_id)
             
             if urls_changed:
                 save_processed_urls(processed_urls)

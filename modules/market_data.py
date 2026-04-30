@@ -16,6 +16,31 @@ _bybit_pub = ccxt.bybit({
 # ─── Кэш глобальных индикаторов (не дёргаем API на каждую новость) ────────────
 _fng_cache: dict = {"value": 50, "label": "Neutral", "ts": None}
 _dom_cache: dict = {"btc_dominance": 50.0, "ts": None}
+_btc_2h_cache: dict = {"pct": 0.0, "ts": None}
+
+
+def get_btc_2h_change() -> float:
+    """Изменение цены BTC за последние 2 часа в процентах. Кэш: 5 минут.
+
+    Используется как фильтр корреляции: если BTC упал >2.5% за 2h —
+    входить в LONG по альткоинам опасно (они тянутся вниз вслед за BTC).
+    """
+    now = datetime.now(timezone.utc).timestamp()
+    if _btc_2h_cache["ts"] and now - _btc_2h_cache["ts"] < 300:
+        return _btc_2h_cache["pct"]
+    try:
+        # 3 часовые свечи: [0]=3h ago, [1]=2h ago, [2]=1h ago (текущая)
+        ohlcv = exchange.fetch_ohlcv("BTC/USDT", "1h", limit=3)
+        if len(ohlcv) < 2:
+            return 0.0
+        price_2h_ago = ohlcv[0][4]   # close 2h назад
+        price_now    = ohlcv[-1][4]  # последняя close
+        pct = (price_now - price_2h_ago) / price_2h_ago * 100
+        _btc_2h_cache["pct"] = round(pct, 2)
+        _btc_2h_cache["ts"]  = now
+        return _btc_2h_cache["pct"]
+    except Exception:
+        return 0.0
 
 
 def get_fear_greed_index() -> dict:

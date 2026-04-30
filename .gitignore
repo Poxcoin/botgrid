@@ -1,3 +1,25 @@
+# Dependencies & generated
+node_modules/
+frontend/node_modules/
+package-lock.json
+frontend/package-lock.json
+
+# Databases & runtime data
+*.db
+*.db-shm
+*.db-wal
+analytics.db
+live_intel.json
+processed_announcements.json
+ruvector.db
+
+# Tool/IDE dirs that should never be in repo
+.claude-flow/
+.swarm/
+.superpowers/
+.claudeignore
+docs/superpowers/
+
 # Secrets — NEVER commit
 .env
 .env.local

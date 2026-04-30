@@ -91,12 +91,18 @@ def _message_to_news_item(message, channel_name: str) -> dict | None:
         return None
 
     now = datetime.now(timezone.utc)
+    # Используем реальный timestamp Telegram-поста (не момент обработки)
+    msg_date = getattr(message, "date", None)
+    if msg_date and hasattr(msg_date, "isoformat"):
+        published_dt = msg_date.isoformat()
+    else:
+        published_dt = now.isoformat()
     item = {
         "title": title,
         "description": description,
         "link": f"tg://{channel_name}/{message.id}",
         "published": now.strftime("%a, %d %b %Y %H:%M:%S +0000"),
-        "published_dt": now.isoformat(),
+        "published_dt": published_dt,
         "source": f"Telegram @{channel_name}",
         "source_url": f"https://t.me/{channel_name}",
         "source_weight": 0.92,

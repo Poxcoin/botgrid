@@ -322,6 +322,11 @@ def execute_trade(
             exchange.amount_to_precision(symbol, position_usd / current_price)
         )
 
+        # Половина позиции для Partial TP (50% фиксируем на TP, остаток на trailing)
+        _min_qty = (exchange.markets.get(symbol) or {}).get("limits", {}).get("amount", {}).get("min") or 0
+        half_amount = float(exchange.amount_to_precision(symbol, amount * 0.5))
+        use_partial_tp = not IS_DEMO_TRADING and half_amount >= _min_qty and half_amount > 0
+
         # -------------------------------------------------
         # 3️⃣ Compute TP and SL prices
         # -------------------------------------------------
@@ -375,9 +380,10 @@ def execute_trade(
             tp_price = float(exchange.price_to_precision(symbol, fill_price * (1 - _tp / 100)))
             sl_price = float(exchange.price_to_precision(symbol, fill_price * (1 + _sl / 100)))
 
+        market_id = exchange.market_id(symbol)
+
         try:
-            market_id = exchange.market_id(symbol)
-            exchange.private_post_v5_position_trading_stop({
+            _tp_params = {
                 "category": "linear",
                 "symbol": market_id,
                 "positionIdx": 0,
@@ -385,30 +391,99 @@ def execute_trade(
                 "stopLoss": str(sl_price),
                 "tpTriggerBy": "LastPrice",
                 "slTriggerBy": "LastPrice",
-            })
-            print(f"✅ TP/SL встановлено: TP={tp_price} SL={sl_price} (fill={fill_price})")
+            }
+            if use_partial_tp:
+                # Закрываем только 50% позиции на TP, остаток ведёт trailing stop
+                _tp_params["tpslMode"] = "Partial"
+                _tp_params["tpSize"]   = str(half_amount)
+                _tp_label = f"50% ({half_amount}) при {tp_price}$"
+            else:
+                _tp_label = f"100% при {tp_price}$"
+            exchange.private_post_v5_position_trading_stop(_tp_params)
+            print(f"✅ TP/SL встановлено: TP={_tp_label} SL={sl_price} (fill={fill_price})")
         except Exception as e:
             print(f"⚠️ TP/SL не вдалося встановити: {e}")
 
         # -------------------------------------------------
+        # 4.6️⃣ Trailing stop (нативный Bybit)
+        # Активируется после +1% движения в нашу сторону.
+        # До активации позицию защищает обычный SL выше.
+        # Demo не поддерживает trailingStop — пропускаем.
+        # -------------------------------------------------
+        if not IS_DEMO_TRADING:
+            try:
+                _btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                trail_pct = 2.5 if coin.upper() in _btc_eth_coins else 3.0
+                trail_dist = float(
+                    exchange.price_to_precision(symbol, fill_price * trail_pct / 100.0)
+                )
+                if action.upper() == "LONG":
+                    active_price = float(
+                        exchange.price_to_precision(symbol, fill_price * 1.01)
+                    )
+                else:
+                    active_price = float(
+                        exchange.price_to_precision(symbol, fill_price * 0.99)
+                    )
+                exchange.private_post_v5_position_trading_stop({
+                    "category": "linear",
+                    "symbol": market_id,
+                    "positionIdx": 0,
+                    "trailingStop": str(trail_dist),
+                    "activePrice": str(active_price),
+                })
+                print(f"✅ Trailing stop: {trail_pct}% дистанция, активируется при {active_price}")
+            except Exception as e:
+                print(f"⚠️ Trailing stop не установлен: {e}")
+
+        # -------------------------------------------------
         # 4.5️⃣ Track position for position monitor
         # -------------------------------------------------
-        position_monitor.track_open(symbol=symbol, action=action, entry_price=current_price)
+        position_monitor.track_open(symbol=symbol, action=action, entry_price=fill_price)
+
+        # Сохраняем рыночный контекст для post-trade анализатора
+        try:
+            from modules.post_trade_analyzer import save_trade_context
+            from modules.market_data import get_btc_2h_change
+            _ctx = {
+                "coin":         coin,
+                "action":       action,
+                "entry_price":  fill_price,
+                "leverage":     _lev,
+                "signal_score": score,
+                "rsi":          signal.get("components", {}).get("rsi", 50),
+                "funding_rate": signal.get("components", {}).get("funding_rate", 0.0),
+                "news_age_min": signal.get("news_age_minutes"),
+                "btc_2h_pct":   get_btc_2h_change(),
+                "opened_at":    datetime.now(timezone.utc).isoformat(),
+            }
+            save_trade_context(symbol, _ctx)
+        except Exception as _e:
+            print(f"[analyzer] ⚠️ save_trade_context error: {_e}")
 
         # -------------------------------------------------
         # 5️⃣ Send Telegram notification
         # -------------------------------------------------
         confidence = signal.get("confidence", "?")
         tag = signal.get("bot_tag", "🚀")
+        _btc_eth_coins_msg = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+        _trail_pct_msg = 2.5 if coin.upper() in _btc_eth_coins_msg else 3.0
+        _trail_active_msg = fill_price * (1.01 if action.upper() == "LONG" else 0.99)
+        _tp_line = (
+            f"<b>TP1 (50%):</b> {tp_price}$ (+{_tp}%) → trailing {_trail_pct_msg}% на остаток"
+            if use_partial_tp else
+            f"<b>Take Profit:</b> {tp_price}$ (+{_tp}%)"
+        )
         msg = (
             f"{tag} <b>СИГНАЛ ИСПОЛНЕН!</b>\n"
             f"<b>Монета:</b> #{coin}\n"
             f"<b>Тип:</b> {action} (Плечо x{_lev})\n"
             f"<b>Оценка ИИ:</b> {score} баллов\n"
             f"<b>Уверенность:</b> {confidence}%\n"
-            f"<b>Вход:</b> {current_price}$\n"
-            f"<b>Take Profit:</b> {tp_price}$ (+{_tp}%)\n"
+            f"<b>Вход:</b> {fill_price}$\n"
+            f"{_tp_line}\n"
             f"<b>Stop Loss:</b> {sl_price}$ (-{_sl}%)"
+            + (f"\n<b>Trailing:</b> активируется при {_trail_active_msg:.2f}$" if not IS_DEMO_TRADING else "")
         )
         age = signal.get("news_age_minutes")
         if age is not None:
