@@ -10,6 +10,7 @@ import PricingPage from '@/pages/PricingPage';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import Waitlist from '@/pages/Waitlist';
+import NewsPage from '@/pages/NewsPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/strategies" element={<StrategiesPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/news" element={<NewsPage />} />
           <Route path="/waitlist" element={<Waitlist />} />
           <Route
             path="/dashboard"

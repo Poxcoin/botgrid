@@ -14,7 +14,7 @@ function NavLink({ to, label }) {
         borderBottom: active ? '1px solid var(--neon-green)' : '1px solid transparent',
         paddingBottom: 2,
         transition: 'color 150ms, border-color 150ms',
-        textShadow: active ? '0 0 16px rgba(0,255,136,0.5)' : 'none',
+        textShadow: active ? '0 0 16px rgba(255,255,255,0.5)' : 'none',
       }}
       onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--fg)'; } }}
       onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--muted)'; } }}
@@ -39,7 +39,7 @@ export default function LandingHeader() {
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span className="font-black text-xl tracking-[-0.04em]"
-            style={{ color: 'var(--neon-green)', textShadow: '0 0 20px rgba(0,255,136,0.5)' }}>
+            style={{ color: 'var(--neon-green)', textShadow: '0 0 20px rgba(255,255,255,0.5)' }}>
             KADO
           </span>
           <span className="hidden md:inline font-mono text-[9px] tracking-[0.35em] uppercase"
@@ -53,6 +53,7 @@ export default function LandingHeader() {
           <NavLink to="/bots"       label="Bots" />
           <NavLink to="/strategies" label="Strategies" />
           <NavLink to="/pricing"    label="Pricing" />
+          <NavLink to="/news"       label="News" />
         </nav>
 
         {/* Right side */}
@@ -67,7 +68,7 @@ export default function LandingHeader() {
           <Link to="/waitlist"
             className="hidden sm:inline-flex items-center h-8 px-4 font-mono text-[10px] tracking-[0.2em] uppercase"
             style={{ background: 'var(--neon-green)', color: '#000', textDecoration: 'none', fontWeight: 700, transition: 'all 150ms' }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#00cc6a'; e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,136,0.4)'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.85)'; e.currentTarget.style.boxShadow = '0 0 16px rgba(255,255,255,0.25)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'var(--neon-green)'; e.currentTarget.style.boxShadow = 'none'; }}>
             Get Access
           </Link>
@@ -88,7 +89,7 @@ export default function LandingHeader() {
       {mobileOpen && (
         <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
           <div className="px-6 py-5 flex flex-col gap-1">
-            {[['Bots', '/bots'], ['Strategies', '/strategies'], ['Pricing', '/pricing']].map(([label, to]) => (
+            {[['Bots', '/bots'], ['Strategies', '/strategies'], ['Pricing', '/pricing'], ['News', '/news']].map(([label, to]) => (
               <Link key={to} to={to} onClick={() => setMobileOpen(false)}
                 className="block py-3 font-mono text-[13px] tracking-[0.15em] uppercase"
                 style={{ color: 'var(--fg)', textDecoration: 'none', borderBottom: '1px solid var(--border)' }}>
