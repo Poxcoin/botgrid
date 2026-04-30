@@ -382,27 +382,65 @@ def execute_trade(
 
         market_id = exchange.market_id(symbol)
 
+        _tp_params = {
+            "category": "linear",
+            "symbol": market_id,
+            "positionIdx": 0,
+            "takeProfit": str(tp_price),
+            "stopLoss": str(sl_price),
+            "tpTriggerBy": "LastPrice",
+            "slTriggerBy": "LastPrice",
+        }
+        if use_partial_tp:
+            _tp_params["tpslMode"] = "Partial"
+            _tp_params["tpSize"]   = str(half_amount)
+            _tp_label = f"50% ({half_amount}) при {tp_price}$"
+        else:
+            _tp_label = f"100% при {tp_price}$"
+
+        _tp_sl_set = False
         try:
-            _tp_params = {
-                "category": "linear",
-                "symbol": market_id,
-                "positionIdx": 0,
-                "takeProfit": str(tp_price),
-                "stopLoss": str(sl_price),
-                "tpTriggerBy": "LastPrice",
-                "slTriggerBy": "LastPrice",
-            }
-            if use_partial_tp:
-                # Закрываем только 50% позиции на TP, остаток ведёт trailing stop
-                _tp_params["tpslMode"] = "Partial"
-                _tp_params["tpSize"]   = str(half_amount)
-                _tp_label = f"50% ({half_amount}) при {tp_price}$"
-            else:
-                _tp_label = f"100% при {tp_price}$"
             exchange.private_post_v5_position_trading_stop(_tp_params)
             print(f"✅ TP/SL встановлено: TP={_tp_label} SL={sl_price} (fill={fill_price})")
+            _tp_sl_set = True
         except Exception as e:
-            print(f"⚠️ TP/SL не вдалося встановити: {e}")
+            _err = str(e)
+            # 30208/30206 = TP ціна виходить за допустимий діапазон Bybit
+            if "30208" in _err or "30206" in _err:
+                # Retry 1: без partial TP (може проблема в tpslMode/tpSize)
+                _plain_params = {
+                    "category": "linear",
+                    "symbol": market_id,
+                    "positionIdx": 0,
+                    "takeProfit": str(tp_price),
+                    "stopLoss": str(sl_price),
+                    "tpTriggerBy": "LastPrice",
+                    "slTriggerBy": "LastPrice",
+                }
+                try:
+                    exchange.private_post_v5_position_trading_stop(_plain_params)
+                    print(f"✅ TP/SL встановлено (без partial): TP={tp_price} SL={sl_price}")
+                    _tp_sl_set = True
+                except Exception as e2:
+                    if "30208" in str(e2) or "30206" in str(e2):
+                        # Retry 2: тільки SL — TP виходить за межу, але позиція має бути захищена
+                        try:
+                            exchange.private_post_v5_position_trading_stop({
+                                "category": "linear",
+                                "symbol": market_id,
+                                "positionIdx": 0,
+                                "takeProfit": "0",
+                                "stopLoss": str(sl_price),
+                                "slTriggerBy": "LastPrice",
+                            })
+                            print(f"⚠️ TP скіпнуто (30208 — ціна поза межею), SL={sl_price} встановлено")
+                            _tp_sl_set = True
+                        except Exception as e3:
+                            print(f"❌ TP/SL не вдалося навіть SL-only: {e3}")
+                    else:
+                        print(f"⚠️ TP/SL retry failed: {e2}")
+            else:
+                print(f"⚠️ TP/SL не вдалося встановити: {e}")
 
         # -------------------------------------------------
         # 4.6️⃣ Trailing stop (нативный Bybit)
