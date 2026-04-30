@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import NeuronReveal from '@/components/shared/NeuronReveal';
-import NeuralText from '@/components/shared/NeuralText';
+
 import useScrollReveal from '@/lib/useScrollReveal';
 
 export default function LandingCTA() {
@@ -35,9 +35,9 @@ export default function LandingCTA() {
         </div>
 
         {/* Title — left-aligned */}
-        <h2 className="font-black leading-[0.85] tracking-[-0.05em]" style={{ fontSize: 'clamp(52px, 10vw, 130px)' }}>
-          <NeuralText text="READY TO" fontWeight={900} style={{ fontSize: 'clamp(52px,10vw,130px)', letterSpacing: '-0.05em', display: 'block' }} />
-          <NeuralText text="START?" fontWeight={900} style={{ fontSize: 'clamp(52px,10vw,130px)', letterSpacing: '-0.05em', display: 'block' }} />
+        <h2 className="font-black leading-[0.85] tracking-[-0.05em]" style={{ fontSize: 'clamp(52px, 10vw, 130px)', letterSpacing: '-0.05em' }}>
+          <span style={{ display: 'block' }}>READY TO</span>
+          <span style={{ display: 'block' }}>START?</span>
         </h2>
 
         {/* Bottom: desc left, CTAs right */}

@@ -70,8 +70,10 @@ export default function NeuralText({
       const pts = sampleContour(text, rect, fontWeight);
       if (pts.length > 0) {
         window.__neuronField.assembleAt(pts);
-        // После сборки тоже показываем текст (поверх нейронов как ghost)
-        setTimeout(() => setFallback(true), 1200);
+        setTimeout(() => {
+          setFallback(true);
+          window.__neuronField?.release();
+        }, 1400);
       } else {
         setFallback(true);
       }

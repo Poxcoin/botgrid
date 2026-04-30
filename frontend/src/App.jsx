@@ -12,6 +12,7 @@ import Dashboard from '@/pages/Dashboard';
 import Waitlist from '@/pages/Waitlist';
 import NewsPage from '@/pages/NewsPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
+import UserDashboard from '@/pages/UserDashboard';
 
 export default function App() {
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/account" element={<UserDashboard />} />
           <Route
             path="*"
             element={

@@ -2,7 +2,7 @@ import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import NeuronReveal from '@/components/shared/NeuronReveal';
 import CharReveal from '@/components/shared/CharReveal';
-import NeuralText from '@/components/shared/NeuralText';
+import SpiralText from '@/components/shared/SpiralText';
 
 function HeroLocalCanvas({ mouseRef }) {
   const canvasRef = useRef(null);
@@ -136,7 +136,7 @@ export default function Hero() {
         {/* Giant title — left-aligned */}
         <div style={{ position: 'relative' }}>
           <h1 className="font-black leading-none select-none" style={{ fontSize: 'clamp(72px, 16vw, 200px)', letterSpacing: '-0.06em', color: 'var(--hero-fg)' }}>
-            <NeuralText text="KADO" fontWeight={900} style={{ fontSize: 'clamp(72px, 16vw, 200px)', letterSpacing: '-0.06em' }} />
+            <SpiralText text="KADO" style={{ fontSize: 'clamp(72px, 16vw, 200px)', letterSpacing: '-0.06em', fontWeight: 900 }} />
           </h1>
           <div style={{ position: 'absolute', left: 0, right: 0, height: '2px', background: 'var(--hero-fg)', opacity: 0, pointerEvents: 'none', animation: 'scanLine 4s ease-in-out 1.5s infinite' }} />
         </div>
