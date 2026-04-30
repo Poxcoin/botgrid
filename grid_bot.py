@@ -194,7 +194,8 @@ def _close_all_positions(exchange, symbol: str, positions: dict, leverage: int, 
                 order.get("average") or
                 info.get("avgPrice") or
                 info.get("lastPriceOnCreated") or
-                order.get("price") or price
+                order.get("price") or
+                price
             )
             pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
             total_pnl += pnl
@@ -261,7 +262,8 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
         return None
 
 
-def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int) -> tuple[bool, float, float]:
+def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int,
+                current_price: float = 0.0) -> tuple[bool, float, float]:
     """Закриває позицію. Повертає (success, realized_pnl, fill_price)."""
     try:
         order = exchange.create_order(
@@ -274,6 +276,7 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
             info.get("avgPrice") or
             info.get("lastPriceOnCreated") or
             order.get("price") or
+            current_price or      # market price at sell trigger — closest to actual fill
             entry["fill_price"]
         )
         pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
@@ -464,7 +467,7 @@ def _run_single(cfg: dict) -> None:
                 idx = int(idx_str)
                 sell_level = levels[idx + 1] if idx + 1 < len(levels) else None
                 if sell_level and price >= sell_level:
-                    success, realized_pnl, fill_price = _close_long(exchange, symbol, entry, idx, leverage)
+                    success, realized_pnl, fill_price = _close_long(exchange, symbol, entry, idx, leverage, price)
                     if success:
                         state["total_pnl"] += realized_pnl
                         state["completed"] += 1
