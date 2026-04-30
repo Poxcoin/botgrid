@@ -70,9 +70,10 @@ GRID_CONFIGS = [
 ]
 
 POLL_INTERVAL      = 60    # секунд між перевірками
-RANGE_BUFFER       = 0.05  # 5% буфер від 30d high/low
+RANGE_BUFFER       = 0.02  # 2% буфер по краях ATR-діапазону
 MAX_REBUILDS_DAY   = 3     # макс перебудов сітки за день на монету
 MAX_LOSS_PCT       = 0.03  # жорсткий стоп: 3% від балансу на монету
+ATR_RANGE_PERIODS  = 10    # Range = current ± ATR_RANGE_PERIODS × ATR(14,1h)
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
@@ -100,15 +101,52 @@ def _save_state(symbol: str, state: dict) -> None:
 
 # ─── Авто-діапазон ───────────────────────────────────────────────────────────
 
+def _calc_atr(exchange, symbol: str, period: int = 14) -> float:
+    """ATR(14) на 1h свічках. Повертає 0.0 при помилці."""
+    try:
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe="1h", limit=period + 2)
+        if len(ohlcv) < period + 1:
+            return 0.0
+        trs = []
+        for i in range(1, len(ohlcv)):
+            high, low, prev_close = ohlcv[i][2], ohlcv[i][3], ohlcv[i - 1][4]
+            tr = max(high - low, abs(high - prev_close), abs(low - prev_close))
+            trs.append(tr)
+        return sum(trs[-period:]) / period
+    except Exception as e:
+        print(f"[GRID:{symbol}] ATR error: {e}")
+        return 0.0
+
+
 def _detect_range(exchange, symbol: str) -> tuple[float, float]:
-    """30-денний high/low + 5% буфер."""
+    """ATR-based range: current_price ± ATR_RANGE_PERIODS × ATR(14,1h).
+
+    У волатильний час ATR зростає → крок сітки ширший → менше whipsaw.
+    У спокійний час ATR менший → кроки вужчі → більше циклів.
+    Fallback на 30-денний high/low якщо ATR недоступний.
+    """
+    try:
+        ticker = exchange.fetch_ticker(symbol)
+        price  = float(ticker["last"])
+        atr    = _calc_atr(exchange, symbol)
+
+        if atr > 0:
+            half_range = ATR_RANGE_PERIODS * atr
+            upper = round(price * (1 + RANGE_BUFFER) + half_range, 4)
+            lower = round(max(price * (1 - RANGE_BUFFER) - half_range, price * 0.5), 4)
+            print(f"[GRID:{symbol}] ATR={atr:.4f} → range ${lower}—${upper} "
+                  f"(крок ≈${half_range * 2 / 10:.2f} на 10 рівнів)")
+            return upper, lower
+    except Exception as e:
+        print(f"[GRID:{symbol}] ATR range error: {e}")
+
+    # Fallback: 30-денний high/low
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe="1d", limit=30)
     highs = [c[2] for c in ohlcv]
     lows  = [c[3] for c in ohlcv]
-    high  = max(highs)
-    low   = min(lows)
-    upper = round(high * (1 + RANGE_BUFFER), 2)
-    lower = round(low  * (1 - RANGE_BUFFER), 2)
+    upper = round(max(highs) * 1.05, 2)
+    lower = round(min(lows)  * 0.95, 2)
+    print(f"[GRID:{symbol}] Fallback 30d range: ${lower}—${upper}")
     return upper, lower
 
 
