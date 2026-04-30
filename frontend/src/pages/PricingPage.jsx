@@ -13,7 +13,7 @@ function PageHero() {
           </div>
           <h1 className="font-black tracking-[-0.05em] leading-[0.85]" style={{ fontSize: 'clamp(52px, 10vw, 120px)', color: 'var(--fg)' }}>
             Simple,<br />
-            <span style={{ color: 'var(--neon-green)', textShadow: '0 0 60px rgba(0,255,136,0.4)' }}>transparent.</span>
+            <span style={{ color: 'var(--neon-green)', textShadow: '0 0 60px rgba(255,255,255,0.25)' }}>transparent.</span>
           </h1>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.8, color: 'var(--muted-fg)', maxWidth: 520, marginTop: 20 }}>
             No hidden fees. No lock-in contracts. Start free, upgrade when you are ready to deploy real capital with the full bot suite.

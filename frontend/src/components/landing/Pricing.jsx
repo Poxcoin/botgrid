@@ -137,7 +137,7 @@ export default function Pricing() {
                 }}
                 onMouseEnter={e => {
                   if (!plan.highlight) { e.currentTarget.style.background = 'var(--site-fg)'; e.currentTarget.style.color = 'var(--site-bg)'; e.currentTarget.style.borderColor = 'var(--site-fg)'; }
-                  else { e.currentTarget.style.background = '#00cc6a'; }
+                  else { e.currentTarget.style.background = 'rgba(255,255,255,0.85)'; }
                 }}
                 onMouseLeave={e => {
                   if (!plan.highlight) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--site-fg)'; e.currentTarget.style.borderColor = 'var(--hero-border)'; }
