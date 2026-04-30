@@ -70,7 +70,7 @@ export default function LandingHeader() {
       WebkitBackdropFilter: 'blur(12px)',
       borderBottom: '1px solid var(--border)',
     }}>
-      <div className="px-6 md:px-10 flex items-center justify-between" style={{ height: 56 }}>
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 40px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'baseline', gap: 10 }}>
