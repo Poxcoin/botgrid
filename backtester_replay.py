@@ -43,7 +43,7 @@ DEFAULT_DAYS      = 30
 DEFAULT_MIN_SCORE = 6.0
 BALANCE           = 10_000.0
 MAX_ARTICLES      = 500
-CLAUDE_DELAY      = 0.35
+CLAUDE_DELAY      = 1.5   # Groq free tier rate limit: ~30 req/min
 
 BTC_MAJORS        = {"BTC", "ETH"}
 BTC_DUMP_THRESH   = -2.5   # % за 2h — блок LONG на альти
@@ -295,6 +295,7 @@ def fetch_from_db(days: int) -> list[dict]:
             "published_ts":  pub_dt.timestamp(),
             "timestamp_ms":  int(pub_dt.timestamp() * 1000),
             "is_panic":      check_panic_news(title),
+            "is_replay":     True,
         })
 
     result.sort(key=lambda x: x["published_ts"])
@@ -360,6 +361,7 @@ def fetch_from_newsapi(days: int) -> list[dict]:
                     "published_ts":  pub_dt.timestamp(),
                     "timestamp_ms":  int(pub_dt.timestamp() * 1000),
                     "is_panic":      check_panic_news(title),
+                    "is_replay":     True,
                 })
             time.sleep(0.5)
         except Exception as e:

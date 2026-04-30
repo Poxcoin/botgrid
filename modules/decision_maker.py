@@ -167,13 +167,15 @@ def generate_signal(news_item: dict) -> dict | None:
     # 0. Возраст новости: RSS > 15 мин → пропуск; TG > 45 мин → пропуск
     # TG использует реальный message.date (timestamp поста в канале).
     # Канал мог переслать старую новость — фильтр это ловит.
+    is_replay = news_item.get("is_replay", False)
     age_min = _news_age_minutes(news_item.get("published_dt", ""))
     is_tg = str(news_item.get("source", "")).startswith("Telegram")
-    if is_tg and age_min is not None and age_min > 45:
-        print(f"   ⏰ TG новость устарела ({age_min} мин) — пропускаем")
-        return None
-    if not is_tg and age_min is not None and age_min > 15:
-        return None
+    if not is_replay:
+        if is_tg and age_min is not None and age_min > 45:
+            print(f"   ⏰ TG новость устарела ({age_min} мин) — пропускаем")
+            return None
+        if not is_tg and age_min is not None and age_min > 15:
+            return None
 
     # Smart wallet сигнал — знижений поріг (не потрібно 9 балів)
     is_smart_wallet = str(news_item.get("source", "")).startswith("Smart Wallet")
