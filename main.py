@@ -21,15 +21,34 @@ from modules.market_data import get_btc_2h_change
 from modules.post_trade_analyzer import (
     start_analyzer, get_score_threshold_boost, is_coin_paused
 )
+from modules.saas_dispatcher import dispatch as saas_dispatch
 from config.settings import (
     BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
     LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
+    LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE,
 )
 import ccxt
 
 # Путь к файлу истории
 LEDGER_FILE = "signals_log.json"
+
+
+def _saas_dispatch(signal: dict, source: str, leverage: int,
+                   tp_pct: float, sl_pct: float, size_pct: float) -> None:
+    """Fan signal out to all active SaaS subscribers — never raises."""
+    try:
+        saas_dispatch({
+            "source":   source,
+            "symbol":   f"{signal['coin']}/USDT:USDT",
+            "side":     signal["action"],
+            "leverage": leverage,
+            "size_pct": size_pct,
+            "tp_pct":   tp_pct,
+            "sl_pct":   sl_pct,
+        })
+    except Exception as e:
+        print(f"[SAAS] dispatch error: {e}")
 PROCESSED_URLS_FILE = "processed_urls.json"
 
 def load_ledger():
@@ -402,6 +421,8 @@ def run_signal_engine():
                                         leverage_override=LISTING_LEVERAGE,
                                         tp_pct=LISTING_TP, sl_pct=LISTING_SL,
                                         size_pct=LISTING_SIZE, signal_id=signal_id)
+                                    _saas_dispatch(signal, "listing",
+                                        LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE)
                                 elif coin.upper() not in _btc_eth:
                                     mkt = signal.get("_market", {})
                                     vol = mkt.get("quote_volume_24h", 0) if mkt else 0
@@ -414,12 +435,16 @@ def run_signal_engine():
                                             leverage_override=dyn_lev,
                                             tp_pct=ALT_TP, sl_pct=ALT_SL,
                                             size_pct=ALT_SIZE, signal_id=signal_id)
+                                        _saas_dispatch(signal, "news",
+                                            dyn_lev, ALT_TP, ALT_SL, ALT_SIZE)
                                 else:
                                     dyn_lev = _dynamic_leverage(signal, is_btc_eth=True)
                                     print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
                                     execute_trade(signal,
                                         leverage_override=dyn_lev,
                                         signal_id=signal_id)
+                                    _saas_dispatch(signal, "news",
+                                        dyn_lev, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
             
             if urls_changed:
                 save_processed_urls(processed_urls)
@@ -441,11 +466,15 @@ def run_signal_engine():
                 _btc_eth = {"BTC", "ETH"}
                 if coin.upper() in _btc_eth:
                     execute_trade(fsig)
+                    _saas_dispatch(fsig, "fr",
+                        LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
                 else:
                     execute_trade(fsig,
                         leverage_override=ALT_LEVERAGE,
                         tp_pct=ALT_TP, sl_pct=ALT_SL,
                         size_pct=ALT_SIZE)
+                    _saas_dispatch(fsig, "fr",
+                        ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE)
 
             # Пишем live intel для дашборда
             _write_live_intel(tg_enabled)

@@ -20,3 +20,4 @@ python-multipart   # Form data (future SaaS uploads)
 sqlalchemy         # ORM for user/trade database
 python-jose[cryptography]  # JWT auth tokens
 passlib[bcrypt]    # Password hashing
+cryptography       # Fernet encryption for API keys
