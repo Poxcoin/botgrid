@@ -1,12 +1,9 @@
-import anthropic
 import json
-from config.settings import CLAUDE_API_KEY
+from groq import Groq
+from config.settings import GROQ_API_KEY
 
-# Инициализируем клиента
-client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 
-# Системный промпт кешируется через cache_control.
-# Экономия ~90% стоимости входных токенов: промпт читается из кеша (~5 мин TTL).
 _SYSTEM_PROMPT = """You are a professional crypto quant trading AI algorithm.
 
 Your job: analyze the sentiment, potential price impact, and your own confidence in that analysis for crypto news.
@@ -39,77 +36,47 @@ Respond ONLY with a JSON object, no other text:
 
 
 def analyze_sentiment(news_title: str, news_description: str = "") -> dict:
-    """
-    Оценивает новость на потенциальное влияние для цены альткоина.
-    Возвращает score (-10..+10), coin (тикер), confidence (0..10).
-    Системный промпт кешируется — экономия токенов при каждом вызове.
-
-    Args:
-        news_title: Заголовок новости
-        news_description: Краткое описание/summary статьи (до 300 символов)
-    """
-    # Формируем пользовательское сообщение
     user_content = f"News Title: '{news_title}'"
     if news_description:
-        # Обрезаем описание, чтобы не тратить лишние токены
-        desc = news_description[:280].strip()
-        user_content += f"\nContext: '{desc}'"
+        user_content += f"\nContext: '{news_description[:280].strip()}'"
 
     try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": _SYSTEM_PROMPT},
+                {"role": "user",   "content": user_content},
+            ],
             max_tokens=80,
             temperature=0.0,
-            timeout=30.0,
-            system=[
-                {
-                    "type": "text",
-                    "text": _SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": user_content}],
         )
 
-        result_text = response.content[0].text.strip()
+        result_text = response.choices[0].message.content.strip()
 
-        # Находим первый JSON-объект
         start = result_text.find("{")
         if start == -1:
-            raise ValueError(f"JSON не найден в ответе: {result_text[:100]}")
+            raise ValueError(f"JSON не найден: {result_text[:100]}")
 
-        decoder = json.JSONDecoder()
-        data, _ = decoder.raw_decode(result_text[start:])
-
+        data, _ = json.JSONDecoder().raw_decode(result_text[start:])
         return {
-            "score": int(data.get("score", 0)),
-            "coin": str(data.get("coin", "BTC")).upper(),
-            "confidence": int(data.get("confidence", 5)),  # 0-10, дефолт средний
+            "score":      int(data.get("score",      0)),
+            "coin":       str(data.get("coin",      "BTC")).upper(),
+            "confidence": int(data.get("confidence", 5)),
         }
 
     except Exception as e:
-        print(f"[ai_analyzer] Ошибка ИИ: {str(e)}")
-        # Если ИИ сломался — не торгуем
+        print(f"[ai_analyzer] Ошибка ИИ: {e}")
         return {"score": 0, "coin": "BTC", "confidence": 0}
 
 
 if __name__ == "__main__":
     tests = [
-        {
-            "title": "Binance announces official listing of FET token with zero fees",
-            "desc": "Binance will list Fetch.ai (FET) on the spot market starting Monday. Trading pairs: FET/USDT, FET/BTC.",
-        },
-        {
-            "title": "Bybit exchange hacked — $200M stolen in smart contract exploit",
-            "desc": "Hackers drained $200M from Bybit's ETH hot wallet via a reentrancy attack. Withdrawals suspended.",
-        },
-        {
-            "title": "Local football team wins regional championship",
-            "desc": "",
-        },
+        {"title": "Binance announces official listing of FET token with zero fees",
+         "desc": "Binance will list Fetch.ai (FET) on the spot market starting Monday."},
+        {"title": "Bybit exchange hacked — $200M stolen in smart contract exploit",
+         "desc": "Hackers drained $200M from Bybit's ETH hot wallet."},
+        {"title": "Local football team wins regional championship", "desc": ""},
     ]
-
     for t in tests:
-        result = analyze_sentiment(t["title"], t["desc"])
-        print(f"Title: {t['title']}")
-        print(f"  → score={result['score']}  coin={result['coin']}  confidence={result['confidence']}\n")
+        r = analyze_sentiment(t["title"], t["desc"])
+        print(f"{t['title'][:60]}\n  → score={r['score']}  coin={r['coin']}  confidence={r['confidence']}\n")

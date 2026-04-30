@@ -1,7 +1,7 @@
 # ─── Core trading engine ──────────────────────────────────────────────────────
 telethon           # Telegram userbot — real-time channel monitoring
 websocket-client   # Binance liquidation WebSocket stream
-anthropic          # Claude AI — sentiment analysis
+groq               # Groq LLM — sentiment analysis (LLaMA-3.3-70b)
 ccxt               # Exchange connectivity (Bybit, Binance)
 feedparser         # RSS news parsing
 requests           # Telegram Bot API, HTTP calls
