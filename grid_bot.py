@@ -67,6 +67,28 @@ GRID_CONFIGS = [
         "lower_manual":  2500.0,
         "max_positions": 5,
     },
+    {
+        "symbol":        "DOGE/USDT:USDT",
+        "levels":        10,
+        "size_pct":      1.0,
+        "size_usd_min":  10.0,
+        "leverage":      3,
+        "auto_range":    True,
+        "upper_manual":  0.50,
+        "lower_manual":  0.15,
+        "max_positions": 5,
+    },
+    {
+        "symbol":        "XRP/USDT:USDT",
+        "levels":        10,
+        "size_pct":      1.0,
+        "size_usd_min":  10.0,
+        "leverage":      3,
+        "auto_range":    True,
+        "upper_manual":  3.50,
+        "lower_manual":  1.50,
+        "max_positions": 5,
+    },
 ]
 
 POLL_INTERVAL      = 60    # секунд між перевірками

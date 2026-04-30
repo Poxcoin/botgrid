@@ -233,13 +233,27 @@ def run_alt_engine():
                 print(f"🚀 LISTING: {signal['action']} {signal['coin']}  score={signal['total_score']}")
                 print(f"{'='*50}\n")
 
-                execute_trade(
-                    signal,
-                    tp_pct=LISTING_TP,
-                    sl_pct=LISTING_SL,
-                    leverage_override=LISTING_LEVERAGE,
-                    size_pct=LISTING_SIZE,
-                )
+                # 110074 = contract not live yet — retry up to 3x with 60s delay
+                _trade_ok = False
+                for _attempt in range(3):
+                    try:
+                        execute_trade(
+                            signal,
+                            tp_pct=LISTING_TP,
+                            sl_pct=LISTING_SL,
+                            leverage_override=LISTING_LEVERAGE,
+                            size_pct=LISTING_SIZE,
+                        )
+                        _trade_ok = True
+                        break
+                    except Exception as _te:
+                        if "110074" in str(_te) and _attempt < 2:
+                            print(f"⏳ [ALT] {coin} contract not live yet, retry {_attempt+1}/3 in 60s")
+                            time.sleep(60)
+                        else:
+                            raise
+                if not _trade_ok:
+                    continue
 
                 # Partial TP1: limit reduceOnly 50% @ +10% (TP2 @ +20% вже в set_trading_stop)
                 try:
