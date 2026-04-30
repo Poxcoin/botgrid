@@ -22,7 +22,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
-from database import get_db, User, WaitlistEntry
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from sqlalchemy.orm import Session
@@ -171,18 +171,18 @@ class RegisterRequest(BaseModel):
     email: str
     username: str
     password: str
-    referral_source: str = "direct"
 
 class UserLoginRequest(BaseModel):
     email: str
     password: str
 
 class UpdateProfileRequest(BaseModel):
-    bybit_api_key: str = ""
-    bybit_secret: str = ""
     tg_chat_id: str = ""
-    leverage: int = 3
-    trade_size_percent: float = 5.0
+
+class ApiKeyRequest(BaseModel):
+    api_key: str
+    secret: str
+    is_testnet: bool = False
 
 def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
@@ -216,7 +216,6 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         email=body.email,
         username=body.username,
         password_hash=hash_password(body.password),
-        referral_source=body.referral_source,
         email_verified=False,
         email_verify_token=verify_token,
     )
@@ -224,7 +223,7 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     db.commit()
     db.refresh(user)
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "email_verified": False}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "email_verified": False}}
 
 @app.post("/api/users/login")
 async def user_login(body: UserLoginRequest, request: Request, db: Session = Depends(get_db)):
@@ -244,23 +243,23 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         _active_tokens[f"2fa:{partial}"] = {"user_id": user.id, "exp": time.time() + 300}
         return {"requires_2fa": True, "partial_token": partial}
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "subscribed": user.is_subscribed, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
 
 @app.get("/api/users/me")
 async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
+    sub = user.subscription
+    key_row = next((k for k in user.api_keys if k.exchange == "bybit"), None)
     return {
         "id": user.id,
         "email": user.email,
         "username": user.username,
-        "plan": user.subscription_plan,
-        "subscribed": user.is_subscribed,
-        "subscription_expires": user.subscription_expires.isoformat() if user.subscription_expires else None,
+        "plan": user.plan,
+        "subscribed": user.is_pro,
+        "subscription_expires": sub.expires_at.isoformat() if sub and sub.expires_at else None,
         "tg_chat_id": user.tg_chat_id,
-        "leverage": user.leverage,
-        "trade_size_percent": user.trade_size_percent,
-        "has_api_keys": bool(user.bybit_api_key),
-        "referral_source": user.referral_source,
+        "has_api_keys": key_row is not None,
+        "api_key_testnet": key_row.is_testnet if key_row else False,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "email_verified": bool(user.email_verified),
         "totp_enabled": bool(user.totp_enabled),
@@ -269,14 +268,41 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
 @app.put("/api/users/me")
 async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
-    if body.bybit_api_key:
-        user.bybit_api_key = encrypt_field(body.bybit_api_key)
-    if body.bybit_secret:
-        user.bybit_secret = encrypt_field(body.bybit_secret)
     if body.tg_chat_id:
         user.tg_chat_id = body.tg_chat_id
-    user.leverage = max(1, min(body.leverage, 10))
-    user.trade_size_percent = max(1.0, min(body.trade_size_percent, 20.0))
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/users/keys")
+async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Save or replace the user's Bybit API key (stored encrypted)."""
+    user = _get_user_from_token(credentials.credentials, db)
+    if not body.api_key or not body.secret:
+        raise HTTPException(status_code=400, detail="api_key and secret are required")
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if key_row:
+        key_row.api_key_enc  = encrypt_field(body.api_key)
+        key_row.secret_enc   = encrypt_field(body.secret)
+        key_row.is_testnet   = body.is_testnet
+        key_row.last_verified = None
+    else:
+        key_row = UserApiKey(
+            user_id     = user.id,
+            exchange    = "bybit",
+            api_key_enc = encrypt_field(body.api_key),
+            secret_enc  = encrypt_field(body.secret),
+            is_testnet  = body.is_testnet,
+        )
+        db.add(key_row)
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/users/keys")
+async def delete_api_keys(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").delete()
     db.commit()
     return {"ok": True}
 
@@ -342,7 +368,73 @@ async def totp_verify_login(body: TotpLoginRequest, db: Session = Depends(get_db
         raise HTTPException(status_code=400, detail="Invalid authenticator code")
     _active_tokens.pop(f"2fa:{body.partial_token}", None)
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.subscription_plan, "subscribed": user.is_subscribed, "email_verified": bool(user.email_verified), "totp_enabled": True}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": True}}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  USER TRADES & PnL
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/users/trades")
+async def get_user_trades(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+    trades = (
+        db.query(UserTrade)
+        .filter(UserTrade.user_id == user.id)
+        .order_by(UserTrade.opened_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id":          t.id,
+            "signal_id":   t.signal_id,
+            "source":      t.source,
+            "symbol":      t.symbol,
+            "side":        t.side,
+            "leverage":    t.leverage,
+            "entry_price": t.entry_price,
+            "exit_price":  t.exit_price,
+            "qty":         t.qty,
+            "pnl_usdt":    t.pnl_usdt,
+            "status":      t.status,
+            "opened_at":   t.opened_at.isoformat() if t.opened_at else None,
+            "closed_at":   t.closed_at.isoformat() if t.closed_at else None,
+        }
+        for t in trades
+    ]
+
+
+@app.get("/api/users/pnl")
+async def get_user_pnl(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+    rows = (
+        db.query(MonthlyPnl)
+        .filter(MonthlyPnl.user_id == user.id)
+        .order_by(MonthlyPnl.year.desc(), MonthlyPnl.month.desc())
+        .limit(12)
+        .all()
+    )
+    return [
+        {
+            "year":            r.year,
+            "month":           r.month,
+            "gross_pnl":       r.gross_pnl,
+            "performance_fee": r.performance_fee,
+            "net_pnl":         r.net_pnl,
+            "fee_paid":        r.fee_paid,
+        }
+        for r in rows
+    ]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
