@@ -320,7 +320,26 @@ def _run_single(cfg: dict) -> None:
     print(f"[GRID:{symbol}] ${size_usd}/рівень × {leverage}x | макс позицій: {max_pos}")
 
     state = _load_state(symbol)
-    if not state.get("levels") or state.get("symbol") != symbol:
+    if state.get("symbol") == symbol and state.get("levels"):
+        # Відновлення після рестарту — використовуємо збережені рівні,
+        # щоб не закривати позиції по нових ATR-рівнях.
+        upper  = state["upper"]
+        lower  = state["lower"]
+        levels = state["levels"]
+        step   = levels[1] - levels[0]
+        n_pos  = len(state.get("positions", {}))
+        print(f"[GRID:{symbol}] ♻️  Відновлення: {n_pos} позицій | діапазон ${lower:.4f}—${upper:.4f}")
+        # Звіряємо з біржею: якщо exchange показує 0 позицій — очищаємо стан
+        try:
+            ex_positions = exchange.fetch_positions([symbol], params={"category": "linear"})
+            ex_qty = sum(abs(float(p.get("contracts") or 0)) for p in ex_positions)
+            if ex_qty == 0 and state.get("positions"):
+                print(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
+                state["positions"] = {}
+                _save_state(symbol, state)
+        except Exception as _e:
+            print(f"[GRID:{symbol}] Reconcile помилка: {_e}")
+    else:
         state = {
             "symbol":     symbol,
             "upper":      upper,
