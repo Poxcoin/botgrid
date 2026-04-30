@@ -13,7 +13,7 @@ function PageHero() {
           </div>
           <h1 className="font-black tracking-[-0.05em] leading-[0.85]" style={{ fontSize: 'clamp(52px, 10vw, 120px)', color: 'var(--fg)' }}>
             Pick your<br />
-            <span style={{ color: 'var(--neon-green)', textShadow: '0 0 60px rgba(255,255,255,0.25)' }}>risk profile.</span>
+            <span style={{ opacity: 0.45 }}>risk profile.</span>
           </h1>
           <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.8, color: 'var(--muted-fg)', maxWidth: 520, marginTop: 20 }}>
             Three pre-configured strategies from conservative grid trading to aggressive multi-bot deployment. Choose based on your risk tolerance and capital size.

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -9,25 +9,23 @@
     --font-sans: 'Inter', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-    /* ── Cyberpunk dark theme (default) ── */
-    --bg:           #06060F;
-    --bg2:          #0D0D1A;
-    --bg3:          #12121F;
-    --fg:           #E8E8F0;
-    --muted:        rgba(200,200,220,0.38);
-    --muted-fg:     rgba(200,200,220,0.62);
-    --border:       rgba(255,255,255,0.1);
-    --border-hi:    rgba(255,255,255,0.25);
-
-    /* accents — white editorial palette */
-    --neon-green:   #ffffff;
-    --neon-cyan:    #ffffff;
-    --neon-pink:    #ffffff;
-    --neon-gold:    #ffffff;
-    --neon-blue:    #ffffff;
-    --accent:       #ffffff;
+    /* ── Light theme (default) ── */
+    --bg:        #FFFFFF;
+    --bg2:       #F7F7F7;
+    --bg3:       #EFEFEF;
+    --fg:        #0A0A0A;
+    --muted:     rgba(10,10,10,0.38);
+    --muted-fg:  rgba(10,10,10,0.62);
+    --border:    rgba(10,10,10,0.1);
+    --border-hi: rgba(10,10,10,0.22);
+    --accent:    #0A0A0A;
 
     /* legacy compat */
+    --neon-green:    #0A0A0A;
+    --neon-cyan:     #0A0A0A;
+    --neon-pink:     #0A0A0A;
+    --neon-gold:     #0A0A0A;
+    --neon-blue:     #0A0A0A;
     --hero-bg:       var(--bg);
     --hero-fg:       var(--fg);
     --hero-border:   var(--border);
@@ -35,18 +33,25 @@
     --hero-muted-fg: var(--muted-fg);
     --site-bg:       var(--bg);
     --site-fg:       var(--fg);
-    --site-bg-glass: rgba(6,6,15,0.88);
+    --site-bg-glass: rgba(255,255,255,0.92);
   }
 
-  /* Light mode just flips to dark anyway — cyberpunk is always dark */
+  /* ── Dark theme ── */
   .dark {
-    --bg:           #06060F;
-    --bg2:          #0D0D1A;
-    --bg3:          #12121F;
-    --fg:           #E8E8F0;
-    --muted:        rgba(200,200,220,0.38);
-    --muted-fg:     rgba(200,200,220,0.62);
-    --border:       rgba(0,255,136,0.14);
+    --bg:        #0A0A0A;
+    --bg2:       #111111;
+    --bg3:       #1A1A1A;
+    --fg:        #F0F0F0;
+    --muted:     rgba(240,240,240,0.38);
+    --muted-fg:  rgba(240,240,240,0.62);
+    --border:    rgba(255,255,255,0.1);
+    --border-hi: rgba(255,255,255,0.22);
+    --accent:    #F0F0F0;
+    --neon-green:    #F0F0F0;
+    --neon-cyan:     #F0F0F0;
+    --neon-pink:     #F0F0F0;
+    --neon-gold:     #F0F0F0;
+    --neon-blue:     #F0F0F0;
     --hero-bg:       var(--bg);
     --hero-fg:       var(--fg);
     --hero-border:   var(--border);
@@ -54,7 +59,7 @@
     --hero-muted-fg: var(--muted-fg);
     --site-bg:       var(--bg);
     --site-fg:       var(--fg);
-    --site-bg-glass: rgba(6,6,15,0.88);
+    --site-bg-glass: rgba(10,10,10,0.92);
   }
 
   * { border-radius: 0 !important; }
@@ -70,100 +75,29 @@
     font-family: var(--font-mono);
     font-feature-settings: "tnum", "zero";
   }
-
-  /* Cyberpunk scanline overlay on entire page */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.04) 2px,
-      rgba(0,0,0,0.04) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
-
-  /* CRT dot grid */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: radial-gradient(circle, rgba(0,255,136,0.025) 1px, transparent 1px);
-    background-size: 24px 24px;
-    pointer-events: none;
-    z-index: 9998;
-  }
-
-  /* Neon text glow helper */
-  .neon-green { color: var(--neon-green); }
-  .neon-cyan  { color: var(--neon-cyan);  }
-  .neon-pink  { color: var(--neon-pink);  }
-
-  /* Border helpers */
-  .neon-border      { border: 1px solid rgba(255,255,255,0.2); }
-  .neon-border-cyan { border: 1px solid rgba(255,255,255,0.2); }
-  .neon-border-pink { border: 1px solid rgba(255,255,255,0.2); }
-
-  /* Corner bracket decoration */
-  .corner-bracket {
-    position: relative;
-  }
-  .corner-bracket::before,
-  .corner-bracket::after {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border-color: var(--neon-green);
-    border-style: solid;
-    opacity: 0.5;
-  }
-  .corner-bracket::before {
-    top: -1px; left: -1px;
-    border-width: 1px 0 0 1px;
-  }
-  .corner-bracket::after {
-    bottom: -1px; right: -1px;
-    border-width: 0 1px 1px 0;
-  }
 }
 
 @layer utilities {
   .cyber-grid {
     background-image:
-      linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
     background-size: 40px 40px;
   }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
-/* ── Animations ───────────────────────────────────────────────────────────── */
-@keyframes blink        { 0%,100%{opacity:1} 50%{opacity:0} }
-@keyframes neonPulse    { 0%,100%{opacity:.7} 50%{opacity:1} }
-@keyframes borderPulse  { 0%,100%{box-shadow:0 0 6px rgba(255,255,255,.1)} 50%{box-shadow:0 0 20px rgba(255,255,255,.2)} }
+/* ── Animations ── */
+@keyframes blink       { 0%,100%{opacity:1} 50%{opacity:0} }
+@keyframes fadeUp      { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes labelPulse  { 0%,100%{opacity:.45} 50%{opacity:.9} }
+@keyframes dataScroll  { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+@keyframes scaleYIn    { from{transform:scaleY(0)} to{transform:scaleY(1)} }
 @keyframes glitch {
   0%,90%,100%{transform:none;filter:none}
-  91%{transform:translateX(-2px);filter:hue-rotate(90deg)}
-  93%{transform:translateX(2px);filter:hue-rotate(-90deg)}
-  95%{transform:translateX(-1px) skewX(-2deg)}
+  91%{transform:translateX(-2px)}
+  93%{transform:translateX(2px)}
+  95%{transform:translateX(-1px) skewX(-1deg)}
   97%{transform:translateX(1px)}
 }
-@keyframes scanLine     { 0%{top:-2%;opacity:0} 5%{opacity:.3} 95%{opacity:.2} 100%{top:102%;opacity:0} }
-@keyframes fadeUp       { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-@keyframes dataScroll {
-  0%{transform:translateY(0)}
-  100%{transform:translateY(-50%)}
-}
-@keyframes flicker      { 0%,100%{opacity:.5} 50%{opacity:1} }
-@keyframes scaleYIn     { from{transform:scaleY(0)} to{transform:scaleY(1)} }
-@keyframes labelPulse   { 0%,100%{opacity:.45} 50%{opacity:.9} }
-@keyframes flickerBox   { 0%,100%{opacity:.6} 50%{opacity:1} }
-@keyframes electricBorder { 0%{opacity:0} 50%{opacity:1;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)} 100%{opacity:1} }
-@keyframes ctaPulse     { 0%,100%{box-shadow:0 0 0 rgba(255,255,255,0)} 50%{box-shadow:0 0 24px rgba(255,255,255,.2)} }
-@keyframes axonDot      { 0%{left:-8px;opacity:0} 5%{opacity:.85} 95%{opacity:.85} 100%{left:calc(100% + 8px);opacity:0} }
