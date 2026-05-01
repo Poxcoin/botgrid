@@ -229,7 +229,7 @@ export default function Auth() {
 
       localStorage.setItem('kado_token', data.token);
       localStorage.setItem('kado_user', JSON.stringify(data.user));
-      navigate('/dashboard');
+      navigate('/account');
     } catch {
       setError('Connection error — server unreachable');
     } finally {
@@ -240,7 +240,7 @@ export default function Auth() {
   function on2FASuccess(data) {
     localStorage.setItem('kado_token', data.token);
     localStorage.setItem('kado_user', JSON.stringify(data.user));
-    navigate('/dashboard');
+    navigate('/account');
   }
 
   return (
