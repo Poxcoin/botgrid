@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import SpiralText from '@/components/shared/SpiralText';
+import LiveChart from '@/components/landing/LiveChart';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
@@ -22,51 +23,66 @@ function HomeHero() {
     <section style={{ background: '#060606' }}>
       <style>{`@keyframes kadoPulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
 
-      <div className="px-5 md:px-14" style={{ maxWidth: 860, margin: '0 auto', paddingTop: 130, paddingBottom: 110, textAlign: 'center', fontFamily: FONT }}>
+      {/* Two-column hero */}
+      <div className="px-5 md:px-14" style={{
+        maxWidth: 1100, margin: '0 auto',
+        paddingTop: 100, paddingBottom: 80,
+        display: 'flex', alignItems: 'center',
+        gap: 48, flexWrap: 'wrap',
+        fontFamily: FONT,
+      }}>
 
-        <div style={fade(0, {
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 100, padding: '6px 18px', fontSize: 11, color: '#888',
-          letterSpacing: '0.04em', marginBottom: 52,
-        })}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0, animation: 'kadoPulse 2s ease-in-out infinite' }} />
-          Private Beta · Multi-Exchange · Live
+        {/* Left — text */}
+        <div style={{ flex: '1 1 340px', minWidth: 0 }}>
+          <div style={fade(0, {
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 100, padding: '6px 18px', fontSize: 11, color: '#888',
+            letterSpacing: '0.04em', marginBottom: 32,
+          })}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', flexShrink: 0, animation: 'kadoPulse 2s ease-in-out infinite' }} />
+            Private Beta · Multi-Exchange · Live
+          </div>
+
+          <div style={fade(60)}>
+            <SpiralText
+              text="KADO"
+              style={{ fontSize: 'clamp(64px,10vw,120px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', fontFamily: MONO }}
+            />
+          </div>
+
+          <div style={fade(120, { fontSize: 'clamp(16px,2vw,20px)', fontWeight: 400, color: '#999', lineHeight: 1.5, letterSpacing: '-0.02em', margin: '24px 0 14px' })}>
+            Six AI-powered bots trading crypto futures<br />around the clock — while you do anything else.
+          </div>
+
+          <p style={fade(170, { fontSize: 14, color: '#666', lineHeight: 1.8, maxWidth: 440, margin: '0 0 40px' })}>
+            Connect your API key. Choose a strategy. Watch the bots trade. Your funds never leave your exchange — we only send orders on your behalf.
+          </p>
+
+          <div style={fade(220, { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' })}>
+            <Link to="/waitlist" style={{
+              background: '#fff', color: '#000', padding: '14px 36px', borderRadius: 100,
+              fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
+              transition: 'opacity 150ms',
+            }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+              Join Waitlist →
+            </Link>
+            <a href="#how-it-works" style={{
+              color: '#888', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+              transition: 'color 150ms',
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={e => e.currentTarget.style.color = '#888'}>
+              See how it works ↓
+            </a>
+          </div>
         </div>
 
-        <div style={fade(60)}>
-          <SpiralText
-            text="KADO"
-            style={{ fontSize: 'clamp(80px,14vw,160px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', fontFamily: MONO }}
-          />
-        </div>
-
-        <div style={fade(120, { fontSize: 'clamp(18px,2.2vw,24px)', fontWeight: 400, color: '#999', lineHeight: 1.45, letterSpacing: '-0.02em', margin: '28px 0 16px' })}>
-          Six AI-powered bots trading crypto futures<br />around the clock — while you do anything else.
-        </div>
-
-        <p style={fade(170, { fontSize: 15, color: '#666', lineHeight: 1.8, maxWidth: 500, margin: '0 auto 52px' })}>
-          Connect your API key. Choose a strategy. Watch the bots trade. Your funds never leave your exchange — we only send orders on your behalf.
-        </p>
-
-        <div style={fade(220, { display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center', flexWrap: 'wrap' })}>
-          <Link to="/waitlist" style={{
-            background: '#fff', color: '#000', padding: '14px 36px', borderRadius: 100,
-            fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
-            transition: 'opacity 150ms',
-          }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-            Join Waitlist →
-          </Link>
-          <a href="#how-it-works" style={{
-            color: '#888', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-            transition: 'color 150ms',
-          }}
-            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = '#888'}>
-            See how it works ↓
-          </a>
+        {/* Right — live chart (hidden on mobile) */}
+        <div className="hidden md:block" style={fade(300, { flex: '0 0 380px' })}>
+          <LiveChart />
         </div>
       </div>
 
