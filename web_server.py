@@ -27,7 +27,14 @@ from utils.auth import hash_password, verify_password, create_token, decode_toke
 from utils.crypto import encrypt_field, decrypt_field
 from sqlalchemy.orm import Session
 
+from modules import position_closer
+
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
+
+
+@app.on_event("startup")
+async def _startup():
+    asyncio.create_task(position_closer.run_loop())
 
 # ─── CORS: только явно разрешённые origins ────────────────────────────────────
 app.add_middleware(

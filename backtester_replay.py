@@ -134,7 +134,7 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int,
         exit_ts    = ohlcv[1][0]
         half_pnl   = 0.0
 
-        for c in ohlcv[1:]:
+        for idx1, c in enumerate(ohlcv[1:], 1):
             hi, lo = c[2], c[3]
             if action == "LONG":
                 if lo <= sl_p:
@@ -146,46 +146,30 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int,
                     tp1_hit = True
                     tp1_ts  = c[0]
                     half_pnl = usdt_risk * leverage * (tp_pct / 100)
-                    # Phase 2: trailing stop on remaining 50% from tp1 candle index
-                    trail_high = tp1 if action == "LONG" else tp1
-                    trail_low  = tp1
-                    trail_stop = tp1 * (1 - trail_pct / 100) if action == "LONG" \
-                                 else tp1 * (1 + trail_pct / 100)
+                    # Phase 2: trailing stop on remaining 50%, start from current candle
+                    trail_high   = tp1
+                    trail_stop   = tp1 * (1 - trail_pct / 100)
                     trail_active = False
-                    rem_exit = tp1
-                    rem_ts   = c[0]
+                    rem_exit     = tp1
+                    rem_ts       = c[0]
 
-                    for c2 in ohlcv[ohlcv.index(c):]:
+                    for c2 in ohlcv[idx1:]:
                         h2, l2 = c2[2], c2[3]
-                        if action == "LONG":
-                            if h2 > trail_high:
-                                trail_high = h2
-                                if trail_high >= trail_activate:
-                                    trail_active = True
-                                if trail_active:
-                                    trail_stop = trail_high * (1 - trail_pct / 100)
-                            if trail_active and l2 <= trail_stop:
-                                rem_exit = trail_stop
-                                rem_ts   = c2[0]
-                                break
-                        else:
-                            if l2 < trail_low:
-                                trail_low = l2
-                                if trail_low <= trail_activate:
-                                    trail_active = True
-                                if trail_active:
-                                    trail_stop = trail_low * (1 + trail_pct / 100)
-                            if trail_active and h2 >= trail_stop:
-                                rem_exit = trail_stop
-                                rem_ts   = c2[0]
-                                break
+                        if h2 > trail_high:
+                            trail_high = h2
+                            if trail_high >= trail_activate:
+                                trail_active = True
+                            if trail_active:
+                                trail_stop = trail_high * (1 - trail_pct / 100)
+                        if trail_active and l2 <= trail_stop:
+                            rem_exit = trail_stop
+                            rem_ts   = c2[0]
+                            break
                     else:
                         rem_exit = ohlcv[-1][4]
                         rem_ts   = ohlcv[-1][0]
 
                     rem_chg = (rem_exit - tp1) / tp1
-                    if action == "SHORT":
-                        rem_chg = -rem_chg
                     rem_pnl = (usdt_risk / 2) * leverage * rem_chg
                     total_pnl = (half_pnl / 2) + rem_pnl
                     exit_price = rem_exit
@@ -202,13 +186,13 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int,
                     tp1_hit = True
                     tp1_ts  = c[0]
                     half_pnl = usdt_risk * leverage * (tp_pct / 100)
-                    trail_low  = tp1
-                    trail_stop = tp1 * (1 + trail_pct / 100)
+                    trail_low    = tp1
+                    trail_stop   = tp1 * (1 + trail_pct / 100)
                     trail_active = False
-                    rem_exit = tp1
-                    rem_ts   = c[0]
+                    rem_exit     = tp1
+                    rem_ts       = c[0]
 
-                    for c2 in ohlcv[ohlcv.index(c):]:
+                    for c2 in ohlcv[idx1:]:
                         h2, l2 = c2[2], c2[3]
                         if l2 < trail_low:
                             trail_low = l2
@@ -375,7 +359,7 @@ def fetch_from_newsapi(days: int) -> list[dict]:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def run_replay(days: int, min_score: float, use_newsapi: bool,
-               max_articles: int = MAX_ARTICLES) -> None:
+               max_articles: int = MAX_ARTICLES) -> str | None:
     print(f"\n{'='*65}")
     print(f"  REPLAY BACKTESTER v3 — реальные новости + Claude AI")
     print(f"  Период: {days} дней  |  min_score={min_score}")
@@ -405,14 +389,16 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
 
     if not articles:
         print("  Нет данных. Бот ещё не набрал историю — запусти на VPS и подожди.")
-        return
+        return None
 
     print("2. Анализирую через Claude + 8-факторную формулу...\n")
 
+    run_id    = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
     balance   = BALANCE
     peak_bal  = BALANCE
     max_dd    = 0.0
     trades    = []
+    equity    = [[int(datetime.now(timezone.utc).timestamp() * 1000), balance]]
     open_pos  = {}
     n_signals = 0
     n_hold    = 0
@@ -478,6 +464,8 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
         if dd > max_dd:
             max_dd = dd
 
+        equity.append([article["timestamp_ms"], round(balance, 2)])
+
         month_key = article["published_dt"][:7]
         for d in (coin_stats[coin], month_stats[month_key]):
             if trade["result"] == "WIN":
@@ -494,7 +482,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
               f"«{article['title'][:42]}»")
 
         trades.append({
-            "news_time":  article["published_dt"][:16],
+            "timestamp":  article["published_dt"],
             "coin":       coin,
             "action":     action,
             "score":      sc,
@@ -505,12 +493,12 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
             "partial_tp": trade["partial_tp"],
             "entry_time": trade["entry_time"],
             "exit_time":  trade["exit_time"],
-            "entry":      trade["entry_price"],
-            "exit":       trade["exit_price"],
+            "entry_price": trade["entry_price"],
+            "exit_price":  trade["exit_price"],
             "result":     trade["result"],
-            "pnl":        trade["pnl"],
+            "pnl_usdt":   trade["pnl"],
             "balance":    round(balance, 2),
-            "news":       article["title"][:80],
+            "news_title": article["title"][:80],
             "source":     article["source"],
         })
 
@@ -566,28 +554,37 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
 
     print(f"{'='*65}")
 
+    import os
     out = {
-        "meta": {
-            "version": 3,
+        "run_id": run_id,
+        "params": {
             "days": days, "min_score": min_score,
-            "articles": len(articles), "signals": n_signals,
-            "hold": n_hold, "btc_filtered": n_btc_filtered,
+            "newsapi": use_newsapi,
+            "tp": TAKE_PROFIT_PERCENT, "sl": STOP_LOSS_PERCENT,
         },
-        "stats": {
+        "summary": {
             "trades": total, "wins": wins, "losses": losses,
             "win_rate": round(wins / total * 100, 1) if total else 0,
             "initial": BALANCE, "final": round(balance, 2),
-            "profit": round(profit, 2),
+            "total_pnl": round(profit, 2),
             "roi_pct": round(profit / BALANCE * 100, 2),
             "max_dd_pct": round(max_dd, 2),
         },
-        "coin_stats":  {c: {**s, "pnl": round(s["pnl"], 2)} for c, s in coin_stats.items()},
-        "month_stats": {m: {**s, "pnl": round(s["pnl"], 2)} for m, s in month_stats.items()},
+        "equity_curve": equity,
+        "coin_stats":   {c: {**s, "pnl": round(s["pnl"], 2)} for c, s in coin_stats.items()},
+        "month_stats":  {m: {**s, "pnl": round(s["pnl"], 2)} for m, s in month_stats.items()},
+        "meta": {
+            "version": 3, "articles": len(articles),
+            "signals": n_signals, "hold": n_hold, "btc_filtered": n_btc_filtered,
+        },
         "trades": trades,
     }
-    with open("backtest_replay_results.json", "w", encoding="utf-8") as f:
+    os.makedirs("backtest_results", exist_ok=True)
+    out_path = os.path.join("backtest_results", f"{run_id}.json")
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
-    print(f"\n  Лог → backtest_replay_results.json")
+    print(f"\n  Результат сохранён → {out_path}")
+    return out_path
 
 
 if __name__ == "__main__":
