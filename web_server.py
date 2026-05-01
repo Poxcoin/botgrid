@@ -234,10 +234,8 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     db.commit()
     db.refresh(user)
     # Send verification email in background — non-blocking, failure is silent
-    asyncio.create_task(
-        asyncio.get_event_loop().run_in_executor(
-            None, send_verification_email, body.email, verify_token
-        )
+    asyncio.get_running_loop().run_in_executor(
+        None, send_verification_email, body.email, verify_token
     )
     token = create_token(user.id, user.email)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "email_verified": False}}
@@ -267,10 +265,8 @@ async def resend_verification(credentials: HTTPAuthorizationCredentials = Depend
     new_token = secrets.token_urlsafe(32)
     user.email_verify_token = new_token
     db.commit()
-    asyncio.create_task(
-        asyncio.get_event_loop().run_in_executor(
-            None, send_verification_email, user.email, new_token
-        )
+    asyncio.get_running_loop().run_in_executor(
+        None, send_verification_email, user.email, new_token
     )
     return {"ok": True, "message": "Verification email sent"}
 

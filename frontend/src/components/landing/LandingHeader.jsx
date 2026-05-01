@@ -22,6 +22,7 @@ function NavLink({ to, label }) {
 
 export default function LandingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isLoggedIn = !!localStorage.getItem('kado_token');
 
   return (
     <header className="w-full sticky top-0 z-50" style={{
@@ -47,23 +48,38 @@ export default function LandingHeader() {
 
         {/* Right side */}
         <div className="flex items-center" style={{ gap: 16 }}>
-          <Link to="/auth?mode=login"
-            className="hidden sm:inline"
-            style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none', transition: 'color 150ms' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = '#888'}>
-            Login
-          </Link>
-          <Link to="/waitlist"
-            className="hidden sm:inline-flex items-center"
-            style={{
-              background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
-              fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
-            }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-            Get Access
-          </Link>
+          {isLoggedIn ? (
+            <Link to="/account"
+              className="hidden sm:inline-flex items-center"
+              style={{
+                background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
+                fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+              My Account →
+            </Link>
+          ) : (
+            <>
+              <Link to="/auth?mode=login"
+                className="hidden sm:inline"
+                style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none', transition: 'color 150ms' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={e => e.currentTarget.style.color = '#888'}>
+                Login
+              </Link>
+              <Link to="/waitlist"
+                className="hidden sm:inline-flex items-center"
+                style={{
+                  background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
+                  fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                Get Access
+              </Link>
+            </>
+          )}
 
           {/* Mobile burger */}
           <button className="md:hidden" onClick={() => setMobileOpen(v => !v)}
@@ -89,14 +105,23 @@ export default function LandingHeader() {
               </Link>
             ))}
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, paddingTop: 16 }}>
-              <Link to="/auth?mode=login" onClick={() => setMobileOpen(false)}
-                style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none' }}>
-                Login
-              </Link>
-              <Link to="/waitlist" onClick={() => setMobileOpen(false)}
-                style={{ background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
-                Get Access
-              </Link>
+              {isLoggedIn ? (
+                <Link to="/account" onClick={() => setMobileOpen(false)}
+                  style={{ background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
+                  My Account →
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth?mode=login" onClick={() => setMobileOpen(false)}
+                    style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none' }}>
+                    Login
+                  </Link>
+                  <Link to="/waitlist" onClick={() => setMobileOpen(false)}
+                    style={{ background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
+                    Get Access
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
