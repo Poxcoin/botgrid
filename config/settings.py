@@ -71,3 +71,15 @@ SNIPER_MIN_LIQUIDITY_BNB = 10.0  # min BNB in pool
 SNIPER_TIME_LIMIT_MIN = 30       # exit after 30 min if no movement
 # JWT
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+
+# ==========================================
+# EMAIL (SMTP) — для верификации email
+# ==========================================
+# Gmail: SMTP_HOST=smtp.gmail.com SMTP_PORT=587
+# Оставь пустым — регистрация будет работать, но письма не отправятся
+SMTP_HOST     = os.getenv("SMTP_HOST", "")
+SMTP_PORT     = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER     = os.getenv("SMTP_USER", "")      # your@gmail.com
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # Gmail App Password (не основной пароль)
+SMTP_FROM     = os.getenv("SMTP_FROM", SMTP_USER)
+SITE_URL      = os.getenv("SITE_URL", "https://kadoclub.net")

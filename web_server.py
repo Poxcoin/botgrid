@@ -25,6 +25,7 @@ from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TR
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
+from utils.email import send_verification_email
 from sqlalchemy.orm import Session
 
 from modules import position_closer
@@ -232,8 +233,47 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     db.add(user)
     db.commit()
     db.refresh(user)
+    # Send verification email in background — non-blocking, failure is silent
+    asyncio.create_task(
+        asyncio.get_event_loop().run_in_executor(
+            None, send_verification_email, body.email, verify_token
+        )
+    )
     token = create_token(user.id, user.email)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "email_verified": False}}
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+@app.post("/api/users/verify-email")
+async def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(
+        User.email_verify_token == body.token,
+        User.email_verified == False,
+    ).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or already used verification token")
+    user.email_verified      = True
+    user.email_verify_token  = None
+    db.commit()
+    return {"ok": True, "message": "Email verified successfully"}
+
+
+@app.post("/api/users/resend-verification")
+async def resend_verification(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    if user.email_verified:
+        raise HTTPException(status_code=400, detail="Email already verified")
+    new_token = secrets.token_urlsafe(32)
+    user.email_verify_token = new_token
+    db.commit()
+    asyncio.create_task(
+        asyncio.get_event_loop().run_in_executor(
+            None, send_verification_email, user.email, new_token
+        )
+    )
+    return {"ok": True, "message": "Verification email sent"}
+
 
 @app.post("/api/users/login")
 async def user_login(body: UserLoginRequest, request: Request, db: Session = Depends(get_db)):

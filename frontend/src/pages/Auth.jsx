@@ -114,10 +114,74 @@ function TwoFAScreen({ partialToken, onSuccess, onBack }) {
   );
 }
 
+// ── Email Verify Screen ──────────────────────────────────────────────────────
+function VerifyEmailScreen({ token }) {
+  const navigate = useNavigate();
+  const [status, setStatus] = useState('loading'); // loading | success | error
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    async function verify() {
+      try {
+        const res = await fetch('/api/users/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setStatus('success');
+          setMessage(data.message || 'Email verified successfully.');
+        } else {
+          setStatus('error');
+          setMessage(data.detail || 'Verification failed. The link may have expired.');
+        }
+      } catch {
+        setStatus('error');
+        setMessage('Connection error — please try again.');
+      }
+    }
+    verify();
+  }, [token]);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Email Verification</h2>
+      </div>
+      {status === 'loading' && (
+        <div className="font-mono text-[13px] text-kado-black/60 tracking-wide">Verifying your email…</div>
+      )}
+      {status === 'success' && (
+        <>
+          <div className="border border-green-600 px-4 py-3 text-green-700 font-mono text-[12px] tracking-wide">
+            ✓ {message}
+          </div>
+          <KadoButton variant="blue" className="w-full" onClick={() => navigate('/auth')}>
+            Continue to Login →
+          </KadoButton>
+        </>
+      )}
+      {status === 'error' && (
+        <>
+          <div className="border border-red-600 px-4 py-3 text-red-600 font-mono text-[12px] tracking-wide">
+            ! {message}
+          </div>
+          <KadoButton variant="blue" className="w-full" onClick={() => navigate('/auth')}>
+            Back to Login →
+          </KadoButton>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main Auth Page ───────────────────────────────────────────────────────────
 export default function Auth() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const action = params.get('action');
+  const verifyToken = params.get('token');
   const [mode, setMode] = useState(params.get('mode') === 'register' ? 'register' : 'login');
   const [form, setForm] = useState({ email: '', username: '', password: '', confirm: '' });
   const [error, setError] = useState('');
@@ -204,7 +268,9 @@ export default function Auth() {
       {/* Right form */}
       <div className="md:w-1/2 flex flex-col justify-center p-8 md:p-14">
         <div className="max-w-md w-full mx-auto">
-          {partialToken ? (
+          {action === 'verify' && verifyToken ? (
+            <VerifyEmailScreen token={verifyToken} />
+          ) : partialToken ? (
             <TwoFAScreen partialToken={partialToken} onSuccess={on2FASuccess} onBack={() => setPartialToken(null)} />
           ) : (
             <>

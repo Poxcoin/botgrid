@@ -1,0 +1,85 @@
+"""
+Email utility — sends transactional emails via SMTP.
+If SMTP_HOST is not configured, all calls are silent no-ops (registration still works).
+"""
+import smtplib
+import traceback
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from config.settings import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SITE_URL
+
+
+def _smtp_enabled() -> bool:
+    return bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
+
+
+def _send(to: str, subject: str, html: str) -> bool:
+    if not _smtp_enabled():
+        return False
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"]    = SMTP_FROM or SMTP_USER
+        msg["To"]      = to
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_FROM or SMTP_USER, to, msg.as_string())
+        return True
+    except Exception:
+        traceback.print_exc()
+        return False
+
+
+def send_verification_email(to: str, token: str) -> bool:
+    link = f"{SITE_URL}/auth?action=verify&token={token}"
+    html = f"""
+<!DOCTYPE html>
+<html>
+<body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
+  <div style="max-width:480px;margin:0 auto">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Verify your email</div>
+    <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 32px">
+      Click the button below to verify your Kado account. This link expires in 24 hours.
+    </p>
+    <a href="{link}"
+       style="display:inline-block;background:#fff;color:#000;padding:13px 28px;border-radius:100px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.01em">
+      Verify Email →
+    </a>
+    <p style="color:#444;font-size:11px;margin-top:32px;line-height:1.5">
+      If you didn't create a Kado account, ignore this email.<br>
+      <a href="{link}" style="color:#666;word-break:break-all">{link}</a>
+    </p>
+  </div>
+</body>
+</html>
+"""
+    return _send(to, "Verify your Kado email", html)
+
+
+def send_password_reset_email(to: str, token: str) -> bool:
+    link = f"{SITE_URL}/auth?action=reset&token={token}"
+    html = f"""
+<!DOCTYPE html>
+<html>
+<body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
+  <div style="max-width:480px;margin:0 auto">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Reset your password</div>
+    <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 32px">
+      Click below to set a new password. This link expires in 1 hour.
+    </p>
+    <a href="{link}"
+       style="display:inline-block;background:#fff;color:#000;padding:13px 28px;border-radius:100px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.01em">
+      Reset Password →
+    </a>
+    <p style="color:#444;font-size:11px;margin-top:32px;line-height:1.5">
+      If you didn't request a reset, ignore this email.<br>
+      <a href="{link}" style="color:#666;word-break:break-all">{link}</a>
+    </p>
+  </div>
+</body>
+</html>
+"""
+    return _send(to, "Reset your Kado password", html)
