@@ -1,267 +1,279 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 
-const POSTS = [
-  {
-    date: '2026-04-30',
-    tag: 'UPDATE',
-    title: 'Grid Bot v2 — ATR-adaptive spacing, DOGE & XRP added',
-    readTime: '3 min',
-    excerpt:
-      'Replaced fixed 30-day range with ATR(14,1h)×10 dynamic spacing. Added DOGE/USDT and XRP/USDT grids at 3× leverage. All 5 grids now run in parallel with BTC dump filter and auto-rebuild logic.',
-  },
-  {
-    date: '2026-04-30',
-    tag: 'RELEASE',
-    title: 'Funding Rate Arbitrage — tiered thresholds, 30 markets',
-    readTime: '4 min',
-    excerpt:
-      'Upgraded FR strategy with three-tier entry (T1: 0.04%, T2: 0.06%, T3: 0.10%) and corresponding 0.5×/1.0×/1.5× position sizing. FR trend confirmation bonus (+1.5 score). Watchlist expanded to 30 perpetuals.',
-  },
-  {
-    date: '2026-04-29',
-    tag: 'RELEASE',
-    title: 'Listing Sniper v2 — partial TP + DEX filter',
-    readTime: '3 min',
-    excerpt:
-      'Partial TP1 limit order at +10% (50% of position) placed immediately after entry. Remaining 50% targets +20% via trailing stop. DEX filter via GeckoTerminal skips coins already pumped (>$100K 24h volume).',
-  },
-  {
-    date: '2026-04-28',
-    tag: 'UPDATE',
-    title: 'News Bot — 7 improvements shipped',
-    readTime: '6 min',
-    excerpt:
-      'Dynamic position sizing (0.4–2.0× multiplier), native Bybit trailing stop (activates at +1%), BTC correlation filter, TG timestamp validation, partial TP, liquidation cascade boost, and post-trade analyzer with adaptive thresholds.',
-  },
-  {
-    date: '2026-04-25',
-    tag: 'INFRA',
-    title: 'Telegram userbot — real-time signal ingestion at ~5s latency',
-    readTime: '2 min',
-    excerpt:
-      'Replaced RSS polling (5–30 min lag) with Telethon userbot on 6 curated crypto channels. Signal latency dropped to ~5 seconds. RSS retained as fallback. Deduplication window: 30 minutes.',
-  },
-];
+const REFRESH_INTERVAL = 30_000;
 
-const TAG_STYLE = {
-  UPDATE: {
-    border: '1px solid rgba(255,255,255,0.2)',
-    color: '#999',
-  },
-  RELEASE: {
-    border: '1px solid rgba(34,197,94,0.3)',
-    color: '#22c55e',
-  },
-  INFRA: {
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#999',
-  },
+const SOURCE_COLORS = {
+  coindesk:  { bg: 'rgba(34,197,94,0.08)',  border: 'rgba(34,197,94,0.25)',  text: '#22c55e' },
+  reuters:   { bg: 'rgba(34,197,94,0.08)',  border: 'rgba(34,197,94,0.25)',  text: '#22c55e' },
+  theblock:  { bg: 'rgba(34,197,94,0.08)',  border: 'rgba(34,197,94,0.25)',  text: '#22c55e' },
+  telegram:  { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.25)', text: '#60a5fa' },
+  newsapi:   { bg: 'rgba(168,85,247,0.08)', border: 'rgba(168,85,247,0.25)', text: '#c084fc' },
+  default:   { bg: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.12)', text: '#888' },
 };
 
-const S = {
-  page: {
-    background: '#060606',
-    color: '#fff',
-    fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",
-    minHeight: '100vh',
-  },
-  wrap: {
-    maxWidth: '1100px',
-    margin: '0 auto',
-  },
-  hero: {
-    textAlign: 'center',
-    paddingTop: '100px',
-    paddingBottom: '80px',
-  },
-  badge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '100px',
-    padding: '6px 18px',
-    fontSize: '11px',
-    color: '#888',
-    marginBottom: '28px',
-    letterSpacing: '0.06em',
-  },
-  h1: {
-    fontSize: 'clamp(36px,4.5vw,52px)',
-    fontWeight: 700,
-    letterSpacing: '-0.04em',
-    lineHeight: 1.0,
-    margin: '0 0 24px 0',
-    color: '#fff',
-  },
-  subtitle: {
-    fontSize: '16px',
-    color: '#aaa',
-    maxWidth: '480px',
-    margin: '0 auto',
-    lineHeight: 1.6,
-  },
-  articleList: {
-    borderTop: '1px solid rgba(255,255,255,0.06)',
-  },
-  article: {
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-    transition: 'background 180ms',
-    cursor: 'default',
-  },
-  articleInner: {
-    paddingTop: '32px',
-    paddingBottom: '32px',
-    display: 'flex',
-    gap: '48px',
-    alignItems: 'flex-start',
-  },
-  metaCol: {
-    flexShrink: 0,
-    width: '180px',
-  },
-  metaDate: {
-    fontFamily: "'Courier New','SF Mono',monospace",
-    fontSize: '11px',
-    color: '#555',
-    marginBottom: '10px',
-    letterSpacing: '0.04em',
-  },
-  tagPill: {
-    display: 'inline-block',
-    background: 'rgba(255,255,255,0.06)',
-    borderRadius: '100px',
-    padding: '3px 10px',
-    fontSize: '9px',
-    letterSpacing: '0.1em',
-    textTransform: 'uppercase',
-    marginBottom: '10px',
-  },
-  metaRead: {
-    fontFamily: "'Courier New','SF Mono',monospace",
-    fontSize: '10px',
-    color: '#555',
-    marginTop: '4px',
-  },
-  contentCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  articleTitle: {
-    fontSize: '20px',
-    fontWeight: 700,
-    color: '#fff',
-    letterSpacing: '-0.02em',
-    lineHeight: 1.3,
-    marginBottom: '12px',
-  },
-  articleExcerpt: {
-    fontSize: '14px',
-    color: '#aaa',
-    lineHeight: 1.7,
-    maxWidth: '640px',
-  },
-  ctaStrip: {
-    paddingTop: '72px',
-    paddingBottom: '100px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '24px',
-    textAlign: 'center',
-  },
-  ctaText: {
-    fontSize: '16px',
-    color: '#aaa',
-  },
-  btnPrimary: {
-    display: 'inline-block',
-    padding: '14px 36px',
-    borderRadius: '100px',
-    fontSize: '13px',
-    fontWeight: 600,
-    border: 'none',
-    background: '#fff',
-    color: '#000',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    letterSpacing: '0.01em',
-  },
-};
+function sourceColor(source = '') {
+  const s = source.toLowerCase();
+  if (s.startsWith('telegram')) return SOURCE_COLORS.telegram;
+  if (s.includes('coindesk'))  return SOURCE_COLORS.coindesk;
+  if (s.includes('reuters'))   return SOURCE_COLORS.reuters;
+  if (s.includes('block'))     return SOURCE_COLORS.theblock;
+  if (s.includes('newsapi'))   return SOURCE_COLORS.newsapi;
+  return SOURCE_COLORS.default;
+}
 
-function Article({ post }) {
-  const tagS = TAG_STYLE[post.tag] || TAG_STYLE.INFRA;
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  if (diff < 60)   return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
+function shortSource(source = '') {
+  if (source.startsWith('Telegram:')) return source.replace('Telegram:', 'TG:');
+  return source;
+}
+
+function SkeletonRow() {
   return (
-    <article
-      style={S.article}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-    >
-      <div className="px-5 md:px-14" style={{ maxWidth: '1100px', margin: '0 auto' }}>
-        {/* Desktop layout */}
-        <div className="hidden md:flex" style={S.articleInner}>
-          <div style={S.metaCol}>
-            <div style={S.metaDate}>{post.date}</div>
-            <span style={{ ...S.tagPill, ...tagS }}>{post.tag}</span>
-            <div style={S.metaRead}>{post.readTime} read</div>
-          </div>
-          <div style={S.contentCol}>
-            <h2 style={S.articleTitle}>{post.title}</h2>
-            <p style={S.articleExcerpt}>{post.excerpt}</p>
-          </div>
-        </div>
-
-        {/* Mobile layout */}
-        <div className="flex flex-col md:hidden" style={{ paddingTop: '28px', paddingBottom: '28px', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <span style={{ ...S.tagPill, ...tagS }}>{post.tag}</span>
-            <span style={S.metaDate}>{post.date}</span>
-            <span style={S.metaRead}>{post.readTime} read</span>
-          </div>
-          <h2 style={{ ...S.articleTitle, fontSize: '17px' }}>{post.title}</h2>
-          <p style={{ ...S.articleExcerpt, fontSize: '13px' }}>{post.excerpt}</p>
+    <div style={{ padding: '20px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+        <div style={{ width: 70, height: 18, background: 'rgba(255,255,255,0.06)', borderRadius: 100, flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 16, background: 'rgba(255,255,255,0.06)', borderRadius: 4, marginBottom: 8, width: '75%' }} />
+          <div style={{ height: 13, background: 'rgba(255,255,255,0.04)', borderRadius: 4, width: '50%' }} />
         </div>
       </div>
-    </article>
+    </div>
   );
 }
 
-export default function NewsPage() {
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+function NewsItem({ item }) {
+  const col = sourceColor(item.source);
+  const ago = timeAgo(item.published_at);
+  const src = shortSource(item.source);
+  const hasLink = item.link && item.link.startsWith('http');
 
   return (
-    <div style={S.page}>
+    <div style={{ padding: '18px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+        {/* Source + time */}
+        <div style={{ flexShrink: 0, width: 90, paddingTop: 1 }}>
+          <div style={{
+            display: 'inline-block',
+            background: col.bg,
+            border: `1px solid ${col.border}`,
+            borderRadius: 100,
+            padding: '2px 8px',
+            fontSize: 10,
+            color: col.text,
+            letterSpacing: '0.05em',
+            marginBottom: 5,
+            maxWidth: 90,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>{src}</div>
+          <div style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: '#444', letterSpacing: '0.02em' }}>{ago}</div>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {hasLink ? (
+            <a
+              href={item.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ textDecoration: 'none', color: '#fff' }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, marginBottom: 5, letterSpacing: '-0.01em' }}
+                onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+                onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+              >
+                {item.title} <span style={{ fontSize: 11, color: '#555', marginLeft: 4 }}>↗</span>
+              </div>
+            </a>
+          ) : (
+            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, marginBottom: 5, color: '#fff', letterSpacing: '-0.01em' }}>
+              {item.title}
+            </div>
+          )}
+          {item.description && (
+            <div style={{
+              fontSize: 12,
+              color: '#666',
+              lineHeight: 1.5,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}>
+              {item.description}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const FILTERS = ['ALL', 'TELEGRAM', 'COINDESK', 'NEWSAPI', 'OTHER'];
+
+export default function NewsPage() {
+  const [items, setItems]       = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [lastFetch, setLastFetch] = useState(null);
+  const [elapsed, setElapsed]   = useState(0);
+  const [filter, setFilter]     = useState('ALL');
+  const [isMock, setIsMock]     = useState(false);
+
+  const fetchNews = useCallback(async () => {
+    try {
+      const res = await fetch('/api/news/public?limit=50');
+      if (!res.ok) return;
+      const data = await res.json();
+      setItems(data.items || []);
+      setIsMock(data.mock || false);
+      setLastFetch(Date.now());
+      setElapsed(0);
+    } catch {
+      // keep previous items
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    fetchNews();
+    const interval = setInterval(fetchNews, REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchNews]);
+
+  useEffect(() => {
+    if (!lastFetch) return;
+    const tick = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - lastFetch) / 1000));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [lastFetch]);
+
+  const filtered = items.filter(item => {
+    if (filter === 'ALL') return true;
+    const s = (item.source || '').toLowerCase();
+    if (filter === 'TELEGRAM') return s.startsWith('telegram');
+    if (filter === 'COINDESK') return s.includes('coindesk') || s.includes('reuters') || s.includes('block');
+    if (filter === 'NEWSAPI')  return item.from_newsapi === 1;
+    if (filter === 'OTHER')    return !s.startsWith('telegram') && !s.includes('coindesk') && !s.includes('reuters') && !s.includes('block') && item.from_newsapi !== 1;
+    return true;
+  });
+
+  return (
+    <div style={{ background: '#060606', color: '#fff', fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif", minHeight: '100vh' }}>
       <LandingHeader />
 
-      {/* Hero */}
-      <div style={S.wrap} className="px-5 md:px-14">
-        <div style={S.hero}>
-          <div style={S.badge}>Changelog · Engineering Updates</div>
-          <h1 style={S.h1}>WHAT'S SHIPPING.</h1>
-          <p style={S.subtitle}>
-            Real updates on what changed and why. No marketing fluff.
+      <div style={{ maxWidth: 1100, margin: '0 auto' }} className="px-5 md:px-14">
+
+        {/* Hero */}
+        <div style={{ paddingTop: 80, paddingBottom: 48 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Pulsing dot */}
+              <div style={{ position: 'relative', width: 8, height: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                <div style={{
+                  position: 'absolute', inset: -3,
+                  borderRadius: '50%',
+                  border: '1px solid rgba(34,197,94,0.4)',
+                  animation: 'pulse 2s infinite',
+                }} />
+              </div>
+              <span style={{ fontFamily: "'Courier New',monospace", fontSize: 11, color: '#22c55e', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                Live Feed
+              </span>
+              {isMock && (
+                <span style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: '#555', letterSpacing: '0.08em' }}>
+                  · demo data
+                </span>
+              )}
+            </div>
+            {lastFetch && (
+              <span style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: '#444', letterSpacing: '0.06em' }}>
+                Updated {elapsed}s ago · refreshes every 30s
+              </span>
+            )}
+          </div>
+
+          <h1 style={{ fontSize: 'clamp(28px,3.5vw,44px)', fontWeight: 700, letterSpacing: '-0.04em', margin: '0 0 12px 0', lineHeight: 1.0 }}>
+            CRYPTO INTELLIGENCE FEED
+          </h1>
+          <p style={{ fontSize: 14, color: '#666', maxWidth: 440, lineHeight: 1.6, margin: 0 }}>
+            Real-time news processed by AI signal engine · {items.length} items loaded
           </p>
         </div>
-      </div>
 
-      {/* Articles */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {POSTS.map((post, i) => (
-          <Article key={i} post={post} />
-        ))}
-      </div>
+        {/* Filter bar */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+          {FILTERS.map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                fontFamily: "'Courier New',monospace",
+                fontSize: 10,
+                letterSpacing: '0.12em',
+                padding: '5px 14px',
+                borderRadius: 100,
+                border: filter === f ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                background: filter === f ? 'rgba(255,255,255,0.08)' : 'transparent',
+                color: filter === f ? '#fff' : '#555',
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                textTransform: 'uppercase',
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
 
-      {/* CTA strip */}
-      <div style={S.wrap} className="px-5 md:px-14">
-        <div style={S.ctaStrip}>
-          <p style={S.ctaText}>Want to be notified when access opens?</p>
-          <a href="/waitlist" style={S.btnPrimary}>Join Waitlist →</a>
+        {/* Feed */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', minHeight: 400 }}>
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: '60px 0', textAlign: 'center', fontFamily: "'Courier New',monospace", fontSize: 11, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              No items for this filter
+            </div>
+          ) : (
+            filtered.map(item => <NewsItem key={item.id} item={item} />)
+          )}
+        </div>
+
+        {/* CTA */}
+        <div style={{ paddingTop: 72, paddingBottom: 100, textAlign: 'center' }}>
+          <p style={{ fontSize: 15, color: '#666', marginBottom: 24 }}>
+            Our AI analyzes this feed 24/7 and executes trades in under 100ms.
+          </p>
+          <a href="/waitlist" style={{
+            display: 'inline-block', padding: '13px 32px', borderRadius: 100,
+            background: '#fff', color: '#000', fontSize: 13, fontWeight: 600,
+            textDecoration: 'none', letterSpacing: '0.01em',
+          }}>
+            Join Waitlist →
+          </a>
         </div>
       </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 0; transform: scale(1.8); }
+        }
+      `}</style>
 
       <LandingFooter />
     </div>

@@ -791,6 +791,51 @@ async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  PUBLIC NEWS FEED  (no auth — marketing page)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_MOCK_NEWS = [
+    {"id":1,"title":"Federal Reserve signals possible rate pause — crypto markets rally","source":"Reuters","published_at":"2026-05-01T10:00:00Z","description":"Bitcoin surged 3.2% following comments from Fed officials suggesting a potential pause in rate hikes.","link":"","from_newsapi":0},
+    {"id":2,"title":"Binance adds SOL/USDT perpetual futures with 50× leverage","source":"Telegram:BinanceAnnouncements","published_at":"2026-05-01T09:30:00Z","description":"Binance has listed SOL/USDT perpetual futures contract supporting up to 50× leverage starting today.","link":"","from_newsapi":0},
+    {"id":3,"title":"Ethereum layer-2 TVL hits new ATH at $42B","source":"CoinDesk","published_at":"2026-05-01T08:45:00Z","description":"Total value locked across Ethereum layer-2 networks reached a new all-time high, driven by Arbitrum and Base.","link":"","from_newsapi":1},
+    {"id":4,"title":"SEC approves spot Ethereum ETF from 5 asset managers","source":"The Block","published_at":"2026-05-01T07:20:00Z","description":"The U.S. Securities and Exchange Commission approved spot Ethereum ETF applications from five major firms.","link":"","from_newsapi":1},
+    {"id":5,"title":"Whale alert: 15,000 BTC moved from unknown wallet to Coinbase","source":"Telegram:WhaleAlert","published_at":"2026-05-01T06:00:00Z","description":"A large transfer of 15,000 BTC from an unknown wallet to Coinbase was detected on-chain.","link":"","from_newsapi":0},
+]
+
+@app.get("/api/news/public")
+async def public_news_feed(
+    limit: int = Query(default=30, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    import sqlite3
+    db_path = "news.db"
+    if not os.path.exists(db_path):
+        return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
+    try:
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM news")
+        total = cur.fetchone()[0]
+        if total == 0:
+            conn.close()
+            return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
+        cur.execute(
+            "SELECT id, title, source, description, published_at, link, from_newsapi "
+            "FROM news ORDER BY published_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        for r in rows:
+            if r.get("description"):
+                r["description"] = r["description"][:200]
+        return {"items": rows, "total": total, "mock": False}
+    except Exception:
+        return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  SPA CATCH-ALL  — MUST BE LAST — иначе перехватывает все /api/* маршруты
 # ══════════════════════════════════════════════════════════════════════════════
 
