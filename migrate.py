@@ -10,6 +10,7 @@ migrations = [
     ('email_verify_token',  'TEXT',     ''),
     ('totp_secret',         'TEXT',     ''),
     ('totp_enabled',        'BOOLEAN',  'DEFAULT 0'),
+    ('recovery_codes',      'TEXT',     ''),
     ('email',               'TEXT',     ''),
     ('subscription_plan',   'TEXT',     "DEFAULT 'free'"),
     ('subscription_expires','DATETIME', ''),

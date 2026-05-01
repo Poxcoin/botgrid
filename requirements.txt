@@ -1,23 +1,26 @@
 # ─── Core trading engine ──────────────────────────────────────────────────────
-telethon           # Telegram userbot — real-time channel monitoring
-websocket-client   # Binance liquidation WebSocket stream
-groq               # Groq LLM — sentiment analysis (LLaMA-3.3-70b)
-ccxt               # Exchange connectivity (Bybit, Binance)
-feedparser         # RSS news parsing
-requests           # Telegram Bot API, HTTP calls
-httpx              # Async HTTP client (market data, NewsAPI)
-python-dotenv      # .env config loader
-beautifulsoup4     # HTML parsing in news descriptions
-lxml               # HTML/XML parser backend for bs4
+telethon==1.40.0           # Telegram userbot — real-time channel monitoring
+websocket-client==1.9.0    # Binance liquidation WebSocket stream
+groq==0.14.0               # Groq LLM — sentiment analysis (LLaMA-3.3-70b)
+ccxt==4.5.47               # Exchange connectivity (Bybit, Binance)
+feedparser==6.0.12         # RSS news parsing
+requests==2.32.5           # HTTP calls
+httpx==0.28.1              # Async HTTP client (market data, NewsAPI)
+python-dotenv==1.2.1       # .env config loader
+beautifulsoup4==4.14.3     # HTML parsing in news descriptions
+lxml==6.0.2                # HTML/XML parser backend for bs4
 
 # ─── Web dashboard ────────────────────────────────────────────────────────────
-fastapi            # REST API + WebSocket server
-uvicorn            # ASGI server
-websockets         # WebSocket support
-python-multipart   # Form data (future SaaS uploads)
+fastapi==0.118.0           # REST API + WebSocket server
+uvicorn[standard]==0.38.0  # ASGI server
+websockets==14.2           # WebSocket support
+python-multipart==0.0.22   # Form data
 
-# ─── SaaS foundation (not active yet — ready for Phase B) ─────────────────────
-sqlalchemy         # ORM for user/trade database
-python-jose[cryptography]  # JWT auth tokens
-passlib[bcrypt]    # Password hashing
-cryptography       # Fernet encryption for API keys
+# ─── SaaS auth & database ─────────────────────────────────────────────────────
+sqlalchemy==2.0.45         # ORM for user/trade database
+python-jose[cryptography]==3.3.0  # JWT auth tokens
+passlib[bcrypt]==1.7.4     # Password hashing
+cryptography==46.0.5       # Fernet encryption for API keys
+bcrypt==5.0.0              # bcrypt backend
+pyotp==2.9.0               # TOTP 2FA
+qrcode==8.2                # QR code generation

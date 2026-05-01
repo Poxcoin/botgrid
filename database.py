@@ -42,8 +42,9 @@ class User(Base):
     email_verify_token = Column(String, nullable=True)
 
     # 2FA (TOTP)
-    totp_secret  = Column(String, nullable=True)
-    totp_enabled = Column(Boolean, default=False)
+    totp_secret      = Column(String, nullable=True)
+    totp_enabled     = Column(Boolean, default=False)
+    recovery_codes   = Column(String, nullable=True)  # JSON array of bcrypt-hashed one-time codes
 
     created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login   = Column(DateTime, nullable=True)
@@ -161,7 +162,7 @@ class AuditLog(Base):
     id         = Column(Integer, primary_key=True, index=True)
     user_id    = Column(Integer, ForeignKey("users.id"), nullable=True)
     action     = Column(String, nullable=False)   # trade_open | trade_close | api_key_added | login | etc.
-    detail     = Column(String, nullable=True)    # JSON string with context
+    detail_enc = Column(String, nullable=True)    # Fernet-encrypted JSON string
     ip_address = Column(String, nullable=True)
     ts         = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 

@@ -338,6 +338,20 @@ class TotpLoginRequest(BaseModel):
     partial_token: str
     code: str
 
+class TotpRecoverRequest(BaseModel):
+    email: str
+    recovery_code: str
+
+
+def _generate_recovery_codes() -> tuple[list[str], list[str]]:
+    """Generate 8 one-time recovery codes. Returns (plaintext_list, hashed_list)."""
+    plain, hashed = [], []
+    for _ in range(8):
+        code = secrets.token_hex(4)  # e.g. "a1b2c3d4"
+        plain.append(code)
+        hashed.append(hash_password(code))
+    return plain, hashed
+
 @app.post("/api/users/2fa/setup")
 async def totp_setup(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
@@ -360,9 +374,12 @@ async def totp_enable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCre
         raise HTTPException(status_code=400, detail="Run /2fa/setup first")
     if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid code")
-    user.totp_enabled = True
+    plain_codes, hashed_codes = _generate_recovery_codes()
+    user.totp_enabled    = True
+    user.recovery_codes  = json.dumps(hashed_codes)
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "recovery_codes": plain_codes,
+            "message": "Save these 8 recovery codes — each can be used once if you lose your authenticator."}
 
 @app.post("/api/users/2fa/disable")
 async def totp_disable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -389,6 +406,36 @@ async def totp_verify_login(body: TotpLoginRequest, db: Session = Depends(get_db
     _active_tokens.pop(f"2fa:{body.partial_token}", None)
     token = create_token(user.id, user.email)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": True}}
+
+
+@app.post("/api/users/2fa/recover")
+async def totp_recover(body: TotpRecoverRequest, request: Request, db: Session = Depends(get_db)):
+    """Login using a one-time recovery code when authenticator is unavailable."""
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"2fa_recover:{ip}", window=300, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 5 minutes.")
+    user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
+    if not user or not user.totp_enabled or not user.recovery_codes:
+        raise HTTPException(status_code=401, detail="Invalid email or 2FA not enabled")
+    codes: list = json.loads(user.recovery_codes)
+    matched_idx = next(
+        (i for i, h in enumerate(codes) if h and verify_password(body.recovery_code, h)),
+        None,
+    )
+    if matched_idx is None:
+        raise HTTPException(status_code=401, detail="Invalid recovery code")
+    # Burn the used code
+    codes[matched_idx] = None
+    user.recovery_codes = json.dumps(codes)
+    db.commit()
+    remaining = sum(1 for c in codes if c)
+    token = create_token(user.id, user.email)
+    return {
+        "token": token,
+        "user": {"id": user.id, "email": user.email, "username": user.username,
+                 "plan": user.plan, "email_verified": bool(user.email_verified)},
+        "warning": f"{remaining} recovery codes remaining. Set up a new authenticator app.",
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 import ccxt
 
 from database import SessionLocal, User, UserApiKey, UserTrade, MonthlyPnl, AuditLog
-from utils.crypto import decrypt_field
+from utils.crypto import decrypt_field, encrypt_field
 
 # Max parallel user executions per signal
 _EXECUTOR = ThreadPoolExecutor(max_workers=20)
@@ -84,7 +84,7 @@ def _log_trade(user_id: int, signal_id: str, source: str, symbol: str,
         db.add(AuditLog(
             user_id=user_id,
             action="trade_open" if status == "open" else "trade_failed",
-            detail=json.dumps({"symbol": symbol, "side": side, "order_id": order_id, "error": error_msg}),
+            detail_enc=encrypt_field(json.dumps({"symbol": symbol, "side": side, "order_id": order_id, "error": error_msg})),
         ))
         db.commit()
         return trade.id
@@ -229,7 +229,7 @@ def update_trade_closed(order_id: str, exit_price: float, pnl_usdt: float):
         db.add(AuditLog(
             user_id=trade.user_id,
             action="trade_close",
-            detail=json.dumps({"order_id": order_id, "pnl": pnl_usdt, "exit": exit_price}),
+            detail_enc=encrypt_field(json.dumps({"order_id": order_id, "pnl": pnl_usdt, "exit": exit_price})),
         ))
         db.commit()
     except Exception:
