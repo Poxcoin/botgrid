@@ -53,13 +53,13 @@ app.add_middleware(
 
 # ─── Real IP: работаем за Cloudflare proxy ───────────────────────────────────
 def _real_ip(request: Request) -> str:
-    """Берём реальный IP из CF-Connecting-IP (Cloudflare) или X-Forwarded-For."""
+    """
+    Real IP from CF-Connecting-IP only (injected by Cloudflare, cannot be spoofed).
+    X-Forwarded-For is NOT trusted — can be spoofed by clients to bypass rate limits.
+    """
     cf = request.headers.get("CF-Connecting-IP")
     if cf:
         return cf.strip()
-    fwd = request.headers.get("X-Forwarded-For")
-    if fwd:
-        return fwd.split(",")[0].strip()
     return request.client.host
 
 # ─── Global API rate limit middleware ────────────────────────────────────────
@@ -82,12 +82,14 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "  # inline styles needed for React
         "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173; "
         "img-src 'self' data:; "
-        "frame-ancestors 'none';"
+        "frame-ancestors 'none'; "
+        "upgrade-insecure-requests;"
     )
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     if "server" in response.headers:
         del response.headers["server"]
     response.headers.append("server", "kado")
@@ -160,7 +162,8 @@ async def login(body: LoginRequest, request: Request):
     ip = _real_ip(request)
     if not _check_rate_limit(ip, window=60, max_hits=10):
         raise HTTPException(status_code=429, detail="Too many attempts. Wait 60s.")
-    if body.password != DASHBOARD_PASSWORD:
+    import hmac as _hmac
+    if not _hmac.compare_digest(body.password, DASHBOARD_PASSWORD):
         raise HTTPException(status_code=401, detail="Invalid password")
     token = secrets.token_hex(32)
     _active_tokens[token] = time.time() + _TOKEN_TTL
@@ -287,22 +290,32 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
     user = _get_user_from_token(credentials.credentials, db)
     if not body.api_key or not body.secret:
         raise HTTPException(status_code=400, detail="api_key and secret are required")
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    if key_row:
-        key_row.api_key_enc  = encrypt_field(body.api_key)
-        key_row.secret_enc   = encrypt_field(body.secret)
-        key_row.is_testnet   = body.is_testnet
-        key_row.last_verified = None
-    else:
-        key_row = UserApiKey(
-            user_id     = user.id,
-            exchange    = "bybit",
-            api_key_enc = encrypt_field(body.api_key),
-            secret_enc  = encrypt_field(body.secret),
-            is_testnet  = body.is_testnet,
+    from sqlalchemy.exc import IntegrityError
+    try:
+        key_row = (
+            db.query(UserApiKey)
+            .filter_by(user_id=user.id, exchange="bybit")
+            .with_for_update()
+            .first()
         )
-        db.add(key_row)
-    db.commit()
+        if key_row:
+            key_row.api_key_enc   = encrypt_field(body.api_key)
+            key_row.secret_enc    = encrypt_field(body.secret)
+            key_row.is_testnet    = body.is_testnet
+            key_row.last_verified = None
+        else:
+            key_row = UserApiKey(
+                user_id     = user.id,
+                exchange    = "bybit",
+                api_key_enc = encrypt_field(body.api_key),
+                secret_enc  = encrypt_field(body.secret),
+                is_testnet  = body.is_testnet,
+            )
+            db.add(key_row)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Could not save keys, try again")
     return {"ok": True}
 
 
@@ -546,10 +559,14 @@ async def get_dashboard_data(token: str = Depends(require_auth)):
 async def get_signals(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=200),
-    coin: Optional[str] = Query(default=None, max_length=20),
+    coin: Optional[str] = Query(default=None, max_length=20, regex=r"^[A-Z0-9]{1,20}$"),
     action: Optional[str] = Query(default=None, max_length=10),
     token: str = Depends(require_auth),
 ):
+    _VALID_ACTIONS = {"LONG", "SHORT"}
+    if action and action.upper() not in _VALID_ACTIONS:
+        raise HTTPException(status_code=400, detail="action must be LONG or SHORT")
+
     all_signals = _load_signals()
 
     if action:

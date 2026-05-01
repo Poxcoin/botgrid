@@ -42,7 +42,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/account" element={<UserDashboard />} />
+          <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route
             path="*"
             element={
