@@ -60,3 +60,6 @@ processed_urls_alt.json
 web_server_pid.txt
 *_pid.txt
 saas_database.sqlite
+
+# Playwright MCP runtime logs
+.playwright-mcp/
