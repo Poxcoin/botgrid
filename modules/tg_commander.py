@@ -33,10 +33,12 @@ def _post(method: str, **kwargs):
         print(f"[tg_cmd] {method} error: {e}")
 
 
-def _send(chat_id, text: str, keyboard=None):
+def _send(chat_id, text: str, inline=None, reply_kb=False):
     payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
-    if keyboard:
-        payload["reply_markup"] = {"inline_keyboard": keyboard}
+    if inline:
+        payload["reply_markup"] = {"inline_keyboard": inline}
+    elif reply_kb:
+        payload["reply_markup"] = _REPLY_KB
     _post("sendMessage", **payload)
 
 
@@ -65,6 +67,19 @@ def _set_commands():
 
 # ─── Menus ────────────────────────────────────────────────────────────────────
 
+# Persistent bottom keyboard — always visible
+_REPLY_KB = {
+    "keyboard": [
+        [{"text": "Баланс"},     {"text": "PnL"}],
+        [{"text": "Угоди"},      {"text": "Сигнали"}],
+        [{"text": "Відкриті"},   {"text": "Статус"}],
+        [{"text": "Налаштування"}],
+    ],
+    "resize_keyboard": True,
+    "persistent": True,
+}
+
+# Inline menus (used inside messages for sub-navigation)
 _MENU_MAIN = [
     [{"text": "Акаунт",        "callback_data": "menu_account"},
      {"text": "Торгівля",      "callback_data": "menu_trading"}],
@@ -86,17 +101,12 @@ _MENU_TRADING = [
 ]
 
 _MENU_SETTINGS = [
-    [{"text": "Параметри BTC/ETH", "callback_data": "cfg_btceth"}],
-    [{"text": "Параметри Альтів",  "callback_data": "cfg_alts"}],
-    [{"text": "< Назад",           "callback_data": "menu_main"}],
-]
-
-_MENU_STATUS = [
-    [{"text": "Сервіси",  "callback_data": "act_status"}],
+    [{"text": "BTC/ETH",  "callback_data": "cfg_btceth"},
+     {"text": "Альткоїни","callback_data": "cfg_alts"}],
     [{"text": "< Назад",  "callback_data": "menu_main"}],
 ]
 
-_BACK = [[{"text": "< Назад до меню", "callback_data": "menu_main"}]]
+_BACK = [[{"text": "< Меню", "callback_data": "menu_main"}]]
 
 
 # ─── Data fetchers ────────────────────────────────────────────────────────────
@@ -243,26 +253,67 @@ def _settings_alts():
 
 # ─── Dispatcher ──────────────────────────────────────────────────────────────
 
+_BTN_MAP = {
+    "баланс":        "act_balance",
+    "pnl":           "act_pnl",
+    "угоди":         "act_trades",
+    "сигнали":       "act_signals",
+    "відкриті":      "act_open",
+    "статус":        "act_status",
+    "налаштування":  "menu_settings",
+}
+
+
 def _handle_message(chat_id, text: str):
     if str(chat_id) != str(TG_CHAT_ID):
         return
-    cmd = text.strip().lower().split()[0]
+
+    t = text.strip()
+    cmd = t.lower().split()[0]
+
+    # Handle reply-keyboard button presses (plain text)
+    mapped = _BTN_MAP.get(t.lower())
+    if mapped:
+        _dispatch_action(chat_id, mapped)
+        return
+
     if cmd in ("/start", "/help"):
-        _send(chat_id, "<b>Trading Bot</b>\nОберіть розділ:", _MENU_MAIN)
+        _send(chat_id,
+              "<b>Trading Bot</b>\nОберіть розділ з меню нижче або натисніть кнопку:",
+              inline=_MENU_MAIN, reply_kb=True)
     elif cmd == "/balance":
-        _send(chat_id, _balance_text(), _BACK)
+        _send(chat_id, _balance_text(), inline=_BACK)
     elif cmd == "/pnl":
-        _send(chat_id, _pnl_text(), _BACK)
+        _send(chat_id, _pnl_text(), inline=_BACK)
     elif cmd == "/trades":
-        parts = text.strip().split()
+        parts = t.split()
         n = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 10
-        _send(chat_id, _trades_text(n), _BACK)
+        _send(chat_id, _trades_text(n), inline=_BACK)
     elif cmd == "/signals":
-        _send(chat_id, _signals_text(), _BACK)
+        _send(chat_id, _signals_text(), inline=_BACK)
     elif cmd == "/open":
-        _send(chat_id, _open_text(), _BACK)
+        _send(chat_id, _open_text(), inline=_BACK)
     elif cmd == "/status":
-        _send(chat_id, _status_text(), _BACK)
+        _send(chat_id, _status_text(), inline=_BACK)
+
+
+def _dispatch_action(chat_id, action: str):
+    if action == "act_balance":
+        _send(chat_id, _balance_text(), inline=_BACK)
+    elif action == "act_pnl":
+        _send(chat_id, _pnl_text(), inline=_BACK)
+    elif action == "act_trades":
+        _send(chat_id, _trades_text(), inline=_BACK)
+    elif action == "act_signals":
+        _send(chat_id, _signals_text(), inline=_BACK)
+    elif action == "act_open":
+        _send(chat_id, _open_text(), inline=_BACK)
+    elif action == "act_status":
+        _send(chat_id, _status_text(), inline=_BACK)
+    elif action == "menu_settings":
+        _send(chat_id, "<b>Налаштування</b>", inline=_MENU_SETTINGS)
+    elif action == "menu_main":
+        _send(chat_id, "<b>Trading Bot</b>\nОберіть розділ:", inline=_MENU_MAIN)
 
 
 def _handle_callback(chat_id, msg_id, cb_id, data: str):
@@ -278,8 +329,6 @@ def _handle_callback(chat_id, msg_id, cb_id, data: str):
         _edit(chat_id, msg_id, "<b>Торгівля</b>", _MENU_TRADING)
     elif data == "menu_settings":
         _edit(chat_id, msg_id, "<b>Налаштування</b>", _MENU_SETTINGS)
-    elif data == "menu_status":
-        _edit(chat_id, msg_id, "<b>Статус</b>", _MENU_STATUS)
     elif data == "act_balance":
         _edit(chat_id, msg_id, _balance_text(), _BACK)
     elif data == "act_pnl":
@@ -327,7 +376,7 @@ def start_commander() -> threading.Thread:
                         msg     = upd["message"]
                         chat_id = msg.get("chat", {}).get("id")
                         text    = (msg.get("text") or "").strip()
-                        if chat_id and text.startswith("/"):
+                        if chat_id and text:
                             _handle_message(chat_id, text)
 
                     elif "callback_query" in upd:
