@@ -27,9 +27,11 @@ from modules.trader import _init_exchange, get_free_usdt
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard
 from modules.market_data import get_btc_2h_change
+from modules.analytics_db import save_trade, close_trade
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING
 
 BTC_DUMP_THRESHOLD = -2.5  # % за 2h — призупиняємо нові BUY на альти
+BYBIT_TAKER_FEE = 0.00055  # 0.055% — комісія за відкриття і закриття
 
 # ─── Конфігурація сіток (одна або більше монет) ────────────────────────────────
 
@@ -255,8 +257,16 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
             order.get("price") or
             level_price
         )
+        # Записуємо відкриту угоду в analytics.db
+        coin = symbol.split("/")[0]
+        ts_open = datetime.now(timezone.utc).isoformat()
+        try:
+            db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
+        except Exception:
+            db_trade_id = None
         print(f"[GRID:{symbol}] BUY level {level_idx} @ {fill:.4f} | qty={qty}")
-        return {"fill_price": fill, "qty": qty, "order_id": order.get("id")}
+        return {"fill_price": fill, "qty": qty, "order_id": order.get("id"),
+                "db_trade_id": db_trade_id, "opened_ms": int(datetime.now(timezone.utc).timestamp() * 1000)}
     except Exception as e:
         print(f"[GRID:{symbol}] BUY error level {level_idx}: {e}")
         return None
@@ -264,7 +274,7 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
 
 def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int,
                 current_price: float = 0.0) -> tuple[bool, float, float]:
-    """Закриває позицію. Повертає (success, realized_pnl, fill_price)."""
+    """Закриває позицію. Повертає (success, realized_pnl_after_fees, fill_price)."""
     try:
         order = exchange.create_order(
             symbol, "market", "sell", entry["qty"],
@@ -276,12 +286,30 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
             info.get("avgPrice") or
             info.get("lastPriceOnCreated") or
             order.get("price") or
-            current_price or      # market price at sell trigger — closest to actual fill
+            current_price or
             entry["fill_price"]
         )
-        pnl  = (fill - entry["fill_price"]) * entry["qty"] * leverage
-        print(f"[GRID:{symbol}] SELL level {level_idx} @ {fill:.4f} | PnL=${pnl:.2f}")
-        return True, pnl, fill
+        qty = entry["qty"]
+        gross_pnl = (fill - entry["fill_price"]) * qty * leverage
+        # Комісія: taker fee на обидва ордери (відкриття + закриття)
+        entry_fee = entry["fill_price"] * qty * BYBIT_TAKER_FEE
+        exit_fee  = fill * qty * BYBIT_TAKER_FEE
+        net_pnl   = gross_pnl - entry_fee - exit_fee
+
+        # Закриваємо угоду в analytics.db
+        db_trade_id = entry.get("db_trade_id")
+        if db_trade_id:
+            try:
+                entry_price = entry["fill_price"]
+                pnl_pct = round((fill / entry_price - 1) * 100, 2) if entry_price else 0
+                opened_ms = entry.get("opened_ms", 0)
+                duration = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
+                close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
+            except Exception as _e:
+                print(f"[GRID:{symbol}] DB close error: {_e}")
+
+        print(f"[GRID:{symbol}] SELL level {level_idx} @ {fill:.4f} | gross=${gross_pnl:.2f} fee=${entry_fee+exit_fee:.3f} net=${net_pnl:.2f}")
+        return True, net_pnl, fill
     except Exception as e:
         print(f"[GRID:{symbol}] SELL error level {level_idx}: {e}")
         return False, 0.0, 0.0
@@ -496,7 +524,7 @@ def _run_single(cfg: dict) -> None:
                             f"✅ <b>Grid SELL</b> {symbol}\n"
                             f"Рівень {idx} → {idx + 1}\n"
                             f"Вхід: ${entry['fill_price']:.4f} | Вихід: ${fill_price:.4f}\n"
-                            f"PnL: +${realized_pnl:.2f} | Всього циклів: {state['completed']}\n"
+                            f"PnL: +${realized_pnl:.2f} (після комісій) | Циклів: {state['completed']}\n"
                             f"Загальний PnL: ${state['total_pnl']:.2f}",
                             TG_CHAT_ID,
                         )

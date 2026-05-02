@@ -132,24 +132,42 @@ def _pnl_text():
     try:
         con = sqlite3.connect(_DB)
         con.row_factory = sqlite3.Row
-        closed = con.execute("SELECT pnl_usdt, timestamp_open FROM trades WHERE result != 'OPEN'").fetchall()
+        closed = con.execute("SELECT pnl_usdt, timestamp_open, coin FROM trades WHERE result != 'OPEN'").fetchall()
         open_n = con.execute("SELECT COUNT(*) FROM trades WHERE result='OPEN'").fetchone()[0]
         con.close()
+
         today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        total = sum((r["pnl_usdt"] or 0) for r in closed)
-        today = sum((r["pnl_usdt"] or 0) for r in closed
-                    if (r["timestamp_open"] or "")[:10] >= today_str)
-        wins  = sum(1 for r in closed if (r["pnl_usdt"] or 0) > 0)
-        n     = len(closed)
-        wr    = wins / max(n, 1) * 100
-        t_icon = "📈" if today >= 0 else "📉"
-        a_icon = "📈" if total >= 0 else "📉"
+
+        # Grid coins (multi-word, tracked separately)
+        grid_coins = {"SOL", "BTC", "ETH", "DOGE", "XRP"}
+
+        grid_closed   = [r for r in closed if r["coin"] in grid_coins]
+        signal_closed = [r for r in closed if r["coin"] not in grid_coins]
+
+        def _stats(rows):
+            total = sum((r["pnl_usdt"] or 0) for r in rows)
+            today = sum((r["pnl_usdt"] or 0) for r in rows
+                        if (r["timestamp_open"] or "")[:10] >= today_str)
+            wins  = sum(1 for r in rows if (r["pnl_usdt"] or 0) > 0)
+            wr    = wins / max(len(rows), 1) * 100
+            return total, today, len(rows), wr
+
+        g_total, g_today, g_n, g_wr   = _stats(grid_closed)
+        s_total, s_today, s_n, s_wr   = _stats(signal_closed)
+        all_total = g_total + s_total
+        all_today = g_today + s_today
+
+        t_icon = "📈" if all_today >= 0 else "📉"
+        a_icon = "📈" if all_total >= 0 else "📉"
+
         return (
             f"📊 <b>PnL Звіт</b>\n\n"
-            f"{t_icon} Сьогодні:   <b>{today:+.2f}$</b>\n"
-            f"{a_icon} Всього:     <b>{total:+.2f}$</b>\n\n"
-            f"Угод закрито:  {n}\n"
-            f"Win Rate:      {wr:.0f}%\n"
+            f"{t_icon} Сьогодні:   <b>{all_today:+.2f}$</b>\n"
+            f"{a_icon} Всього:     <b>{all_total:+.2f}$</b>\n\n"
+            f"🔷 <b>Grid бот</b>  ({g_n} угод  WR {g_wr:.0f}%)\n"
+            f"   Сьогодні {g_today:+.2f}$  ·  Всього {g_total:+.2f}$\n\n"
+            f"🚀 <b>Signal бот</b>  ({s_n} угод  WR {s_wr:.0f}%)\n"
+            f"   Сьогодні {s_today:+.2f}$  ·  Всього {s_total:+.2f}$\n\n"
             f"Відкрито зараз: {open_n}"
         )
     except Exception as e:
