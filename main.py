@@ -14,7 +14,7 @@ from modules.exchange_announcements import start_announcements_monitor, ann_queu
 from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.funding_strategy import start_funding_strategy, funding_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
-from modules.analytics_db import save_signal, init_db
+from modules.analytics_db import save_signal, init_db, DB_PATH
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
 from modules.market_data import get_btc_2h_change
@@ -90,6 +90,119 @@ def save_processed_urls(urls: set):
         print(f"Ошибка при сохранении processed_urls: {e}")
 
 
+def _tg_pnl_summary() -> str:
+    """Returns PnL summary from analytics.db."""
+    import sqlite3
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.row_factory = sqlite3.Row
+        all_closed = con.execute(
+            "SELECT pnl_usdt, result, coin, timestamp_open FROM trades WHERE result != 'OPEN'"
+        ).fetchall()
+        today_closed = con.execute(
+            "SELECT pnl_usdt FROM trades WHERE result != 'OPEN' "
+            "AND timestamp_open >= datetime('now', '-24 hours')"
+        ).fetchall()
+        open_count = con.execute(
+            "SELECT COUNT(*) FROM trades WHERE result = 'OPEN'"
+        ).fetchone()[0]
+        con.close()
+
+        total_pnl = sum((r["pnl_usdt"] or 0) for r in all_closed)
+        today_pnl = sum((r["pnl_usdt"] or 0) for r in today_closed)
+        wins = sum(1 for r in all_closed if (r["pnl_usdt"] or 0) > 0)
+        total = len(all_closed)
+        wr = wins / max(total, 1) * 100
+
+        icon = "📈" if total_pnl >= 0 else "📉"
+        return (
+            f"{icon} <b>PnL Статистика</b>\n\n"
+            f"Сьогодні: <b>{today_pnl:+.2f}$</b>\n"
+            f"Всього: <b>{total_pnl:+.2f}$</b>\n"
+            f"Угод: {total} | Win Rate: {wr:.0f}%\n"
+            f"Відкрито зараз: {open_count}"
+        )
+    except Exception as e:
+        return f"❌ Помилка БД: {e}"
+
+
+def _tg_trades(n: int = 7) -> str:
+    """Returns last N closed trades."""
+    import sqlite3
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.row_factory = sqlite3.Row
+        rows = con.execute(
+            "SELECT coin, action, pnl_usdt, result, timestamp_open "
+            "FROM trades WHERE result != 'OPEN' ORDER BY rowid DESC LIMIT ?", (n,)
+        ).fetchall()
+        con.close()
+        if not rows:
+            return "Немає закритих угод."
+        lines = ["📋 <b>Останні угоди</b>\n"]
+        for r in rows:
+            pnl = r["pnl_usdt"] or 0
+            icon = "✅" if pnl > 0 else "❌"
+            date = (r["timestamp_open"] or "")[:10]
+            lines.append(f"{icon} {r['coin']} {r['action']} | <b>{pnl:+.2f}$</b> | {date}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ Помилка: {e}"
+
+
+def _tg_signals() -> str:
+    """Returns last 5 executed signals."""
+    import sqlite3
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.row_factory = sqlite3.Row
+        rows = con.execute(
+            "SELECT coin, action, total_score, confidence, timestamp "
+            "FROM signals WHERE executed=1 ORDER BY rowid DESC LIMIT 5"
+        ).fetchall()
+        total = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+        executed = con.execute("SELECT COUNT(*) FROM signals WHERE executed=1").fetchone()[0]
+        con.close()
+        lines = [f"🧠 <b>Сигнали</b> (всього {total}, виконано {executed})\n"]
+        for s in rows:
+            score = s["total_score"] or 0
+            icon = "📈" if score > 0 else "📉"
+            date = (s["timestamp"] or "")[:16]
+            lines.append(f"{icon} {s['coin']} {s['action']} score={score:+.1f} conf={s['confidence']}% | {date}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ Помилка: {e}"
+
+
+def _tg_open_positions() -> str:
+    """Returns currently open positions."""
+    import sqlite3
+    from datetime import datetime, timezone
+    try:
+        con = sqlite3.connect(DB_PATH)
+        con.row_factory = sqlite3.Row
+        rows = con.execute(
+            "SELECT coin, action, entry_price, timestamp_open FROM trades WHERE result='OPEN'"
+        ).fetchall()
+        con.close()
+        if not rows:
+            return "✅ Немає відкритих позицій."
+        now = datetime.now(timezone.utc)
+        lines = [f"🔄 <b>Відкриті позиції ({len(rows)})</b>\n"]
+        for r in rows:
+            age = ""
+            try:
+                ts = datetime.fromisoformat((r["timestamp_open"] or "").replace("Z", "+00:00"))
+                mins = int((now - ts).total_seconds() / 60)
+                age = f"{mins}хв"
+            except Exception:
+                pass
+            lines.append(f"🔄 {r['coin']} {r['action']} | вхід {r['entry_price']} | {age}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"❌ Помилка: {e}"
+
+
 def handle_telegram_commands(processed_updates):
     """
     Обрабатывает новые сообщения из Telegram.
@@ -105,34 +218,58 @@ def handle_telegram_commands(processed_updates):
         processed_updates.add(update_id)
         message = update.get("message", {})
         chat_id = message.get("chat", {}).get("id")
-        text = message.get("text", "").lower()
-        
-        # Проверяем, что пишет именно владелец
+        text = (message.get("text", "") or "").strip().lower()
+
         if str(chat_id) != str(TG_CHAT_ID):
             continue
-            
+
         if text == "/status":
-            status_msg = f"🟢 <b>Бот работает</b>\n\nAPI Ключ: {BYBIT_API_KEY[:4]}...{BYBIT_API_KEY[-4:]}\nВремя сервера: {datetime.now().strftime('%H:%M:%S')}"
-            send_telegram_message(status_msg, chat_id)
-            
+            svcs = ["crypto-web", "crypto-sniper", "crypto-grid", "crypto-bot"]
+            import subprocess
+            lines = ["🖥 <b>Статус сервісів</b>\n"]
+            for s in svcs:
+                r = subprocess.run(["systemctl", "is-active", s], capture_output=True, text=True)
+                st = r.stdout.strip()
+                lines.append(f"{'✅' if st == 'active' else '❌'} {s}: {st}")
+            lines.append(f"\n🕐 {datetime.now().strftime('%H:%M:%S UTC')}")
+            send_telegram_message("\n".join(lines), chat_id)
+
         elif text == "/balance":
-            # Инициализация для проверки баланса
-            ex = ccxt.bybit({"apiKey": BYBIT_API_KEY})
             from config.settings import BYBIT_SECRET, USE_TESTNET
-            ex.secret = BYBIT_SECRET
-            
-            # Redirect to Demo Trading host if enabled
+            ex = ccxt.bybit({"apiKey": BYBIT_API_KEY, "secret": BYBIT_SECRET, "enableRateLimit": True})
             if IS_DEMO_TRADING:
-                ex.urls['api'] = ex.urls['demotrading']
-                
-            if USE_TESTNET: ex.set_sandbox_mode(True)
-            ex.options['adjustForTimeDifference'] = True
-            
+                ex.urls["api"] = ex.urls["demotrading"]
+            if USE_TESTNET:
+                ex.set_sandbox_mode(True)
+            ex.options["adjustForTimeDifference"] = True
             balance = get_free_usdt(ex)
-            send_telegram_message(f"💰 <b>Ваш баланс:</b> {balance} USDT", chat_id)
-            
-        elif text == "/start":
-            send_telegram_message("👋 Привет! Я твой торговый бот.\nДоступные команды:\n/status - состояние бота\n/balance - текущий баланс USDT", chat_id)
+            send_telegram_message(f"💰 <b>Баланс Bybit:</b> {balance} USDT", chat_id)
+
+        elif text == "/pnl":
+            send_telegram_message(_tg_pnl_summary(), chat_id)
+
+        elif text.startswith("/trades"):
+            parts = text.split()
+            n = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 7
+            send_telegram_message(_tg_trades(n), chat_id)
+
+        elif text == "/signals":
+            send_telegram_message(_tg_signals(), chat_id)
+
+        elif text == "/open":
+            send_telegram_message(_tg_open_positions(), chat_id)
+
+        elif text in ("/start", "/help"):
+            send_telegram_message(
+                "👋 <b>Trading Bot</b>\n\n"
+                "/status — сервіси\n"
+                "/balance — баланс Bybit\n"
+                "/pnl — прибуток/збиток\n"
+                "/trades [N] — останні N угод\n"
+                "/signals — останні сигнали\n"
+                "/open — відкриті позиції",
+                chat_id
+            )
 
 LIVE_INTEL_FILE = "live_intel.json"
 
