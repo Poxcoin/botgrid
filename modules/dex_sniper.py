@@ -38,6 +38,10 @@ from config.settings import (
     SNIPER_MAX_TAX_PCT,
     SNIPER_MIN_LIQUIDITY_BNB,
     SNIPER_TIME_LIMIT_MIN,
+    SNIPER_TRAIL_ACTIVATE_PCT,
+    SNIPER_TRAIL_DISTANCE_PCT,
+    SNIPER_MIN_LP_LOCK_PCT,
+    SNIPER_MAX_DEPLOYER_CONTRACTS,
     TG_CHAT_ID,
 )
 from modules.tg_notifier import send_telegram_message
@@ -218,6 +222,7 @@ def check_token_safety(token_address: str, chain_id: int = 56) -> dict:
             "reason": f"buy_tax too high ({buy_tax:.1f}%)",
             "buy_tax": buy_tax,
             "sell_tax": sell_tax,
+            "creator_address": "",
         }
     if sell_tax > SNIPER_MAX_TAX_PCT:
         return {
@@ -225,9 +230,102 @@ def check_token_safety(token_address: str, chain_id: int = 56) -> dict:
             "reason": f"sell_tax too high ({sell_tax:.1f}%)",
             "buy_tax": buy_tax,
             "sell_tax": sell_tax,
+            "creator_address": "",
         }
 
-    return {"is_safe": True, "reason": "passed", "buy_tax": buy_tax, "sell_tax": sell_tax}
+    # Mintable supply (owner can print tokens and dump)
+    if info.get("is_mintable") == "1":
+        return {
+            "is_safe": False,
+            "reason": "mintable supply",
+            "buy_tax": buy_tax,
+            "sell_tax": sell_tax,
+            "creator_address": "",
+        }
+
+    # Proxy contract (owner can swap implementation and rug)
+    if info.get("is_proxy") == "1":
+        return {
+            "is_safe": False,
+            "reason": "proxy contract",
+            "buy_tax": buy_tax,
+            "sell_tax": sell_tax,
+            "creator_address": "",
+        }
+
+    # LP lock check
+    lp_locked_pct = 0.0
+    lp_holders = info.get("lp_holders", [])
+    if lp_holders:
+        lp_locked_pct = sum(
+            float(h.get("percent", 0))
+            for h in lp_holders
+            if str(h.get("is_locked", "0")) == "1"
+        ) * 100
+        if SNIPER_MIN_LP_LOCK_PCT > 0 and lp_locked_pct < SNIPER_MIN_LP_LOCK_PCT:
+            return {
+                "is_safe": False,
+                "reason": f"LP not locked ({lp_locked_pct:.0f}% < {SNIPER_MIN_LP_LOCK_PCT:.0f}% required)",
+                "buy_tax": buy_tax,
+                "sell_tax": sell_tax,
+                "creator_address": "",
+            }
+
+    creator_address = info.get("creator_address", "")
+    return {
+        "is_safe": True,
+        "reason": "passed",
+        "buy_tax": buy_tax,
+        "sell_tax": sell_tax,
+        "creator_address": creator_address,
+        "lp_locked_pct": lp_locked_pct,
+    }
+
+
+# ─── Deployer history ─────────────────────────────────────────────────────────
+
+def check_deployer_history(creator_address: str) -> dict:
+    """
+    BSCScan: detect serial deployers (rug factory pattern).
+    Counts contract-creation txs by creator in last 30 days.
+    Returns {"ok": bool, "reason": str, "deploy_count": int}
+    """
+    if not creator_address:
+        return {"ok": True, "reason": "no creator", "deploy_count": 0}
+
+    url = (
+        "https://api.bscscan.com/api"
+        f"?module=account&action=txlist"
+        f"&address={creator_address}"
+        f"&startblock=0&endblock=99999999"
+        f"&page=1&offset=50&sort=desc"
+    )
+    try:
+        resp = requests.get(url, timeout=8)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        logger.warning("BSCScan deployer check failed for %s: %s", creator_address, exc)
+        return {"ok": True, "reason": "bscscan unavailable", "deploy_count": 0}
+
+    if data.get("status") != "1":
+        return {"ok": True, "reason": "no txs", "deploy_count": 0}
+
+    cutoff = int(time.time()) - 30 * 86400
+    txs = data.get("result", [])
+    recent_deploys = sum(
+        1 for tx in txs
+        if tx.get("to", "").strip() == "" and int(tx.get("timeStamp", 0)) >= cutoff
+    )
+
+    if recent_deploys > SNIPER_MAX_DEPLOYER_CONTRACTS:
+        return {
+            "ok": False,
+            "reason": f"serial deployer ({recent_deploys} contracts in 30d)",
+            "deploy_count": recent_deploys,
+        }
+
+    return {"ok": True, "reason": f"{recent_deploys} recent deploys", "deploy_count": recent_deploys}
 
 
 # ─── Liquidity ────────────────────────────────────────────────────────────────
@@ -457,9 +555,12 @@ def _monitor_position(w3, account, token_address: str):
 
     logger.info("Monitoring position: %s | buy_price=%.8f BNB", token_address, buy_price)
 
+    peak_price      = buy_price
+    trailing_active = False
+
     while True:
         try:
-            elapsed_min = (time.time() - bought_at) / 60.0
+            elapsed_min   = (time.time() - bought_at) / 60.0
             current_price = get_token_price_in_bnb(w3, pair_address, token_is_token0)
 
             if buy_price > 0 and current_price > 0:
@@ -467,9 +568,25 @@ def _monitor_position(w3, account, token_address: str):
             else:
                 pnl_pct = 0.0
 
+            # Track peak and activate trailing
+            if current_price > peak_price:
+                peak_price = current_price
+
+            if not trailing_active and pnl_pct >= SNIPER_TRAIL_ACTIVATE_PCT:
+                trailing_active = True
+                logger.info(
+                    "Trailing stop ACTIVATED for %s at PnL=+%.1f%%",
+                    token_address[:10], pnl_pct,
+                )
+
+            trail_suffix = ""
+            if trailing_active:
+                peak_pct = (peak_price / buy_price - 1) * 100
+                trail_suffix = f" | trail peak={peak_pct:+.1f}%"
+
             logger.info(
-                "%s | price=%.8f | PnL=%.1f%% | elapsed=%.1fmin",
-                token_address[:10], current_price, pnl_pct, elapsed_min,
+                "%s | price=%.8f | PnL=%.1f%% | elapsed=%.1fmin%s",
+                token_address[:10], current_price, pnl_pct, elapsed_min, trail_suffix,
             )
 
             should_sell = False
@@ -478,6 +595,12 @@ def _monitor_position(w3, account, token_address: str):
             if pnl_pct >= SNIPER_TAKE_PROFIT_PCT:
                 should_sell = True
                 reason = f"TP +{pnl_pct:.1f}%"
+            elif trailing_active:
+                trail_stop = peak_price * (1 - SNIPER_TRAIL_DISTANCE_PCT / 100)
+                if current_price <= trail_stop:
+                    should_sell = True
+                    peak_pct = (peak_price / buy_price - 1) * 100
+                    reason = f"trailing stop {pnl_pct:+.1f}% (peak was +{peak_pct:.1f}%)"
             elif pnl_pct <= -SNIPER_STOP_LOSS_PCT:
                 should_sell = True
                 reason = f"SL {pnl_pct:.1f}%"
@@ -546,6 +669,12 @@ def _handle_new_pair(w3, account, event):
         logger.info("UNSAFE %s: %s", token_address, safety["reason"])
         return
 
+    # ── Deployer history check ──
+    deployer = check_deployer_history(safety.get("creator_address", ""))
+    if not deployer["ok"]:
+        logger.info("DEPLOYER BLOCKED %s: %s", token_address, deployer["reason"])
+        return
+
     # ── Liquidity check ──
     liquidity_bnb = get_liquidity_bnb(w3, pair)
     if float(liquidity_bnb) < SNIPER_MIN_LIQUIDITY_BNB:
@@ -576,12 +705,14 @@ def _handle_new_pair(w3, account, event):
         "amount_in_bnb":  buy_result["amount_in"],
     }
 
+    lp_info = f" | LP locked {safety.get('lp_locked_pct', 0):.0f}%" if safety.get('lp_locked_pct') else ""
     msg = (
         f"🎯 <b>SNIPER BUY:</b> <code>{token_address}</code>\n"
         f"💰 Витрачено: {buy_result['amount_in']:.4f} BNB\n"
-        f"📊 Ліквідність: {float(liquidity_bnb):.1f} BNB\n"
+        f"📊 Ліквідність: {float(liquidity_bnb):.1f} BNB{lp_info}\n"
         f"✅ Safety: {safety['reason']} "
         f"(buy {safety['buy_tax']:.1f}% / sell {safety['sell_tax']:.1f}%)\n"
+        f"🕵️ Deployer: {deployer['reason']}\n"
         f"Pair: <code>{pair}</code>"
     )
     send_telegram_message(msg, TG_CHAT_ID)

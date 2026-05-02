@@ -64,11 +64,15 @@ LISTING_SIZE = 2.0          # Малий розмір бо ризик підви
 BSC_WSS_URL = os.getenv("BSC_WSS_URL", "wss://bsc-ws-node.nariox.org:443")
 SNIPER_PRIVATE_KEY = os.getenv("SNIPER_PRIVATE_KEY", "")
 SNIPER_BUY_AMOUNT_BNB = float(os.getenv("SNIPER_BUY_AMOUNT_BNB", "0.05"))
-SNIPER_TAKE_PROFIT_PCT = 100.0   # +100% = 2x
-SNIPER_STOP_LOSS_PCT = 50.0      # -50%
-SNIPER_MAX_TAX_PCT = 8.0         # max buy+sell tax
-SNIPER_MIN_LIQUIDITY_BNB = 10.0  # min BNB in pool
-SNIPER_TIME_LIMIT_MIN = 30       # exit after 30 min if no movement
+SNIPER_TAKE_PROFIT_PCT = 100.0          # +100% = 2x
+SNIPER_STOP_LOSS_PCT = 50.0             # -50%
+SNIPER_MAX_TAX_PCT = 8.0                # max buy+sell tax
+SNIPER_MIN_LIQUIDITY_BNB = 10.0         # min BNB in pool
+SNIPER_TIME_LIMIT_MIN = 30              # exit after 30 min if no movement
+SNIPER_TRAIL_ACTIVATE_PCT = 30.0        # activate trailing after +30%
+SNIPER_TRAIL_DISTANCE_PCT = 15.0        # trail 15% below peak price
+SNIPER_MIN_LP_LOCK_PCT = 50.0           # min locked LP % (0 = skip check)
+SNIPER_MAX_DEPLOYER_CONTRACTS = 5       # block if creator deployed >N contracts in 30d
 # JWT
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 
