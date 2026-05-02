@@ -54,6 +54,7 @@ TRAIL_BTC_ETH_PCT  = 2.5
 TRAIL_ALT_PCT      = 3.0
 
 _binance = ccxt.binance({"enableRateLimit": True})
+_binance.load_markets()              # load once at startup
 _btc_cache: dict[int, float] = {}   # ts_bucket → btc_2h_change
 
 
@@ -103,12 +104,13 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int,
                    balance: float, score: float) -> dict | None:
     symbol = f"{coin}/USDT"
     try:
-        _binance.load_markets()
         if symbol not in _binance.markets:
+            print(f"    ⚠ {coin}: нет пары на Binance")
             return None
 
         ohlcv = _binance.fetch_ohlcv(symbol, "15m", since=signal_ts_ms, limit=302)
         if len(ohlcv) < 2:
+            print(f"    ⚠ {coin}: нет OHLCV данных за этот период")
             return None
 
         tp_pct, sl_pct, size_pct, leverage = _coin_params(coin, abs(score))
@@ -403,6 +405,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
     n_signals = 0
     n_hold    = 0
     n_btc_filtered = 0
+    n_no_data = 0
 
     coin_stats: dict[str, dict] = defaultdict(lambda: {"wins": 0, "losses": 0, "pnl": 0.0})
     month_stats: dict[str, dict] = defaultdict(lambda: {"wins": 0, "losses": 0, "pnl": 0.0})
@@ -452,6 +455,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
 
         trade = simulate_trade(coin, action, article["timestamp_ms"], balance, abs(sc))
         if not trade:
+            n_no_data += 1
             continue
 
         open_pos[coin] = True
@@ -511,7 +515,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
     print(f"  РЕЗУЛЬТАТЫ — {days} дней")
     print(f"{'='*65}")
     print(f"  Статей: {len(articles)}  Сигналов: {n_signals}  HOLD: {n_hold}  "
-          f"BTC_filtered: {n_btc_filtered}  Сделок: {total}")
+          f"BTC_filtered: {n_btc_filtered}  NoData: {n_no_data}  Сделок: {total}")
 
     if total > 0:
         wr  = wins / total * 100
@@ -575,7 +579,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
         "month_stats":  {m: {**s, "pnl": round(s["pnl"], 2)} for m, s in month_stats.items()},
         "meta": {
             "version": 3, "articles": len(articles),
-            "signals": n_signals, "hold": n_hold, "btc_filtered": n_btc_filtered,
+            "signals": n_signals, "hold": n_hold, "btc_filtered": n_btc_filtered, "no_data": n_no_data,
         },
         "trades": trades,
     }
