@@ -14,10 +14,12 @@ cp $SRC/main.py $DST/
 cp $SRC/web_server.py $DST/
 cp $SRC/fix_sol.py $DST/ 2>/dev/null || true
 cp $SRC/check_stats.py $DST/ 2>/dev/null || true
+cp $SRC/news.db $DST/ 2>/dev/null || true
 
 echo "=== Restarting services ==="
 systemctl restart crypto-grid
 systemctl restart crypto-bot
+systemctl restart crypto-web
 
 echo "=== Done! Logs: ==="
 sleep 3
