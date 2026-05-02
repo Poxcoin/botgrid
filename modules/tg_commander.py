@@ -113,19 +113,19 @@ _BACK = [[{"text": "< Меню", "callback_data": "menu_main"}]]
 
 def _balance_text():
     try:
-        import ccxt
-        ex = ccxt.bybit({"apiKey": BYBIT_API_KEY, "secret": BYBIT_SECRET, "enableRateLimit": True})
-        if IS_DEMO_TRADING:
-            ex.urls["api"] = ex.urls["demotrading"]
-        elif USE_TESTNET:
-            ex.set_sandbox_mode(True)
-        ex.options["adjustForTimeDifference"] = True
+        from modules.trader import _init_exchange
+        ex  = _init_exchange()
         bal = ex.fetch_balance()
         free  = bal.get("USDT", {}).get("free",  0)
         total = bal.get("USDT", {}).get("total", 0)
-        return f"<b>Баланс Bybit</b>\nВільно: {free:.2f} USDT\nВсього: {total:.2f} USDT"
+        mode  = "Demo" if IS_DEMO_TRADING else ("Testnet" if USE_TESTNET else "Live")
+        return (
+            f"💰 <b>Баланс Bybit</b>  <i>{mode}</i>\n\n"
+            f"Вільно:  <b>{free:.2f} USDT</b>\n"
+            f"Всього:  <b>{total:.2f} USDT</b>"
+        )
     except Exception as e:
-        return f"Помилка балансу: {e}"
+        return f"❌ Баланс недоступний: {e}"
 
 
 def _pnl_text():
@@ -135,23 +135,25 @@ def _pnl_text():
         closed = con.execute("SELECT pnl_usdt, timestamp_open FROM trades WHERE result != 'OPEN'").fetchall()
         open_n = con.execute("SELECT COUNT(*) FROM trades WHERE result='OPEN'").fetchone()[0]
         con.close()
+        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         total = sum((r["pnl_usdt"] or 0) for r in closed)
-        today = sum(
-            (r["pnl_usdt"] or 0) for r in closed
-            if (r["timestamp_open"] or "") >= datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        )
-        wins = sum(1 for r in closed if (r["pnl_usdt"] or 0) > 0)
-        n    = len(closed)
-        wr   = wins / max(n, 1) * 100
+        today = sum((r["pnl_usdt"] or 0) for r in closed
+                    if (r["timestamp_open"] or "")[:10] >= today_str)
+        wins  = sum(1 for r in closed if (r["pnl_usdt"] or 0) > 0)
+        n     = len(closed)
+        wr    = wins / max(n, 1) * 100
+        t_icon = "📈" if today >= 0 else "📉"
+        a_icon = "📈" if total >= 0 else "📉"
         return (
-            f"<b>PnL</b>\n"
-            f"Сьогодні:  {today:+.2f} USDT\n"
-            f"Всього:    {total:+.2f} USDT\n"
-            f"Угод: {n}   Win Rate: {wr:.0f}%\n"
-            f"Відкрито: {open_n}"
+            f"📊 <b>PnL Звіт</b>\n\n"
+            f"{t_icon} Сьогодні:   <b>{today:+.2f}$</b>\n"
+            f"{a_icon} Всього:     <b>{total:+.2f}$</b>\n\n"
+            f"Угод закрито:  {n}\n"
+            f"Win Rate:      {wr:.0f}%\n"
+            f"Відкрито зараз: {open_n}"
         )
     except Exception as e:
-        return f"Помилка: {e}"
+        return f"❌ Помилка: {e}"
 
 
 def _trades_text(n=10):
@@ -165,15 +167,15 @@ def _trades_text(n=10):
         con.close()
         if not rows:
             return "Закритих угод немає."
-        lines = [f"<b>Останні {n} угод</b>"]
+        lines = [f"📋 <b>Останні угоди</b>\n"]
         for r in rows:
             pnl  = r["pnl_usdt"] or 0
-            ok   = "WIN " if pnl > 0 else "LOSS"
+            icon = "✅" if pnl > 0 else "❌"
             date = (r["timestamp_open"] or "")[:10]
-            lines.append(f"[{ok}] {r['coin']} {r['action']}  {pnl:+.2f}$  {date}")
+            lines.append(f"{icon} {r['coin']} {r['action']}   <b>{pnl:+.2f}$</b>   {date}")
         return "\n".join(lines)
     except Exception as e:
-        return f"Помилка: {e}"
+        return f"❌ Помилка: {e}"
 
 
 def _signals_text():
@@ -187,14 +189,15 @@ def _signals_text():
             "WHERE executed=1 ORDER BY rowid DESC LIMIT 5"
         ).fetchall()
         con.close()
-        lines = [f"<b>Сигнали</b>  всього {total}, виконано {executed}"]
+        lines = [f"🧠 <b>Сигнали</b>   всього {total} · виконано {executed}\n"]
         for s in rows:
             sc   = s["total_score"] or 0
+            icon = "📈" if sc > 0 else "📉"
             date = (s["timestamp"] or "")[:16]
-            lines.append(f"{s['coin']} {s['action']}  score={sc:+.1f}  conf={s['confidence']}%  {date}")
+            lines.append(f"{icon} {s['coin']} {s['action']}  score {sc:+.1f}  conf {s['confidence']}%\n   {date}")
         return "\n".join(lines)
     except Exception as e:
-        return f"Помилка: {e}"
+        return f"❌ Помилка: {e}"
 
 
 def _open_text():
@@ -224,12 +227,13 @@ def _open_text():
 
 def _status_text():
     svcs  = ["crypto-web", "crypto-sniper", "crypto-grid", "crypto-bot"]
-    lines = ["<b>Сервіси</b>"]
+    lines = ["🖥 <b>Статус сервісів</b>\n"]
     for s in svcs:
         r  = subprocess.run(["systemctl", "is-active", s], capture_output=True, text=True)
         st = r.stdout.strip()
-        lines.append(f"[{'OK  ' if st == 'active' else 'FAIL'}] {s}")
-    lines.append(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M')} UTC")
+        icon = "🟢" if st == "active" else "🔴"
+        lines.append(f"{icon} {s}")
+    lines.append(f"\n🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC")
     return "\n".join(lines)
 
 
