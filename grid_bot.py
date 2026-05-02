@@ -305,7 +305,11 @@ def _run_single(cfg: dict) -> None:
     size_pct     = cfg.get("size_pct", 1.0)
     size_usd_min = cfg.get("size_usd_min", 10.0)
 
-    exchange = _init_exchange()  # окремий об'єкт на кожен потік — ccxt не thread-safe
+    try:
+        exchange = _init_exchange()
+    except Exception as e:
+        print(f"[GRID:{symbol}] ❌ Не вдалось підключитись до біржі: {e}")
+        return
     _set_leverage(exchange, symbol, leverage)
 
     # Розмір позиції = % від балансу (перераховується при кожному запуску)
@@ -326,9 +330,22 @@ def _run_single(cfg: dict) -> None:
     print(f"[GRID:{symbol}] ${size_usd}/рівень × {leverage}x | макс позицій: {max_pos}")
 
     state = _load_state(symbol)
+    _state_valid = False
     if state.get("symbol") == symbol and state.get("levels"):
-        # Відновлення після рестарту — використовуємо збережені рівні,
-        # щоб не закривати позиції по нових ATR-рівнях.
+        _s_upper = state.get("upper", 0)
+        _s_lower = state.get("lower", 0)
+        # Перевірка: збережений діапазон має перекриватись з поточною ціною
+        # і не бути абсурдно широким (ratio > 10x = зіпсаний стан)
+        _cur_price_check = _get_current_price(exchange, symbol)
+        _range_ratio = _s_upper / max(_s_lower, 0.0001)
+        _price_in_range = _s_lower * 0.5 <= _cur_price_check <= _s_upper * 2
+        if _range_ratio > 10 or not _price_in_range:
+            print(f"[GRID:{symbol}] ⚠️ Стан зіпсований (ratio={_range_ratio:.0f}x, price=${_cur_price_check:.2f} поза ${_s_lower:.2f}—${_s_upper:.2f}) — скидаємо")
+        else:
+            _state_valid = True
+
+    if _state_valid:
+        # Відновлення після рестарту — використовуємо збережені рівні
         upper  = state["upper"]
         lower  = state["lower"]
         levels = state["levels"]
