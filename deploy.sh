@@ -8,8 +8,10 @@ DST=/opt/botgrid
 echo "=== Syncing $SRC → $DST ==="
 cp -r $SRC/modules $DST/
 cp -r $SRC/config $DST/
+cp -r $SRC/static $DST/
 cp $SRC/grid_bot.py $DST/
 cp $SRC/main.py $DST/
+cp $SRC/web_server.py $DST/
 cp $SRC/fix_sol.py $DST/ 2>/dev/null || true
 cp $SRC/check_stats.py $DST/ 2>/dev/null || true
 

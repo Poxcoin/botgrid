@@ -48,7 +48,7 @@ app.add_middleware(
         "http://127.0.0.1:8000",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -124,6 +124,8 @@ _TOKEN_TTL = 86_400  # 24 часа
 
 # {token: expires_at_unix}
 _active_tokens: dict[str, float] = {}
+# {partial_token: {"user_id": int, "exp": float}} — separate from _active_tokens to avoid type mismatch
+_2fa_pending: dict[str, dict] = {}
 _ws_connections: dict = defaultdict(int)  # ip → open connection count
 _WS_MAX_PER_IP = 5
 security = HTTPBearer()
@@ -286,9 +288,8 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
     user.last_login = datetime.now(timezone.utc)
     db.commit()
     if user.totp_enabled:
-        # Возвращаем partial token — фронтенд должен передать TOTP код
         partial = secrets.token_hex(16)
-        _active_tokens[f"2fa:{partial}"] = {"user_id": user.id, "exp": time.time() + 300}
+        _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300}
         return {"requires_2fa": True, "partial_token": partial}
     token = create_token(user.id, user.email)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
@@ -433,15 +434,16 @@ async def totp_disable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCr
 
 @app.post("/api/users/2fa/verify")
 async def totp_verify_login(body: TotpLoginRequest, db: Session = Depends(get_db)):
-    entry = _active_tokens.get(f"2fa:{body.partial_token}")
+    entry = _2fa_pending.get(body.partial_token)
     if not entry or time.time() > entry["exp"]:
+        _2fa_pending.pop(body.partial_token, None)
         raise HTTPException(status_code=401, detail="Session expired. Login again.")
     user = db.query(User).filter(User.id == entry["user_id"]).first()
     if not user or not user.totp_secret:
         raise HTTPException(status_code=401, detail="User not found")
     if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid authenticator code")
-    _active_tokens.pop(f"2fa:{body.partial_token}", None)
+    _2fa_pending.pop(body.partial_token, None)
     token = create_token(user.id, user.email)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": True}}
 
