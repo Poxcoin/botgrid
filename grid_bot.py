@@ -38,66 +38,44 @@ BYBIT_TAKER_FEE = 0.00055  # 0.055% — комісія за відкриття �
 GRID_CONFIGS = [
     {
         "symbol":        "SOL/USDT:USDT",
-        "levels":        10,
-        "size_pct":      1.5,    # % від балансу на рівень (замість фіксованого $)
-        "size_usd_min":  10.0,   # мінімум на рівень
+        "levels":        15,     # більше рівнів = більше циклів за день
+        "size_pct":      3.0,    # % від балансу на рівень (було 1.5)
+        "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  200.0,
         "lower_manual":  120.0,
-        "max_positions": 5,
-    },
-    {
-        "symbol":        "BTC/USDT:USDT",
-        "levels":        8,
-        "size_pct":      1.0,
-        "size_usd_min":  10.0,
-        "leverage":      2,
-        "auto_range":    True,
-        "upper_manual":  100000.0,
-        "lower_manual":  80000.0,
-        "max_positions": 4,
+        "max_positions": 7,      # більше рівнів → більше паралельних позицій
     },
     {
         "symbol":        "ETH/USDT:USDT",
-        "levels":        10,
-        "size_pct":      1.2,
-        "size_usd_min":  10.0,
+        "levels":        15,     # було 10
+        "size_pct":      2.5,    # було 1.2
+        "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  4000.0,
         "lower_manual":  2500.0,
-        "max_positions": 5,
+        "max_positions": 7,
     },
     {
-        "symbol":        "DOGE/USDT:USDT",
+        "symbol":        "BTC/USDT:USDT",
         "levels":        10,
-        "size_pct":      1.0,
-        "size_usd_min":  10.0,
-        "leverage":      3,
+        "size_pct":      1.5,    # було 1.0
+        "size_usd_min":  15.0,
+        "leverage":      2,
         "auto_range":    True,
-        "upper_manual":  0.50,
-        "lower_manual":  0.15,
-        "max_positions": 5,
-    },
-    {
-        "symbol":        "XRP/USDT:USDT",
-        "levels":        10,
-        "size_pct":      1.0,
-        "size_usd_min":  10.0,
-        "leverage":      3,
-        "auto_range":    True,
-        "upper_manual":  3.50,
-        "lower_manual":  1.50,
+        "upper_manual":  100000.0,
+        "lower_manual":  80000.0,
         "max_positions": 5,
     },
 ]
 
-POLL_INTERVAL      = 60    # секунд між перевірками
+POLL_INTERVAL      = 30    # секунд між перевірками (було 60 — швидша реакція)
 RANGE_BUFFER       = 0.02  # 2% буфер по краях ATR-діапазону
-MAX_REBUILDS_DAY   = 3     # макс перебудов сітки за день на монету
-MAX_LOSS_PCT       = 0.03  # жорсткий стоп: 3% від балансу на монету
-ATR_RANGE_PERIODS  = 10    # Range = current ± ATR_RANGE_PERIODS × ATR(14,1h)
+MAX_REBUILDS_DAY   = 4     # макс перебудов сітки за день (було 3)
+MAX_LOSS_PCT       = 0.05  # жорсткий стоп: 5% від балансу (було 3% — занадто тісно)
+ATR_RANGE_PERIODS  = 8     # тісніший діапазон = більше циклів (було 10)
 
 # ─── State ───────────────────────────────────────────────────────────────────
 

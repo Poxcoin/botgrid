@@ -52,6 +52,10 @@ ALT_SL = 4.0                # Тісніший SL — менше збитків 
 ALT_SIZE = 3.0              # % балансу на угоду
 MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм щоб уникнути неліквіду
 
+# Signal bot торгівля: False = збираємо сигнали для статистики але НЕ торгуємо
+# Вмикати тільки після накопичення 100+ угод з WR > 35%
+SIGNAL_BOT_TRADING = os.getenv("SIGNAL_BOT_TRADING", "False").lower() == "true"
+
 # Параметри для нових лістингів (listing fast-path)
 LISTING_LEVERAGE = 5        # Перші години після лістингу = великий памп
 LISTING_TP = 20.0

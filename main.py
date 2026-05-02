@@ -28,6 +28,7 @@ from config.settings import (
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
     LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
     LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE,
+    SIGNAL_BOT_TRADING,
 )
 import ccxt
 
@@ -345,7 +346,14 @@ def run_signal_engine():
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
 
     sources = "Binance/Bybit Announcements + Telegram"
-    send_telegram_message(f"🚀 <b>BotGrid запущен</b>\nІсточники: {sources}\nСканування кожні 30 сек.", TG_CHAT_ID)
+    sig_mode = "📊 збір статистики (торгівля вимкнена)" if not SIGNAL_BOT_TRADING else "⚡ активна торгівля"
+    send_telegram_message(
+        f"🚀 <b>BotGrid запущен</b>\n"
+        f"Джерела: {sources}\n"
+        f"Signal бот: {sig_mode}\n"
+        f"Grid бот: SOL / ETH / BTC активний",
+        TG_CHAT_ID
+    )
 
     init_db()
     signal_ledger = load_ledger()
@@ -551,7 +559,9 @@ def run_signal_engine():
                                         print(f"⚙️ {coin}: адаптивный порог {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не прошёл")
                                         continue
 
-                                if signal.get("is_listing"):
+                                if not SIGNAL_BOT_TRADING:
+                                    print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
+                                elif signal.get("is_listing"):
                                     execute_trade(signal,
                                         leverage_override=LISTING_LEVERAGE,
                                         tp_pct=LISTING_TP, sl_pct=LISTING_SL,
@@ -598,6 +608,9 @@ def run_signal_engine():
                     print(f"[FR] ⏳ Cooldown {coin}: ще {remaining} хв")
                     continue
                 _coin_cooldown[coin] = now_ts
+                if not SIGNAL_BOT_TRADING:
+                    print(f"📊 [FR] {coin} {fsig.get('action')} — збір статистики (торгівля вимкнена)")
+                    continue
                 _btc_eth = {"BTC", "ETH"}
                 if coin.upper() in _btc_eth:
                     execute_trade(fsig)
