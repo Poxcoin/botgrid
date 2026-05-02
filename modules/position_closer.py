@@ -96,7 +96,7 @@ def _check_user(user: dict) -> int:
     for trade in trades:
         try:
             raw_ts    = trade.opened_at or now
-        opened_ts = raw_ts if raw_ts.tzinfo else raw_ts.replace(tzinfo=timezone.utc)
+            opened_ts = raw_ts if raw_ts.tzinfo else raw_ts.replace(tzinfo=timezone.utc)
             age_sec   = (now - opened_ts).total_seconds()
 
             # Skip very fresh trades — position might not be reflected yet
