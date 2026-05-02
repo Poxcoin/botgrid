@@ -13,9 +13,6 @@ cp $SRC/main.py $DST/
 cp $SRC/fix_sol.py $DST/ 2>/dev/null || true
 cp $SRC/check_stats.py $DST/ 2>/dev/null || true
 
-echo "=== Removing state files ==="
-rm -f $DST/grid_state_*.json
-
 echo "=== Restarting services ==="
 systemctl restart crypto-grid
 systemctl restart crypto-bot

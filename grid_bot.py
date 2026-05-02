@@ -374,6 +374,18 @@ def _run_single(cfg: dict) -> None:
             "started_at": datetime.now(timezone.utc).isoformat(),
         }
         _save_state(symbol, state)
+        # Закрити orphaned позиції на біржі (залишились від попереднього запуску)
+        try:
+            ex_pos = exchange.fetch_positions([symbol], params={"category": "linear"})
+            for p in ex_pos:
+                qty = abs(float(p.get("contracts") or 0))
+                if qty > 0:
+                    side = "sell" if p["side"] == "long" else "buy"
+                    exchange.create_order(symbol, "market", side, qty,
+                        params={"category": "linear", "reduceOnly": True})
+                    print(f"[GRID:{symbol}] 🧹 Orphaned {p['side']} qty={qty} закрито")
+        except Exception as _e:
+            print(f"[GRID:{symbol}] Orphan close помилка: {_e}")
 
     # Таймер: фіксуємо коли ціна вперше вийшла за межу (затримка перед перебудовою)
     _out_of_range_since: Optional[float] = None
