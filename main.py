@@ -6,6 +6,7 @@ from modules.decision_maker import generate_signal, generate_whale_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker
+from modules.tg_commander import start_commander
 from modules.news_archive import archive_news
 from modules.telegram_monitor import start_telegram_monitor, tg_news_queue, tg_news_event
 from modules.liquidation_monitor import start_liquidation_monitor
@@ -337,6 +338,7 @@ def run_signal_engine():
     start_liquidation_monitor()
     start_onchain_monitor()
     start_announcements_monitor()
+    start_commander()
     start_dex_scanner()
     start_funding_strategy()
     start_smart_wallet_tracker()
@@ -372,9 +374,6 @@ def run_signal_engine():
     
     while True:
         try:
-            # 0. Проверка команд из Telegram
-            handle_telegram_commands(processed_tg_updates)
-            
             # 1a. Анонси бірж — НАЙВИЩИЙ ПРІОРИТЕТ (listing pumps)
             ann_news = []
             while not ann_queue.empty():
