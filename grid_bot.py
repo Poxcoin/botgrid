@@ -374,7 +374,8 @@ def _run_single(cfg: dict) -> None:
             "started_at": datetime.now(timezone.utc).isoformat(),
         }
         _save_state(symbol, state)
-        # Закрити orphaned позиції на біржі (залишились від попереднього запуску)
+        # Закрити orphaned позиції на біржі і в DB (залишились від попереднього запуску)
+        coin = symbol.split("/")[0]
         try:
             ex_pos = exchange.fetch_positions([symbol], params={"category": "linear"})
             for p in ex_pos:
@@ -383,9 +384,22 @@ def _run_single(cfg: dict) -> None:
                     side = "sell" if p["side"] == "long" else "buy"
                     exchange.create_order(symbol, "market", side, qty,
                         params={"category": "linear", "reduceOnly": True})
-                    print(f"[GRID:{symbol}] 🧹 Orphaned {p['side']} qty={qty} закрито")
+                    print(f"[GRID:{symbol}] 🧹 Orphaned {p['side']} qty={qty} закрито на біржі")
         except Exception as _e:
-            print(f"[GRID:{symbol}] Orphan close помилка: {_e}")
+            print(f"[GRID:{symbol}] Orphan exchange close помилка: {_e}")
+        # Очищаємо OPEN записи в DB — вони orphaned (попередній стан втрачено)
+        try:
+            import sqlite3 as _sq
+            _con = _sq.connect(os.path.join(os.path.dirname(__file__), "analytics.db"))
+            _ids = [r[0] for r in _con.execute(
+                "SELECT id FROM trades WHERE result='OPEN' AND coin=?", (coin,)
+            ).fetchall()]
+            _con.close()
+            for _tid in _ids:
+                close_trade(_tid, 0.0, 0.0, 0.0, 0)
+                print(f"[GRID:{symbol}] 🧹 DB trade #{_tid} {coin} очищено (orphaned)")
+        except Exception as _e:
+            print(f"[GRID:{symbol}] Orphan DB close помилка: {_e}")
 
     # Таймер: фіксуємо коли ціна вперше вийшла за межу (затримка перед перебудовою)
     _out_of_range_since: Optional[float] = None

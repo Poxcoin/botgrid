@@ -19,7 +19,7 @@ from modules.analytics_db import close_trade, DB_PATH
 
 LEDGER_FILES = ["signals_log.json", "signals_log_alt.json"]
 MATCH_WINDOW_MS = 5 * 60 * 1000   # 5 минут — окно для сопоставления JSON-журнала
-GHOST_THRESHOLD_HOURS = 24         # позиции старше 24h без Bybit-записи = ghost
+GHOST_THRESHOLD_HOURS = 8          # позиції старше 8h без Bybit-запису = ghost
 
 
 def _load(path: str) -> list:
