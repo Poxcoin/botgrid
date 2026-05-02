@@ -1,6 +1,7 @@
 import json
+import requests
 from groq import Groq
-from config.settings import GROQ_API_KEY
+from config.settings import GROQ_API_KEY, GEMINI_API_KEY
 
 client = Groq(api_key=GROQ_API_KEY)
 
@@ -34,38 +35,78 @@ Your job: analyze the sentiment, potential price impact, and your own confidence
 Respond ONLY with a JSON object, no other text:
 {"score": 8, "coin": "TICKER", "confidence": 7}"""
 
+# Once Groq daily quota is exhausted, switch all calls to Gemini for this session
+_groq_exhausted = False
 
-def analyze_sentiment(news_title: str, news_description: str = "") -> dict:
+_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+
+
+def _parse_result(text: str) -> dict:
+    start = text.find("{")
+    if start == -1:
+        raise ValueError(f"JSON не найден: {text[:100]}")
+    data, _ = json.JSONDecoder().raw_decode(text[start:])
+    return {
+        "score":      int(data.get("score",      0)),
+        "coin":       str(data.get("coin",      "BTC")).upper(),
+        "confidence": int(data.get("confidence", 5)),
+    }
+
+
+def _analyze_gemini(news_title: str, news_description: str = "") -> dict:
+    if not GEMINI_API_KEY:
+        return {"score": 0, "coin": "BTC", "confidence": 0}
+
     user_content = f"News Title: '{news_title}'"
     if news_description:
         user_content += f"\nContext: '{news_description[:280].strip()}'"
 
+    prompt = f"{_SYSTEM_PROMPT}\n\n{user_content}"
+    resp = requests.post(
+        f"{_GEMINI_URL}?key={GEMINI_API_KEY}",
+        json={"contents": [{"parts": [{"text": prompt}]}],
+              "generationConfig": {"temperature": 0.0, "maxOutputTokens": 80}},
+        timeout=12,
+    )
+    resp.raise_for_status()
+    text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    return _parse_result(text)
+
+
+def analyze_sentiment(news_title: str, news_description: str = "") -> dict:
+    global _groq_exhausted
+
+    user_content = f"News Title: '{news_title}'"
+    if news_description:
+        user_content += f"\nContext: '{news_description[:280].strip()}'"
+
+    if not _groq_exhausted:
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user",   "content": user_content},
+                ],
+                max_tokens=80,
+                temperature=0.0,
+            )
+            return _parse_result(response.choices[0].message.content.strip())
+
+        except Exception as e:
+            err_str = str(e)
+            if "rate_limit_exceeded" in err_str or "429" in err_str:
+                print("[ai_analyzer] Groq лимит исчерпан → переключаюсь на Gemini")
+                _groq_exhausted = True
+            else:
+                print(f"[ai_analyzer] Ошибка Groq: {e}")
+                return {"score": 0, "coin": "BTC", "confidence": 0}
+
+    # Gemini fallback
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user",   "content": user_content},
-            ],
-            max_tokens=80,
-            temperature=0.0,
-        )
-
-        result_text = response.choices[0].message.content.strip()
-
-        start = result_text.find("{")
-        if start == -1:
-            raise ValueError(f"JSON не найден: {result_text[:100]}")
-
-        data, _ = json.JSONDecoder().raw_decode(result_text[start:])
-        return {
-            "score":      int(data.get("score",      0)),
-            "coin":       str(data.get("coin",      "BTC")).upper(),
-            "confidence": int(data.get("confidence", 5)),
-        }
-
+        return _analyze_gemini(news_title, news_description)
     except Exception as e:
-        print(f"[ai_analyzer] Ошибка ИИ: {e}")
+        print(f"[ai_analyzer] Ошибка Gemini: {e}")
         return {"score": 0, "coin": "BTC", "confidence": 0}
 
 

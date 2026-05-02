@@ -416,7 +416,8 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
 
         try:
             signal = generate_signal(article)
-            time.sleep(CLAUDE_DELAY)
+            from modules.ai_analyzer import _groq_exhausted
+            time.sleep(4.5 if _groq_exhausted else CLAUDE_DELAY)
         except Exception as e:
             print(f"  [!] {e}")
             continue
