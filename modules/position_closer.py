@@ -145,7 +145,7 @@ async def run_loop():
             if users:
                 total = 0
                 for u in users:
-                    total += await asyncio.get_event_loop().run_in_executor(
+                    total += await asyncio.get_running_loop().run_in_executor(
                         None, _check_user, u
                     )
                 if total:
