@@ -14,7 +14,7 @@ from config.settings import (
 )
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
-from modules.analytics_db import save_trade
+from modules.analytics_db import save_trade, mark_signal_executed
 from typing import Dict, Any
 
 # DRY_RUN=True — логирует сделки без отправки на биржу (для тестов без ключей)
@@ -358,7 +358,8 @@ def execute_trade(
             },
         )
 
-        print(f"✅ ОРДЕР ИСПОЛНЕН! ID: {order.get('id', 'unknown')}")
+        real_order_id = order.get('id', 'unknown')
+        print(f"✅ ОРДЕР ИСПОЛНЕН! ID: {real_order_id}")
 
         # -------------------------------------------------
         # 4.5️⃣ Set TP/SL separately (сумісно з Demo та Live)
@@ -366,11 +367,13 @@ def execute_trade(
         # Перераховуємо TP/SL від реальної ціни виконання (не стейл ticker)
         fill_price = float(order.get('average') or order.get('price') or current_price)
 
-        # Зберігаємо відкриту угоду в analytics.db
+        # Зберігаємо відкриту угоду в analytics.db + позначаємо сигнал виконаним
         try:
             from datetime import datetime, timezone
             ts_open = datetime.now(timezone.utc).isoformat()
             save_trade(signal_id, coin, action, fill_price, ts_open)
+            if signal_id:
+                mark_signal_executed(signal_id, str(real_order_id))
         except Exception as e:
             print(f"[analytics] save_trade error: {e}")
         if action.upper() == "LONG":

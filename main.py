@@ -466,9 +466,8 @@ def run_signal_engine():
                     signal_ledger.append(signal)
                     save_ledger(signal_ledger)
                     
-                    # Сохраняем в аналитическую БД
-                    executed = signal['action'] in ("LONG", "SHORT")
-                    signal_id = save_signal(signal, executed=executed)
+                    # Сохраняем в аналитическую БД (executed=False до реального ордера)
+                    signal_id = save_signal(signal, executed=False)
 
                     if signal['action'] in ["LONG", "SHORT", "SELL_ALL"]:
                         print("\n==================================")

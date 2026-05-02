@@ -130,6 +130,16 @@ def save_signal(signal: dict, executed: bool = False, order_id: str = None) -> i
         return cur.lastrowid
 
 
+def mark_signal_executed(signal_id: int, order_id: str = None) -> None:
+    """Позначає сигнал як виконаний (після успішного розміщення ордера)."""
+    init_db()
+    with _conn() as con:
+        con.execute(
+            "UPDATE signals SET executed=1, order_id=? WHERE id=?",
+            (order_id, signal_id)
+        )
+
+
 def save_trade(signal_id: int, coin: str, action: str,
                entry_price: float, timestamp_open: str) -> int:
     """Открывает новую сделку в БД. Возвращает ID."""

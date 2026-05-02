@@ -424,18 +424,17 @@ def generate_signal(news_item: dict) -> dict | None:
 
     action = "HOLD"
 
-    # BTC/ETH — поріг знижено з 11.0 до 9.0: TG-канали реалтайм, RSS лаг вже не головна проблема.
     btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
     if is_smart_wallet:
-        min_score = 5.0  # smart money = більше довіри, нижчий поріг
+        min_score = 8.0   # smart money теж потребує чіткого сигналу
     elif coin_upper in btc_eth_coins:
-        min_score = 9.0
+        min_score = 11.0  # BTC/ETH — великий обсяг, рухається важче
     else:
-        min_score = 8.0
+        min_score = 10.0  # алти — більший шум, вищий поріг
 
-    if total_score >= min_score and confidence >= 40:
+    if total_score >= min_score and confidence >= 55:
         action = "LONG"
-    elif total_score <= -min_score and confidence >= 40:
+    elif total_score <= -min_score and confidence >= 55:
         action = "SHORT"
 
     # size_multiplier: 0.4–2.0, ступенчатые тиры по скору + confidence + время суток
