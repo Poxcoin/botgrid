@@ -176,7 +176,8 @@ def _valid_coin(coin: str) -> bool:
 # ─── Главный цикл ────────────────────────────────────────────────────────────
 
 def run(days: int = 30, coins_filter: list[str] | None = None,
-        balance: float = 10_000.0, tp: float = None, sl: float = None) -> str:
+        balance: float = 10_000.0, tp: float = None, sl: float = None,
+        progress_cb=None) -> str:
 
     tp = tp or TAKE_PROFIT_PERCENT
     sl = sl or STOP_LOSS_PERCENT
@@ -204,12 +205,15 @@ def run(days: int = 30, coins_filter: list[str] | None = None,
 
     processed = skipped_ai = skipped_score = skipped_coin = 0
 
+    total_items = len(news_items)
     for idx, item in enumerate(news_items, 1):
         title = item.get("title", "")
         link  = item.get("link", "")
         if not title or link in seen_links:
             continue
         seen_links.add(link)
+        if progress_cb:
+            progress_cb(idx, total_items, run_id)
 
         print(f"[{idx}/{len(news_items)}] {title[:70]}...")
 

@@ -150,6 +150,63 @@ def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
 
 LEDGER_FILE = "signals_log.json"
 
+# ─── Backtest in-process runner ──────────────────────────────────────────────
+import threading as _bt_thread
+
+_backtest_running  = False
+_backtest_progress: dict = {"current": 0, "total": 0, "run_id": None}
+
+
+class BacktestStartRequest(BaseModel):
+    days:    int        = 30
+    coins:   list[str]  = []
+    balance: float      = 10_000.0
+    tp:      float      = 0.0
+    sl:      float      = 0.0
+
+
+@app.post("/api/backtest/start")
+async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_auth)):
+    global _backtest_running, _backtest_progress
+    if _backtest_running:
+        raise HTTPException(status_code=409, detail="Backtest already running")
+
+    def _progress_cb(current: int, total: int, run_id: str):
+        global _backtest_progress
+        _backtest_progress = {"current": current, "total": total, "run_id": run_id}
+
+    def _run_bg():
+        global _backtest_running, _backtest_progress
+        _backtest_running  = True
+        _backtest_progress = {"current": 0, "total": 0, "run_id": None}
+        try:
+            import sys as _sys
+            _tools = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
+            if _tools not in _sys.path:
+                _sys.path.insert(0, _tools)
+            from replay_backtest import run as _run  # noqa: PLC0415
+            _run(
+                days=body.days,
+                coins_filter=body.coins or None,
+                balance=body.balance,
+                tp=body.tp or None,
+                sl=body.sl or None,
+                progress_cb=_progress_cb,
+            )
+        except Exception as _e:
+            print(f"[backtest] Error: {_e}")
+        finally:
+            _backtest_running = False
+
+    _bt_thread.Thread(target=_run_bg, daemon=True).start()
+    return {"ok": True}
+
+
+@app.get("/api/backtest/status")
+async def backtest_status(token: str = Depends(require_auth)):
+    return {"running": _backtest_running, "progress": _backtest_progress}
+
+
 # ─── Static files ─────────────────────────────────────────────────────────────
 if not os.path.exists("static"):
     os.makedirs("static")

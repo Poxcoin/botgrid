@@ -158,16 +158,151 @@ function RunDetail({ runId, onBack }) {
   );
 }
 
+const COINS_LIST = ['BTC','ETH','SOL','BNB','XRP','ADA','LINK','AVAX','DOT','UNI','AAVE','SUI','APT','OP','NEAR','INJ','DOGE'];
+
+function NewRunForm({ onStarted }) {
+  const [form, setForm] = useState({ days: 30, coins: [], balance: 10000, tp: 0, sl: 0 });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const toggleCoin = (c) =>
+    setForm(f => ({
+      ...f,
+      coins: f.coins.includes(c) ? f.coins.filter(x => x !== c) : [...f.coins, c],
+    }));
+
+  const start = async () => {
+    setLoading(true); setErr('');
+    try {
+      const r = await authFetch('/api/backtest/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (r.status === 409) { setErr('Backtest already running'); return; }
+      if (!r.ok) { setErr('Failed to start'); return; }
+      onStarted();
+    } catch { setErr('Network error'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="border border-kado-black p-6 space-y-5">
+      <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray">New Backtest Run</div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Days', key: 'days', type: 'number', min: 1, max: 365 },
+          { label: 'Balance $', key: 'balance', type: 'number', min: 100 },
+          { label: 'TP %', key: 'tp', type: 'number', min: 0, step: 0.5, placeholder: 'default' },
+          { label: 'SL %', key: 'sl', type: 'number', min: 0, step: 0.5, placeholder: 'default' },
+        ].map(({ label, key, ...props }) => (
+          <label key={key} className="flex flex-col gap-1">
+            <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-kado-gray">{label}</span>
+            <input
+              {...props}
+              value={form[key] || ''}
+              onChange={e => setForm(f => ({ ...f, [key]: parseFloat(e.target.value) || 0 }))}
+              className="border border-kado-black/20 bg-transparent font-mono text-sm px-3 py-2 focus:outline-none focus:border-kado-black"
+            />
+          </label>
+        ))}
+      </div>
+
+      <div>
+        <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-kado-gray mb-2">
+          Coins <span className="text-kado-black/40">(empty = all)</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {COINS_LIST.map(c => (
+            <button
+              key={c}
+              onClick={() => toggleCoin(c)}
+              className={`font-mono text-[11px] px-2.5 py-1 border transition-colors ${
+                form.coins.includes(c)
+                  ? 'border-kado-black bg-kado-black text-white'
+                  : 'border-kado-black/20 text-kado-gray hover:border-kado-black/50'
+              }`}
+            >{c}</button>
+          ))}
+        </div>
+      </div>
+
+      {err && <div className="font-mono text-[11px] text-red-600">{err}</div>}
+
+      <button
+        onClick={start}
+        disabled={loading}
+        className="font-mono text-[11px] tracking-[0.2em] uppercase px-6 py-2.5 bg-kado-black text-white hover:bg-kado-black/80 disabled:opacity-50 transition-colors"
+      >
+        {loading ? 'Starting...' : '▶ Start Backtest'}
+      </button>
+    </div>
+  );
+}
+
+function ProgressBar({ onDone }) {
+  const [status, setStatus] = useState({ running: true, progress: { current: 0, total: 0 } });
+
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const r = await authFetch('/api/backtest/status');
+        if (r.ok) {
+          const d = await r.json();
+          setStatus(d);
+          if (!d.running) { clearInterval(id); onDone(); }
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+    return () => clearInterval(id);
+  }, [onDone]);
+
+  const { current, total } = status.progress;
+  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+
+  return (
+    <div className="border border-kado-black p-6 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-[10px] tracking-[0.3em] uppercase">
+          {status.running ? 'Running...' : 'Complete'}
+        </div>
+        <div className="font-mono text-[11px] tabular-nums text-kado-gray">
+          {current} / {total || '?'} news
+        </div>
+      </div>
+      <div className="h-1.5 bg-kado-black/10 w-full">
+        <div
+          className="h-full bg-kado-black transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="font-mono text-[10px] text-kado-gray">{pct}% processed</div>
+    </div>
+  );
+}
+
 export default function BacktesterTab() {
   const [runs, setRuns] = useState(null);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [running, setRunning] = useState(false);
 
-  useEffect(() => {
+  const loadRuns = () => {
     authFetch('/api/backtest/runs')
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => setRuns(d.runs || []))
       .catch(() => setError(true));
+  };
+
+  useEffect(() => {
+    loadRuns();
+    // check if already running on mount
+    authFetch('/api/backtest/status')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.running) setRunning(true); })
+      .catch(() => {});
   }, []);
 
   return (
@@ -178,10 +313,28 @@ export default function BacktesterTab() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="font-black text-xl">Replay Backtester</h2>
-            <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray">
-              Historical news · Real Claude AI · OHLCV simulation
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray hidden md:block">
+                Historical news · Groq/Gemini AI · OHLCV simulation
+              </span>
+              {!running && (
+                <button
+                  onClick={() => setShowForm(f => !f)}
+                  className="font-mono text-[11px] tracking-[0.2em] uppercase px-4 py-2 border border-kado-black hover:bg-kado-black hover:text-white transition-colors"
+                >
+                  {showForm ? '✕ Cancel' : '+ New Run'}
+                </button>
+              )}
+            </div>
           </div>
+
+          {running && (
+            <ProgressBar onDone={() => { setRunning(false); setShowForm(false); loadRuns(); }} />
+          )}
+
+          {showForm && !running && (
+            <NewRunForm onStarted={() => { setShowForm(false); setRunning(true); }} />
+          )}
 
           <div className="border border-kado-black">
             <div className="px-5 h-11 flex items-center border-b border-kado-black">
