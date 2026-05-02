@@ -135,6 +135,9 @@ def _purge_expired():
     expired = [t for t, exp in _active_tokens.items() if exp < now]
     for t in expired:
         del _active_tokens[t]
+    stale = [k for k, v in _2fa_pending.items() if v["exp"] < now]
+    for k in stale:
+        del _2fa_pending[k]
 
 def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
     _purge_expired()
@@ -433,7 +436,11 @@ async def totp_disable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCr
     return {"ok": True}
 
 @app.post("/api/users/2fa/verify")
-async def totp_verify_login(body: TotpLoginRequest, db: Session = Depends(get_db)):
+async def totp_verify_login(body: TotpLoginRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"2fa:{ip}", window=60, max_hits=10):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 60s.")
+    _purge_expired()
     entry = _2fa_pending.get(body.partial_token)
     if not entry or time.time() > entry["exp"]:
         _2fa_pending.pop(body.partial_token, None)

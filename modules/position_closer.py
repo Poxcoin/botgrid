@@ -95,7 +95,8 @@ def _check_user(user: dict) -> int:
     closed = 0
     for trade in trades:
         try:
-            opened_ts = (trade.opened_at or now).replace(tzinfo=timezone.utc)
+            raw_ts    = trade.opened_at or now
+        opened_ts = raw_ts if raw_ts.tzinfo else raw_ts.replace(tzinfo=timezone.utc)
             age_sec   = (now - opened_ts).total_seconds()
 
             # Skip very fresh trades — position might not be reflected yet
@@ -114,6 +115,7 @@ def _check_user(user: dict) -> int:
         exit_price = float(trade.entry_price or 0)
         pnl_usdt   = 0.0
         opened_ms  = int(opened_ts.timestamp() * 1000)
+        pnl_found  = False
         try:
             resp  = ex.private_get_v5_position_closed_pnl({
                 "category":  "linear",
@@ -123,15 +125,19 @@ def _check_user(user: dict) -> int:
             })
             items = resp.get("result", {}).get("list", [])
             for item in items:
-                if float(item.get("createdTime", 0)) >= opened_ms:
+                # 5s tolerance for Bybit timestamp vs local clock skew
+                if float(item.get("createdTime", 0)) >= opened_ms - 5000:
                     exit_price = float(item.get("avgExitPrice") or exit_price)
                     pnl_usdt   = float(item.get("closedPnl", 0))
+                    pnl_found  = True
                     break
         except Exception:
-            pass  # fall through to ghost logic below
+            pass
 
-        # Ghost: trade is old with no Bybit close record → force-close with pnl=0
-        if pnl_usdt == 0.0 and exit_price == float(trade.entry_price or 0) and age_sec > GHOST_HOURS * 3600:
+        # No PnL record found — only close if old enough to be a ghost
+        if not pnl_found:
+            if age_sec <= GHOST_HOURS * 3600:
+                continue  # too young, retry next poll
             print(f"[CLOSER] ghost user={user_id} {trade.symbol} ({age_sec/3600:.0f}h) → close pnl=0")
 
         update_trade_closed(trade.order_id, exit_price, pnl_usdt)
