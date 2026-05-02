@@ -17,13 +17,25 @@ _BASE = f"https://api.telegram.org/bot{TG_BOT_TOKEN}"
 _DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "analytics.db")
 
 
-def _send(chat_id, text: str):
+_KEYBOARD = {
+    "keyboard": [
+        [{"text": "/balance"}, {"text": "/pnl"}],
+        [{"text": "/trades 10"}, {"text": "/signals"}],
+        [{"text": "/open"}, {"text": "/status"}],
+    ],
+    "resize_keyboard": True,
+    "persistent": True,
+}
+
+
+def _send(chat_id, text: str, with_keyboard: bool = False):
     if not TG_BOT_TOKEN:
         return
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    if with_keyboard:
+        payload["reply_markup"] = _KEYBOARD
     try:
-        requests.post(f"{_BASE}/sendMessage",
-                      json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
-                      timeout=8)
+        requests.post(f"{_BASE}/sendMessage", json=payload, timeout=8)
     except Exception as e:
         print(f"[tg_commander] send error: {e}")
 
@@ -198,7 +210,7 @@ def _dispatch(chat_id, text: str):
     elif cmd == "/open":
         _cmd_open(chat_id)
     elif cmd in ("/start", "/help"):
-        _send(chat_id, _HELP)
+        _send(chat_id, _HELP, with_keyboard=True)
 
 
 # ─── Background thread ───────────────────────────────────────────────────────
