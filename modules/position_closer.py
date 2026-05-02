@@ -16,8 +16,9 @@ from database import SessionLocal, User, UserApiKey, UserTrade
 from modules.saas_dispatcher import _build_exchange, update_trade_closed
 from utils.crypto import decrypt_field
 
-POLL_INTERVAL  = 300   # seconds between polls
-MIN_AGE_SECS   = 120   # skip trades younger than 2 min (may not be filled yet)
+POLL_INTERVAL    = 300   # seconds between polls
+MIN_AGE_SECS     = 120   # skip trades younger than 2 min (may not be filled yet)
+GHOST_HOURS      = 8     # close with pnl=0 if still "open" after this many hours
 
 
 def _get_users_with_open_trades() -> list[dict]:
@@ -80,7 +81,7 @@ def _check_user(user: dict) -> int:
 
     try:
         ex = _build_exchange(api_key, secret, is_testnet)
-        positions = ex.fetch_positions()
+        positions = ex.fetch_positions(params={"category": "linear"})
         open_market_ids = {
             ex.market_id(p["symbol"])
             for p in positions
@@ -90,15 +91,16 @@ def _check_user(user: dict) -> int:
         traceback.print_exc()
         return 0
 
+    now = datetime.now(timezone.utc)
     closed = 0
     for trade in trades:
         try:
+            opened_ts = (trade.opened_at or now).replace(tzinfo=timezone.utc)
+            age_sec   = (now - opened_ts).total_seconds()
+
             # Skip very fresh trades — position might not be reflected yet
-            if trade.opened_at:
-                opened_ts = trade.opened_at.replace(tzinfo=timezone.utc)
-                age = (datetime.now(timezone.utc) - opened_ts).total_seconds()
-                if age < MIN_AGE_SECS:
-                    continue
+            if age_sec < MIN_AGE_SECS:
+                continue
 
             mkt_id = ex.market_id(trade.symbol)
         except Exception:
@@ -108,25 +110,29 @@ def _check_user(user: dict) -> int:
         if mkt_id in open_market_ids:
             continue
 
-        # Fetch closed PnL for this symbol from Bybit
+        # Fetch closed PnL for this symbol from Bybit (V5 API)
         exit_price = float(trade.entry_price or 0)
         pnl_usdt   = 0.0
+        opened_ms  = int(opened_ts.timestamp() * 1000)
         try:
-            resp  = ex.privateGetPositionClosedPnl({
-                "category": "linear",
-                "symbol":   mkt_id,
-                "limit":    10,
+            resp  = ex.private_get_v5_position_closed_pnl({
+                "category":  "linear",
+                "symbol":    mkt_id,
+                "startTime": opened_ms,
+                "limit":     20,
             })
             items = resp.get("result", {}).get("list", [])
-            opened_ms = trade.opened_at.timestamp() * 1000 if trade.opened_at else 0
             for item in items:
-                # Find the close event that happened after trade was opened
                 if float(item.get("createdTime", 0)) >= opened_ms:
                     exit_price = float(item.get("avgExitPrice") or exit_price)
                     pnl_usdt   = float(item.get("closedPnl", 0))
                     break
         except Exception:
-            pass  # Use entry_price fallback, pnl=0
+            pass  # fall through to ghost logic below
+
+        # Ghost: trade is old with no Bybit close record → force-close with pnl=0
+        if pnl_usdt == 0.0 and exit_price == float(trade.entry_price or 0) and age_sec > GHOST_HOURS * 3600:
+            print(f"[CLOSER] ghost user={user_id} {trade.symbol} ({age_sec/3600:.0f}h) → close pnl=0")
 
         update_trade_closed(trade.order_id, exit_price, pnl_usdt)
         closed += 1
