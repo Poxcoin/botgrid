@@ -104,12 +104,15 @@ def update_pnl(exchange) -> int:
             if not closed:
                 continue
 
+            # Mutable pool — each Bybit close entry matches at most one signal
+            available = list(closed)
+
             for idx, sig in items:
                 sig_ms = _sig_ts_ms(sig)
                 if sig_ms == 0:
                     continue
 
-                for entry in closed:
+                for i, entry in enumerate(available):
                     entry_ms = int(entry.get("createdTime") or 0)
                     if abs(entry_ms - sig_ms) > MATCH_WINDOW_MS:
                         continue
@@ -122,6 +125,7 @@ def update_pnl(exchange) -> int:
                         "avg_exit":  float(entry.get("avgExitPrice")  or 0),
                         "closed_at": entry.get("updatedTime", ""),
                     })
+                    available.pop(i)  # consume — prevent duplicate matching
                     changed = True
                     total_updated += 1
                     break
@@ -171,6 +175,10 @@ def update_pnl_db(exchange) -> int:
 
         now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
+        # Sort trades oldest-first; each Bybit entry consumed at most once
+        trades.sort(key=lambda t: t["timestamp_open"] or "")
+        available = list(closed)
+
         for trade in trades:
             try:
                 trade_open_ms = int(datetime.fromisoformat(
@@ -179,15 +187,18 @@ def update_pnl_db(exchange) -> int:
             except Exception:
                 continue
 
-            # Find first Bybit close event that happened AFTER trade was opened
+            # Find first unconsumed Bybit close event that happened AFTER trade opened
             matched = None
-            for entry in closed:
+            matched_idx = -1
+            for i, entry in enumerate(available):
                 entry_ms = int(entry.get("createdTime") or 0)
                 if entry_ms >= trade_open_ms:
                     matched = entry
+                    matched_idx = i
                     break
 
-            if matched:
+            if matched and matched_idx >= 0:
+                available.pop(matched_idx)  # consume — prevent duplicate matching
                 pnl = float(matched.get("closedPnl") or 0)
                 exit_price = float(matched.get("avgExitPrice") or 0)
                 entry_price = trade["entry_price"] or float(matched.get("avgEntryPrice") or 1)
