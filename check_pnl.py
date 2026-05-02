@@ -4,36 +4,38 @@ from datetime import datetime
 db = sqlite3.connect("bot_data.db")
 db.row_factory = sqlite3.Row
 
+# Show all tables first
+tables = db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
+print("Tables:", [t["name"] for t in tables])
+for t in tables:
+    count = db.execute(f"SELECT COUNT(*) FROM [{t['name']}]").fetchone()[0]
+    cols  = [c[1] for c in db.execute(f"PRAGMA table_info([{t['name']}])").fetchall()]
+    print(f"  {t['name']}: {count} rows | cols: {cols}")
+print()
+
+trade_table = None
+for candidate in ["trades", "trade_log", "positions", "orders", "signal_trades"]:
+    if any(t["name"] == candidate for t in tables):
+        trade_table = candidate
+        break
+
+if not trade_table:
+    print("No trades table found — showing raw last 10 rows from each table:")
+    for t in tables:
+        rows = db.execute(f"SELECT * FROM [{t['name']}] ORDER BY rowid DESC LIMIT 5").fetchall()
+        if rows:
+            print(f"\n--- {t['name']} (last 5) ---")
+            for r in rows:
+                print(dict(r))
+    db.close()
+    exit()
+
 rows = db.execute(
-    "SELECT coin,direction,leverage,entry_price,exit_price,pnl_usdt,pnl_pct,status,created_at "
-    "FROM trades WHERE created_at >= datetime('now','-7 days') ORDER BY created_at DESC"
+    f"SELECT * FROM {trade_table} ORDER BY rowid DESC LIMIT 50"
 ).fetchall()
 
-wins   = sum(1 for r in rows if (r["pnl_usdt"] or 0) > 0)
-losses = sum(1 for r in rows if (r["pnl_usdt"] or 0) < 0)
-open_  = sum(1 for r in rows if r["status"] == "open")
-total  = sum((r["pnl_usdt"] or 0) for r in rows)
-wr     = wins / max(wins + losses, 1) * 100
-
-print(f"\n=== TRADES LAST 7 DAYS ===")
-print(f"Total: {len(rows)}  |  WIN:{wins}  LOSS:{losses}  OPEN:{open_}")
-print(f"Win Rate: {wr:.0f}%  |  PnL: {total:+.2f}$\n")
-
+print(f"\n=== {trade_table.upper()} (last 50) ===")
 for r in rows:
-    pnl = r["pnl_usdt"] or 0
-    icon = "✅" if pnl > 0 else ("🔄" if r["status"] == "open" else "❌")
-    print(f"{icon} {r['coin']:<6} {r['direction']:<5} x{r['leverage']} | "
-          f"in={r['entry_price']} | {pnl:+.2f}$ ({(r['pnl_pct'] or 0):+.1f}%) | "
-          f"{r['status']:<6} | {r['created_at'][:16]}")
-
-# Grid stats if table exists
-try:
-    grid = db.execute("SELECT * FROM grid_stats ORDER BY updated_at DESC LIMIT 5").fetchall()
-    if grid:
-        print("\n=== GRID BOT ===")
-        for g in grid:
-            print(dict(g))
-except Exception:
-    pass
+    print(dict(r))
 
 db.close()
