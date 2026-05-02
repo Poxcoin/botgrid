@@ -4,13 +4,15 @@ import TradesTab from '@/components/user/TradesTab';
 import PnlTab from '@/components/user/PnlTab';
 import ApiKeysTab from '@/components/user/ApiKeysTab';
 import SettingsTab from '@/components/user/SettingsTab';
+import BacktesterTab from '@/components/dashboard/BacktesterTab';
 
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'trades',   label: 'Trades' },
-  { id: 'pnl',      label: 'PnL' },
-  { id: 'api',      label: 'API Keys' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'overview',    label: 'Overview' },
+  { id: 'trades',      label: 'Trades' },
+  { id: 'pnl',         label: 'PnL' },
+  { id: 'backtester',  label: 'Backtester' },
+  { id: 'api',         label: 'API Keys' },
+  { id: 'settings',    label: 'Settings' },
 ];
 
 const S = {
@@ -29,11 +31,12 @@ function getUser() {
 }
 
 function TabContent({ tab }) {
-  if (tab === 'overview') return <OverviewTab />;
-  if (tab === 'trades')   return <TradesTab />;
-  if (tab === 'pnl')      return <PnlTab />;
-  if (tab === 'api')      return <ApiKeysTab />;
-  if (tab === 'settings') return <SettingsTab />;
+  if (tab === 'overview')   return <OverviewTab />;
+  if (tab === 'trades')     return <TradesTab />;
+  if (tab === 'pnl')        return <PnlTab />;
+  if (tab === 'backtester') return <BacktesterTab />;
+  if (tab === 'api')        return <ApiKeysTab />;
+  if (tab === 'settings')   return <SettingsTab />;
   return null;
 }
 

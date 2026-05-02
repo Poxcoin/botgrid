@@ -148,6 +148,24 @@ def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     return token
 
+
+def require_any_auth(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """Accept admin token OR user JWT — for endpoints shared between dashboards."""
+    _purge_expired()
+    token = credentials.credentials
+    exp = _active_tokens.get(token)
+    if exp and exp >= time.time():
+        return token
+    payload = decode_token(token)
+    if payload:
+        user = db.query(User).filter(User.id == int(payload["sub"])).first()
+        if user and user.is_active:
+            return token
+    raise HTTPException(status_code=401, detail="Invalid or expired token")
+
 LEDGER_FILE = "signals_log.json"
 
 # ─── Backtest in-process runner ──────────────────────────────────────────────
@@ -166,7 +184,7 @@ class BacktestStartRequest(BaseModel):
 
 
 @app.post("/api/backtest/start")
-async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_auth)):
+async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_any_auth)):
     global _backtest_running, _backtest_progress
     if _backtest_running:
         raise HTTPException(status_code=409, detail="Backtest already running")
@@ -203,7 +221,7 @@ async def start_backtest(body: BacktestStartRequest, token: str = Depends(requir
 
 
 @app.get("/api/backtest/status")
-async def backtest_status(token: str = Depends(require_auth)):
+async def backtest_status(token: str = Depends(require_any_auth)):
     return {"running": _backtest_running, "progress": _backtest_progress}
 
 
@@ -235,7 +253,7 @@ async def login(body: LoginRequest, request: Request):
     return {"token": token}
 
 @app.post("/api/auth/logout")
-async def logout(token: str = Depends(require_auth)):
+async def logout(token: str = Depends(require_any_auth)):
     _active_tokens.pop(token, None)
     return {"ok": True}
 
@@ -652,7 +670,7 @@ def _load_signals() -> list:
 
 
 @app.get("/api/data")
-async def get_dashboard_data(token: str = Depends(require_auth)):
+async def get_dashboard_data(token: str = Depends(require_any_auth)):
     signals = _load_signals()
 
     balance_info = {"total": 0, "free": 0}
@@ -743,7 +761,7 @@ async def get_signals(
 
 
 @app.get("/api/stats")
-async def get_stats(token: str = Depends(require_auth)):
+async def get_stats(token: str = Depends(require_any_auth)):
     all_signals = _load_signals()
     trades = [s for s in all_signals if s.get("action") in ("LONG", "SHORT")]
 
@@ -766,7 +784,7 @@ async def get_stats(token: str = Depends(require_auth)):
 
 
 @app.get("/api/intel")
-async def get_intel(token: str = Depends(require_auth)):
+async def get_intel(token: str = Depends(require_any_auth)):
     """Live данные: источники, ликвидации, on-chain."""
     try:
         with open("live_intel.json") as f:
@@ -858,7 +876,7 @@ async def websocket_endpoint(websocket: WebSocket):
 BACKTEST_DIR = "backtest_results"
 
 @app.get("/api/backtest/runs")
-async def get_backtest_runs(token: str = Depends(require_auth)):
+async def get_backtest_runs(token: str = Depends(require_any_auth)):
     if not os.path.exists(BACKTEST_DIR):
         return {"runs": []}
     runs = []
@@ -880,7 +898,7 @@ async def get_backtest_runs(token: str = Depends(require_auth)):
 
 
 @app.get("/api/backtest/run/{run_id}")
-async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
+async def get_backtest_run(run_id: str, token: str = Depends(require_any_auth)):
     import re
     if not re.match(r'^[\w\-:T]+$', run_id):
         raise HTTPException(status_code=400, detail="Invalid run_id")
