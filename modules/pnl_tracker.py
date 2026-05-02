@@ -18,7 +18,8 @@ from datetime import datetime, timezone
 from modules.analytics_db import close_trade, DB_PATH
 
 LEDGER_FILES = ["signals_log.json", "signals_log_alt.json"]
-MATCH_WINDOW_MS = 5 * 60 * 1000   # 5 минут — окно для сопоставления
+MATCH_WINDOW_MS = 5 * 60 * 1000   # 5 минут — окно для сопоставления JSON-журнала
+GHOST_THRESHOLD_HOURS = 24         # позиции старше 24h без Bybit-записи = ghost
 
 
 def _load(path: str) -> list:
@@ -168,6 +169,8 @@ def update_pnl_db(exchange) -> int:
         if not closed:
             continue
 
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
         for trade in trades:
             try:
                 trade_open_ms = int(datetime.fromisoformat(
@@ -176,25 +179,41 @@ def update_pnl_db(exchange) -> int:
             except Exception:
                 continue
 
+            # Find first Bybit close event that happened AFTER trade was opened
+            matched = None
             for entry in closed:
                 entry_ms = int(entry.get("createdTime") or 0)
-                if abs(entry_ms - trade_open_ms) > MATCH_WINDOW_MS:
-                    continue
+                if entry_ms >= trade_open_ms:
+                    matched = entry
+                    break
 
-                pnl = float(entry.get("closedPnl") or 0)
-                exit_price = float(entry.get("avgExitPrice") or 0)
-                entry_price = trade["entry_price"] or float(entry.get("avgEntryPrice") or 1)
-                pnl_pct = round((exit_price - entry_price) / entry_price * 100, 2) if entry_price else 0
-                close_ms = int(entry.get("updatedTime") or entry_ms)
-                duration = round((close_ms - trade_open_ms) / 60000)
+            if matched:
+                pnl = float(matched.get("closedPnl") or 0)
+                exit_price = float(matched.get("avgExitPrice") or 0)
+                entry_price = trade["entry_price"] or float(matched.get("avgEntryPrice") or 1)
+                pnl_pct = round((exit_price / entry_price - 1) * 100, 2) if entry_price else 0
+                if trade.get("action") == "SHORT":
+                    pnl_pct = -pnl_pct
+                close_ms = int(matched.get("updatedTime") or int(matched.get("createdTime") or now_ms))
+                duration = max(0, round((close_ms - trade_open_ms) / 60000))
 
                 try:
                     close_trade(trade["id"], exit_price, pnl, pnl_pct, duration)
-                    print(f"[pnl_tracker] DB закрита угода #{trade['id']} {coin} pnl={pnl:.2f} USDT")
+                    print(f"[pnl_tracker] DB закрита угода #{trade['id']} {coin} pnl={pnl:+.2f} USDT")
                     updated += 1
                 except Exception as e:
                     print(f"[pnl_tracker] close_trade error: {e}")
-                break
+
+            else:
+                # No Bybit close record — mark as ghost if older than threshold
+                age_hours = (now_ms - trade_open_ms) / 3_600_000
+                if age_hours > GHOST_THRESHOLD_HOURS:
+                    try:
+                        close_trade(trade["id"], trade["entry_price"] or 0, 0.0, 0.0, round(age_hours * 60))
+                        print(f"[pnl_tracker] Ghost #{trade['id']} {coin} ({age_hours:.0f}h) — закрито з pnl=0")
+                        updated += 1
+                    except Exception as e:
+                        print(f"[pnl_tracker] ghost close error: {e}")
 
     con.close()
     return updated
