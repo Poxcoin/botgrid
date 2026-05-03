@@ -16,6 +16,99 @@ function Field({ label, children }) {
 
 const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
 
+function BillingSection({ plan, trialDaysLeft, subscribed }) {
+  const [loading, setLoading] = React.useState(false);
+
+  async function startCheckout(selectedPlan) {
+    setLoading(true);
+    try {
+      const { url } = await API('/api/billing/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plan: selectedPlan }),
+      });
+      window.location.href = url;
+    } catch (e) {
+      alert(typeof e === 'string' ? e : 'Checkout failed — try again');
+      setLoading(false);
+    }
+  }
+
+  async function openPortal() {
+    setLoading(true);
+    try {
+      const { url } = await API('/api/billing/portal', { method: 'POST' });
+      window.location.href = url;
+    } catch (e) {
+      alert(typeof e === 'string' ? e : 'Portal unavailable');
+      setLoading(false);
+    }
+  }
+
+  const btn = {
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    opacity: loading ? 0.6 : 1, marginTop: 12, marginRight: 8,
+  };
+  const ghostBtn = {
+    background: 'none', color: 'var(--fg)', border: '1px solid var(--border)',
+    padding: '8px 20px', fontSize: 12, cursor: 'pointer',
+    opacity: loading ? 0.6 : 1, marginTop: 12, marginRight: 8,
+  };
+
+  if (plan === 'trial') {
+    return (
+      <div>
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
+          Trial — <span style={{ color: '#aaa' }}>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left</span>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 4 }}>
+          Grid bot only during trial. Subscribe to unlock all bots.
+        </div>
+        <button disabled={loading} onClick={() => startCheckout('basic')} style={btn}>Basic $29/mo</button>
+        <button disabled={loading} onClick={() => startCheckout('pro')} style={ghostBtn}>Pro $79/mo</button>
+        <button disabled={loading} onClick={() => startCheckout('performance')} style={ghostBtn}>Performance 20%</button>
+      </div>
+    );
+  }
+
+  if (plan === 'free') {
+    return (
+      <div>
+        <div style={{ fontSize: 13, color: '#e5533d', marginBottom: 8 }}>Trial expired — bots paused</div>
+        <button disabled={loading} onClick={() => startCheckout('basic')} style={btn}>Subscribe — from $29/mo</button>
+      </div>
+    );
+  }
+
+  if (plan === 'basic' || plan === 'pro') {
+    return (
+      <div>
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
+          {plan === 'basic' ? 'Basic — $29/mo' : 'Pro — $79/mo'}
+          {subscribed && <span style={{ fontSize: 11, color: '#5a5', marginLeft: 8 }}>Active</span>}
+        </div>
+        <button disabled={loading} onClick={openPortal} style={ghostBtn}>Manage subscription →</button>
+      </div>
+    );
+  }
+
+  if (plan === 'performance') {
+    return (
+      <div>
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
+          Performance — 20% of monthly profit
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 4 }}>
+          Billed on the 1st of each month. High-water mark protection.
+        </div>
+        <button disabled={loading} onClick={openPortal} style={ghostBtn}>Manage →</button>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function SettingsTab() {
   const [me, setMe] = useState(null);
   const [tgId, setTgId] = useState('');
@@ -104,6 +197,14 @@ export default function SettingsTab() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* Subscription */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24, marginTop: 8 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>
+          Subscription
+        </div>
+        <BillingSection plan={me?.plan} trialDaysLeft={me?.trial_days_left} subscribed={me?.subscribed} />
       </div>
     </div>
   );
