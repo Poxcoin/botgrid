@@ -21,8 +21,11 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=20)
 
 # Bots available per plan
 PLAN_BOTS = {
-    "free": {"grid"},
-    "pro":  {"grid", "news", "fr", "listing", "whale", "dex"},
+    "trial":       {"grid"},
+    "free":        set(),
+    "basic":       {"grid", "news"},
+    "pro":         {"grid", "news", "fr", "listing", "whale", "dex"},
+    "performance": {"grid", "news", "fr", "listing", "whale", "dex"},
 }
 
 
@@ -33,7 +36,7 @@ def _get_active_users(source: str) -> list[dict]:
         users = db.query(User).filter(User.is_active == True).all()
         result = []
         for u in users:
-            allowed = PLAN_BOTS.get(u.plan, set())
+            allowed = PLAN_BOTS.get(u.effective_plan, set())
             if source not in allowed:
                 continue
             if not u.api_keys:
