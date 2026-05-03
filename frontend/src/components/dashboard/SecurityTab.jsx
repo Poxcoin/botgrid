@@ -16,10 +16,11 @@ function Section({ title, icon: Icon, children }) {
 
 export default function SecurityTab() {
   const [user, setUser] = useState(null);
-  const [step, setStep] = useState('idle'); // idle | setup | enable | disable
+  const [step, setStep] = useState('idle'); // idle | confirm-pw | setup | enable | disable
   const [qr, setQr] = useState(null);
   const [secret, setSecret] = useState('');
   const [code, setCode] = useState('');
+  const [pw, setPw] = useState('');
   const [msg, setMsg] = useState({ text: '', type: '' });
 
   useEffect(() => {
@@ -31,10 +32,16 @@ export default function SecurityTab() {
     setTimeout(() => setMsg({ text: '', type: '' }), 4000);
   }
 
-  async function startSetup() {
-    const r = await authFetch('/api/users/2fa/setup', { method: 'POST' });
+  async function confirmPasswordAndSetup() {
+    if (!pw) { notice('Введите пароль', 'err'); return; }
+    const r = await authFetch('/api/users/2fa/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
     const d = await r.json();
     if (!r.ok) { notice(d.detail, 'err'); return; }
+    setPw('');
     setQr(d.qr);
     setSecret(d.secret);
     setStep('setup');
@@ -112,11 +119,39 @@ export default function SecurityTab() {
         {/* Setup flow */}
         {!user.totp_enabled && step === 'idle' && (
           <button
-            onClick={startSetup}
+            onClick={() => setStep('confirm-pw')}
             className="h-10 px-6 font-mono text-[11px] tracking-[0.2em] uppercase bg-kado-black text-white hover:bg-kado-blue transition-colors"
           >
             Enable 2FA →
           </button>
+        )}
+
+        {!user.totp_enabled && step === 'confirm-pw' && (
+          <div className="space-y-3">
+            <p className="font-mono text-[12px] text-kado-black/60">Подтвердите пароль для включения 2FA:</p>
+            <div className="flex gap-3">
+              <input
+                type="password"
+                value={pw}
+                onChange={e => setPw(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && confirmPasswordAndSetup()}
+                placeholder="Ваш пароль"
+                className="flex-1 h-10 px-4 border border-kado-black font-mono text-[13px] outline-none focus:border-kado-blue"
+              />
+              <button
+                onClick={confirmPasswordAndSetup}
+                className="h-10 px-6 font-mono text-[11px] tracking-[0.2em] uppercase bg-kado-black text-white hover:bg-kado-blue transition-colors"
+              >
+                Далее →
+              </button>
+              <button
+                onClick={() => { setStep('idle'); setPw(''); }}
+                className="h-10 px-4 font-mono text-[11px] tracking-[0.2em] uppercase border border-kado-black text-kado-black/50 hover:text-kado-black transition-colors"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
         )}
 
         {step === 'setup' && qr && (

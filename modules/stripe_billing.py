@@ -191,7 +191,10 @@ def _on_checkout_completed(session: dict) -> None:
         if session.get("subscription"):
             sub.stripe_sub_id = session["subscription"]
 
-        if plan == "performance":
+        payment_status = session.get("payment_status", "")
+        mode = session.get("mode", "")
+        payment_ok = payment_status == "paid" or (mode == "setup" and payment_status == "no_payment_required")
+        if plan == "performance" and payment_ok:
             sub.plan       = "performance"
             sub.status     = "active"
             sub.expires_at = None

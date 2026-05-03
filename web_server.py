@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import math
 import os
@@ -129,6 +130,7 @@ _TOKEN_TTL = 86_400  # 24 часа
 _active_tokens: dict[str, float] = {}
 # {partial_token: {"user_id": int, "exp": float}} — separate from _active_tokens to avoid type mismatch
 _2fa_pending: dict[str, dict] = {}
+_revoked_jtis: dict[str, float] = {}  # jti → expiry; purged when expired
 _ws_connections: dict = defaultdict(int)  # ip → open connection count
 _WS_MAX_PER_IP = 5
 security = HTTPBearer()
@@ -141,6 +143,9 @@ def _purge_expired():
     stale = [k for k, v in _2fa_pending.items() if v["exp"] < now]
     for k in stale:
         del _2fa_pending[k]
+    stale_jtis = [j for j, exp in _revoked_jtis.items() if exp < now]
+    for j in stale_jtis:
+        del _revoked_jtis[j]
 
 def require_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
     _purge_expired()
@@ -191,7 +196,7 @@ class BillingCheckoutRequest(BaseModel):
 
 
 @app.post("/api/backtest/start")
-async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_any_auth)):
+async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_auth)):
     global _backtest_running, _backtest_progress
     if _backtest_running:
         raise HTTPException(status_code=409, detail="Backtest already running")
@@ -228,7 +233,7 @@ async def start_backtest(body: BacktestStartRequest, token: str = Depends(requir
 
 
 @app.get("/api/backtest/status")
-async def backtest_status(token: str = Depends(require_any_auth)):
+async def backtest_status(token: str = Depends(require_auth)):
     return {"running": _backtest_running, "progress": _backtest_progress}
 
 
@@ -262,6 +267,9 @@ async def login(body: LoginRequest, request: Request):
 @app.post("/api/auth/logout")
 async def logout(token: str = Depends(require_any_auth)):
     _active_tokens.pop(token, None)
+    payload = decode_token(token)
+    if payload and payload.get("jti") and payload.get("exp"):
+        _revoked_jtis[payload["jti"]] = float(payload["exp"])
     return {"ok": True}
 
 
@@ -288,6 +296,8 @@ def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("jti") and payload["jti"] in _revoked_jtis:
+        raise HTTPException(status_code=401, detail="Token revoked — please login again")
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
@@ -312,12 +322,13 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     if not re.search(r'[^A-Za-z0-9]', pw):
         raise HTTPException(status_code=400, detail="Password must contain at least one special character")
     verify_token = secrets.token_urlsafe(32)
+    verify_token_hash = hashlib.sha256(verify_token.encode()).hexdigest()
     user = User(
         email=body.email,
         username=body.username,
         password_hash=hash_password(body.password),
         email_verified=False,
-        email_verify_token=verify_token,
+        email_verify_token=verify_token_hash,
         plan="trial",
         trial_ends_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
     )
@@ -336,8 +347,9 @@ class VerifyEmailRequest(BaseModel):
 
 @app.post("/api/users/verify-email")
 async def verify_email(body: VerifyEmailRequest, db: Session = Depends(get_db)):
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
     user = db.query(User).filter(
-        User.email_verify_token == body.token,
+        User.email_verify_token == token_hash,
         User.email_verified == False,
     ).first()
     if not user:
@@ -354,7 +366,7 @@ async def resend_verification(credentials: HTTPAuthorizationCredentials = Depend
     if user.email_verified:
         raise HTTPException(status_code=400, detail="Email already verified")
     new_token = secrets.token_urlsafe(32)
-    user.email_verify_token = new_token
+    user.email_verify_token = hashlib.sha256(new_token.encode()).hexdigest()
     db.commit()
     asyncio.get_running_loop().run_in_executor(
         None, send_verification_email, user.email, new_token
@@ -377,7 +389,8 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ses
     user = db.query(User).filter(User.email == body.email).first()
     if user:
         token = secrets.token_urlsafe(32)
-        user.password_reset_token   = token
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        user.password_reset_token   = token_hash
         user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
         db.commit()
         from utils.email import send_password_reset_email
@@ -395,7 +408,8 @@ async def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_d
         raise HTTPException(status_code=400, detail="Нужна хотя бы одна цифра")
     if not re.search(r'[^A-Za-z0-9]', body.password):
         raise HTTPException(status_code=400, detail="Нужен хотя бы один спецсимвол")
-    user = db.query(User).filter(User.password_reset_token == body.token).first()
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()
+    user = db.query(User).filter(User.password_reset_token == token_hash).first()
     if not user or not user.password_reset_expires:
         raise HTTPException(status_code=400, detail="Неверная или устаревшая ссылка")
     if datetime.now(timezone.utc) > user.password_reset_expires.replace(tzinfo=timezone.utc):
@@ -536,13 +550,18 @@ def _generate_recovery_codes() -> tuple[list[str], list[str]]:
         hashed.append(hash_password(code))
     return plain, hashed
 
+class TotpSetupRequest(BaseModel):
+    password: str
+
 @app.post("/api/users/2fa/setup")
-async def totp_setup(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def totp_setup(body: TotpSetupRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
     if user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA already enabled")
     secret = pyotp.random_base32()
-    user.totp_secret = secret
+    user.totp_secret = encrypt_field(secret)
     db.commit()
     uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.email, issuer_name="Kado")
     img = qrcode.make(uri)
@@ -556,7 +575,7 @@ async def totp_enable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCre
     user = _get_user_from_token(credentials.credentials, db)
     if not user.totp_secret:
         raise HTTPException(status_code=400, detail="Run /2fa/setup first")
-    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+    if not pyotp.TOTP(decrypt_field(user.totp_secret)).verify(body.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid code")
     plain_codes, hashed_codes = _generate_recovery_codes()
     user.totp_enabled    = True
@@ -570,7 +589,7 @@ async def totp_disable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCr
     user = _get_user_from_token(credentials.credentials, db)
     if not user.totp_enabled or not user.totp_secret:
         raise HTTPException(status_code=400, detail="2FA not enabled")
-    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+    if not pyotp.TOTP(decrypt_field(user.totp_secret)).verify(body.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid code")
     user.totp_enabled = False
     user.totp_secret = None
@@ -590,7 +609,7 @@ async def totp_verify_login(body: TotpLoginRequest, request: Request, db: Sessio
     user = db.query(User).filter(User.id == entry["user_id"]).first()
     if not user or not user.totp_secret:
         raise HTTPException(status_code=401, detail="User not found")
-    if not pyotp.TOTP(user.totp_secret).verify(body.code, valid_window=1):
+    if not pyotp.TOTP(decrypt_field(user.totp_secret)).verify(body.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid authenticator code")
     _2fa_pending.pop(body.partial_token, None)
     token = create_token(user.id, user.email)
@@ -930,7 +949,7 @@ def _load_signals() -> list:
 
 
 @app.get("/api/data")
-async def get_dashboard_data(token: str = Depends(require_any_auth)):
+async def get_dashboard_data(token: str = Depends(require_auth)):
     signals = _load_signals()
 
     balance_info = {"total": 0, "free": 0}
@@ -1021,7 +1040,7 @@ async def get_signals(
 
 
 @app.get("/api/stats")
-async def get_stats(token: str = Depends(require_any_auth)):
+async def get_stats(token: str = Depends(require_auth)):
     all_signals = _load_signals()
     trades = [s for s in all_signals if s.get("action") in ("LONG", "SHORT")]
 
@@ -1044,7 +1063,7 @@ async def get_stats(token: str = Depends(require_any_auth)):
 
 
 @app.get("/api/intel")
-async def get_intel(token: str = Depends(require_any_auth)):
+async def get_intel(token: str = Depends(require_auth)):
     """Live данные: источники, ликвидации, on-chain."""
     try:
         with open("live_intel.json") as f:
@@ -1136,7 +1155,7 @@ async def websocket_endpoint(websocket: WebSocket):
 BACKTEST_DIR = "backtest_results"
 
 @app.get("/api/backtest/runs")
-async def get_backtest_runs(token: str = Depends(require_any_auth)):
+async def get_backtest_runs(token: str = Depends(require_auth)):
     if not os.path.exists(BACKTEST_DIR):
         return {"runs": []}
     runs = []
@@ -1158,7 +1177,7 @@ async def get_backtest_runs(token: str = Depends(require_any_auth)):
 
 
 @app.get("/api/backtest/run/{run_id}")
-async def get_backtest_run(run_id: str, token: str = Depends(require_any_auth)):
+async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
     import re
     if not re.match(r'^[\w\-:T]+$', run_id):
         raise HTTPException(status_code=400, detail="Invalid run_id")

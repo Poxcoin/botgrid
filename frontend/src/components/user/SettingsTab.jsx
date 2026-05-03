@@ -197,8 +197,10 @@ export default function SettingsTab() {
   }
 
   async function setup2fa() {
+    const password = prompt('Введите ваш пароль для подтверждения:');
+    if (!password) return;
     try {
-      const { qr, secret } = await API('/api/users/2fa/setup');
+      const { qr, secret } = await API('/api/users/2fa/setup', { method: 'POST', body: JSON.stringify({ password }) });
       const code = prompt(`Отсканируйте QR в приложении-аутентификаторе.\nИли введите секрет вручную: ${secret}\n\nЗатем введите 6-значный код:`);
       if (!code) return;
       await API('/api/users/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
