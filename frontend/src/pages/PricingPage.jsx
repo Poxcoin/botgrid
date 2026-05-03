@@ -214,15 +214,10 @@ const S = {
   },
 };
 
-const FREE_ON  = ['Dashboard access', 'Live signal feed (read-only)', 'Bot analyzer & backtester', 'System logs'];
-const FREE_OFF = ['Automated trading', 'API key integration', 'Priority support'];
+const FREE_ON  = ['Dashboard access', 'Bot analyzer & backtester', 'Demo trading (paper money)', 'System logs', 'Signal feed (read-only)'];
+const FREE_OFF = ['Live trading', 'API key integration', 'Priority support'];
 
-const BASIC_ON  = ['Everything in Free', 'News Intelligence Bot', 'Grid Trading (BTC · ETH · SOL · DOGE · XRP)', 'Demo + live modes', 'API key integration'];
-const BASIC_OFF = ['Listing Sniper', 'DEX Sniper', 'Whale Tracker'];
-
-const PRO_ON = ['Everything in Basic', 'All 6 bots', 'Listing Sniper', 'DEX Sniper', 'Whale Tracker', 'Priority support', 'Performance analytics'];
-
-const PERFORMANCE_ON = ['All 6 bots', 'No upfront cost', 'High-water mark protection', 'Monthly invoice on the 1st', 'Priority support'];
+const PERFORMANCE_ON = ['All 6 bots', 'Live trading', 'API key integration', 'No upfront cost', 'High-water mark protection', 'Monthly invoice on the 1st', 'Priority support'];
 
 const FAQS = [
   {
@@ -234,12 +229,12 @@ const FAQS = [
     a: 'Currently Bybit Perpetual Futures. More exchanges are coming — join the waitlist to get notified.',
   },
   {
-    q: 'Can I cancel anytime?',
-    a: 'Yes. No contracts, no lock-in. Cancel from your dashboard whenever you want.',
+    q: 'How does the performance fee work?',
+    a: 'We charge 20% of your monthly profit. If you have a losing month, you pay nothing. The high-water mark means you only pay on new profits above your all-time peak — no double-dipping after a drawdown.',
   },
   {
-    q: 'What is the performance fee?',
-    a: 'There is no performance fee on Basic. Pro plan includes advanced analytics — pricing may include a performance component in the future.',
+    q: 'What if I have a losing month?',
+    a: 'You pay nothing. The 20% fee applies only to net new profits. Losing months carry forward — you need to recover losses before fees apply again.',
   },
 ];
 
@@ -287,10 +282,10 @@ export default function PricingPage() {
       {/* Hero */}
       <div style={S.wrap} className="px-5 md:px-14">
         <div style={S.hero}>
-          <div style={S.badge}>4 Plans · Cancel Anytime</div>
+          <div style={S.badge}>2 Plans · No Lock-in</div>
           <h1 style={S.h1}>SIMPLE PRICING.</h1>
           <p style={S.subtitle}>
-            No hidden fees. No lock-in. Start with a 7-day free trial.
+            Start for free. Pay only when you profit — 20% of monthly gains, nothing else.
           </p>
         </div>
       </div>
@@ -298,17 +293,17 @@ export default function PricingPage() {
       {/* Cards */}
       <div style={S.wrap} className="px-5 md:px-14">
         <div style={S.cardsSection}>
-          <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: '16px' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
 
             {/* FREE */}
             <div style={S.card}>
-              <div style={S.cardLabel}>FREE TRIAL</div>
+              <div style={S.cardLabel}>FREE</div>
               <div style={S.priceRow}>
                 <span style={S.priceBig}>$0</span>
-                <span style={S.pricePer}>/ 7 days</span>
+                <span style={S.pricePer}>forever</span>
               </div>
               <p style={S.cardDesc}>
-                Grid bot only. No card required. Upgrade anytime.
+                Paper trading with real market data. No card required. Test your strategies risk-free.
               </p>
               <ul style={S.featureList}>
                 {FREE_ON.map((f)  => <FeatureRow key={f} on={true}  text={f} />)}
@@ -319,88 +314,32 @@ export default function PricingPage() {
               </div>
             </div>
 
-            {/* BASIC — highlighted */}
+            {/* PERFORMANCE — highlighted */}
             <div style={S.cardHL}>
-              <span style={S.popularPill}>MOST POPULAR</span>
-              <div style={S.cardLabel}>BASIC</div>
+              <span style={S.popularPill}>RECOMMENDED</span>
+              <div style={S.cardLabel}>PERFORMANCE</div>
               <div style={S.priceRow}>
-                <span style={S.priceBig}>$29</span>
-                <span style={S.pricePer}>/month</span>
+                <span style={S.priceBig}>20%</span>
+                <span style={S.pricePer}>of monthly profit</span>
               </div>
               <p style={S.cardDesc}>
-                News bot + grid bot running on your account. Demo mode available.
+                No monthly fee. Pay only when you earn. High-water mark protection — fees apply only to <em>new</em> profits above your previous cumulative peak.
               </p>
               <ul style={S.featureList}>
-                {BASIC_ON.map((f)  => <FeatureRow key={f} on={true}  text={f} />)}
-                {BASIC_OFF.map((f) => <FeatureRow key={f} on={false} text={f} />)}
+                {PERFORMANCE_ON.map((f) => <FeatureRow key={f} on={true} text={f} />)}
               </ul>
               <div style={S.ctaWrap}>
                 <button
-                  onClick={() => startCheckout('basic')}
+                  onClick={() => startCheckout('performance')}
                   disabled={!!loading}
-                  style={{ ...S.btnPrimary, opacity: loading === 'basic' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
+                  style={{ ...S.btnPrimary, opacity: loading === 'performance' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
                 >
-                  {loading === 'basic' ? 'Redirecting…' : 'Start Basic →'}
-                </button>
-              </div>
-            </div>
-
-            {/* PRO */}
-            <div style={S.card}>
-              <div style={S.cardLabel}>PRO</div>
-              <div style={S.priceRow}>
-                <span style={S.priceBig}>$79</span>
-                <span style={S.pricePer}>/month</span>
-              </div>
-              <p style={S.cardDesc}>
-                All six bots. Maximum automation. Priority support.
-              </p>
-              <ul style={S.featureList}>
-                {PRO_ON.map((f) => <FeatureRow key={f} on={true} text={f} />)}
-              </ul>
-              <div style={S.ctaWrap}>
-                <button
-                  onClick={() => startCheckout('pro')}
-                  disabled={!!loading}
-                  style={{ ...S.btnGhost, opacity: loading === 'pro' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
-                >
-                  {loading === 'pro' ? 'Redirecting…' : 'Start Pro →'}
+                  {loading === 'performance' ? 'Redirecting…' : 'Start Performance →'}
                 </button>
               </div>
             </div>
 
           </div>
-
-          {/* PERFORMANCE — full width below */}
-          <div style={{ ...S.card, marginTop: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
-              <div style={{ flex: 1, minWidth: 260 }}>
-                <div style={S.cardLabel}>PERFORMANCE</div>
-                <div style={S.priceRow}>
-                  <span style={S.priceBig}>20%</span>
-                  <span style={S.pricePer}>of monthly profit</span>
-                </div>
-                <p style={{ ...S.cardDesc, borderBottom: 'none', paddingBottom: 0 }}>
-                  No monthly fee. Pay only when you profit. High-water mark protection — fees apply only to <em>new</em> profits above your previous cumulative peak.
-                </p>
-              </div>
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <ul style={{ ...S.featureList, marginBottom: 0 }}>
-                  {PERFORMANCE_ON.map((f) => <FeatureRow key={f} on={true} text={f} />)}
-                </ul>
-                <div style={S.ctaWrap}>
-                  <button
-                    onClick={() => startCheckout('performance')}
-                    disabled={!!loading}
-                    style={{ ...S.btnGhost, opacity: loading === 'performance' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
-                  >
-                    {loading === 'performance' ? 'Redirecting…' : 'Start Performance →'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
         </div>
       </div>
 

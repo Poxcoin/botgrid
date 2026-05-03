@@ -61,12 +61,12 @@ function BillingSection({ plan, trialDaysLeft, subscribed }) {
         <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
           Trial — <span style={{ color: '#aaa' }}>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left</span>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 4 }}>
-          Grid bot only during trial. Subscribe to unlock all bots.
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
+          Demo trading active. Connect an API key and switch to Performance to go live.
         </div>
-        <button disabled={loading} onClick={() => startCheckout('basic')} style={btn}>Basic $29/mo</button>
-        <button disabled={loading} onClick={() => startCheckout('pro')} style={ghostBtn}>Pro $79/mo</button>
-        <button disabled={loading} onClick={() => startCheckout('performance')} style={ghostBtn}>Performance 20%</button>
+        <button disabled={loading} onClick={() => startCheckout('performance')} style={btn}>
+          Start Performance — 20% of profit
+        </button>
       </div>
     );
   }
@@ -74,20 +74,13 @@ function BillingSection({ plan, trialDaysLeft, subscribed }) {
   if (plan === 'free') {
     return (
       <div>
-        <div style={{ fontSize: 13, color: '#e5533d', marginBottom: 8 }}>Trial expired — bots paused</div>
-        <button disabled={loading} onClick={() => startCheckout('basic')} style={btn}>Subscribe — from $29/mo</button>
-      </div>
-    );
-  }
-
-  if (plan === 'basic' || plan === 'pro') {
-    return (
-      <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
-          {plan === 'basic' ? 'Basic — $29/mo' : 'Pro — $79/mo'}
-          {subscribed && <span style={{ fontSize: 11, color: '#5a5', marginLeft: 8 }}>Active</span>}
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>Free — Demo trading</div>
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
+          Upgrade to Performance to trade live. Pay only when you profit.
         </div>
-        <button disabled={loading} onClick={openPortal} style={ghostBtn}>Manage subscription →</button>
+        <button disabled={loading} onClick={() => startCheckout('performance')} style={btn}>
+          Go live — Performance 20%
+        </button>
       </div>
     );
   }
@@ -97,6 +90,7 @@ function BillingSection({ plan, trialDaysLeft, subscribed }) {
       <div>
         <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
           Performance — 20% of monthly profit
+          {subscribed && <span style={{ fontSize: 11, color: '#5a5', marginLeft: 8 }}>Active</span>}
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 4 }}>
           Billed on the 1st of each month. High-water mark protection.
