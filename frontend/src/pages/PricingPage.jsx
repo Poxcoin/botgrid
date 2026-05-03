@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 
@@ -222,6 +222,8 @@ const BASIC_OFF = ['Listing Sniper', 'DEX Sniper', 'Whale Tracker'];
 
 const PRO_ON = ['Everything in Basic', 'All 6 bots', 'Listing Sniper', 'DEX Sniper', 'Whale Tracker', 'Priority support', 'Performance analytics'];
 
+const PERFORMANCE_ON = ['All 6 bots', 'No upfront cost', 'High-water mark protection', 'Monthly invoice on the 1st', 'Priority support'];
+
 const FAQS = [
   {
     q: 'Is my money safe?',
@@ -252,6 +254,31 @@ function FeatureRow({ on, text }) {
 
 export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
+  const [loading, setLoading] = useState(null);
+
+  async function startCheckout(plan) {
+    const token = localStorage.getItem('kado_token');
+    if (!token) { window.location.href = '/register'; return; }
+    setLoading(plan);
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.detail || 'Checkout failed');
+        setLoading(null);
+        return;
+      }
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch {
+      alert('Checkout unavailable — try again');
+      setLoading(null);
+    }
+  }
 
   return (
     <div style={S.page}>
@@ -260,10 +287,10 @@ export default function PricingPage() {
       {/* Hero */}
       <div style={S.wrap} className="px-5 md:px-14">
         <div style={S.hero}>
-          <div style={S.badge}>3 Plans · Cancel Anytime</div>
+          <div style={S.badge}>4 Plans · Cancel Anytime</div>
           <h1 style={S.h1}>SIMPLE PRICING.</h1>
           <p style={S.subtitle}>
-            No hidden fees. No lock-in. Start free and upgrade when you're ready.
+            No hidden fees. No lock-in. Start with a 7-day free trial.
           </p>
         </div>
       </div>
@@ -275,20 +302,20 @@ export default function PricingPage() {
 
             {/* FREE */}
             <div style={S.card}>
-              <div style={S.cardLabel}>FREE</div>
+              <div style={S.cardLabel}>FREE TRIAL</div>
               <div style={S.priceRow}>
                 <span style={S.priceBig}>$0</span>
-                <span style={S.pricePer}>/forever</span>
+                <span style={S.pricePer}>/ 7 days</span>
               </div>
               <p style={S.cardDesc}>
-                Explore the platform. View live signals without trading.
+                Grid bot only. No card required. Upgrade anytime.
               </p>
               <ul style={S.featureList}>
                 {FREE_ON.map((f)  => <FeatureRow key={f} on={true}  text={f} />)}
                 {FREE_OFF.map((f) => <FeatureRow key={f} on={false} text={f} />)}
               </ul>
               <div style={S.ctaWrap}>
-                <a href="/waitlist" style={S.btnGhost}>Join Waitlist →</a>
+                <a href="/register" style={S.btnGhost}>Start free →</a>
               </div>
             </div>
 
@@ -308,7 +335,13 @@ export default function PricingPage() {
                 {BASIC_OFF.map((f) => <FeatureRow key={f} on={false} text={f} />)}
               </ul>
               <div style={S.ctaWrap}>
-                <a href="/waitlist" style={S.btnPrimary}>Join Waitlist →</a>
+                <button
+                  onClick={() => startCheckout('basic')}
+                  disabled={!!loading}
+                  style={{ ...S.btnPrimary, opacity: loading === 'basic' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
+                >
+                  {loading === 'basic' ? 'Redirecting…' : 'Start Basic →'}
+                </button>
               </div>
             </div>
 
@@ -326,11 +359,48 @@ export default function PricingPage() {
                 {PRO_ON.map((f) => <FeatureRow key={f} on={true} text={f} />)}
               </ul>
               <div style={S.ctaWrap}>
-                <a href="/waitlist" style={S.btnGhost}>Join Waitlist →</a>
+                <button
+                  onClick={() => startCheckout('pro')}
+                  disabled={!!loading}
+                  style={{ ...S.btnGhost, opacity: loading === 'pro' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
+                >
+                  {loading === 'pro' ? 'Redirecting…' : 'Start Pro →'}
+                </button>
               </div>
             </div>
 
           </div>
+
+          {/* PERFORMANCE — full width below */}
+          <div style={{ ...S.card, marginTop: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <div style={S.cardLabel}>PERFORMANCE</div>
+                <div style={S.priceRow}>
+                  <span style={S.priceBig}>20%</span>
+                  <span style={S.pricePer}>of monthly profit</span>
+                </div>
+                <p style={{ ...S.cardDesc, borderBottom: 'none', paddingBottom: 0 }}>
+                  No monthly fee. Pay only when you profit. High-water mark protection — fees apply only to <em>new</em> profits above your previous cumulative peak.
+                </p>
+              </div>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <ul style={{ ...S.featureList, marginBottom: 0 }}>
+                  {PERFORMANCE_ON.map((f) => <FeatureRow key={f} on={true} text={f} />)}
+                </ul>
+                <div style={S.ctaWrap}>
+                  <button
+                    onClick={() => startCheckout('performance')}
+                    disabled={!!loading}
+                    style={{ ...S.btnGhost, opacity: loading === 'performance' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
+                  >
+                    {loading === 'performance' ? 'Redirecting…' : 'Start Performance →'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
