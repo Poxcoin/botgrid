@@ -68,7 +68,7 @@ class User(Base):
     def effective_plan(self) -> str:
         """Returns actual usable plan, handling lazy trial expiry."""
         if self.plan == "trial":
-            if self.trial_ends_at and datetime.now(timezone.utc) > self.trial_ends_at:
+            if self.trial_ends_at and datetime.utcnow() > self.trial_ends_at:
                 return "free"
             return "trial"
         return self.plan
@@ -93,7 +93,7 @@ class Subscription(Base):
     expires_at      = Column(DateTime, nullable=True)        # None = lifetime/manual
     stripe_sub_id   = Column(String, nullable=True)          # Stripe subscription ID
     stripe_customer_id = Column(String, nullable=True)   # Stripe customer ID
-    stripe_price_id    = Column(String, nullable=True)   # Stripe price ID (basic/pro)
+    stripe_price_id    = Column(String, nullable=True)   # Stripe price ID (basic | pro; null for performance)
     hwm_usd            = Column(Float,  default=0.0)     # high-water mark for performance plan
 
     user = relationship("User", back_populates="subscription")
@@ -104,7 +104,7 @@ class Subscription(Base):
             return False
         if self.expires_at is None:
             return True
-        return self.expires_at > datetime.now(timezone.utc)
+        return self.expires_at > datetime.utcnow()
 
 
 # ── API Keys (encrypted) ──────────────────────────────────────────────────────
