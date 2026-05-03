@@ -594,6 +594,8 @@ def _run_single(cfg: dict) -> None:
     # Визначаємо поточний тренд
     direction = _detect_trend(exchange, symbol)
 
+    price = _get_current_price(exchange, symbol)
+
     if auto_range:
         upper, lower = _detect_range(exchange, symbol)
         print(f"[GRID:{symbol}] Авто-діапазон: ${lower:.2f} — ${upper:.2f}")
