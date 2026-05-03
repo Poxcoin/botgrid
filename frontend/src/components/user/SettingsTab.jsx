@@ -16,43 +16,119 @@ function Field({ label, children }) {
 
 const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
 
-function BillingSection({ plan, trialDaysLeft, subscribed }) {
-  const [loading, setLoading] = React.useState(false);
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  async function startCheckout(selectedPlan) {
-    setLoading(true);
+function InvoicePanel() {
+  const [data, setData] = React.useState(null);
+  const [notifying, setNotifying] = React.useState(false);
+  const [txInput, setTxInput] = React.useState('');
+  const [notified, setNotified] = React.useState(false);
+
+  React.useEffect(() => {
+    API('/api/billing/invoice/current').then(setData).catch(() => {});
+  }, []);
+
+  async function handleNotify() {
+    if (!data?.invoice) return;
+    setNotifying(true);
     try {
-      const { url } = await API('/api/billing/checkout', {
+      await API('/api/billing/invoice/notify', {
         method: 'POST',
-        body: JSON.stringify({ plan: selectedPlan }),
+        body: JSON.stringify({ invoice_id: data.invoice.id, tx_hash: txInput || undefined }),
       });
-      window.location.href = url;
+      setNotified(true);
+      setData(d => ({ ...d, invoice: { ...d.invoice, notified: true } }));
     } catch (e) {
-      alert(typeof e === 'string' ? e : 'Checkout failed — try again');
-      setLoading(false);
+      alert(typeof e === 'string' ? e : 'Failed — try again');
+    } finally {
+      setNotifying(false);
     }
   }
 
-  async function openPortal() {
-    setLoading(true);
-    try {
-      const { url } = await API('/api/billing/portal', { method: 'POST' });
-      window.location.href = url;
-    } catch (e) {
-      alert(typeof e === 'string' ? e : 'Portal unavailable');
-      setLoading(false);
-    }
-  }
+  if (!data) return <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Loading…</div>;
 
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' };
+  const row = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 };
+  const label = { fontSize: 11, color: 'var(--muted-fg)' };
+  const value = { fontSize: 13, color: 'var(--fg)' };
+  const btn = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
+  const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '8px 12px', fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', marginTop: 8 };
+
+  const { invoice, current_month_pnl, projected_fee, wallet_trc20 } = data;
+
+  return (
+    <div>
+      {/* Running this month */}
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 10 }}>
+          This month
+        </div>
+        <div style={row}>
+          <span style={label}>Profit</span>
+          <span style={{ ...value, color: current_month_pnl >= 0 ? '#5a5' : '#c55' }}>
+            {current_month_pnl >= 0 ? '+' : ''}{current_month_pnl.toFixed(2)} USDT
+          </span>
+        </div>
+        <div style={row}>
+          <span style={label}>Projected fee (20%)</span>
+          <span style={value}>{projected_fee.toFixed(2)} USDT</span>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 4 }}>
+          Billed on the 1st. High-water mark protection applies.
+        </div>
+      </div>
+
+      {/* Unpaid invoice */}
+      {invoice && !invoice.fee_paid && (
+        <div style={{ border: '1px solid rgba(200,150,0,0.3)', background: 'rgba(200,150,0,0.05)', padding: '14px 16px' }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c96', marginBottom: 10 }}>
+            Invoice due — {MONTHS[invoice.month - 1]} {invoice.year}
+          </div>
+          <div style={row}>
+            <span style={label}>Profit</span>
+            <span style={value}>+{invoice.gross_pnl.toFixed(2)} USDT</span>
+          </div>
+          <div style={row}>
+            <span style={label}>Fee (20%)</span>
+            <span style={{ ...value, fontWeight: 600 }}>{invoice.fee.toFixed(2)} USDT</span>
+          </div>
+          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--muted-fg)' }}>Send USDT (TRC-20) to:</div>
+          <div style={{ ...mono, color: 'var(--fg)', marginTop: 4, padding: '6px 10px', background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            {wallet_trc20 || '—'}
+          </div>
+
+          {invoice.notified || notified ? (
+            <div style={{ fontSize: 12, color: '#5a5', marginTop: 12 }}>
+              ✓ Payment notification sent — admin will confirm within 24h
+            </div>
+          ) : (
+            <>
+              <input
+                style={inp}
+                placeholder="TX hash (optional, e.g. a1b2c3...)"
+                value={txInput}
+                onChange={e => setTxInput(e.target.value)}
+              />
+              <button disabled={notifying} onClick={handleNotify} style={btn}>
+                {notifying ? 'Sending…' : "I've Paid →"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {invoice && invoice.fee_paid && (
+        <div style={{ fontSize: 12, color: '#5a5' }}>✓ Last invoice paid</div>
+      )}
+    </div>
+  );
+}
+
+function BillingSection({ plan, trialDaysLeft }) {
   const btn = {
     background: 'var(--fg)', color: 'var(--bg)', border: 'none',
     padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-    opacity: loading ? 0.6 : 1, marginTop: 12, marginRight: 8,
-  };
-  const ghostBtn = {
-    background: 'none', color: 'var(--fg)', border: '1px solid var(--border)',
-    padding: '8px 20px', fontSize: 12, cursor: 'pointer',
-    opacity: loading ? 0.6 : 1, marginTop: 12, marginRight: 8,
+    marginTop: 12, marginRight: 8,
   };
 
   if (plan === 'trial') {
@@ -62,11 +138,11 @@ function BillingSection({ plan, trialDaysLeft, subscribed }) {
           Trial — <span style={{ color: '#aaa' }}>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} left</span>
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
-          Demo trading active. Connect an API key and switch to Performance to go live.
+          Demo trading active. Connect an API key and contact us to activate Performance.
         </div>
-        <button disabled={loading} onClick={() => startCheckout('performance')} style={btn}>
+        <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
           Start Performance — 20% of profit
-        </button>
+        </a>
       </div>
     );
   }
@@ -78,9 +154,9 @@ function BillingSection({ plan, trialDaysLeft, subscribed }) {
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
           Upgrade to Performance to trade live. Pay only when you profit.
         </div>
-        <button disabled={loading} onClick={() => startCheckout('performance')} style={btn}>
+        <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
           Go live — Performance 20%
-        </button>
+        </a>
       </div>
     );
   }
@@ -88,14 +164,11 @@ function BillingSection({ plan, trialDaysLeft, subscribed }) {
   if (plan === 'performance') {
     return (
       <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 12 }}>
           Performance — 20% of monthly profit
-          {subscribed && <span style={{ fontSize: 11, color: '#5a5', marginLeft: 8 }}>Active</span>}
+          <span style={{ fontSize: 11, color: '#5a5', marginLeft: 8 }}>Active</span>
         </div>
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 4 }}>
-          Billed on the 1st of each month. High-water mark protection.
-        </div>
-        <button disabled={loading} onClick={openPortal} style={ghostBtn}>Manage →</button>
+        <InvoicePanel />
       </div>
     );
   }
@@ -198,7 +271,7 @@ export default function SettingsTab() {
         <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>
           Subscription
         </div>
-        <BillingSection plan={me?.plan} trialDaysLeft={me?.trial_days_left} subscribed={me?.subscribed} />
+        <BillingSection plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
       </div>
     </div>
   );

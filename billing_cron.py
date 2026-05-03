@@ -3,16 +3,16 @@
 Monthly performance fee billing.
 Run on 1st of each month (systemd timer).
 Also callable via POST /api/billing/invoice-performance with X-Cron-Secret header.
+
+Creates ManualInvoice records (fee_paid=False). Admin marks paid via
+POST /api/admin/invoices/{id}/mark-paid after USDT payment confirmed.
 """
 import os, sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import stripe
 from database import SessionLocal, Subscription, MonthlyPnl
-
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 
 
 def run():
@@ -32,7 +32,7 @@ def run():
 
         for sub in subs:
             user = sub.user
-            if not user or not sub.stripe_customer_id:
+            if not user:
                 continue
 
             monthly = db.query(MonthlyPnl).filter_by(
@@ -46,30 +46,22 @@ def run():
 
             if adjusted_profit > 0:
                 fee_usd = round(adjusted_profit * 0.20, 2)
-                try:
-                    stripe.InvoiceItem.create(
-                        customer=sub.stripe_customer_id,
-                        amount=int(fee_usd * 100),
-                        currency="usd",
-                        description=(
-                            f"Performance fee {last_year}-{last_month:02d} "
-                            f"(${adjusted_profit:.2f} net profit × 20%)"
-                        ),
-                    )
-                    invoice = stripe.Invoice.create(
-                        customer=sub.stripe_customer_id,
-                        auto_advance=True,
-                    )
-                    stripe.Invoice.finalize_invoice(invoice.id)
 
-                    if monthly:
-                        monthly.performance_fee = fee_usd
-                        monthly.fee_paid        = True
-                        monthly.settled_at      = datetime.utcnow()
+                if not monthly:
+                    monthly = MonthlyPnl(
+                        user_id=user.id, year=last_year, month=last_month,
+                        gross_pnl=monthly_pnl,
+                    )
+                    db.add(monthly)
 
-                    print(f"[CRON] ✅ user={user.id} fee=${fee_usd:.2f} (profit=${adjusted_profit:.2f})")
-                except stripe.error.StripeError as e:
-                    print(f"[CRON] ❌ user={user.id} Stripe error: {e}")
+                monthly.performance_fee = fee_usd
+                monthly.net_pnl         = round(monthly_pnl - fee_usd, 2)
+                monthly.fee_paid        = False  # awaiting USDT payment confirmation
+
+                print(
+                    f"[CRON] 🧾 user={user.id} ({user.email}) "
+                    f"fee=${fee_usd:.2f} (profit=${adjusted_profit:.2f}) — awaiting USDT"
+                )
             else:
                 print(f"[CRON] user={user.id} no profit (pnl={monthly_pnl:.2f} hwm={hwm:.2f})")
 

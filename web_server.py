@@ -21,7 +21,7 @@ from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from pydantic import EmailStr
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, Subscription
@@ -705,6 +705,138 @@ async def invoice_performance(request: Request):
     import subprocess
     subprocess.Popen(["python3", "billing_cron.py"])
     return {"ok": True, "message": "Cron started"}
+
+
+# ─── Manual USDT invoice endpoints ───────────────────────────────────────────
+
+class InvoiceNotifyRequest(BaseModel):
+    invoice_id: int
+    tx_hash: Optional[str] = None
+
+
+@app.get("/api/billing/invoice/current")
+async def get_current_invoice(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """Return active unpaid invoice + current month running PnL for performance users."""
+    from sqlalchemy import func, desc
+    user = _get_user_from_token(credentials.credentials, db)
+    if user.plan != "performance":
+        raise HTTPException(status_code=403, detail="Performance plan required")
+
+    now = datetime.now(timezone.utc)
+
+    # Oldest unpaid invoice with a fee > 0
+    invoice = (
+        db.query(MonthlyPnl)
+        .filter(MonthlyPnl.user_id == user.id, MonthlyPnl.performance_fee > 0, MonthlyPnl.fee_paid == False)
+        .order_by(MonthlyPnl.year, MonthlyPnl.month)
+        .first()
+    )
+
+    # Running total for the current calendar month
+    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+    current_pnl = db.query(func.sum(UserTrade.pnl_usdt)).filter(
+        UserTrade.user_id == user.id,
+        UserTrade.status == "closed",
+        UserTrade.closed_at >= month_start,
+    ).scalar() or 0.0
+
+    result: dict = {
+        "wallet_trc20": USDT_WALLET_TRC20,
+        "current_month_pnl": round(float(current_pnl), 2),
+        "projected_fee": round(max(0.0, float(current_pnl) * 0.20), 2),
+        "invoice": None,
+    }
+
+    if invoice:
+        result["invoice"] = {
+            "id":           invoice.id,
+            "year":         invoice.year,
+            "month":        invoice.month,
+            "gross_pnl":    invoice.gross_pnl,
+            "fee":          invoice.performance_fee,
+            "fee_paid":     invoice.fee_paid,
+            "notified":     invoice.payment_notified_at is not None,
+            "notified_at":  invoice.payment_notified_at.isoformat() if invoice.payment_notified_at else None,
+            "tx_hash":      invoice.tx_hash,
+        }
+
+    return result
+
+
+@app.post("/api/billing/invoice/notify")
+async def notify_invoice_payment(
+    body: InvoiceNotifyRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """User notifies that USDT payment was sent."""
+    user = _get_user_from_token(credentials.credentials, db)
+    invoice = db.query(MonthlyPnl).filter(
+        MonthlyPnl.id == body.invoice_id,
+        MonthlyPnl.user_id == user.id,
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice.fee_paid:
+        raise HTTPException(status_code=400, detail="Invoice already marked paid")
+    invoice.payment_notified_at = datetime.now(timezone.utc)
+    if body.tx_hash:
+        invoice.tx_hash = body.tx_hash[:100]
+    db.commit()
+    return {"ok": True}
+
+
+# ─── Admin invoice management ─────────────────────────────────────────────────
+
+@app.get("/api/admin/invoices")
+async def admin_list_invoices(
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    """Admin: list all performance fee invoices (newest first)."""
+    from sqlalchemy import desc
+    invoices = (
+        db.query(MonthlyPnl)
+        .filter(MonthlyPnl.performance_fee > 0)
+        .order_by(desc(MonthlyPnl.year), desc(MonthlyPnl.month))
+        .all()
+    )
+    return [
+        {
+            "id":           inv.id,
+            "user_id":      inv.user_id,
+            "user_email":   inv.user.email if inv.user else None,
+            "year":         inv.year,
+            "month":        inv.month,
+            "gross_pnl":    inv.gross_pnl,
+            "fee":          inv.performance_fee,
+            "fee_paid":     inv.fee_paid,
+            "notified":     inv.payment_notified_at is not None,
+            "notified_at":  inv.payment_notified_at.isoformat() if inv.payment_notified_at else None,
+            "tx_hash":      inv.tx_hash,
+            "settled_at":   inv.settled_at.isoformat() if inv.settled_at else None,
+        }
+        for inv in invoices
+    ]
+
+
+@app.post("/api/admin/invoices/{invoice_id}/mark-paid")
+async def admin_mark_invoice_paid(
+    invoice_id: int,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    """Admin: confirm USDT payment received."""
+    invoice = db.query(MonthlyPnl).filter(MonthlyPnl.id == invoice_id).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    invoice.fee_paid   = True
+    invoice.settled_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
 
 
 # ══════════════════════════════════════════════════════════════════════════════

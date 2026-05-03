@@ -160,8 +160,10 @@ class MonthlyPnl(Base):
     gross_pnl       = Column(Float, default=0.0)        # sum of closed trade PnL
     performance_fee = Column(Float, default=0.0)        # gross_pnl * 20% (only if > 0)
     net_pnl         = Column(Float, default=0.0)        # gross_pnl - performance_fee
-    fee_paid        = Column(Boolean, default=False)
-    settled_at      = Column(DateTime, nullable=True)
+    fee_paid             = Column(Boolean, default=False)
+    settled_at           = Column(DateTime, nullable=True)
+    payment_notified_at  = Column(DateTime, nullable=True)   # user clicked "I've Paid"
+    tx_hash              = Column(String,   nullable=True)   # optional USDT tx hash
 
     __table_args__ = (UniqueConstraint("user_id", "year", "month", name="uq_user_month"),)
 
@@ -181,6 +183,21 @@ class AuditLog(Base):
 
 
 Base.metadata.create_all(bind=engine)
+
+
+def _migrate_columns():
+    """Add columns introduced after initial schema creation."""
+    from sqlalchemy import text, inspect as sa_inspect
+    inspector = sa_inspect(engine)
+    monthly_cols = {c["name"] for c in inspector.get_columns("monthly_pnl")}
+    with engine.begin() as conn:
+        if "payment_notified_at" not in monthly_cols:
+            conn.execute(text("ALTER TABLE monthly_pnl ADD COLUMN payment_notified_at DATETIME"))
+        if "tx_hash" not in monthly_cols:
+            conn.execute(text("ALTER TABLE monthly_pnl ADD COLUMN tx_hash VARCHAR"))
+
+
+_migrate_columns()
 
 
 def get_db():

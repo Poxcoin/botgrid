@@ -91,3 +91,8 @@ SMTP_USER     = os.getenv("SMTP_USER", "")      # your@gmail.com
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")  # Gmail App Password (не основной пароль)
 SMTP_FROM     = os.getenv("SMTP_FROM", SMTP_USER)
 SITE_URL      = os.getenv("SITE_URL", "https://kadoclub.net")
+
+# ==========================================
+# BILLING — Manual USDT invoice (TRC-20)
+# ==========================================
+USDT_WALLET_TRC20 = os.getenv("USDT_WALLET_TRC20", "")
