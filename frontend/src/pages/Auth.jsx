@@ -57,6 +57,44 @@ function Field({ label, ...props }) {
   );
 }
 
+function PasswordField({ label, value, onChange, placeholder, autoComplete }) {
+  const [show, setShow] = React.useState(false);
+  return (
+    <label className="block">
+      <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-black/60 mb-2">{label}</div>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="w-full h-12 px-4 pr-12 bg-white border border-kado-black text-kado-black text-[15px] outline-none focus:border-kado-blue transition-colors font-mono"
+        />
+        <button
+          type="button"
+          onClick={() => setShow(s => !s)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-kado-black/40 hover:text-kado-black transition-colors"
+          tabIndex={-1}
+        >
+          {show ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          )}
+        </button>
+      </div>
+    </label>
+  );
+}
+
 // ── 2FA Screen ───────────────────────────────────────────────────────────────
 function TwoFAScreen({ partialToken, onSuccess, onBack }) {
   const [code, setCode] = useState('');
@@ -299,11 +337,11 @@ export default function Auth() {
                   <Field label="Username" type="text" value={form.username} onChange={set('username')} placeholder="yourname" autoComplete="username" />
                 )}
                 <div>
-                  <Field label="Password" type="password" value={form.password} onChange={set('password')} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+                  <PasswordField label="Password" value={form.password} onChange={set('password')} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
                   {mode === 'register' && <StrengthMeter password={form.password} />}
                 </div>
                 {mode === 'register' && (
-                  <Field label="Confirm Password" type="password" value={form.confirm} onChange={set('confirm')} placeholder="••••••••" autoComplete="new-password" />
+                  <PasswordField label="Confirm Password" value={form.confirm} onChange={set('confirm')} placeholder="••••••••" autoComplete="new-password" />
                 )}
                 {error && (
                   <div className="border border-red-600 px-4 py-3 text-red-600 font-mono text-[12px] tracking-wide">
