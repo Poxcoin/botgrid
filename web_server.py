@@ -424,6 +424,8 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300}
         return {"requires_2fa": True, "partial_token": partial}
     token = create_token(user.id, user.email)
+    from utils.email import send_login_notification_email
+    asyncio.get_running_loop().run_in_executor(None, send_login_notification_email, user.email, ip)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
 
 @app.get("/api/users/me")
