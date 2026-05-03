@@ -6,7 +6,7 @@ import re
 import secrets
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import pyotp
@@ -22,13 +22,16 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl
+
+PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, Subscription
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email
 from sqlalchemy.orm import Session
 
 from modules import position_closer
+from modules import stripe_billing
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
@@ -183,6 +186,10 @@ class BacktestStartRequest(BaseModel):
     sl:      float      = 0.0
 
 
+class BillingCheckoutRequest(BaseModel):
+    plan: str   # basic | pro | performance
+
+
 @app.post("/api/backtest/start")
 async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_any_auth)):
     global _backtest_running, _backtest_progress
@@ -311,6 +318,8 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         password_hash=hash_password(body.password),
         email_verified=False,
         email_verify_token=verify_token,
+        plan="trial",
+        trial_ends_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
     )
     db.add(user)
     db.commit()
@@ -375,8 +384,16 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
 @app.get("/api/users/me")
 async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
+    # Lazy trial expiry
+    if user.plan == "trial" and user.trial_ends_at and datetime.utcnow() > user.trial_ends_at:
+        user.plan = "free"
+        db.commit()
     sub = user.subscription
     key_row = next((k for k in user.api_keys if k.exchange == "bybit"), None)
+    trial_days_left = None
+    if user.plan == "trial" and user.trial_ends_at:
+        delta = user.trial_ends_at - datetime.utcnow()
+        trial_days_left = max(0, delta.days)
     return {
         "id": user.id,
         "email": user.email,
@@ -384,6 +401,9 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "plan": user.plan,
         "subscribed": user.is_pro,
         "subscription_expires": sub.expires_at.isoformat() if sub and sub.expires_at else None,
+        "stripe_customer_id": sub.stripe_customer_id if sub else None,
+        "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
+        "trial_days_left": trial_days_left,
         "tg_chat_id": user.tg_chat_id,
         "has_api_keys": key_row is not None,
         "api_key_testnet": key_row.is_testnet if key_row else False,
@@ -624,6 +644,67 @@ async def get_user_pnl(
         }
         for r in rows
     ]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  BILLING ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/billing/checkout")
+async def billing_checkout(
+    body: BillingCheckoutRequest,
+    token: str = Depends(require_any_auth),
+    db: Session = Depends(get_db),
+):
+    if body.plan not in ("basic", "pro", "performance"):
+        raise HTTPException(status_code=400, detail="Invalid plan")
+    user = _get_user_from_token(token, db)
+    try:
+        url = stripe_billing.create_checkout_session(user.id, body.plan)
+        return {"url": url}
+    except stripe_billing.stripe.error.StripeError:
+        raise HTTPException(status_code=503, detail="Stripe unavailable")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/billing/portal")
+async def billing_portal(
+    token: str = Depends(require_any_auth),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(token, db)
+    try:
+        url = stripe_billing.create_portal_session(user.id)
+        return {"url": url}
+    except stripe_billing.stripe.error.StripeError:
+        raise HTTPException(status_code=503, detail="Stripe unavailable")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    payload    = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+    try:
+        stripe_billing.handle_webhook(payload, sig_header)
+        return {"ok": True}
+    except stripe_billing.stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    except Exception as e:
+        print(f"[WEBHOOK] Error: {e}")
+        raise HTTPException(status_code=400, detail="Webhook processing failed")
+
+
+@app.post("/api/billing/invoice-performance")
+async def invoice_performance(request: Request):
+    secret = request.headers.get("X-Cron-Secret", "")
+    if not PERF_CRON_SECRET or secret != PERF_CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    import subprocess
+    subprocess.Popen(["python3", "billing_cron.py"])
+    return {"ok": True, "message": "Cron started"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
