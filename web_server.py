@@ -362,6 +362,51 @@ async def resend_verification(credentials: HTTPAuthorizationCredentials = Depend
     return {"ok": True, "message": "Verification email sent"}
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+@app.post("/api/users/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"reset:{ip}", window=3600, max_hits=5):
+        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите 1 час.")
+    user = db.query(User).filter(User.email == body.email).first()
+    if user:
+        token = secrets.token_urlsafe(32)
+        user.password_reset_token   = token
+        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        db.commit()
+        from utils.email import send_password_reset_email
+        asyncio.get_running_loop().run_in_executor(None, send_password_reset_email, user.email, token)
+    return {"ok": True, "message": "Если email зарегистрирован — письмо отправлено"}
+
+
+@app.post("/api/users/reset-password")
+async def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    if len(body.password) < 8:
+        raise HTTPException(status_code=400, detail="Пароль слишком короткий")
+    if not re.search(r'[A-Z]', body.password):
+        raise HTTPException(status_code=400, detail="Нужна хотя бы одна заглавная буква")
+    if not re.search(r'[0-9]', body.password):
+        raise HTTPException(status_code=400, detail="Нужна хотя бы одна цифра")
+    if not re.search(r'[^A-Za-z0-9]', body.password):
+        raise HTTPException(status_code=400, detail="Нужен хотя бы один спецсимвол")
+    user = db.query(User).filter(User.password_reset_token == body.token).first()
+    if not user or not user.password_reset_expires:
+        raise HTTPException(status_code=400, detail="Неверная или устаревшая ссылка")
+    if datetime.now(timezone.utc) > user.password_reset_expires.replace(tzinfo=timezone.utc):
+        raise HTTPException(status_code=400, detail="Ссылка истекла — запросите новую")
+    user.password_hash           = hash_password(body.password[:72])
+    user.password_reset_token    = None
+    user.password_reset_expires  = None
+    db.commit()
+    return {"ok": True, "message": "Пароль успешно изменён"}
+
+
 @app.post("/api/users/login")
 async def user_login(body: UserLoginRequest, request: Request, db: Session = Depends(get_db)):
     ip = _real_ip(request)

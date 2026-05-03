@@ -42,6 +42,10 @@ class User(Base):
     email_verified     = Column(Boolean, default=False)
     email_verify_token = Column(String, nullable=True)
 
+    # Password reset
+    password_reset_token   = Column(String, nullable=True)
+    password_reset_expires = Column(DateTime, nullable=True)
+
     # 2FA (TOTP)
     totp_secret      = Column(String, nullable=True)
     totp_enabled     = Column(Boolean, default=False)
@@ -190,11 +194,16 @@ def _migrate_columns():
     from sqlalchemy import text, inspect as sa_inspect
     inspector = sa_inspect(engine)
     monthly_cols = {c["name"] for c in inspector.get_columns("monthly_pnl")}
+    user_cols = {c["name"] for c in inspector.get_columns("users")}
     with engine.begin() as conn:
         if "payment_notified_at" not in monthly_cols:
             conn.execute(text("ALTER TABLE monthly_pnl ADD COLUMN payment_notified_at DATETIME"))
         if "tx_hash" not in monthly_cols:
             conn.execute(text("ALTER TABLE monthly_pnl ADD COLUMN tx_hash VARCHAR"))
+        if "password_reset_token" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_token VARCHAR"))
+        if "password_reset_expires" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_expires DATETIME"))
 
 
 _migrate_columns()

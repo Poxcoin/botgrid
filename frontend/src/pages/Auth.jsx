@@ -214,6 +214,114 @@ function VerifyEmailScreen({ token }) {
   );
 }
 
+// ── Forgot Password Screen ───────────────────────────────────────────────────
+function ForgotPasswordScreen({ onBack }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      const res = await fetch('/api/users/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) { setDone(true); }
+      else { const d = await res.json(); setError(d.detail || 'Ошибка'); }
+    } catch { setError('Нет соединения с сервером'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Сброс пароля</h2>
+        <p className="text-kado-black/60 text-[15px]">Введите email — пришлём ссылку для смены пароля.</p>
+      </div>
+      {done ? (
+        <div className="border border-green-600 px-4 py-3 text-green-700 font-mono text-[12px] tracking-wide">
+          ✓ Если email зарегистрирован — письмо отправлено. Проверьте почту.
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Field label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@domain.com" autoFocus />
+          {error && <div className="border border-red-600 px-4 py-3 text-red-600 font-mono text-[12px] tracking-wide">! {error}</div>}
+          <KadoButton type="submit" variant="blue" className="w-full" disabled={loading || !email}>
+            {loading ? 'Отправка…' : 'Отправить ссылку →'}
+          </KadoButton>
+        </form>
+      )}
+      <button onClick={onBack} className="font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/40 hover:text-kado-black transition-colors">
+        ← Назад к входу
+      </button>
+    </div>
+  );
+}
+
+// ── Reset Password Screen ─────────────────────────────────────────────────────
+function ResetPasswordScreen({ token }) {
+  const navigate = useNavigate();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const { score } = checkStrength(password);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (password !== confirm) { setError('Пароли не совпадают'); return; }
+    if (score < 4) { setError('Пароль слишком слабый'); return; }
+    setError(''); setLoading(true);
+    try {
+      const res = await fetch('/api/users/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
+      if (res.ok) { setDone(true); }
+      else { setError(data.detail || 'Ошибка'); }
+    } catch { setError('Нет соединения с сервером'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Новый пароль</h2>
+        <p className="text-kado-black/60 text-[15px]">Придумайте новый пароль для вашего аккаунта.</p>
+      </div>
+      {done ? (
+        <>
+          <div className="border border-green-600 px-4 py-3 text-green-700 font-mono text-[12px] tracking-wide">
+            ✓ Пароль изменён! Войдите с новым паролем.
+          </div>
+          <KadoButton variant="blue" className="w-full" onClick={() => navigate('/auth')}>
+            Войти →
+          </KadoButton>
+        </>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <PasswordField label="Новый пароль" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="new-password" />
+            <StrengthMeter password={password} />
+          </div>
+          <PasswordField label="Повторите пароль" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="••••••••" autoComplete="new-password" />
+          {error && <div className="border border-red-600 px-4 py-3 text-red-600 font-mono text-[12px] tracking-wide">! {error}</div>}
+          <KadoButton type="submit" variant="blue" className="w-full" disabled={loading || !password || !confirm}>
+            {loading ? 'Сохранение…' : 'Сохранить пароль →'}
+          </KadoButton>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // ── Main Auth Page ───────────────────────────────────────────────────────────
 export default function Auth() {
   const [params] = useSearchParams();
@@ -225,6 +333,7 @@ export default function Auth() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [partialToken, setPartialToken] = useState(null);
+  const [forgotMode, setForgotMode] = useState(false);
 
   useEffect(() => {
     setMode(params.get('mode') === 'register' ? 'register' : 'login');
@@ -308,8 +417,12 @@ export default function Auth() {
         <div className="max-w-md w-full mx-auto">
           {action === 'verify' && verifyToken ? (
             <VerifyEmailScreen token={verifyToken} />
+          ) : action === 'reset' && verifyToken ? (
+            <ResetPasswordScreen token={verifyToken} />
           ) : partialToken ? (
             <TwoFAScreen partialToken={partialToken} onSuccess={on2FASuccess} onBack={() => setPartialToken(null)} />
+          ) : forgotMode ? (
+            <ForgotPasswordScreen onBack={() => setForgotMode(false)} />
           ) : (
             <>
               <div className="flex border-b border-kado-black mb-10">
@@ -353,14 +466,19 @@ export default function Auth() {
                 </KadoButton>
               </form>
 
-              <div className="mt-8 font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/60">
+              <div className="mt-8 font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/60 flex flex-col gap-3">
                 {mode === 'login' ? (
-                  <button type="button" onClick={() => { setMode('register'); setError(''); }} className="hover:text-kado-blue transition-colors">
-                    No account? Register →
-                  </button>
+                  <>
+                    <button type="button" onClick={() => { setMode('register'); setError(''); }} className="hover:text-kado-blue transition-colors text-left">
+                      Нет аккаунта? Зарегистрироваться →
+                    </button>
+                    <button type="button" onClick={() => { setForgotMode(true); setError(''); }} className="hover:text-kado-blue transition-colors text-left">
+                      Забыли пароль?
+                    </button>
+                  </>
                 ) : (
-                  <button type="button" onClick={() => { setMode('login'); setError(''); }} className="hover:text-kado-blue transition-colors">
-                    Already have an account? Login →
+                  <button type="button" onClick={() => { setMode('login'); setError(''); }} className="hover:text-kado-blue transition-colors text-left">
+                    Уже есть аккаунт? Войти →
                   </button>
                 )}
               </div>
