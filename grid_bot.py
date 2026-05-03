@@ -38,45 +38,47 @@ BYBIT_TAKER_FEE    = 0.00055  # 0.055% — комісія за відкритт�
 GRID_CONFIGS = [
     {
         "symbol":        "SOL/USDT:USDT",
-        "levels":        15,
+        "levels":        8,        # зменшено з 15: ширші кроки → менше fee-збитків
         "size_pct":      3.0,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  200.0,
         "lower_manual":  120.0,
-        "max_positions": 5,      # знижено: менший збиток при ребілді
+        "max_positions": 4,
     },
     {
         "symbol":        "ETH/USDT:USDT",
-        "levels":        15,
+        "levels":        8,        # зменшено з 15
         "size_pct":      2.5,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  4000.0,
         "lower_manual":  2500.0,
-        "max_positions": 5,
+        "max_positions": 4,
     },
     {
         "symbol":        "BTC/USDT:USDT",
-        "levels":        10,
+        "levels":        5,        # зменшено з 10
         "size_pct":      1.5,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
         "upper_manual":  100000.0,
         "lower_manual":   80000.0,
-        "max_positions": 4,
+        "max_positions": 3,
     },
 ]
 
-POLL_INTERVAL       = 30     # секунд між перевірками
-RANGE_BUFFER        = 0.02   # 2% буфер по краях ATR-діапазону
-MAX_REBUILDS_DAY    = 4      # макс перебудов сітки за день
-MAX_LOSS_PCT        = 0.05   # жорсткий стоп: 5% від балансу
-ATR_RANGE_PERIODS   = 12     # повернули до 12 (було 8 — занадто тісний, багато ребілдів)
-TREND_RECHECK_TICKS = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
+POLL_INTERVAL          = 30     # секунд між перевірками
+RANGE_BUFFER           = 0.02   # 2% буфер по краях ATR-діапазону
+MAX_REBUILDS_DAY       = 4      # макс перебудов сітки за день
+MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
+ATR_RANGE_PERIODS      = 12     # повернули до 12 (було 8 — занадто тісний, багато ребілдів)
+TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
+MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
+MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
@@ -183,6 +185,33 @@ def _detect_range(exchange, symbol: str) -> tuple[float, float]:
 def _calc_levels(upper: float, lower: float, n: int) -> list[float]:
     step = (upper - lower) / n
     return [round(lower + step * i, 4) for i in range(n + 1)]
+
+
+def _min_profitable_step(price: float) -> float:
+    """Мінімальний крок сітки щоб покрити round-trip taker комісії з запасом."""
+    return price * BYBIT_TAKER_FEE * 2 * MIN_STEP_FEE_MULT
+
+
+def _adjust_levels_to_profitable(symbol: str, upper: float, lower: float,
+                                  n: int, price: float) -> tuple[list[float], int]:
+    """Зменшує кількість рівнів доки крок не стане прибутковим.
+
+    Повертає (levels, actual_n).
+    """
+    min_step = _min_profitable_step(price)
+    step = (upper - lower) / n
+    if step >= min_step:
+        return _calc_levels(upper, lower, n), n
+
+    # Мінімальна кількість рівнів для прибуткового кроку
+    adjusted_n = max(MIN_GRID_LEVELS, int((upper - lower) / min_step))
+    adjusted_step = (upper - lower) / adjusted_n
+    print(
+        f"[GRID:{symbol}] ⚠️ Крок ${step:.4f} < мін ${min_step:.4f} "
+        f"(fee {BYBIT_TAKER_FEE*2*100:.3f}% × {MIN_STEP_FEE_MULT}x) "
+        f"→ рівні {n} → {adjusted_n}, новий крок ${adjusted_step:.4f}"
+    )
+    return _calc_levels(upper, lower, adjusted_n), adjusted_n
 
 
 # ─── Допоміжні функції ───────────────────────────────────────────────────────
@@ -448,7 +477,7 @@ def _run_single(cfg: dict) -> None:
     else:
         upper, lower = cfg["upper_manual"], cfg["lower_manual"]
 
-    levels = _calc_levels(upper, lower, grid_levels)
+    levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price)
     step   = levels[1] - levels[0]
     print(f"[GRID:{symbol}] {grid_levels} рівнів | крок ${step:.2f} | режим {direction.upper()}")
 
@@ -476,17 +505,26 @@ def _run_single(cfg: dict) -> None:
             lower  = state["lower"]
             levels = state["levels"]
             step   = levels[1] - levels[0]
-            n_pos  = len(state.get("positions", {}))
-            print(f"[GRID:{symbol}] ♻️  Відновлення: {n_pos} позицій | {direction.upper()} | діапазон ${lower:.4f}—${upper:.4f}")
-            try:
-                ex_positions = exchange.fetch_positions([symbol], params={"category": "linear"})
-                ex_qty = sum(abs(float(p.get("contracts") or 0)) for p in ex_positions)
-                if ex_qty == 0 and state.get("positions"):
-                    print(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
-                    state["positions"] = {}
-                    _save_state(symbol, state)
-            except Exception as _e:
-                print(f"[GRID:{symbol}] Reconcile помилка: {_e}")
+            # Якщо збережений крок менший за мінімально прибутковий — перебудовуємо
+            _cur_price_for_step = _get_current_price(exchange, symbol)
+            if step < _min_profitable_step(_cur_price_for_step):
+                print(
+                    f"[GRID:{symbol}] ⚠️ Збережений крок ${step:.4f} не покриває комісії "
+                    f"(мін ${_min_profitable_step(_cur_price_for_step):.4f}) — перебудовуємо сітку"
+                )
+                _state_valid = False
+            else:
+                n_pos  = len(state.get("positions", {}))
+                print(f"[GRID:{symbol}] ♻️  Відновлення: {n_pos} позицій | {direction.upper()} | діапазон ${lower:.4f}—${upper:.4f}")
+                try:
+                    ex_positions = exchange.fetch_positions([symbol], params={"category": "linear"})
+                    ex_qty = sum(abs(float(p.get("contracts") or 0)) for p in ex_positions)
+                    if ex_qty == 0 and state.get("positions"):
+                        print(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
+                        state["positions"] = {}
+                        _save_state(symbol, state)
+                except Exception as _e:
+                    print(f"[GRID:{symbol}] Reconcile помилка: {_e}")
 
     if not _state_valid:
         state = {
@@ -651,7 +689,8 @@ def _run_single(cfg: dict) -> None:
                 state["total_pnl"] += realized
                 state["positions"] = {}
                 upper, lower = _detect_range(exchange, symbol)
-                levels = _calc_levels(upper, lower, grid_levels)
+                levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price)
+                step = levels[1] - levels[0]
                 state.update({"upper": upper, "lower": lower, "levels": levels})
                 _save_state(symbol, state)
                 rebuilds_today += 1
@@ -659,6 +698,7 @@ def _run_single(cfg: dict) -> None:
                     f"🔄 <b>Grid перебудова {rebuild_label} #{rebuilds_today}</b> {symbol}\n"
                     f"Режим: {direction.upper()}\n"
                     f"Новий діапазон: ${lower:.2f} — ${upper:.2f}\n"
+                    f"Рівнів: {grid_levels} | Крок: ${step:.2f}\n"
                     f"Реалізований PnL: ${realized:.2f} | Загалом: ${state['total_pnl']:.2f}",
                     TG_CHAT_ID,
                 )
