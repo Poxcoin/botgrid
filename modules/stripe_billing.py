@@ -15,10 +15,14 @@ from database import SessionLocal, User, Subscription
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 
-_PRICE_TO_PLAN = {
-    os.environ.get("STRIPE_PRICE_BASIC", "__unset_basic__"): "basic",
-    os.environ.get("STRIPE_PRICE_PRO",   "__unset_pro__"):   "pro",
-}
+def _price_to_plan(price_id: str) -> str | None:
+    """Returns plan name for a Stripe price_id, or None if unrecognized."""
+    mapping = {
+        os.environ.get("STRIPE_PRICE_BASIC"): "basic",
+        os.environ.get("STRIPE_PRICE_PRO"):   "pro",
+    }
+    mapping.pop(None, None)  # remove None keys if env vars not set
+    return mapping.get(price_id)
 
 BASE_URL = "https://kadoclub.net"
 
@@ -100,6 +104,8 @@ def create_portal_session(user_id: int) -> str:
 def handle_webhook(payload: bytes, sig_header: str) -> None:
     """Verify Stripe signature and dispatch to handler. Raises on bad sig."""
     secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+    if not secret:
+        raise ValueError("STRIPE_WEBHOOK_SECRET is not configured")
     event = stripe.Webhook.construct_event(payload, sig_header, secret)
 
     evt_type = event["type"]
@@ -120,8 +126,11 @@ def _on_sub_upsert(stripe_sub: dict) -> None:
     price_id    = stripe_sub["items"]["data"][0]["price"]["id"]
     status      = stripe_sub["status"]
     period_end  = stripe_sub.get("current_period_end")
-    plan        = _PRICE_TO_PLAN.get(price_id, "pro")
+    plan        = _price_to_plan(price_id)
     db_status   = {"active": "active", "past_due": "past_due"}.get(status, "cancelled")
+
+    if plan is None:
+        return  # unrecognized price ID — do not grant any tier
 
     db = SessionLocal()
     try:
@@ -135,7 +144,7 @@ def _on_sub_upsert(stripe_sub: dict) -> None:
         sub.plan            = plan
         sub.status          = db_status
         if period_end:
-            sub.expires_at = datetime.utcfromtimestamp(period_end)
+            sub.expires_at = datetime.fromtimestamp(period_end, tz=timezone.utc).replace(tzinfo=None)
         if sub.user:
             sub.user.plan = plan
         db.commit()
@@ -179,6 +188,8 @@ def _on_checkout_completed(session: dict) -> None:
             sub = Subscription(user_id=user.id)
             db.add(sub)
         sub.stripe_customer_id = customer_id
+        if session.get("subscription"):
+            sub.stripe_sub_id = session["subscription"]
 
         if plan == "performance":
             sub.plan       = "performance"
