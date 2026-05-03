@@ -30,8 +30,9 @@ class User(Base):
     username      = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
 
-    # Plan: free | pro
-    plan          = Column(String, default="free")
+    # Plan: trial | free | basic | pro | performance
+    plan          = Column(String, default="trial")
+    trial_ends_at = Column(DateTime, nullable=True)   # set on register; None = not a trial
     is_active     = Column(Boolean, default=True)
 
     # Telegram notifications
@@ -57,11 +58,20 @@ class User(Base):
 
     @property
     def is_pro(self) -> bool:
-        if self.plan != "pro":
+        if self.plan not in {"pro", "performance"}:
             return False
         if self.subscription is None:
             return False
         return self.subscription.is_active
+
+    @property
+    def effective_plan(self) -> str:
+        """Returns actual usable plan, handling lazy trial expiry."""
+        if self.plan == "trial":
+            if self.trial_ends_at and datetime.now(timezone.utc) > self.trial_ends_at:
+                return "free"
+            return "trial"
+        return self.plan
 
     @property
     def can_trade(self) -> bool:
@@ -75,13 +85,16 @@ class Subscription(Base):
 
     id              = Column(Integer, primary_key=True, index=True)
     user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
-    plan            = Column(String, default="pro")          # pro
+    plan            = Column(String, default="basic")   # basic | pro | performance
     status          = Column(String, default="active")       # active | cancelled | past_due
     base_fee_usd    = Column(Float, default=29.0)            # $29/mo base
     performance_pct = Column(Float, default=20.0)            # 20% of monthly profit
     started_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     expires_at      = Column(DateTime, nullable=True)        # None = lifetime/manual
     stripe_sub_id   = Column(String, nullable=True)          # Stripe subscription ID
+    stripe_customer_id = Column(String, nullable=True)   # Stripe customer ID
+    stripe_price_id    = Column(String, nullable=True)   # Stripe price ID (basic/pro)
+    hwm_usd            = Column(Float,  default=0.0)     # high-water mark for performance plan
 
     user = relationship("User", back_populates="subscription")
 
