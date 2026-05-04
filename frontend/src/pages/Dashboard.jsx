@@ -8,6 +8,7 @@ import ExchangeKeysTab from '@/components/dashboard/ExchangeKeysTab';
 import SystemLogsTab from '@/components/dashboard/SystemLogsTab';
 import BacktesterTab from '@/components/dashboard/BacktesterTab';
 import SecurityTab from '@/components/dashboard/SecurityTab';
+import AdminTab from '@/components/dashboard/AdminTab';
 
 function EmailBanner() {
   const user = (() => { try { return JSON.parse(localStorage.getItem('kado_user') || '{}'); } catch { return {}; } })();
@@ -23,7 +24,7 @@ function EmailBanner() {
 }
 
 export default function Dashboard() {
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState('admin');
 
   return (
     <div className="min-h-screen bg-white text-kado-black">
@@ -31,6 +32,7 @@ export default function Dashboard() {
       <EmailBanner />
       <TabNav active={tab} onChange={setTab} />
       <main>
+        {tab === 'admin'       && <AdminTab />}
         {tab === 'overview'    && <OverviewTab />}
         {tab === 'history'     && <SignalHistoryTab />}
         {tab === 'analyzer'    && <BotAnalyzerTab />}

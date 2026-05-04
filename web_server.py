@@ -951,6 +951,197 @@ async def admin_mark_invoice_paid(
     return {"ok": True}
 
 
+# ─── Admin summary stats ──────────────────────────────────────────────────────
+
+@app.get("/api/admin/stats")
+async def admin_stats(
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    """Admin: platform-wide summary — users, bots, revenue."""
+    from sqlalchemy import func
+
+    total_users   = db.query(func.count(User.id)).scalar() or 0
+    active_users  = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+    verified_users = db.query(func.count(User.id)).filter(User.email_verified == True).scalar() or 0
+
+    # Users by plan
+    plan_rows = db.query(User.plan, func.count(User.id)).group_by(User.plan).all()
+    plans = {p: c for p, c in plan_rows}
+
+    # API keys connected
+    users_with_keys = db.query(func.count(func.distinct(UserApiKey.user_id))).scalar() or 0
+
+    # Trades
+    total_trades  = db.query(func.count(UserTrade.id)).scalar() or 0
+    open_trades   = db.query(func.count(UserTrade.id)).filter(UserTrade.status == "open").scalar() or 0
+    closed_trades = db.query(func.count(UserTrade.id)).filter(UserTrade.status == "closed").scalar() or 0
+
+    # Revenue: sum of all performance fees collected
+    fees_collected = db.query(func.sum(MonthlyPnl.performance_fee)).filter(
+        MonthlyPnl.fee_paid == True
+    ).scalar() or 0.0
+
+    fees_pending = db.query(func.sum(MonthlyPnl.performance_fee)).filter(
+        MonthlyPnl.fee_paid == False,
+        MonthlyPnl.performance_fee > 0,
+    ).scalar() or 0.0
+
+    pending_invoices = db.query(func.count(MonthlyPnl.id)).filter(
+        MonthlyPnl.fee_paid == False,
+        MonthlyPnl.performance_fee > 0,
+    ).scalar() or 0
+
+    notified_invoices = db.query(func.count(MonthlyPnl.id)).filter(
+        MonthlyPnl.fee_paid.is_(False),
+        MonthlyPnl.performance_fee > 0,
+        MonthlyPnl.payment_notified_at.isnot(None),
+    ).scalar() or 0
+
+    # Running bots from dispatcher
+    dispatcher_instances = dispatcher_status()
+    running_bots = len(dispatcher_instances) if isinstance(dispatcher_instances, list) else 0
+
+    return {
+        "users": {
+            "total":        total_users,
+            "active":       active_users,
+            "verified":     verified_users,
+            "with_keys":    users_with_keys,
+            "by_plan":      plans,
+        },
+        "trades": {
+            "total":  total_trades,
+            "open":   open_trades,
+            "closed": closed_trades,
+        },
+        "revenue": {
+            "collected":         round(float(fees_collected), 2),
+            "pending":           round(float(fees_pending), 2),
+            "pending_invoices":  pending_invoices,
+            "notified_invoices": notified_invoices,
+        },
+        "bots": {
+            "running": running_bots,
+        },
+    }
+
+
+# ─── Admin users list ─────────────────────────────────────────────────────────
+
+@app.get("/api/admin/users")
+async def admin_list_users(
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """Admin: paginated list of all users with trade and PnL summaries."""
+    from sqlalchemy import func, case
+
+    total_count = db.query(func.count(User.id)).scalar() or 0
+
+    users = (
+        db.query(User)
+        .order_by(User.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    if not users:
+        return {"users": [], "total": total_count}
+
+    user_ids = [u.id for u in users]
+
+    # Trade counts — 1 query for all users
+    trade_rows = (
+        db.query(
+            UserTrade.user_id,
+            func.count(UserTrade.id).label("total"),
+            func.sum(case([(UserTrade.status == "open", 1)], else_=0)).label("open"),
+        )
+        .filter(UserTrade.user_id.in_(user_ids))
+        .group_by(UserTrade.user_id)
+        .all()
+    )
+    trade_map = {r.user_id: (int(r.total), int(r.open or 0)) for r in trade_rows}
+
+    # Pending fees — 1 query for all users
+    fee_rows = (
+        db.query(
+            MonthlyPnl.user_id,
+            func.sum(MonthlyPnl.performance_fee).label("pending"),
+        )
+        .filter(
+            MonthlyPnl.user_id.in_(user_ids),
+            MonthlyPnl.fee_paid.is_(False),
+            MonthlyPnl.performance_fee > 0,
+        )
+        .group_by(MonthlyPnl.user_id)
+        .all()
+    )
+    fee_map = {r.user_id: float(r.pending) for r in fee_rows}
+
+    # Latest MonthlyPnl per user — subquery on year*100+month, then join
+    latest_sub = (
+        db.query(
+            MonthlyPnl.user_id,
+            func.max(MonthlyPnl.year * 100 + MonthlyPnl.month).label("ym"),
+        )
+        .filter(MonthlyPnl.user_id.in_(user_ids))
+        .group_by(MonthlyPnl.user_id)
+        .subquery()
+    )
+    pnl_rows = (
+        db.query(MonthlyPnl)
+        .join(
+            latest_sub,
+            (MonthlyPnl.user_id == latest_sub.c.user_id) &
+            (MonthlyPnl.year * 100 + MonthlyPnl.month == latest_sub.c.ym),
+        )
+        .all()
+    )
+    pnl_map = {r.user_id: r for r in pnl_rows}
+
+    # Bybit API keys — 1 query for all users
+    key_rows = (
+        db.query(UserApiKey.user_id)
+        .filter(UserApiKey.user_id.in_(user_ids), UserApiKey.exchange == "bybit")
+        .distinct()
+        .all()
+    )
+    keys_set = {r.user_id for r in key_rows}
+
+    result = []
+    for u in users:
+        total_t, open_t = trade_map.get(u.id, (0, 0))
+        latest_pnl = pnl_map.get(u.id)
+        pending_fee = fee_map.get(u.id, 0.0)
+
+        result.append({
+            "id":             u.id,
+            "email":          u.email,
+            "username":       u.username,
+            "plan":           u.plan,
+            "is_active":      u.is_active,
+            "email_verified": bool(u.email_verified),
+            "has_api_keys":   u.id in keys_set,
+            "created_at":     u.created_at.isoformat() if u.created_at else None,
+            "last_login":     u.last_login.isoformat() if u.last_login else None,
+            "trades_total":   total_t,
+            "trades_open":    open_t,
+            "latest_pnl": {
+                "year":    latest_pnl.year,
+                "month":   latest_pnl.month,
+                "net_pnl": latest_pnl.net_pnl,
+            } if latest_pnl else None,
+            "pending_fee": round(pending_fee, 2),
+        })
+
+    return {"users": result, "total": total_count}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  WAITLIST
 # ══════════════════════════════════════════════════════════════════════════════
