@@ -321,7 +321,7 @@ export default function StrategiesPage() {
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
             <Link
-              to="/waitlist"
+              to="/auth?mode=register"
               style={{
                 display: 'inline-block',
                 background: '#fff',
@@ -337,7 +337,7 @@ export default function StrategiesPage() {
               onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
               onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
             >
-              Join Waitlist →
+              Get Started →
             </Link>
             <Link
               to="/pricing"

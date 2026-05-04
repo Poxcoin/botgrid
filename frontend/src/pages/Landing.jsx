@@ -60,14 +60,14 @@ function HomeHero() {
           </p>
 
           <div style={fade(220, { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' })}>
-            <Link to="/waitlist" style={{
+            <Link to="/auth?mode=register" style={{
               background: '#fff', color: '#000', padding: '14px 36px', borderRadius: 100,
               fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
               transition: 'opacity 150ms',
             }}
               onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-              Join Waitlist →
+              Get Started →
             </Link>
             <a href="#how-it-works" style={{
               color: '#888', fontSize: 13, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -279,14 +279,14 @@ function CTA() {
           Private beta is open. Connect your exchange API key, choose a strategy, and let six bots trade for you around the clock. Your funds never leave your exchange.
         </div>
 
-        <Link to="/waitlist" style={{
+        <Link to="/auth?mode=register" style={{
           background: '#fff', color: '#000', padding: '14px 36px', borderRadius: 100,
           fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8,
           transition: 'opacity 150ms',
         }}
           onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
           onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-          Join Waitlist →
+          Get Started →
         </Link>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>

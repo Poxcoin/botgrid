@@ -70,7 +70,7 @@ export default function LandingHeader() {
                   onMouseLeave={e => e.currentTarget.style.color = '#888'}>
                   Login
                 </Link>
-                <Link to="/waitlist"
+                <Link to="/auth?mode=register"
                   className="hidden sm:inline-flex items-center"
                   style={{
                     background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
@@ -78,7 +78,7 @@ export default function LandingHeader() {
                   }}
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                  Get Access
+                  Sign Up
                 </Link>
               </>
             )}
@@ -118,9 +118,9 @@ export default function LandingHeader() {
                       style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none' }}>
                       Login
                     </Link>
-                    <Link to="/waitlist" onClick={() => setMobileOpen(false)}
+                    <Link to="/auth?mode=register" onClick={() => setMobileOpen(false)}
                       style={{ background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
-                      Get Access
+                      Sign Up
                     </Link>
                   </>
                 )}

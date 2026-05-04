@@ -6,7 +6,7 @@ const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-
 
 const COLS = [
   { title: 'Product', links: [{ label: 'Bots', to: '/bots' }, { label: 'Strategies', to: '/strategies' }, { label: 'Pricing', to: '/pricing' }, { label: 'News', to: '/news' }] },
-  { title: 'Access', links: [{ label: 'Join Waitlist', to: '/waitlist' }, { label: 'Login', to: '/auth?mode=login' }, { label: 'Register', to: '/auth?mode=register' }] },
+  { title: 'Access', links: [{ label: 'Register', to: '/auth?mode=register' }, { label: 'Login', to: '/auth?mode=login' }] },
   { title: 'Legal', links: [{ label: 'Risk Disclosure', href: '#' }, { label: 'Terms of Service', href: '#' }] },
 ];
 

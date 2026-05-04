@@ -126,7 +126,7 @@ function StrategySection({ s }) {
               <span style={{ textAlign: 'right', maxWidth: '55%' }}>{v}</span>
             </div>
           ))}
-          <Link to="/waitlist"
+          <Link to="/auth?mode=register"
             className="mt-6 flex items-center justify-center h-10 font-mono text-[11px] tracking-[0.2em] uppercase transition-colors"
             style={{ background: 'var(--neon-green)', color: '#000', textDecoration: 'none', border: '1px solid var(--neon-green)', fontWeight: 700 }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}

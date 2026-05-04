@@ -258,12 +258,12 @@ export default function NewsPage() {
           <p style={{ fontSize: 15, color: '#666', marginBottom: 24 }}>
             Our AI analyzes this feed 24/7 and executes trades in under 100ms.
           </p>
-          <a href="/waitlist" style={{
+          <a href="/auth?mode=register" style={{
             display: 'inline-block', padding: '13px 32px', borderRadius: 100,
             background: '#fff', color: '#000', fontSize: 13, fontWeight: 600,
             textDecoration: 'none', letterSpacing: '0.01em',
           }}>
-            Join Waitlist →
+            Get Started →
           </a>
         </div>
       </div>

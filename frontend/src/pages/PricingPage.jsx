@@ -226,7 +226,7 @@ const FAQS = [
   },
   {
     q: 'What exchanges do you support?',
-    a: 'Currently Bybit Perpetual Futures. More exchanges are coming — join the waitlist to get notified.',
+    a: 'Currently Bybit Perpetual Futures. More exchanges are coming — register now and you\'ll be the first to know.',
   },
   {
     q: 'How does the performance fee work?',

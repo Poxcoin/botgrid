@@ -162,7 +162,7 @@ export default function Hero() {
           {/* Right: CTA */}
           <NeuronReveal delay={500} tag="div" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem' }}>
             <Link
-              to="/waitlist"
+              to="/auth?mode=register"
               onMouseEnter={() => { setArrowHover(true); setCtaHover(true); }}
               onMouseLeave={() => { setArrowHover(false); setCtaHover(false); }}
               style={{
@@ -176,7 +176,7 @@ export default function Hero() {
                 transition: 'background 200ms, color 200ms',
               }}
             >
-              Join Waitlist
+              Get Started
               <span style={{ display: 'inline-block', transform: arrowHover ? 'translateX(4px)' : 'translateX(0)', transition: 'transform 200ms' }}>→</span>
             </Link>
             <a href="#bots" className="font-mono text-[11px] tracking-[0.2em] uppercase"

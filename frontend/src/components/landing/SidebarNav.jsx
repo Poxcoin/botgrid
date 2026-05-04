@@ -179,7 +179,7 @@ export default function SidebarNav({ mobileOpen, onClose }) {
 
       {/* Bottom: actions */}
       <div style={{ padding: '12px 20px 20px', borderTop: '1px solid var(--hero-border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <Link to="/waitlist"
+        <Link to="/auth?mode=register"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             height: 36, fontFamily: 'var(--font-mono)', fontSize: 10,

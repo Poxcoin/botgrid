@@ -43,11 +43,11 @@ export default function LandingCTA() {
         {/* Bottom: desc left, CTAs right */}
         <div className="mt-14 flex flex-col md:flex-row items-start md:items-end justify-between gap-10">
           <p className="max-w-md text-base leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            Join the waitlist to get early access. No credit card required.
-            Start in demo mode, switch to live when you're ready.
+            Create your account and start trading in demo mode today.
+            No credit card required. Switch to live when you're ready.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link to="/waitlist"
+            <Link to="/auth?mode=register"
               onMouseEnter={() => setCtaHov(true)}
               onMouseLeave={() => setCtaHov(false)}
               className="inline-flex items-center h-12 px-8 font-mono text-[12px] tracking-[0.2em] uppercase"
@@ -58,7 +58,7 @@ export default function LandingCTA() {
                 textDecoration: 'none',
                 transition: 'background 200ms, color 200ms',
               }}>
-              Join Waitlist →
+              Get Started →
             </Link>
             <Link to="/auth?mode=login"
               className="inline-flex items-center h-12 px-8 font-mono text-[12px] tracking-[0.2em] uppercase"

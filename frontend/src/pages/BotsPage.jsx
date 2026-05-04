@@ -332,7 +332,7 @@ export default function BotsPage() {
             Start trading with all six bots.
           </h2>
           <Link
-            to="/waitlist"
+            to="/auth?mode=register"
             style={{
               display: 'inline-block',
               background: '#fff',
@@ -348,7 +348,7 @@ export default function BotsPage() {
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
           >
-            Join Waitlist →
+            Get Started →
           </Link>
         </div>
       </section>

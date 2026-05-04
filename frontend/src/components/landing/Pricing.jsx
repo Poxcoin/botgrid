@@ -16,8 +16,8 @@ const PLANS = [
       'System logs',
     ],
     missing: ['Automated trading', 'Listing sniper', 'DEX sniper', 'Priority support'],
-    cta: 'Join Waitlist',
-    href: '/waitlist',
+    cta: 'Get Started',
+    href: '/auth?mode=register',
   },
   {
     id: 'basic',
@@ -33,8 +33,8 @@ const PLANS = [
       'Bybit API key integration',
     ],
     missing: ['Listing sniper', 'DEX sniper'],
-    cta: 'Join Waitlist',
-    href: '/waitlist',
+    cta: 'Get Started',
+    href: '/auth?mode=register',
     highlight: false,
   },
   {
@@ -52,8 +52,8 @@ const PLANS = [
       'Priority support',
     ],
     missing: [],
-    cta: 'Join Waitlist',
-    href: '/waitlist',
+    cta: 'Get Started',
+    href: '/auth?mode=register',
     highlight: true,
   },
 ];
