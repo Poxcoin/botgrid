@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from modules import position_closer
 from modules import stripe_billing
+from saas_dispatcher import start_dispatcher, get_status as dispatcher_status
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
@@ -40,6 +41,7 @@ app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=
 @app.on_event("startup")
 async def _startup():
     asyncio.create_task(position_closer.run_loop())
+    asyncio.get_running_loop().run_in_executor(None, start_dispatcher)
 
 # ─── CORS: только явно разрешённые origins ────────────────────────────────────
 app.add_middleware(
@@ -853,6 +855,14 @@ async def notify_invoice_payment(
         invoice.tx_hash = body.tx_hash[:100]
     db.commit()
     return {"ok": True}
+
+
+# ─── Admin dispatcher status ──────────────────────────────────────────────────
+
+@app.get("/api/admin/dispatcher")
+async def admin_dispatcher_status(token: str = Depends(require_auth)):
+    """Admin: list running user bot instances."""
+    return {"instances": dispatcher_status()}
 
 
 # ─── Admin invoice management ─────────────────────────────────────────────────

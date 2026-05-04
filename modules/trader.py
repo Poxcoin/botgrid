@@ -148,6 +148,22 @@ def _init_exchange() -> ccxt.Exchange:
     return exchange
 
 
+def _init_exchange_for_user(api_key: str, secret: str) -> ccxt.Exchange:
+    """Exchange для конкретного пользователя с его API ключами (реальный аккаунт)."""
+    exchange = ccxt.bybit({
+        "apiKey": api_key,
+        "secret": secret,
+        "enableRateLimit": True,
+        "options": {
+            "defaultType": "linear",
+            "adjustForTimeDifference": True,
+            "recvWindow": 10000,
+        },
+    })
+    exchange.has['fetchCurrencies'] = False
+    return exchange
+
+
 def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
     """Проверяет, есть ли уже открытая позиция по монете. Защита от дублей."""
     try:

@@ -22,11 +22,11 @@ from typing import Optional
 
 import ccxt
 
-from modules.trader import _init_exchange, get_free_usdt
+from modules.trader import _init_exchange, _init_exchange_for_user, get_free_usdt
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard
 from modules.market_data import get_btc_2h_change
-from modules.analytics_db import save_trade, close_trade
+from modules.analytics_db import save_trade, close_trade, save_user_trade, close_user_trade
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING
 
 BTC_DUMP_THRESHOLD    = -2.5    # % за 2h — призупиняємо нові LONG BUY на альти
@@ -86,13 +86,14 @@ MIN_GRID_LEVELS        = 3      # мінімальна кількість рів
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
-def _state_file(symbol: str) -> str:
+def _state_file(symbol: str, user_id: Optional[int] = None) -> str:
     safe = symbol.replace("/", "_").replace(":", "_")
-    return f"grid_state_{safe}.json"
+    prefix = f"u{user_id}_" if user_id else ""
+    return f"grid_state_{prefix}{safe}.json"
 
 
-def _load_state(symbol: str) -> dict:
-    path = _state_file(symbol)
+def _load_state(symbol: str, user_id: Optional[int] = None) -> dict:
+    path = _state_file(symbol, user_id)
     if os.path.exists(path):
         try:
             with open(path) as f:
@@ -102,8 +103,8 @@ def _load_state(symbol: str) -> dict:
     return {}
 
 
-def _save_state(symbol: str, state: dict) -> None:
-    with open(_state_file(symbol), "w") as f:
+def _save_state(symbol: str, state: dict, user_id: Optional[int] = None) -> None:
+    with open(_state_file(symbol, user_id), "w") as f:
         json.dump(state, f, indent=2)
 
 
@@ -241,7 +242,8 @@ def _set_leverage(exchange, symbol: str, leverage: int) -> None:
 
 
 def _close_all_positions(exchange, symbol: str, positions: dict,
-                         leverage: int, price: float, direction: str = "long") -> float:
+                         leverage: int, price: float, direction: str = "long",
+                         user_id: Optional[int] = None) -> float:
     """Закриває всі відкриті позиції. direction визначає сторону закриття.
     Рахує комісії та закриває DB записи (як _close_long/_close_short).
     """
@@ -280,7 +282,10 @@ def _close_all_positions(exchange, symbol: str, positions: dict,
                         pnl_pct = round((fill / entry["fill_price"] - 1) * 100, 2) if entry["fill_price"] else 0
                     opened_ms = entry.get("opened_ms", 0)
                     duration  = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
-                    close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
+                    if user_id is not None:
+                        close_user_trade(db_trade_id, fill, net_pnl)
+                    else:
+                        close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
                 except Exception as _de:
                     print(f"[GRID:{symbol}] DB close error level {idx_str}: {_de}")
 
@@ -307,7 +312,8 @@ def _unrealized_loss(positions: dict, price: float, leverage: int, direction: st
 # ─── LONG позиції ─────────────────────────────────────────────────────────────
 
 def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
-               size_usd: float, leverage: int) -> Optional[dict]:
+               size_usd: float, leverage: int,
+               user_id: Optional[int] = None) -> Optional[dict]:
     try:
         qty   = _get_quantity(exchange, symbol, level_price, size_usd, leverage)
         order = exchange.create_order(
@@ -325,7 +331,10 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
         coin = symbol.split("/")[0]
         ts_open = datetime.now(timezone.utc).isoformat()
         try:
-            db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
+            if user_id is not None:
+                db_trade_id = save_user_trade(user_id, coin, "LONG", fill, "grid")
+            else:
+                db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
         except Exception:
             db_trade_id = None
         print(f"[GRID:{symbol}] 🟢 LONG BUY level {level_idx} @ {fill:.4f} | qty={qty}")
@@ -338,7 +347,8 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
 
 
 def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: int,
-                current_price: float = 0.0) -> tuple[bool, float, float]:
+                current_price: float = 0.0,
+                user_id: Optional[int] = None) -> tuple[bool, float, float]:
     """Закриває long позицію. Повертає (success, net_pnl, fill_price)."""
     try:
         order = exchange.create_order(
@@ -366,7 +376,10 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
                 pnl_pct  = round((fill / entry["fill_price"] - 1) * 100, 2) if entry["fill_price"] else 0
                 opened_ms = entry.get("opened_ms", 0)
                 duration  = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
-                close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
+                if user_id is not None:
+                    close_user_trade(db_trade_id, fill, net_pnl)
+                else:
+                    close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
             except Exception as _e:
                 print(f"[GRID:{symbol}] DB close error: {_e}")
 
@@ -380,7 +393,8 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
 # ─── SHORT позиції ────────────────────────────────────────────────────────────
 
 def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
-                size_usd: float, leverage: int) -> Optional[dict]:
+                size_usd: float, leverage: int,
+                user_id: Optional[int] = None) -> Optional[dict]:
     try:
         qty   = _get_quantity(exchange, symbol, level_price, size_usd, leverage)
         order = exchange.create_order(
@@ -398,7 +412,10 @@ def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
         coin = symbol.split("/")[0]
         ts_open = datetime.now(timezone.utc).isoformat()
         try:
-            db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open)
+            if user_id is not None:
+                db_trade_id = save_user_trade(user_id, coin, "SHORT", fill, "grid")
+            else:
+                db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open)
         except Exception:
             db_trade_id = None
         print(f"[GRID:{symbol}] 🔴 SHORT SELL level {level_idx} @ {fill:.4f} | qty={qty}")
@@ -411,7 +428,8 @@ def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
 
 
 def _close_short(exchange, symbol: str, entry: dict, level_idx: int, leverage: int,
-                 current_price: float = 0.0) -> tuple[bool, float, float]:
+                 current_price: float = 0.0,
+                 user_id: Optional[int] = None) -> tuple[bool, float, float]:
     """Закриває short позицію (buy to cover). Повертає (success, net_pnl, fill_price)."""
     try:
         order = exchange.create_order(
@@ -439,7 +457,10 @@ def _close_short(exchange, symbol: str, entry: dict, level_idx: int, leverage: i
                 pnl_pct   = round((entry["fill_price"] / fill - 1) * 100, 2) if fill else 0
                 opened_ms  = entry.get("opened_ms", 0)
                 duration   = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
-                close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
+                if user_id is not None:
+                    close_user_trade(db_trade_id, fill, net_pnl)
+                else:
+                    close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
             except Exception as _e:
                 print(f"[GRID:{symbol}] DB close error: {_e}")
 
@@ -508,7 +529,8 @@ def _cancel_all_pending(exchange, symbol: str, pending: dict) -> None:
 
 
 def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
-                           direction: str, state: dict) -> None:
+                           direction: str, state: dict,
+                           user_id: Optional[int] = None) -> None:
     """Перевіряє статус pending limit ордерів кожен тік.
 
     Заповнені → переміщає в positions.
@@ -559,7 +581,10 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     coin = symbol.split("/")[0]
                     ts_open = datetime.now(timezone.utc).isoformat()
                     try:
-                        db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
+                        if user_id is not None:
+                            db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid")
+                        else:
+                            db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
                     except Exception:
                         db_trade_id = None
                     positions[zone_str] = {
@@ -590,7 +615,7 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                 changed = True
 
     if changed:
-        _save_state(symbol, state)
+        _save_state(symbol, state, user_id)
 
 
 # ─── Один потік на монету ─────────────────────────────────────────────────────
@@ -604,8 +629,12 @@ def _run_single(cfg: dict) -> None:
     size_pct     = cfg.get("size_pct", 1.0)
     size_usd_min = cfg.get("size_usd_min", 10.0)
 
+    user_id    = cfg.get("user_id")       # None for owner's bot
+    _api_key   = cfg.get("api_key")
+    _api_secret = cfg.get("api_secret")
+
     # ─── Перевірка stop_until перед підключенням до біржі ───────────────────────
-    _pre_state = _load_state(symbol)
+    _pre_state = _load_state(symbol, user_id)
     _stop_until = _pre_state.get("stop_until", 0)
     if _stop_until > time.time():
         _eta = datetime.fromtimestamp(_stop_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -613,7 +642,7 @@ def _run_single(cfg: dict) -> None:
         return
 
     try:
-        exchange = _init_exchange()
+        exchange = _init_exchange_for_user(_api_key, _api_secret) if _api_key else _init_exchange()
     except Exception as e:
         print(f"[GRID:{symbol}] ❌ Не вдалось підключитись до біржі: {e}")
         return
@@ -638,7 +667,7 @@ def _run_single(cfg: dict) -> None:
     step   = levels[1] - levels[0]
     print(f"[GRID:{symbol}] {grid_levels} рівнів | крок ${step:.2f} | режим {direction.upper()}")
 
-    state = _load_state(symbol)
+    state = _load_state(symbol, user_id)
     _state_valid = False
     if state.get("symbol") == symbol and state.get("levels"):
         _s_upper = state.get("upper", 0)
@@ -662,7 +691,7 @@ def _run_single(cfg: dict) -> None:
             if _old_positions:
                 _restart_price = _get_current_price(exchange, symbol)
                 _restart_pnl   = _close_all_positions(
-                    exchange, symbol, _old_positions, leverage, _restart_price, saved_direction)
+                    exchange, symbol, _old_positions, leverage, _restart_price, saved_direction, user_id)
                 print(f"[GRID:{symbol}] Реалізований PnL при рестарт-тренді: ${_restart_pnl:.2f}")
             _state_valid = False
         else:
@@ -693,7 +722,7 @@ def _run_single(cfg: dict) -> None:
                     if ex_qty == 0 and state.get("positions"):
                         print(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
                         state["positions"] = {}
-                        _save_state(symbol, state)
+                        _save_state(symbol, state, user_id)
                 except Exception as _e:
                     print(f"[GRID:{symbol}] Reconcile помилка: {_e}")
 
@@ -710,7 +739,7 @@ def _run_single(cfg: dict) -> None:
             "total_pnl":     0.0,
             "started_at":    datetime.now(timezone.utc).isoformat(),
         }
-        _save_state(symbol, state)
+        _save_state(symbol, state, user_id)
         # Закрити orphaned позиції на біржі (обидві сторони)
         coin = symbol.split("/")[0]
         try:
@@ -803,13 +832,13 @@ def _run_single(cfg: dict) -> None:
                     print(f"[GRID:{symbol}] 🔄 Тренд підтверджено: {direction.upper()} → {new_direction.upper()} — закриваємо {len(positions)} позицій")
                     _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                     state["pending_orders"] = {}
-                    realized = _close_all_positions(exchange, symbol, positions, leverage, price, direction)
+                    realized = _close_all_positions(exchange, symbol, positions, leverage, price, direction, user_id)
                     state["total_pnl"] += realized
                     state["positions"] = {}
                     direction = new_direction
                     _trend_short_count = 0
                     state["direction"] = direction
-                    _save_state(symbol, state)
+                    _save_state(symbol, state, user_id)
                     send_telegram_message(
                         f"🔄 <b>Grid тренд-флip</b> {symbol}\n"
                         f"Новий режим: {direction.upper()}\n"
@@ -867,7 +896,7 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] 🛑 СТОП — {reason}. Закриваємо всі позиції.")
                         _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                         state["pending_orders"] = {}
-                        realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction)
+                        realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction, user_id)
                         state["total_pnl"] += realized
                         state["positions"] = {}
                         # Зберігаємо stop_until: наступна північ UTC + 1h, мінімум 6h від зараз
@@ -881,7 +910,7 @@ def _run_single(cfg: dict) -> None:
                         state["stop_until"] = _stop_ts
                         state["rebuilds_today"] = rebuilds_today
                         state["rebuild_day"] = datetime.now(timezone.utc).date().isoformat()
-                        _save_state(symbol, state)
+                        _save_state(symbol, state, user_id)
                         send_telegram_message(
                             f"🛑 <b>Grid ЗУПИНЕНО до завтра</b> {symbol}\n"
                             f"Режим: {direction.upper()}\n"
@@ -909,7 +938,7 @@ def _run_single(cfg: dict) -> None:
                     "rebuilds_today": rebuilds_today,
                     "rebuild_day": datetime.now(timezone.utc).date().isoformat(),
                 })
-                _save_state(symbol, state)
+                _save_state(symbol, state, user_id)
                 send_telegram_message(
                     f"🔄 <b>Grid перебудова {rebuild_label} #{rebuilds_today}</b> {symbol}\n"
                     f"Режим: {direction.upper()}\n"
@@ -928,7 +957,7 @@ def _run_single(cfg: dict) -> None:
             pending_orders = state.setdefault("pending_orders", {})
 
             # ─── Перевіряємо pending limit ордери ───────────────────────────
-            _check_pending_orders(exchange, symbol, pending_orders, positions, direction, state)
+            _check_pending_orders(exchange, symbol, pending_orders, positions, direction, state, user_id)
 
             if direction == "long":
                 # ─── LONG: SELL якщо ціна виросла вище рівня позиції ────────
@@ -945,12 +974,12 @@ def _run_single(cfg: dict) -> None:
                                 pass
                             del pending_orders[idx_str]
                         success, realized_pnl, fill_price = _close_long(
-                            exchange, symbol, entry, idx, leverage, price)
+                            exchange, symbol, entry, idx, leverage, price, user_id)
                         if success:
                             state["total_pnl"] += realized_pnl
                             state["completed"] += 1
                             del positions[idx_str]
-                            _save_state(symbol, state)
+                            _save_state(symbol, state, user_id)
                             send_telegram_message(
                                 f"✅ <b>Grid LONG SELL</b> {symbol}\n"
                                 f"Рівень {idx} → {idx + 1}\n"
@@ -972,7 +1001,7 @@ def _run_single(cfg: dict) -> None:
                         result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
                         if result:
                             pending_orders[zone_str] = result
-                            _save_state(symbol, state)
+                            _save_state(symbol, state, user_id)
                             send_telegram_message(
                                 f"📋 <b>Grid LONG LIMIT</b> {symbol}\n"
                                 f"Рівень {current_zone} @ ${limit_price:.4f} (maker)\n"
@@ -994,12 +1023,12 @@ def _run_single(cfg: dict) -> None:
                                 pass
                             del pending_orders[idx_str]
                         success, realized_pnl, fill_price = _close_short(
-                            exchange, symbol, entry, idx, leverage, price)
+                            exchange, symbol, entry, idx, leverage, price, user_id)
                         if success:
                             state["total_pnl"] += realized_pnl
                             state["completed"] += 1
                             del positions[idx_str]
-                            _save_state(symbol, state)
+                            _save_state(symbol, state, user_id)
                             send_telegram_message(
                                 f"✅ <b>Grid SHORT COVER</b> {symbol}\n"
                                 f"Рівень {idx} → {idx - 1}\n"
@@ -1022,7 +1051,7 @@ def _run_single(cfg: dict) -> None:
                         result = _open_short_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
                         if result:
                             pending_orders[zone_str] = result
-                            _save_state(symbol, state)
+                            _save_state(symbol, state, user_id)
                             send_telegram_message(
                                 f"📋 <b>Grid SHORT LIMIT</b> {symbol}\n"
                                 f"Рівень {current_zone} @ ${limit_price:.4f} (maker)\n"
@@ -1082,6 +1111,35 @@ def run_grid_engine():
                     thread_map[sym] = _start_thread(cfg)
     except KeyboardInterrupt:
         print("\n[GRID] Зупинено всі сітки.")
+
+
+def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event: threading.Event) -> None:
+    """Запускає grid engine для конкретного користувача з його API ключами."""
+    thread_map: dict[str, threading.Thread] = {}
+    for cfg in GRID_CONFIGS:
+        user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret}
+        sym = user_cfg["symbol"]
+        thread_map[sym] = _start_thread(user_cfg)
+        print(f"[GRID:u{user_id}] Запущено потік для {sym}")
+
+    while not stop_event.is_set():
+        stop_event.wait(timeout=60)
+        for cfg in GRID_CONFIGS:
+            sym = cfg["symbol"]
+            t = thread_map.get(sym)
+            if t and not t.is_alive() and not stop_event.is_set():
+                user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret}
+                _sym_state = _load_state(sym, user_id)
+                if _sym_state.get("stop_until", 0) > time.time():
+                    continue
+                print(f"[GRID:u{user_id}] ⚠️ Потік {sym} впав — перезапуск...")
+                thread_map[sym] = _start_thread(user_cfg)
+
+    # Stop event triggered — cancel all pending for this user
+    for sym in list(thread_map.keys()):
+        t = thread_map.get(sym)
+        if t and t.is_alive():
+            print(f"[GRID:u{user_id}] Зупинка потоку {sym}")
 
 
 if __name__ == "__main__":

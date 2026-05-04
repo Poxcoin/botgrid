@@ -170,6 +170,55 @@ def close_trade(trade_id: int, exit_price: float, pnl_usdt: float,
         ))
 
 
+def save_user_trade(user_id: int, coin: str, side: str,
+                    entry_price: float, source: str = "grid") -> int:
+    """Записывает открытую сделку в user_trades (SaaS таблица). Возвращает ID."""
+    from database import SessionLocal, UserTrade
+    from datetime import datetime, timezone
+    db = SessionLocal()
+    try:
+        symbol = f"{coin}/USDT:USDT" if "/" not in coin else coin
+        trade = UserTrade(
+            user_id=user_id,
+            source=source,
+            symbol=symbol,
+            side=side,
+            entry_price=entry_price,
+            status="open",
+            opened_at=datetime.now(timezone.utc),
+        )
+        db.add(trade)
+        db.commit()
+        db.refresh(trade)
+        return trade.id
+    except Exception:
+        db.rollback()
+        return 0
+    finally:
+        db.close()
+
+
+def close_user_trade(trade_id: int, exit_price: float, pnl_usdt: float) -> None:
+    """Закрывает сделку в user_trades с результатом."""
+    from database import SessionLocal, UserTrade
+    from datetime import datetime, timezone
+    if not trade_id:
+        return
+    db = SessionLocal()
+    try:
+        trade = db.query(UserTrade).filter_by(id=trade_id).first()
+        if trade:
+            trade.exit_price = exit_price
+            trade.pnl_usdt = pnl_usdt
+            trade.status = "closed"
+            trade.closed_at = datetime.now(timezone.utc)
+            db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 def migrate_signals_log(signals_log_path: str = "signals_log.json") -> int:
     """Импортирует существующие данные из signals_log.json в analytics.db."""
     if not os.path.exists(signals_log_path):
