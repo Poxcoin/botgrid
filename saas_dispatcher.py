@@ -106,6 +106,32 @@ def dispatcher_loop() -> None:
         time.sleep(60)
 
 
+def sync_user(user_id: int) -> None:
+    """Немедленно запускает/перезапускает боты для конкретного пользователя.
+    Вызывать после сохранения API ключей юзера.
+    """
+    db = SessionLocal()
+    try:
+        key_row = db.query(UserApiKey).filter_by(user_id=user_id, exchange="bybit").first()
+        user = db.query(User).filter_by(id=user_id).first()
+        if not key_row or not user or not user.is_active or not user.email_verified:
+            stop_user(user_id)
+            return
+        # Останавливаем старый инстанс если есть (ключи могли смениться)
+        with _lock:
+            already = user_id in _instances
+        if already:
+            stop_user(user_id)
+            time.sleep(1)
+        ak  = decrypt_field(key_row.api_key_enc)
+        sec = decrypt_field(key_row.secret_enc)
+        _start_user(user_id, ak, sec)
+    except Exception as e:
+        logger.error(f"[DISPATCHER] sync_user({user_id}) error: {e}")
+    finally:
+        db.close()
+
+
 def start_dispatcher() -> threading.Thread:
     """Запускает диспатчер в фоновом daemon-потоке. Вызывать при старте web_server."""
     t = threading.Thread(target=dispatcher_loop, name="saas-dispatcher", daemon=True)

@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 
 from modules import position_closer
 from modules import stripe_billing
-from saas_dispatcher import start_dispatcher, get_status as dispatcher_status
+from saas_dispatcher import start_dispatcher, get_status as dispatcher_status, sync_user as dispatcher_sync_user, stop_user as dispatcher_stop_user
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
@@ -516,6 +516,8 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Could not save keys, try again")
+    # Немедленно запускаем боты для этого пользователя
+    asyncio.get_running_loop().run_in_executor(None, dispatcher_sync_user, user.id)
     return {"ok": True}
 
 
@@ -524,6 +526,8 @@ async def delete_api_keys(credentials: HTTPAuthorizationCredentials = Depends(se
     user = _get_user_from_token(credentials.credentials, db)
     db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").delete()
     db.commit()
+    # Немедленно останавливаем боты
+    asyncio.get_running_loop().run_in_executor(None, dispatcher_stop_user, user.id)
     return {"ok": True}
 
 
