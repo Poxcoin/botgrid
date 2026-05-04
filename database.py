@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float,
@@ -5,7 +6,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-DATABASE_URL = "sqlite:///./saas_database.sqlite"
+_DB_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_URL = f"sqlite:///{_DB_DIR}/saas_database.sqlite"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
