@@ -68,23 +68,23 @@ def send_login_notification_email(to: str, ip: str) -> bool:
 <html>
 <body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
   <div style="max-width:480px;margin:0 auto">
-    <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Новый вход в аккаунт</div>
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">New login to your account</div>
     <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 24px">
-      Зафиксирован вход в ваш аккаунт Kado.
+      A new login was detected on your Kado account.
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
-      <tr><td style="color:#666;padding:6px 0;border-bottom:1px solid #1a1a1a">Время</td><td style="color:#fff;padding:6px 0;border-bottom:1px solid #1a1a1a;text-align:right">{ts}</td></tr>
-      <tr><td style="color:#666;padding:6px 0">IP-адрес</td><td style="color:#fff;padding:6px 0;text-align:right">{escape(ip)}</td></tr>
+      <tr><td style="color:#666;padding:6px 0;border-bottom:1px solid #1a1a1a">Time</td><td style="color:#fff;padding:6px 0;border-bottom:1px solid #1a1a1a;text-align:right">{ts}</td></tr>
+      <tr><td style="color:#666;padding:6px 0">IP address</td><td style="color:#fff;padding:6px 0;text-align:right">{escape(ip)}</td></tr>
     </table>
     <p style="color:#444;font-size:11px;margin-top:32px;line-height:1.5">
-      Если это были не вы — немедленно смените пароль.<br>
+      If this wasn't you, change your password immediately.<br>
       <a href="{SITE_URL}/auth?action=reset" style="color:#666">{SITE_URL}</a>
     </p>
   </div>
 </body>
 </html>
 """
-    return _send(to, "Новый вход в Kado", html)
+    return _send(to, "New login to Kado", html)
 
 
 def send_login_otp_email(to: str, code: str) -> bool:
