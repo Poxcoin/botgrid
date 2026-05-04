@@ -10,6 +10,14 @@ from email.mime.text import MIMEText
 
 from config.settings import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SITE_URL
 
+_EMAIL_HEADER = """
+  <div style="margin-bottom:32px">
+    <a href="{site}" style="text-decoration:none">
+      <span style="display:inline-block;background:#fff;color:#000;font-size:15px;font-weight:900;letter-spacing:0.08em;padding:7px 14px;border:2px solid #000">KADO</span>
+    </a>
+  </div>
+"""
+
 
 def _smtp_enabled() -> bool:
     return bool(SMTP_HOST and SMTP_USER and SMTP_PASSWORD)
@@ -41,6 +49,7 @@ def send_verification_email(to: str, token: str) -> bool:
 <html>
 <body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
   <div style="max-width:480px;margin:0 auto">
+    {_EMAIL_HEADER.format(site=SITE_URL)}
     <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Verify your email</div>
     <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 32px">
       Click the button below to verify your Kado account. This link expires in 24 hours.
@@ -68,6 +77,7 @@ def send_login_notification_email(to: str, ip: str) -> bool:
 <html>
 <body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
   <div style="max-width:480px;margin:0 auto">
+    {_EMAIL_HEADER.format(site=SITE_URL)}
     <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">New login to your account</div>
     <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 24px">
       A new login was detected on your Kado account.
@@ -93,6 +103,7 @@ def send_login_otp_email(to: str, code: str) -> bool:
 <html>
 <body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
   <div style="max-width:480px;margin:0 auto">
+    {_EMAIL_HEADER.format(site=SITE_URL)}
     <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Your Kado login code</div>
     <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 24px">
       Use this code to complete your login. It expires in 5 minutes.
@@ -118,6 +129,7 @@ def send_password_reset_email(to: str, token: str) -> bool:
 <html>
 <body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
   <div style="max-width:480px;margin:0 auto">
+    {_EMAIL_HEADER.format(site=SITE_URL)}
     <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Reset your password</div>
     <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 32px">
       Click below to set a new password. This link expires in 1 hour.
