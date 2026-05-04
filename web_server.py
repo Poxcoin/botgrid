@@ -963,7 +963,7 @@ def _load_signals() -> list:
 
 
 @app.get("/api/data")
-async def get_dashboard_data(token: str = Depends(require_auth)):
+async def get_dashboard_data(token: str = Depends(require_any_auth)):
     signals = _load_signals()
 
     balance_info = {"total": 0, "free": 0}
@@ -1023,7 +1023,7 @@ async def get_signals(
     limit: int = Query(default=20, ge=1, le=200),
     coin: Optional[str] = Query(default=None, max_length=20, regex=r"^[A-Z0-9]{1,20}$"),
     action: Optional[str] = Query(default=None, max_length=10),
-    token: str = Depends(require_auth),
+    token: str = Depends(require_any_auth),
 ):
     _VALID_ACTIONS = {"LONG", "SHORT"}
     if action and action.upper() not in _VALID_ACTIONS:
@@ -1054,7 +1054,7 @@ async def get_signals(
 
 
 @app.get("/api/stats")
-async def get_stats(token: str = Depends(require_auth)):
+async def get_stats(token: str = Depends(require_any_auth)):
     all_signals = _load_signals()
     trades = [s for s in all_signals if s.get("action") in ("LONG", "SHORT")]
 
@@ -1077,7 +1077,7 @@ async def get_stats(token: str = Depends(require_auth)):
 
 
 @app.get("/api/intel")
-async def get_intel(token: str = Depends(require_auth)):
+async def get_intel(token: str = Depends(require_any_auth)):
     """Live данные: источники, ликвидации, on-chain."""
     try:
         with open("live_intel.json") as f:
@@ -1094,7 +1094,7 @@ async def get_intel(token: str = Depends(require_auth)):
 @app.get("/api/logs")
 async def get_logs(
     lines: int = Query(default=100, ge=1, le=500),
-    token: str = Depends(require_auth),
+    token: str = Depends(require_any_auth),
 ):
     log_path = "bot_engine.log"
     if not os.path.exists(log_path):
