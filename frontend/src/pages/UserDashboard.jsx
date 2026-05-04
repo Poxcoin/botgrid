@@ -169,7 +169,7 @@ export default function UserDashboard() {
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: '40px 32px', maxWidth: 1100 }}>
+        <main style={{ flex: 1, padding: '40px 32px' }}>
           <TabContent tab={activeTab} />
         </main>
       </div>
