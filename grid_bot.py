@@ -566,6 +566,17 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
 
         except Exception as e:
             print(f"[GRID:{symbol}] Pending check помилка level {zone_str}: {e}")
+            # fetchOrder не може знайти ордер (занадто старий / не в останніх 500)
+            # Перевіряємо через fetchOpenOrders — якщо нема, ордер протухлий → видаляємо
+            try:
+                open_orders = exchange.fetch_open_orders(symbol, params={"category": "linear"})
+                open_ids = {o["id"] for o in open_orders}
+                if entry["order_id"] not in open_ids:
+                    print(f"[GRID:{symbol}] 🗑️ Stale pending level {zone_str} не в open orders — видаляємо")
+                    del pending[zone_str]
+                    changed = True
+            except Exception:
+                pass
 
     if changed:
         _save_state(symbol, state)
