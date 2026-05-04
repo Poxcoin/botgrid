@@ -198,7 +198,7 @@ class BillingCheckoutRequest(BaseModel):
 
 
 @app.post("/api/backtest/start")
-async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_auth)):
+async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_any_auth)):
     global _backtest_running, _backtest_progress
     if _backtest_running:
         raise HTTPException(status_code=409, detail="Backtest already running")
@@ -235,7 +235,7 @@ async def start_backtest(body: BacktestStartRequest, token: str = Depends(requir
 
 
 @app.get("/api/backtest/status")
-async def backtest_status(token: str = Depends(require_auth)):
+async def backtest_status(token: str = Depends(require_any_auth)):
     return {"running": _backtest_running, "progress": _backtest_progress}
 
 
@@ -1169,7 +1169,7 @@ async def websocket_endpoint(websocket: WebSocket):
 BACKTEST_DIR = "backtest_results"
 
 @app.get("/api/backtest/runs")
-async def get_backtest_runs(token: str = Depends(require_auth)):
+async def get_backtest_runs(token: str = Depends(require_any_auth)):
     if not os.path.exists(BACKTEST_DIR):
         return {"runs": []}
     runs = []
@@ -1191,7 +1191,7 @@ async def get_backtest_runs(token: str = Depends(require_auth)):
 
 
 @app.get("/api/backtest/run/{run_id}")
-async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
+async def get_backtest_run(run_id: str, token: str = Depends(require_any_auth)):
     import re
     if not re.match(r'^[\w\-:T]+$', run_id):
         raise HTTPException(status_code=400, detail="Invalid run_id")
