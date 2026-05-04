@@ -1,7 +1,8 @@
 import React from 'react';
-import { LayoutDashboard, Activity, Brain, FlaskConical, Key, ScrollText, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Activity, Brain, FlaskConical, Key, ScrollText, ShieldCheck, Users } from 'lucide-react';
 
 const TABS = [
+  { id: 'admin',      label: 'Admin',      icon: Users },
   { id: 'overview',   label: 'Overview',   icon: LayoutDashboard },
   { id: 'history',    label: 'Signals',    icon: Activity },
   { id: 'analyzer',   label: 'Analyzer',   icon: Brain },

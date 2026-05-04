@@ -28,7 +28,7 @@ PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, Subscription
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
-from utils.email import send_verification_email
+from utils.email import send_verification_email, send_login_otp_email
 from sqlalchemy.orm import Session
 
 from modules import position_closer
@@ -132,6 +132,7 @@ _TOKEN_TTL = 86_400  # 24 часа
 _active_tokens: dict[str, float] = {}
 # {partial_token: {"user_id": int, "exp": float}} — separate from _active_tokens to avoid type mismatch
 _2fa_pending: dict[str, dict] = {}
+_otp_pending: dict[str, dict] = {}   # otp_token → {user_id, code, exp, attempts}
 _revoked_jtis: dict[str, float] = {}  # jti → expiry; purged when expired
 _ws_connections: dict = defaultdict(int)  # ip → open connection count
 _WS_MAX_PER_IP = 5
@@ -145,6 +146,9 @@ def _purge_expired():
     stale = [k for k, v in _2fa_pending.items() if v["exp"] < now]
     for k in stale:
         del _2fa_pending[k]
+    stale_otp = [k for k, v in _otp_pending.items() if v["exp"] < now]
+    for k in stale_otp:
+        del _otp_pending[k]
     stale_jtis = [j for j, exp in _revoked_jtis.items() if exp < now]
     for j in stale_jtis:
         del _revoked_jtis[j]
@@ -183,6 +187,18 @@ import threading as _bt_thread
 
 _backtest_running  = False
 _backtest_progress: dict = {"current": 0, "total": 0, "run_id": None}
+_backtest_owner_id: Optional[int] = None   # None = admin (no ownership filter)
+
+
+def _token_user_id(token: str) -> Optional[int]:
+    """Return user DB id from JWT, or None for admin opaque tokens."""
+    payload = decode_token(token)
+    if payload is None:
+        return None
+    try:
+        return int(payload["sub"])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 class BacktestStartRequest(BaseModel):
@@ -198,17 +214,20 @@ class BillingCheckoutRequest(BaseModel):
 
 
 @app.post("/api/backtest/start")
-async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_auth)):
-    global _backtest_running, _backtest_progress
+async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_any_auth)):
+    global _backtest_running, _backtest_progress, _backtest_owner_id
     if _backtest_running:
         raise HTTPException(status_code=409, detail="Backtest already running")
+
+    requester_id = _token_user_id(token)
 
     def _progress_cb(current: int, total: int, run_id: str):
         global _backtest_progress
         _backtest_progress = {"current": current, "total": total, "run_id": run_id}
 
     def _run_bg():
-        global _backtest_running, _backtest_progress
+        global _backtest_running, _backtest_progress, _backtest_owner_id
+        _backtest_owner_id = requester_id
         _backtest_running  = True
         _backtest_progress = {"current": 0, "total": 0, "run_id": None}
         try:
@@ -225,17 +244,34 @@ async def start_backtest(body: BacktestStartRequest, token: str = Depends(requir
                 sl=body.sl or None,
                 progress_cb=_progress_cb,
             )
+            # tag saved result with owner so future queries can filter by user
+            if requester_id is not None:
+                _run_id = _backtest_progress.get("run_id")
+                if _run_id:
+                    _path = os.path.join(BACKTEST_DIR, f"{_run_id}.json")
+                    try:
+                        with open(_path, "r+", encoding="utf-8") as _f:
+                            _data = json.load(_f)
+                            _data["user_id"] = requester_id
+                            _f.seek(0); json.dump(_data, _f, indent=2, ensure_ascii=False); _f.truncate()
+                    except Exception:
+                        pass
         except Exception as _e:
             print(f"[backtest] Error: {_e}")
         finally:
             _backtest_running = False
+            _backtest_owner_id = None
 
     _bt_thread.Thread(target=_run_bg, daemon=True).start()
     return {"ok": True}
 
 
 @app.get("/api/backtest/status")
-async def backtest_status(token: str = Depends(require_auth)):
+async def backtest_status(token: str = Depends(require_any_auth)):
+    requester_id = _token_user_id(token)
+    # admin (None) sees any run; user only sees their own run
+    if requester_id is not None and _backtest_owner_id is not None and requester_id != _backtest_owner_id:
+        return {"running": False, "progress": {"current": 0, "total": 0, "run_id": None}}
     return {"running": _backtest_running, "progress": _backtest_progress}
 
 
@@ -433,16 +469,59 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email before logging in.")
     user.last_login = datetime.now(timezone.utc)
     db.commit()
     if user.totp_enabled:
         partial = secrets.token_hex(16)
         _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300}
         return {"requires_2fa": True, "partial_token": partial}
+    # Email OTP step — send 6-digit code, defer JWT until verified
+    otp_token = secrets.token_hex(24)
+    code = f"{secrets.randbelow(1000000):06d}"
+    _otp_pending[otp_token] = {
+        "user_id": user.id,
+        "code": code,
+        "exp": time.time() + 300,
+        "attempts": 0,
+        "ip": ip,
+    }
+    asyncio.get_running_loop().run_in_executor(None, send_login_otp_email, user.email, code)
+    return {"requires_otp": True, "otp_token": otp_token}
+
+
+class OtpVerifyRequest(BaseModel):
+    otp_token: str
+    code: str
+
+
+@app.post("/api/users/verify-otp")
+async def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"otp:{ip}", window=60, max_hits=10):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 60s.")
+    _purge_expired()
+    entry = _otp_pending.get(body.otp_token)
+    if not entry or time.time() > entry["exp"]:
+        _otp_pending.pop(body.otp_token, None)
+        raise HTTPException(status_code=401, detail="Session expired. Please login again.")
+    if entry["attempts"] >= 5:
+        _otp_pending.pop(body.otp_token, None)
+        raise HTTPException(status_code=401, detail="Too many incorrect attempts. Please login again.")
+    if not secrets.compare_digest(body.code.strip(), entry["code"]):
+        entry["attempts"] += 1
+        raise HTTPException(status_code=401, detail="Invalid code")
+    # Code correct — consume entry and issue JWT
+    _otp_pending.pop(body.otp_token, None)
+    user = db.query(User).filter(User.id == entry["user_id"]).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
     token = create_token(user.id, user.email)
     from utils.email import send_login_notification_email
     asyncio.get_running_loop().run_in_executor(None, send_login_notification_email, user.email, ip)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
+
 
 @app.get("/api/users/me")
 async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -551,7 +630,7 @@ def _generate_recovery_codes() -> tuple[list[str], list[str]]:
     """Generate 8 one-time recovery codes. Returns (plaintext_list, hashed_list)."""
     plain, hashed = [], []
     for _ in range(8):
-        code = secrets.token_hex(4)  # e.g. "a1b2c3d4"
+        code = secrets.token_hex(16)
         plain.append(code)
         hashed.append(hash_password(code))
     return plain, hashed
@@ -919,6 +998,197 @@ async def admin_mark_invoice_paid(
     return {"ok": True}
 
 
+# ─── Admin summary stats ──────────────────────────────────────────────────────
+
+@app.get("/api/admin/stats")
+async def admin_stats(
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    """Admin: platform-wide summary — users, bots, revenue."""
+    from sqlalchemy import func
+
+    total_users   = db.query(func.count(User.id)).scalar() or 0
+    active_users  = db.query(func.count(User.id)).filter(User.is_active == True).scalar() or 0
+    verified_users = db.query(func.count(User.id)).filter(User.email_verified == True).scalar() or 0
+
+    # Users by plan
+    plan_rows = db.query(User.plan, func.count(User.id)).group_by(User.plan).all()
+    plans = {p: c for p, c in plan_rows}
+
+    # API keys connected
+    users_with_keys = db.query(func.count(func.distinct(UserApiKey.user_id))).scalar() or 0
+
+    # Trades
+    total_trades  = db.query(func.count(UserTrade.id)).scalar() or 0
+    open_trades   = db.query(func.count(UserTrade.id)).filter(UserTrade.status == "open").scalar() or 0
+    closed_trades = db.query(func.count(UserTrade.id)).filter(UserTrade.status == "closed").scalar() or 0
+
+    # Revenue: sum of all performance fees collected
+    fees_collected = db.query(func.sum(MonthlyPnl.performance_fee)).filter(
+        MonthlyPnl.fee_paid == True
+    ).scalar() or 0.0
+
+    fees_pending = db.query(func.sum(MonthlyPnl.performance_fee)).filter(
+        MonthlyPnl.fee_paid == False,
+        MonthlyPnl.performance_fee > 0,
+    ).scalar() or 0.0
+
+    pending_invoices = db.query(func.count(MonthlyPnl.id)).filter(
+        MonthlyPnl.fee_paid == False,
+        MonthlyPnl.performance_fee > 0,
+    ).scalar() or 0
+
+    notified_invoices = db.query(func.count(MonthlyPnl.id)).filter(
+        MonthlyPnl.fee_paid.is_(False),
+        MonthlyPnl.performance_fee > 0,
+        MonthlyPnl.payment_notified_at.isnot(None),
+    ).scalar() or 0
+
+    # Running bots from dispatcher
+    dispatcher_instances = dispatcher_status()
+    running_bots = len(dispatcher_instances) if isinstance(dispatcher_instances, list) else 0
+
+    return {
+        "users": {
+            "total":        total_users,
+            "active":       active_users,
+            "verified":     verified_users,
+            "with_keys":    users_with_keys,
+            "by_plan":      plans,
+        },
+        "trades": {
+            "total":  total_trades,
+            "open":   open_trades,
+            "closed": closed_trades,
+        },
+        "revenue": {
+            "collected":         round(float(fees_collected), 2),
+            "pending":           round(float(fees_pending), 2),
+            "pending_invoices":  pending_invoices,
+            "notified_invoices": notified_invoices,
+        },
+        "bots": {
+            "running": running_bots,
+        },
+    }
+
+
+# ─── Admin users list ─────────────────────────────────────────────────────────
+
+@app.get("/api/admin/users")
+async def admin_list_users(
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """Admin: paginated list of all users with trade and PnL summaries."""
+    from sqlalchemy import func, case
+
+    total_count = db.query(func.count(User.id)).scalar() or 0
+
+    users = (
+        db.query(User)
+        .order_by(User.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    if not users:
+        return {"users": [], "total": total_count}
+
+    user_ids = [u.id for u in users]
+
+    # Trade counts — 1 query for all users
+    trade_rows = (
+        db.query(
+            UserTrade.user_id,
+            func.count(UserTrade.id).label("total"),
+            func.sum(case([(UserTrade.status == "open", 1)], else_=0)).label("open"),
+        )
+        .filter(UserTrade.user_id.in_(user_ids))
+        .group_by(UserTrade.user_id)
+        .all()
+    )
+    trade_map = {r.user_id: (int(r.total), int(r.open or 0)) for r in trade_rows}
+
+    # Pending fees — 1 query for all users
+    fee_rows = (
+        db.query(
+            MonthlyPnl.user_id,
+            func.sum(MonthlyPnl.performance_fee).label("pending"),
+        )
+        .filter(
+            MonthlyPnl.user_id.in_(user_ids),
+            MonthlyPnl.fee_paid.is_(False),
+            MonthlyPnl.performance_fee > 0,
+        )
+        .group_by(MonthlyPnl.user_id)
+        .all()
+    )
+    fee_map = {r.user_id: float(r.pending) for r in fee_rows}
+
+    # Latest MonthlyPnl per user — subquery on year*100+month, then join
+    latest_sub = (
+        db.query(
+            MonthlyPnl.user_id,
+            func.max(MonthlyPnl.year * 100 + MonthlyPnl.month).label("ym"),
+        )
+        .filter(MonthlyPnl.user_id.in_(user_ids))
+        .group_by(MonthlyPnl.user_id)
+        .subquery()
+    )
+    pnl_rows = (
+        db.query(MonthlyPnl)
+        .join(
+            latest_sub,
+            (MonthlyPnl.user_id == latest_sub.c.user_id) &
+            (MonthlyPnl.year * 100 + MonthlyPnl.month == latest_sub.c.ym),
+        )
+        .all()
+    )
+    pnl_map = {r.user_id: r for r in pnl_rows}
+
+    # Bybit API keys — 1 query for all users
+    key_rows = (
+        db.query(UserApiKey.user_id)
+        .filter(UserApiKey.user_id.in_(user_ids), UserApiKey.exchange == "bybit")
+        .distinct()
+        .all()
+    )
+    keys_set = {r.user_id for r in key_rows}
+
+    result = []
+    for u in users:
+        total_t, open_t = trade_map.get(u.id, (0, 0))
+        latest_pnl = pnl_map.get(u.id)
+        pending_fee = fee_map.get(u.id, 0.0)
+
+        result.append({
+            "id":             u.id,
+            "email":          u.email,
+            "username":       u.username,
+            "plan":           u.plan,
+            "is_active":      u.is_active,
+            "email_verified": bool(u.email_verified),
+            "has_api_keys":   u.id in keys_set,
+            "created_at":     u.created_at.isoformat() if u.created_at else None,
+            "last_login":     u.last_login.isoformat() if u.last_login else None,
+            "trades_total":   total_t,
+            "trades_open":    open_t,
+            "latest_pnl": {
+                "year":    latest_pnl.year,
+                "month":   latest_pnl.month,
+                "net_pnl": latest_pnl.net_pnl,
+            } if latest_pnl else None,
+            "pending_fee": round(pending_fee, 2),
+        })
+
+    return {"users": result, "total": total_count}
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  WAITLIST
 # ══════════════════════════════════════════════════════════════════════════════
@@ -963,7 +1233,7 @@ def _load_signals() -> list:
 
 
 @app.get("/api/data")
-async def get_dashboard_data(token: str = Depends(require_auth)):
+async def get_dashboard_data(token: str = Depends(require_any_auth)):
     signals = _load_signals()
 
     balance_info = {"total": 0, "free": 0}
@@ -1023,7 +1293,7 @@ async def get_signals(
     limit: int = Query(default=20, ge=1, le=200),
     coin: Optional[str] = Query(default=None, max_length=20, regex=r"^[A-Z0-9]{1,20}$"),
     action: Optional[str] = Query(default=None, max_length=10),
-    token: str = Depends(require_auth),
+    token: str = Depends(require_any_auth),
 ):
     _VALID_ACTIONS = {"LONG", "SHORT"}
     if action and action.upper() not in _VALID_ACTIONS:
@@ -1054,7 +1324,7 @@ async def get_signals(
 
 
 @app.get("/api/stats")
-async def get_stats(token: str = Depends(require_auth)):
+async def get_stats(token: str = Depends(require_any_auth)):
     all_signals = _load_signals()
     trades = [s for s in all_signals if s.get("action") in ("LONG", "SHORT")]
 
@@ -1077,7 +1347,7 @@ async def get_stats(token: str = Depends(require_auth)):
 
 
 @app.get("/api/intel")
-async def get_intel(token: str = Depends(require_auth)):
+async def get_intel(token: str = Depends(require_any_auth)):
     """Live данные: источники, ликвидации, on-chain."""
     try:
         with open("live_intel.json") as f:
@@ -1094,7 +1364,7 @@ async def get_intel(token: str = Depends(require_auth)):
 @app.get("/api/logs")
 async def get_logs(
     lines: int = Query(default=100, ge=1, le=500),
-    token: str = Depends(require_auth),
+    token: str = Depends(require_any_auth),
 ):
     log_path = "bot_engine.log"
     if not os.path.exists(log_path):
@@ -1169,7 +1439,8 @@ async def websocket_endpoint(websocket: WebSocket):
 BACKTEST_DIR = "backtest_results"
 
 @app.get("/api/backtest/runs")
-async def get_backtest_runs(token: str = Depends(require_auth)):
+async def get_backtest_runs(token: str = Depends(require_any_auth)):
+    requester_id = _token_user_id(token)
     if not os.path.exists(BACKTEST_DIR):
         return {"runs": []}
     runs = []
@@ -1180,6 +1451,11 @@ async def get_backtest_runs(token: str = Depends(require_auth)):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            # admin (None) sees all; user only sees their own runs
+            # legacy files without user_id are admin-only
+            file_owner = data.get("user_id")
+            if requester_id is not None and file_owner != requester_id:
+                continue
             runs.append({
                 "run_id":  data.get("run_id", fname.replace(".json", "")),
                 "params":  data.get("params", {}),
@@ -1191,7 +1467,7 @@ async def get_backtest_runs(token: str = Depends(require_auth)):
 
 
 @app.get("/api/backtest/run/{run_id}")
-async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
+async def get_backtest_run(run_id: str, token: str = Depends(require_any_auth)):
     import re
     if not re.match(r'^[\w\-:T]+$', run_id):
         raise HTTPException(status_code=400, detail="Invalid run_id")
@@ -1200,9 +1476,15 @@ async def get_backtest_run(run_id: str, token: str = Depends(require_auth)):
         raise HTTPException(status_code=404, detail="Run not found")
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to read backtest result")
+    requester_id = _token_user_id(token)
+    file_owner = data.get("user_id")
+    # admin sees all; user only sees their own; legacy files (no user_id) admin-only
+    if requester_id is not None and file_owner != requester_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return data
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1255,6 +1537,10 @@ async def public_news_feed(
 # ══════════════════════════════════════════════════════════════════════════════
 
 _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
+
+@app.get("/favicon.svg")
+async def favicon_svg():
+    return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
 @app.get("/")
 async def read_index():

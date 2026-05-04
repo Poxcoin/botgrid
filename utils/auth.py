@@ -25,8 +25,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_token(user_id: int, email: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(hours=TOKEN_TTL_H)
+    jti = secrets.token_hex(16)
     return jwt.encode(
-        {"sub": str(user_id), "email": email, "exp": expire},
+        {"sub": str(user_id), "email": email, "exp": expire, "jti": jti},
         _get_secret(), algorithm=ALGORITHM,
     )
 

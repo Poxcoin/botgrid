@@ -187,7 +187,7 @@ function NewRunForm({ onStarted }) {
   };
 
   return (
-    <div className="border border-kado-black p-6 space-y-5">
+    <div className="border border-white/20 p-6 space-y-5">
       <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray">New Backtest Run</div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -406,9 +406,9 @@ export default function BacktesterTab() {
             )}
           </div>
 
-          <div className="border border-kado-black/20 p-5 font-mono text-[11px] tracking-wide text-kado-gray space-y-1">
-            <div className="font-bold text-kado-black uppercase tracking-[0.2em] text-[10px] mb-2">How to run a backtest</div>
-            <div>python tools/replay_backtest.py <span className="text-kado-black/50">— 30 days, all coins</span></div>
+          <div className="border border-white/20 p-5 font-mono text-[11px] tracking-wide text-white/60 space-y-1">
+            <div className="font-bold text-white uppercase tracking-[0.2em] text-[10px] mb-2">How to run a backtest</div>
+            <div>python tools/replay_backtest.py <span className="text-white/40">— 30 days, all coins</span></div>
             <div>python tools/replay_backtest.py --days 7 --coins BTC ETH SOL</div>
             <div>python tools/replay_backtest.py --balance 5000 --tp 8 --sl 2</div>
           </div>

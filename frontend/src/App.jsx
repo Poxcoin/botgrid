@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
 import CursorTracker from '@/components/global/CursorTracker';
@@ -34,14 +34,7 @@ export default function App() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/news" element={<NewsPage />} />
           <Route path="/waitlist" element={<Waitlist />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/dashboard" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route
             path="*"
