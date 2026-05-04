@@ -513,70 +513,81 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
 
     Заповнені → переміщає в positions.
     Скасовані / протерміновані → видаляє.
+    Використовує fetchOpenOrders як основний метод (один batch-виклик),
+    щоб не упиратись в ліміт fetchOrder (500 ордерів на Bybit demo).
     """
+    if not pending:
+        return
+
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     changed = False
 
+    # Один batch-виклик для всіх pending ордерів цього символу
+    try:
+        open_orders = exchange.fetch_open_orders(symbol, params={"category": "linear"})
+        open_map = {o["id"]: o for o in open_orders}
+    except Exception as e:
+        print(f"[GRID:{symbol}] fetchOpenOrders помилка: {e}")
+        return  # Пропускаємо тік, спробуємо наступного
+
     for zone_str in list(pending.keys()):
         entry = pending[zone_str]
-        try:
-            order = exchange.fetch_order(entry["order_id"], symbol, params={"category": "linear"})
-            status = order.get("status", "")
-            filled = float(order.get("filled") or 0)
+        order_id = entry["order_id"]
 
-            if status == "closed" or filled > 0:
-                fill = float(order.get("average") or order.get("price") or entry["level_price"])
-                qty  = filled if filled > 0 else entry["qty"]
-                coin = symbol.split("/")[0]
-                ts_open = datetime.now(timezone.utc).isoformat()
+        if order_id in open_map:
+            # Ордер ще відкритий — перевіряємо тільки timeout
+            placed_at = entry.get("placed_at", now_ms)
+            if now_ms - placed_at > PENDING_ORDER_TIMEOUT * 1000:
                 try:
-                    db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
+                    exchange.cancel_order(order_id, symbol, params={"category": "linear"})
                 except Exception:
-                    db_trade_id = None
-                positions[zone_str] = {
-                    "fill_price":    fill,
-                    "qty":           qty,
-                    "order_id":      entry["order_id"],
-                    "db_trade_id":   db_trade_id,
-                    "open_fee_rate": BYBIT_MAKER_FEE,
-                    "opened_at":     ts_open,
-                    "opened_ms":     now_ms,
-                    "level_price":   entry["level_price"],
-                }
+                    pass
                 del pending[zone_str]
-                side_str = "LONG BUY" if direction == "long" else "SHORT SELL"
-                print(f"[GRID:{symbol}] ✅ Limit {side_str} level {zone_str} виконано @ {fill:.4f} (maker fee)")
+                print(f"[GRID:{symbol}] ⏱️ Pending ордер level {zone_str} timeout — скасовано")
                 changed = True
-
-            elif status in ("canceled", "rejected", "expired"):
-                print(f"[GRID:{symbol}] ❌ Pending ордер level {zone_str} відхилено ({status})")
-                del pending[zone_str]
-                changed = True
-
-            else:
-                placed_at = entry.get("placed_at", now_ms)
-                if now_ms - placed_at > PENDING_ORDER_TIMEOUT * 1000:
-                    try:
-                        exchange.cancel_order(entry["order_id"], symbol, params={"category": "linear"})
-                    except Exception:
-                        pass
-                    del pending[zone_str]
-                    print(f"[GRID:{symbol}] ⏱️ Pending ордер level {zone_str} timeout — скасовано")
-                    changed = True
-
-        except Exception as e:
-            print(f"[GRID:{symbol}] Pending check помилка level {zone_str}: {e}")
-            # fetchOrder не може знайти ордер (занадто старий / не в останніх 500)
-            # Перевіряємо через fetchOpenOrders — якщо нема, ордер протухлий → видаляємо
+        else:
+            # Ордер зник з відкритих — або виконаний, або скасований
+            # Пробуємо fetchOrder щоб дізнатись фінальний статус
             try:
-                open_orders = exchange.fetch_open_orders(symbol, params={"category": "linear"})
-                open_ids = {o["id"] for o in open_orders}
-                if entry["order_id"] not in open_ids:
-                    print(f"[GRID:{symbol}] 🗑️ Stale pending level {zone_str} не в open orders — видаляємо")
+                order = exchange.fetch_order(order_id, symbol, params={"category": "linear"})
+                status = order.get("status", "")
+                filled = float(order.get("filled") or 0)
+
+                if status == "closed" or filled > 0:
+                    fill = float(order.get("average") or order.get("price") or entry["level_price"])
+                    qty  = filled if filled > 0 else entry["qty"]
+                    coin = symbol.split("/")[0]
+                    ts_open = datetime.now(timezone.utc).isoformat()
+                    try:
+                        db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
+                    except Exception:
+                        db_trade_id = None
+                    positions[zone_str] = {
+                        "fill_price":    fill,
+                        "qty":           qty,
+                        "order_id":      order_id,
+                        "db_trade_id":   db_trade_id,
+                        "open_fee_rate": BYBIT_MAKER_FEE,
+                        "opened_at":     ts_open,
+                        "opened_ms":     now_ms,
+                        "level_price":   entry["level_price"],
+                    }
+                    del pending[zone_str]
+                    side_str = "LONG BUY" if direction == "long" else "SHORT SELL"
+                    print(f"[GRID:{symbol}] ✅ Limit {side_str} level {zone_str} виконано @ {fill:.4f} (maker fee)")
+                    changed = True
+                else:
+                    # canceled / rejected / expired
+                    print(f"[GRID:{symbol}] ❌ Pending ордер level {zone_str} відхилено ({status})")
                     del pending[zone_str]
                     changed = True
+
             except Exception:
-                pass
+                # fetchOrder теж не доступний — ордер точно не в open_orders,
+                # видаляємо щоб не блокувати рівень назавжди
+                print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} зник з open orders і fetchOrder недоступний — видаляємо")
+                del pending[zone_str]
+                changed = True
 
     if changed:
         _save_state(symbol, state)
