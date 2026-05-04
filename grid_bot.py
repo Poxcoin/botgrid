@@ -557,7 +557,8 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
         order_id = entry["order_id"]
 
         if order_id in open_map:
-            # Ордер ще відкритий — перевіряємо тільки timeout
+            # Ордер ще відкритий — скидаємо miss_count, перевіряємо тільки timeout
+            entry.pop("miss_count", None)
             placed_at = entry.get("placed_at", now_ms)
             if now_ms - placed_at > PENDING_ORDER_TIMEOUT * 1000:
                 try:
@@ -608,10 +609,16 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     changed = True
 
             except Exception:
-                # fetchOrder теж не доступний — ордер точно не в open_orders,
-                # видаляємо щоб не блокувати рівень назавжди
-                print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} зник з open orders і fetchOrder недоступний — видаляємо")
-                del pending[zone_str]
+                # fetchOrder недоступний на Demo API — не видаляємо одразу,
+                # чекаємо 3 пропущені тіки щоб уникнути infinite re-placement loop
+                miss_count = entry.get("miss_count", 0) + 1
+                if miss_count < 3:
+                    entry["miss_count"] = miss_count
+                    pending[zone_str] = entry
+                    print(f"[GRID:{symbol}] ⚠️ Pending level {zone_str} відсутній ({miss_count}/3) — чекаємо")
+                else:
+                    print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — видаляємо")
+                    del pending[zone_str]
                 changed = True
 
     if changed:
@@ -998,7 +1005,12 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
                     elif len(positions) + len(pending_orders) < max_pos:
                         limit_price = levels[current_zone]  # floor зони — maker order
-                        result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
+                        if limit_price >= price:
+                            # PostOnly відхилить ордер якщо ціна вже вище floor — пропускаємо
+                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — PostOnly буде відхилено, пропускаємо")
+                            result = None
+                        else:
+                            result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
                         if result:
                             pending_orders[zone_str] = result
                             _save_state(symbol, state, user_id)
