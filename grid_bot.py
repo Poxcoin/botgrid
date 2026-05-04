@@ -17,7 +17,7 @@ import json
 import os
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import ccxt
@@ -79,6 +79,8 @@ MAX_REBUILDS_DAY       = 4      # макс перебудов сітки за д
 MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
 ATR_RANGE_PERIODS      = 12     # повернули до 12 (було 8 — занадто тісний, багато ребілдів)
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
+SHORT_CONFIRM_TICKS    = 3      # потрібно 3 послідовних SHORT-читань перед flip long→short
+SHORT_EMA_MARGIN       = 0.98   # ціна повинна бути нижче EMA50×0.98 (−2%) для SHORT режиму
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
 
@@ -129,8 +131,8 @@ def _detect_trend(exchange, symbol: str) -> str:
         closes = [c[4] for c in ohlcv]
         ema50  = _calc_ema(closes, 50)
         price  = closes[-1]
-        direction = "long" if price >= ema50 else "short"
-        print(f"[GRID:{symbol}] Тренд: ціна=${price:.4f} EMA50=${ema50:.4f} → {direction.upper()}")
+        direction = "long" if price >= ema50 * SHORT_EMA_MARGIN else "short"
+        print(f"[GRID:{symbol}] Тренд: ціна=${price:.4f} EMA50=${ema50:.4f} threshold=${ema50 * SHORT_EMA_MARGIN:.4f} → {direction.upper()}")
         return direction
     except Exception as e:
         print(f"[GRID:{symbol}] Trend detection error: {e} — defaulting to long")
@@ -580,6 +582,14 @@ def _run_single(cfg: dict) -> None:
     size_pct     = cfg.get("size_pct", 1.0)
     size_usd_min = cfg.get("size_usd_min", 10.0)
 
+    # ─── Перевірка stop_until перед підключенням до біржі ───────────────────────
+    _pre_state = _load_state(symbol)
+    _stop_until = _pre_state.get("stop_until", 0)
+    if _stop_until > time.time():
+        _eta = datetime.fromtimestamp(_stop_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        print(f"[GRID:{symbol}] ⏰ Hard stop активний до {_eta} — чекаємо")
+        return
+
     try:
         exchange = _init_exchange()
     except Exception as e:
@@ -622,8 +632,16 @@ def _run_single(cfg: dict) -> None:
     if _state_valid:
         saved_direction = state.get("direction", "long")
         if saved_direction != direction:
-            # Тренд змінився з моменту останнього запуску — скидаємо позиції
             print(f"[GRID:{symbol}] ⚠️ Тренд змінився з {saved_direction.upper()} → {direction.upper()} після рестарту — закриваємо старі позиції")
+            _old_positions = state.get("positions", {})
+            _old_pending   = state.get("pending_orders", {})
+            if _old_pending:
+                _cancel_all_pending(exchange, symbol, _old_pending)
+            if _old_positions:
+                _restart_price = _get_current_price(exchange, symbol)
+                _restart_pnl   = _close_all_positions(
+                    exchange, symbol, _old_positions, leverage, _restart_price, saved_direction)
+                print(f"[GRID:{symbol}] Реалізований PnL при рестарт-тренді: ${_restart_pnl:.2f}")
             _state_valid = False
         else:
             upper  = state["upper"]
@@ -716,9 +734,18 @@ def _run_single(cfg: dict) -> None:
     last_price = _get_current_price(exchange, symbol)
     print(f"[GRID:{symbol}] Поточна ціна: ${last_price:.4f}")
 
-    rebuilds_today    = 0
+    # Відновлюємо лічильник ребілдів з _pre_state (завантаженого ДО будь-яких змін стану)
+    # Читаємо саме _pre_state, бо state може бути вже перезаписаним порожнім dict
+    _today_str = datetime.now(timezone.utc).date().isoformat()
+    if _pre_state.get("rebuild_day") == _today_str:
+        rebuilds_today = _pre_state.get("rebuilds_today", 0)
+        if rebuilds_today > 0:
+            print(f"[GRID:{symbol}] ♻️  Відновлено ребілди: {rebuilds_today}/{MAX_REBUILDS_DAY} за сьогодні")
+    else:
+        rebuilds_today = 0
     rebuild_day       = datetime.now(timezone.utc).date()
     trend_check_tick  = 0
+    _trend_short_count = 0  # кількість послідовних SHORT-читань (для підтвердження)
 
     while True:
         try:
@@ -736,15 +763,29 @@ def _run_single(cfg: dict) -> None:
             if trend_check_tick >= TREND_RECHECK_TICKS:
                 trend_check_tick = 0
                 new_direction = _detect_trend(exchange, symbol)
-                if new_direction != direction:
+
+                # Лічильник підтвердження SHORT: long→short потребує SHORT_CONFIRM_TICKS
+                # послідовних SHORT-читань; short→long перемикається негайно
+                if new_direction == "short":
+                    _trend_short_count = min(_trend_short_count + 1, SHORT_CONFIRM_TICKS)
+                else:
+                    _trend_short_count = 0
+
+                _should_flip = (
+                    (direction == "long"  and new_direction == "short" and _trend_short_count >= SHORT_CONFIRM_TICKS) or
+                    (direction == "short" and new_direction == "long")
+                )
+
+                if _should_flip:
                     positions = state["positions"]
-                    print(f"[GRID:{symbol}] 🔄 Тренд змінився: {direction.upper()} → {new_direction.upper()} — закриваємо {len(positions)} позицій")
+                    print(f"[GRID:{symbol}] 🔄 Тренд підтверджено: {direction.upper()} → {new_direction.upper()} — закриваємо {len(positions)} позицій")
                     _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                     state["pending_orders"] = {}
                     realized = _close_all_positions(exchange, symbol, positions, leverage, price, direction)
                     state["total_pnl"] += realized
                     state["positions"] = {}
                     direction = new_direction
+                    _trend_short_count = 0
                     state["direction"] = direction
                     _save_state(symbol, state)
                     send_telegram_message(
@@ -807,9 +848,20 @@ def _run_single(cfg: dict) -> None:
                         realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction)
                         state["total_pnl"] += realized
                         state["positions"] = {}
+                        # Зберігаємо stop_until: наступна північ UTC + 1h, мінімум 6h від зараз
+                        _now_utc = datetime.now(timezone.utc)
+                        _tomorrow_midnight = (_now_utc + timedelta(days=1)).replace(
+                            hour=0, minute=0, second=0, microsecond=0)
+                        _stop_ts = max(
+                            (_tomorrow_midnight + timedelta(hours=1)).timestamp(),
+                            time.time() + 6 * 3600,
+                        )
+                        state["stop_until"] = _stop_ts
+                        state["rebuilds_today"] = rebuilds_today
+                        state["rebuild_day"] = datetime.now(timezone.utc).date().isoformat()
                         _save_state(symbol, state)
                         send_telegram_message(
-                            f"🛑 <b>Grid ЗУПИНЕНО</b> {symbol}\n"
+                            f"🛑 <b>Grid ЗУПИНЕНО до завтра</b> {symbol}\n"
                             f"Режим: {direction.upper()}\n"
                             f"Причина: {reason}\n"
                             f"Загальний PnL: ${state['total_pnl']:.2f}",
@@ -829,9 +881,13 @@ def _run_single(cfg: dict) -> None:
                 upper, lower = _detect_range(exchange, symbol)
                 levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price)
                 step = levels[1] - levels[0]
-                state.update({"upper": upper, "lower": lower, "levels": levels})
-                _save_state(symbol, state)
                 rebuilds_today += 1
+                state.update({
+                    "upper": upper, "lower": lower, "levels": levels,
+                    "rebuilds_today": rebuilds_today,
+                    "rebuild_day": datetime.now(timezone.utc).date().isoformat(),
+                })
+                _save_state(symbol, state)
                 send_telegram_message(
                     f"🔄 <b>Grid перебудова {rebuild_label} #{rebuilds_today}</b> {symbol}\n"
                     f"Режим: {direction.upper()}\n"
@@ -989,6 +1045,13 @@ def run_grid_engine():
                 sym = cfg["symbol"]
                 t   = thread_map.get(sym)
                 if t and not t.is_alive():
+                    # Перевіряємо stop_until — не перезапускаємо якщо hard stop активний
+                    _sym_state = _load_state(sym)
+                    _stop_until = _sym_state.get("stop_until", 0)
+                    if _stop_until > time.time():
+                        _eta = datetime.fromtimestamp(_stop_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                        print(f"[GRID] ⏰ {sym} hard stop до {_eta} — не перезапускаємо")
+                        continue
                     print(f"[GRID] ⚠️ Потік {sym} впав — перезапуск...")
                     send_telegram_message(
                         f"⚠️ <b>Grid потік перезапущено</b>\n<code>{sym}</code>",
