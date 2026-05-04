@@ -176,11 +176,197 @@ function BillingSection({ plan, trialDaysLeft }) {
   return null;
 }
 
+// ── 2FA Modal ─────────────────────────────────────────────────────────────────
+function TwoFAModal({ mode, onClose, onDone }) {
+  // mode: 'setup' | 'disable'
+  // setup steps: 'password' → 'scan' → 'codes'
+  const [step, setStep] = useState(mode === 'setup' ? 'password' : 'disable');
+  const [password, setPassword] = useState('');
+  const [qr, setQr] = useState('');
+  const [secret, setSecret] = useState('');
+  const [code, setCode] = useState('');
+  const [recoveryCodes, setRecoveryCodes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const overlay = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    zIndex: 1000, padding: '20px',
+  };
+  const modal = {
+    background: 'var(--bg)', border: '1px solid var(--border)',
+    padding: '28px 28px 24px', width: '100%', maxWidth: 400,
+    maxHeight: '90vh', overflowY: 'auto',
+  };
+  const title = { fontSize: 16, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 };
+  const sub = { fontSize: 12, color: 'var(--muted-fg)', marginBottom: 20, lineHeight: 1.5 };
+  const btnPrimary = {
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+    width: '100%', opacity: loading ? 0.6 : 1,
+  };
+  const btnSecondary = {
+    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)',
+    padding: '8px 16px', fontSize: 12, cursor: 'pointer', marginTop: 8, width: '100%',
+  };
+
+  async function submitPassword(e) {
+    e.preventDefault();
+    setErr(''); setLoading(true);
+    try {
+      const data = await API('/api/users/2fa/setup', { method: 'POST', body: JSON.stringify({ password }) });
+      setQr(data.qr);
+      setSecret(data.secret);
+      setStep('scan');
+    } catch (e) { setErr(typeof e === 'string' ? e : 'Неверный пароль'); }
+    finally { setLoading(false); }
+  }
+
+  async function submitCode(e) {
+    e.preventDefault();
+    setErr(''); setLoading(true);
+    try {
+      const data = await API('/api/users/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+      setRecoveryCodes(data.recovery_codes || []);
+      setStep('codes');
+    } catch (e) { setErr(typeof e === 'string' ? e : 'Неверный код'); }
+    finally { setLoading(false); }
+  }
+
+  async function submitDisable(e) {
+    e.preventDefault();
+    setErr(''); setLoading(true);
+    try {
+      await API('/api/users/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
+      onDone(false);
+    } catch (e) { setErr(typeof e === 'string' ? e : 'Неверный код'); }
+    finally { setLoading(false); }
+  }
+
+  function copyAll() {
+    navigator.clipboard.writeText(recoveryCodes.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={modal}>
+
+        {/* STEP: password */}
+        {step === 'password' && (
+          <form onSubmit={submitPassword}>
+            <div style={title}>Включить 2FA</div>
+            <div style={sub}>Введите пароль аккаунта для продолжения.</div>
+            <input
+              type="password" autoFocus required
+              placeholder="Ваш пароль"
+              value={password} onChange={e => setPassword(e.target.value)}
+              style={{ ...inp, marginBottom: 12 }}
+            />
+            {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
+            <button type="submit" disabled={loading} style={btnPrimary}>
+              {loading ? 'Проверка…' : 'Продолжить →'}
+            </button>
+            <button type="button" onClick={onClose} style={btnSecondary}>Отмена</button>
+          </form>
+        )}
+
+        {/* STEP: scan QR */}
+        {step === 'scan' && (
+          <form onSubmit={submitCode}>
+            <div style={title}>Отсканируйте QR-код</div>
+            <div style={sub}>
+              Откройте Google Authenticator, Authy или любое TOTP-приложение и отсканируйте код ниже.
+            </div>
+            {qr && (
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <img src={qr} alt="2FA QR" style={{ width: 180, height: 180, imageRendering: 'pixelated' }} />
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 4 }}>
+              Или введите секрет вручную:
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em',
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              padding: '8px 10px', wordBreak: 'break-all', marginBottom: 16,
+            }}>
+              {secret}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 6 }}>
+              Введите 6-значный код из приложения:
+            </div>
+            <input
+              type="text" autoFocus required inputMode="numeric"
+              placeholder="000000" maxLength={6}
+              value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+              style={{ ...inp, letterSpacing: '0.2em', textAlign: 'center', fontSize: 18, marginBottom: 12 }}
+            />
+            {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
+            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
+              {loading ? 'Проверка…' : 'Подтвердить →'}
+            </button>
+            <button type="button" onClick={onClose} style={btnSecondary}>Отмена</button>
+          </form>
+        )}
+
+        {/* STEP: recovery codes */}
+        {step === 'codes' && (
+          <div>
+            <div style={title}>2FA включена</div>
+            <div style={sub}>
+              Сохраните коды восстановления — каждый используется один раз, если потеряете доступ к приложению. После закрытия этого окна они больше не будут показаны.
+            </div>
+            <div style={{
+              background: 'var(--bg2)', border: '1px solid var(--border)',
+              padding: '12px 14px', marginBottom: 12,
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px',
+            }}>
+              {recoveryCodes.map((c, i) => (
+                <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg)' }}>{c}</span>
+              ))}
+            </div>
+            <button onClick={copyAll} style={{ ...btnSecondary, marginTop: 0, marginBottom: 12, color: copied ? '#5a5' : 'var(--muted-fg)' }}>
+              {copied ? '✓ Скопировано' : 'Копировать все'}
+            </button>
+            <button onClick={() => onDone(true)} style={btnPrimary}>Готово</button>
+          </div>
+        )}
+
+        {/* MODE: disable */}
+        {step === 'disable' && (
+          <form onSubmit={submitDisable}>
+            <div style={title}>Отключить 2FA</div>
+            <div style={sub}>Введите 6-значный код из приложения-аутентификатора для подтверждения.</div>
+            <input
+              type="text" autoFocus required inputMode="numeric"
+              placeholder="000000" maxLength={6}
+              value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+              style={{ ...inp, letterSpacing: '0.2em', textAlign: 'center', fontSize: 18, marginBottom: 12 }}
+            />
+            {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
+            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, background: '#c55', opacity: (loading || code.length < 6) ? 0.5 : 1 }}>
+              {loading ? 'Проверка…' : 'Отключить 2FA'}
+            </button>
+            <button type="button" onClick={onClose} style={btnSecondary}>Отмена</button>
+          </form>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ── Main SettingsTab ───────────────────────────────────────────────────────────
 export default function SettingsTab() {
   const [me, setMe] = useState(null);
   const [tgId, setTgId] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [modal2fa, setModal2fa] = useState(null); // 'setup' | 'disable' | null
 
   useEffect(() => {
     API('/api/users/me').then(d => { setMe(d); setTgId(d.tg_chat_id || ''); }).catch(console.error);
@@ -196,31 +382,21 @@ export default function SettingsTab() {
     finally { setSaving(false); }
   }
 
-  async function setup2fa() {
-    const password = prompt('Введите ваш пароль для подтверждения:');
-    if (!password) return;
-    try {
-      const { qr, secret } = await API('/api/users/2fa/setup', { method: 'POST', body: JSON.stringify({ password }) });
-      const code = prompt(`Отсканируйте QR в приложении-аутентификаторе.\nИли введите секрет вручную: ${secret}\n\nЗатем введите 6-значный код:`);
-      if (!code) return;
-      await API('/api/users/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
-      setMe(m => ({ ...m, totp_enabled: true }));
-      alert('2FA включена');
-    } catch (e) { alert(typeof e === 'string' ? e : 'Не удалось включить 2FA'); }
-  }
-
-  async function disable2fa() {
-    const code = prompt('Введите 6-значный код из приложения для отключения 2FA:');
-    if (!code) return;
-    try {
-      await API('/api/users/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
-      setMe(m => ({ ...m, totp_enabled: false }));
-      alert('2FA отключена');
-    } catch (e) { alert(typeof e === 'string' ? e : 'Ошибка'); }
+  function on2faDone(enabled) {
+    setMe(m => ({ ...m, totp_enabled: enabled }));
+    setModal2fa(null);
   }
 
   return (
     <div style={{ maxWidth: 420 }}>
+      {modal2fa && (
+        <TwoFAModal
+          mode={modal2fa}
+          onClose={() => setModal2fa(null)}
+          onDone={on2faDone}
+        />
+      )}
+
       <form onSubmit={saveProfile}>
         <Field label="Email">
           <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
@@ -251,25 +427,42 @@ export default function SettingsTab() {
 
       {/* 2FA */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 12 }}>Двухфакторная авторизация</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ fontSize: 13, color: me?.totp_enabled ? 'var(--fg)' : 'var(--muted-fg)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
+          Двухфакторная авторизация
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 14, lineHeight: 1.5 }}>
+          {me?.totp_enabled
+            ? 'Google Authenticator подключён. Код запрашивается при каждом входе.'
+            : 'Защитите аккаунт с помощью Google Authenticator или Authy.'}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{
+            fontSize: 11, padding: '3px 8px',
+            border: `1px solid ${me?.totp_enabled ? 'rgba(90,170,90,0.4)' : 'var(--border)'}`,
+            color: me?.totp_enabled ? '#5a5' : 'var(--muted-fg)',
+          }}>
             {me?.totp_enabled ? 'Включена' : 'Отключена'}
           </span>
           {me?.totp_enabled ? (
-            <button onClick={disable2fa} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>
-              Отключить 2FA
+            <button
+              onClick={() => setModal2fa('disable')}
+              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
+            >
+              Отключить
             </button>
           ) : (
-            <button onClick={setup2fa} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}>
-              Включить 2FA
+            <button
+              onClick={() => setModal2fa('setup')}
+              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
+            >
+              Подключить →
             </button>
           )}
         </div>
       </div>
 
       {/* Подписка */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24, marginTop: 8 }}>
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24, marginTop: 24 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>
           Подписка
         </div>
