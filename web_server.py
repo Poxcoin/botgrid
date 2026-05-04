@@ -551,7 +551,7 @@ def _generate_recovery_codes() -> tuple[list[str], list[str]]:
     """Generate 8 one-time recovery codes. Returns (plaintext_list, hashed_list)."""
     plain, hashed = [], []
     for _ in range(8):
-        code = secrets.token_hex(4)  # e.g. "a1b2c3d4"
+        code = secrets.token_hex(16)
         plain.append(code)
         hashed.append(hash_password(code))
     return plain, hashed

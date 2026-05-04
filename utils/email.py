@@ -4,6 +4,7 @@ If SMTP_HOST is not configured, all calls are silent no-ops (registration still 
 """
 import smtplib
 import traceback
+from html import escape
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -73,7 +74,7 @@ def send_login_notification_email(to: str, ip: str) -> bool:
     </p>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <tr><td style="color:#666;padding:6px 0;border-bottom:1px solid #1a1a1a">Время</td><td style="color:#fff;padding:6px 0;border-bottom:1px solid #1a1a1a;text-align:right">{ts}</td></tr>
-      <tr><td style="color:#666;padding:6px 0">IP-адрес</td><td style="color:#fff;padding:6px 0;text-align:right">{ip}</td></tr>
+      <tr><td style="color:#666;padding:6px 0">IP-адрес</td><td style="color:#fff;padding:6px 0;text-align:right">{escape(ip)}</td></tr>
     </table>
     <p style="color:#444;font-size:11px;margin-top:32px;line-height:1.5">
       Если это были не вы — немедленно смените пароль.<br>
