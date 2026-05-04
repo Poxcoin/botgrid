@@ -465,6 +465,8 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
+    if not user.email_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email before logging in.")
     user.last_login = datetime.now(timezone.utc)
     db.commit()
     if user.totp_enabled:
