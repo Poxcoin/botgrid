@@ -183,6 +183,18 @@ import threading as _bt_thread
 
 _backtest_running  = False
 _backtest_progress: dict = {"current": 0, "total": 0, "run_id": None}
+_backtest_owner_id: Optional[int] = None   # None = admin (no ownership filter)
+
+
+def _token_user_id(token: str) -> Optional[int]:
+    """Return user DB id from JWT, or None for admin opaque tokens."""
+    payload = decode_token(token)
+    if payload is None:
+        return None
+    try:
+        return int(payload["sub"])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 class BacktestStartRequest(BaseModel):
@@ -199,16 +211,19 @@ class BillingCheckoutRequest(BaseModel):
 
 @app.post("/api/backtest/start")
 async def start_backtest(body: BacktestStartRequest, token: str = Depends(require_any_auth)):
-    global _backtest_running, _backtest_progress
+    global _backtest_running, _backtest_progress, _backtest_owner_id
     if _backtest_running:
         raise HTTPException(status_code=409, detail="Backtest already running")
+
+    requester_id = _token_user_id(token)
 
     def _progress_cb(current: int, total: int, run_id: str):
         global _backtest_progress
         _backtest_progress = {"current": current, "total": total, "run_id": run_id}
 
     def _run_bg():
-        global _backtest_running, _backtest_progress
+        global _backtest_running, _backtest_progress, _backtest_owner_id
+        _backtest_owner_id = requester_id
         _backtest_running  = True
         _backtest_progress = {"current": 0, "total": 0, "run_id": None}
         try:
@@ -225,10 +240,23 @@ async def start_backtest(body: BacktestStartRequest, token: str = Depends(requir
                 sl=body.sl or None,
                 progress_cb=_progress_cb,
             )
+            # tag saved result with owner so future queries can filter by user
+            if requester_id is not None:
+                _run_id = _backtest_progress.get("run_id")
+                if _run_id:
+                    _path = os.path.join(BACKTEST_DIR, f"{_run_id}.json")
+                    try:
+                        with open(_path, "r+", encoding="utf-8") as _f:
+                            _data = json.load(_f)
+                            _data["user_id"] = requester_id
+                            _f.seek(0); json.dump(_data, _f, indent=2, ensure_ascii=False); _f.truncate()
+                    except Exception:
+                        pass
         except Exception as _e:
             print(f"[backtest] Error: {_e}")
         finally:
             _backtest_running = False
+            _backtest_owner_id = None
 
     _bt_thread.Thread(target=_run_bg, daemon=True).start()
     return {"ok": True}
@@ -236,6 +264,10 @@ async def start_backtest(body: BacktestStartRequest, token: str = Depends(requir
 
 @app.get("/api/backtest/status")
 async def backtest_status(token: str = Depends(require_any_auth)):
+    requester_id = _token_user_id(token)
+    # admin (None) sees any run; user only sees their own run
+    if requester_id is not None and _backtest_owner_id is not None and requester_id != _backtest_owner_id:
+        return {"running": False, "progress": {"current": 0, "total": 0, "run_id": None}}
     return {"running": _backtest_running, "progress": _backtest_progress}
 
 
@@ -1170,6 +1202,7 @@ BACKTEST_DIR = "backtest_results"
 
 @app.get("/api/backtest/runs")
 async def get_backtest_runs(token: str = Depends(require_any_auth)):
+    requester_id = _token_user_id(token)
     if not os.path.exists(BACKTEST_DIR):
         return {"runs": []}
     runs = []
@@ -1180,6 +1213,11 @@ async def get_backtest_runs(token: str = Depends(require_any_auth)):
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            # admin (None) sees all; user only sees their own runs
+            # legacy files without user_id are admin-only
+            file_owner = data.get("user_id")
+            if requester_id is not None and file_owner != requester_id:
+                continue
             runs.append({
                 "run_id":  data.get("run_id", fname.replace(".json", "")),
                 "params":  data.get("params", {}),
@@ -1200,9 +1238,15 @@ async def get_backtest_run(run_id: str, token: str = Depends(require_any_auth)):
         raise HTTPException(status_code=404, detail="Run not found")
     try:
         with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to read backtest result")
+    requester_id = _token_user_id(token)
+    file_owner = data.get("user_id")
+    # admin sees all; user only sees their own; legacy files (no user_id) admin-only
+    if requester_id is not None and file_owner != requester_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return data
 
 
 # ══════════════════════════════════════════════════════════════════════════════
