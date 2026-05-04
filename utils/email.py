@@ -87,6 +87,30 @@ def send_login_notification_email(to: str, ip: str) -> bool:
     return _send(to, "Новый вход в Kado", html)
 
 
+def send_login_otp_email(to: str, code: str) -> bool:
+    html = f"""
+<!DOCTYPE html>
+<html>
+<body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
+  <div style="max-width:480px;margin:0 auto">
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Your Kado login code</div>
+    <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 24px">
+      Use this code to complete your login. It expires in 5 minutes.
+    </p>
+    <div style="background:#111;border:1px solid #222;border-radius:12px;padding:28px;text-align:center;margin-bottom:24px">
+      <span style="font-size:40px;font-weight:700;letter-spacing:0.15em;color:#fff">{escape(code)}</span>
+    </div>
+    <p style="color:#444;font-size:11px;margin-top:32px;line-height:1.5">
+      If you didn't try to log in to Kado, ignore this email — your account is safe.<br>
+      <a href="{SITE_URL}" style="color:#666">{SITE_URL}</a>
+    </p>
+  </div>
+</body>
+</html>
+"""
+    return _send(to, "Your Kado login code", html)
+
+
 def send_password_reset_email(to: str, token: str) -> bool:
     link = f"{SITE_URL}/auth?action=reset&token={token}"
     html = f"""

@@ -28,7 +28,7 @@ PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, Subscription
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
-from utils.email import send_verification_email
+from utils.email import send_verification_email, send_login_otp_email
 from sqlalchemy.orm import Session
 
 from modules import position_closer
@@ -132,6 +132,7 @@ _TOKEN_TTL = 86_400  # 24 часа
 _active_tokens: dict[str, float] = {}
 # {partial_token: {"user_id": int, "exp": float}} — separate from _active_tokens to avoid type mismatch
 _2fa_pending: dict[str, dict] = {}
+_otp_pending: dict[str, dict] = {}   # otp_token → {user_id, code, exp, attempts}
 _revoked_jtis: dict[str, float] = {}  # jti → expiry; purged when expired
 _ws_connections: dict = defaultdict(int)  # ip → open connection count
 _WS_MAX_PER_IP = 5
@@ -145,6 +146,9 @@ def _purge_expired():
     stale = [k for k, v in _2fa_pending.items() if v["exp"] < now]
     for k in stale:
         del _2fa_pending[k]
+    stale_otp = [k for k, v in _otp_pending.items() if v["exp"] < now]
+    for k in stale_otp:
+        del _otp_pending[k]
     stale_jtis = [j for j, exp in _revoked_jtis.items() if exp < now]
     for j in stale_jtis:
         del _revoked_jtis[j]
@@ -473,10 +477,51 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         partial = secrets.token_hex(16)
         _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300}
         return {"requires_2fa": True, "partial_token": partial}
+    # Email OTP step — send 6-digit code, defer JWT until verified
+    otp_token = secrets.token_hex(24)
+    code = f"{secrets.randbelow(1000000):06d}"
+    _otp_pending[otp_token] = {
+        "user_id": user.id,
+        "code": code,
+        "exp": time.time() + 300,
+        "attempts": 0,
+        "ip": ip,
+    }
+    asyncio.get_running_loop().run_in_executor(None, send_login_otp_email, user.email, code)
+    return {"requires_otp": True, "otp_token": otp_token}
+
+
+class OtpVerifyRequest(BaseModel):
+    otp_token: str
+    code: str
+
+
+@app.post("/api/users/verify-otp")
+async def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"otp:{ip}", window=60, max_hits=10):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 60s.")
+    _purge_expired()
+    entry = _otp_pending.get(body.otp_token)
+    if not entry or time.time() > entry["exp"]:
+        _otp_pending.pop(body.otp_token, None)
+        raise HTTPException(status_code=401, detail="Session expired. Please login again.")
+    if entry["attempts"] >= 5:
+        _otp_pending.pop(body.otp_token, None)
+        raise HTTPException(status_code=401, detail="Too many incorrect attempts. Please login again.")
+    if not secrets.compare_digest(body.code.strip(), entry["code"]):
+        entry["attempts"] += 1
+        raise HTTPException(status_code=401, detail="Invalid code")
+    # Code correct — consume entry and issue JWT
+    _otp_pending.pop(body.otp_token, None)
+    user = db.query(User).filter(User.id == entry["user_id"]).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
     token = create_token(user.id, user.email)
     from utils.email import send_login_notification_email
     asyncio.get_running_loop().run_in_executor(None, send_login_notification_email, user.email, ip)
     return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled)}}
+
 
 @app.get("/api/users/me")
 async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
