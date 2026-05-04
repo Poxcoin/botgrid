@@ -1493,6 +1493,10 @@ async def public_news_feed(
 
 _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
 
+@app.get("/favicon.svg")
+async def favicon_svg():
+    return FileResponse("static/favicon.svg", media_type="image/svg+xml")
+
 @app.get("/")
 async def read_index():
     return FileResponse("static/index.html", headers=_NO_CACHE)
