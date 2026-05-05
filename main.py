@@ -616,6 +616,11 @@ def run_signal_engine():
                     print(f"[FR] ⏳ Cooldown {coin}: ще {remaining} хв")
                     continue
                 _coin_cooldown[coin] = now_ts
+                # FR signals use their own scoring (SIGNAL_THRESHOLD=4.0 in funding_strategy.py)
+                _fr_score = abs(fsig.get("total_score", 0))
+                if _fr_score < 4.0:
+                    print(f"📊 [FR] {coin} score={_fr_score:.1f} < 4.0 — пропускаємо")
+                    continue
                 if not SIGNAL_BOT_TRADING:
                     print(f"📊 [FR] {coin} {fsig.get('action')} — збір статистики (торгівля вимкнена)")
                     continue

@@ -840,8 +840,8 @@ def _run_single(cfg: dict) -> None:
                 trend_check_tick = 0
                 new_direction = _detect_trend(exchange, symbol)
                 try:
-                    _ohlcv_rsi = exchange.fetch_ohlcv(symbol, "4h", limit=20)
-                    _rsi_4h = _calc_rsi([c[4] for c in _ohlcv_rsi])
+                    _ohlcv_rsi = exchange.fetch_ohlcv(symbol, "4h", limit=22)
+                    _rsi_4h = _calc_rsi([c[4] for c in _ohlcv_rsi[:-1]])  # exclude live candle
                     print(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f}")
                 except Exception:
                     pass
@@ -862,6 +862,7 @@ def _run_single(cfg: dict) -> None:
                     positions = state["positions"]
                     print(f"[GRID:{symbol}] 🔄 Тренд підтверджено: {direction.upper()} → {new_direction.upper()} — закриваємо {len(positions)} позицій")
                     _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
+                    state.pop("pending_backoff", None)  # zone indices change after direction flip
                     state["pending_orders"] = {}
                     realized = _close_all_positions(exchange, symbol, positions, leverage, price, direction, user_id)
                     state["total_pnl"] += realized
@@ -977,6 +978,7 @@ def _run_single(cfg: dict) -> None:
                 print(f"[GRID:{symbol}] 🔄 Перебудова {rebuild_label} (#{rebuilds_today + 1}) {pnl_note} — ціна ${price:.2f}")
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
+                state.pop("pending_backoff", None)  # zone indices change after rebuild
                 realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction)
                 state["total_pnl"] += realized
                 state["positions"] = {}
