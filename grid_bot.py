@@ -126,13 +126,16 @@ def _calc_ema(closes: list, period: int) -> float:
 
 
 def _calc_rsi(closes: list, period: int = 14) -> float:
-    """RSI без numpy. Простий розрахунок на основі закриттів."""
+    """RSI з Wilder's EMA smoothing (стандартний метод TradingView/Bybit)."""
     if len(closes) < period + 1:
         return 50.0
     gains = [max(closes[i] - closes[i-1], 0) for i in range(1, len(closes))]
     losses = [max(closes[i-1] - closes[i], 0) for i in range(1, len(closes))]
-    avg_g = sum(gains[-period:]) / period
-    avg_l = sum(losses[-period:]) / period
+    avg_g = sum(gains[:period]) / period
+    avg_l = sum(losses[:period]) / period
+    for g, l in zip(gains[period:], losses[period:]):
+        avg_g = (avg_g * (period - 1) + g) / period
+        avg_l = (avg_l * (period - 1) + l) / period
     if avg_l == 0:
         return 100.0
     return round(100.0 - (100.0 / (1.0 + avg_g / avg_l)), 1)
@@ -823,6 +826,12 @@ def _run_single(cfg: dict) -> None:
     trend_check_tick  = 0
     _trend_short_count = 0  # кількість послідовних SHORT-читань (для підтвердження)
     _rsi_4h           = 50.0  # кешований RSI(14,4h), оновлюється разом з трендом
+    try:
+        _ohlcv_rsi_init = exchange.fetch_ohlcv(symbol, "4h", limit=22)
+        _rsi_4h = _calc_rsi([c[4] for c in _ohlcv_rsi_init[:-1]])
+        print(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f}")
+    except Exception:
+        pass
 
     while True:
         try:
@@ -1121,7 +1130,15 @@ def _run_single(cfg: dict) -> None:
                     elif len(positions) + len(pending_orders) < max_pos:
                         ceil_idx    = current_zone + 1 if current_zone + 1 < len(levels) else current_zone
                         limit_price = levels[ceil_idx]  # ceiling зони — maker order
-                        result = _open_short_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
+                        _spread_s = (limit_price - price) / price if price > 0 else 0
+                        if limit_price <= price:
+                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} ceil {limit_price:.4f} <= price {price:.4f} — пропускаємо")
+                            result = None
+                        elif _spread_s < MIN_ORDER_SPREAD:
+                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread_s*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                            result = None
+                        else:
+                            result = _open_short_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
                         if result:
                             pending_orders[zone_str] = result
                             _save_state(symbol, state, user_id)
