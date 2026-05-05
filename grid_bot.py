@@ -83,6 +83,9 @@ SHORT_CONFIRM_TICKS    = 3      # потрібно 3 послідовних SHOR
 SHORT_EMA_MARGIN       = 0.98   # ціна повинна бути нижче EMA50×0.98 (−2%) для SHORT режиму
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
+PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
+RSI_OB_BUY             = 72    # RSI(14,4h) > 72 → не розміщуємо нові BUY ордери
+BOUNDARY_SL_PCT        = 0.03  # 3% нижче нижньої межі сітки → жорсткий стоп
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
@@ -119,6 +122,19 @@ def _calc_ema(closes: list, period: int) -> float:
     for price in closes[period:]:
         ema = price * k + ema * (1.0 - k)
     return ema
+
+
+def _calc_rsi(closes: list, period: int = 14) -> float:
+    """RSI без numpy. Простий розрахунок на основі закриттів."""
+    if len(closes) < period + 1:
+        return 50.0
+    gains = [max(closes[i] - closes[i-1], 0) for i in range(1, len(closes))]
+    losses = [max(closes[i-1] - closes[i], 0) for i in range(1, len(closes))]
+    avg_g = sum(gains[-period:]) / period
+    avg_l = sum(losses[-period:]) / period
+    if avg_l == 0:
+        return 100.0
+    return round(100.0 - (100.0 / (1.0 + avg_g / avg_l)), 1)
 
 
 def _detect_trend(exchange, symbol: str) -> str:
@@ -617,8 +633,9 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     pending[zone_str] = entry
                     print(f"[GRID:{symbol}] ⚠️ Pending level {zone_str} відсутній ({miss_count}/3) — чекаємо")
                 else:
-                    print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — видаляємо")
+                    print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — backoff {PENDING_BACKOFF_SEC}s")
                     del pending[zone_str]
+                    state.setdefault("pending_backoff", {})[zone_str] = time.time() + PENDING_BACKOFF_SEC
                 changed = True
 
     if changed:
@@ -804,6 +821,7 @@ def _run_single(cfg: dict) -> None:
     rebuild_day       = datetime.now(timezone.utc).date()
     trend_check_tick  = 0
     _trend_short_count = 0  # кількість послідовних SHORT-читань (для підтвердження)
+    _rsi_4h           = 50.0  # кешований RSI(14,4h), оновлюється разом з трендом
 
     while True:
         try:
@@ -821,6 +839,12 @@ def _run_single(cfg: dict) -> None:
             if trend_check_tick >= TREND_RECHECK_TICKS:
                 trend_check_tick = 0
                 new_direction = _detect_trend(exchange, symbol)
+                try:
+                    _ohlcv_rsi = exchange.fetch_ohlcv(symbol, "4h", limit=20)
+                    _rsi_4h = _calc_rsi([c[4] for c in _ohlcv_rsi])
+                    print(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f}")
+                except Exception:
+                    pass
 
                 # Лічильник підтвердження SHORT: long→short потребує SHORT_CONFIRM_TICKS
                 # послідовних SHORT-читань; short→long перемикається негайно
@@ -852,6 +876,26 @@ def _run_single(cfg: dict) -> None:
                         f"Реалізований PnL: ${realized:.2f} | Загалом: ${state['total_pnl']:.2f}",
                         TG_CHAT_ID,
                     )
+
+            # ─── Boundary SL: ціна на 3%+ нижче нижньої межі → жорсткий стоп ───
+            _lower_bound = state.get("lower", levels[0])
+            if direction == "long" and price < _lower_bound * (1 - BOUNDARY_SL_PCT):
+                _sl_threshold = _lower_bound * (1 - BOUNDARY_SL_PCT)
+                print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: ${price:.2f} < ${_sl_threshold:.2f} (3% нижче межі) — закриваємо")
+                _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
+                state["pending_orders"] = {}
+                realized = _close_all_positions(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
+                state["total_pnl"] += realized
+                state["positions"] = {}
+                state["stop_until"] = time.time() + 3600
+                _save_state(symbol, state, user_id)
+                send_telegram_message(
+                    f"🛑 <b>Grid BOUNDARY SL</b> {symbol}\n"
+                    f"Ціна ${price:.2f} нижче межі ${_lower_bound:.2f} на 3%+\n"
+                    f"Реалізований PnL: ${realized:.2f} | Пауза 1h",
+                    TG_CHAT_ID,
+                )
+                break
 
             # ─── Визначаємо поточну зону ────────────────────────────────────
             current_zone = None
@@ -999,9 +1043,18 @@ def _run_single(cfg: dict) -> None:
                 # ─── LONG: limit BUY на floor зони якщо нема позиції/pending ─
                 zone_str = str(current_zone)
                 if zone_str not in positions and zone_str not in pending_orders:
+                    # Clean expired backoffs, check if zone is in backoff
+                    _now_ts = time.time()
+                    state["pending_backoff"] = {k: v for k, v in state.get("pending_backoff", {}).items() if v > _now_ts}
+                    _in_backoff = zone_str in state.get("pending_backoff", {})
                     _btc_chg = get_btc_2h_change()
                     _is_btc  = symbol.startswith("BTC")
-                    if not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
+                    if _in_backoff:
+                        _remain = int(state["pending_backoff"][zone_str] - _now_ts)
+                        print(f"[GRID:{symbol}] ⏳ Level {current_zone} backoff {_remain}s — пропускаємо")
+                    elif _rsi_4h > RSI_OB_BUY and direction == "long":
+                        print(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
+                    elif not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
                         print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
                     elif len(positions) + len(pending_orders) < max_pos:
                         limit_price = levels[current_zone]  # floor зони — maker order

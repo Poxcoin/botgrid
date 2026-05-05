@@ -559,6 +559,14 @@ def run_signal_engine():
                                         print(f"⚙️ {coin}: адаптивный порог {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не прошёл")
                                         continue
 
+                                # Safety: explicit min-score guard (belt+suspenders over decision_maker)
+                                _btc_eth_guard = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                                _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
+                                _min_safe = 8.0 if _is_sm_guard else (11.0 if coin.upper() in _btc_eth_guard else 10.0)
+                                if abs(signal['total_score']) < _min_safe:
+                                    print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
+                                    continue
+
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
                                 elif signal.get("is_listing"):
