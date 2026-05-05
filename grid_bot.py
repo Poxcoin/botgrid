@@ -86,6 +86,7 @@ MIN_GRID_LEVELS        = 3      # мінімальна кількість рів
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
 RSI_OB_BUY             = 72    # RSI(14,4h) > 72 → не розміщуємо нові BUY ордери
 BOUNDARY_SL_PCT        = 0.03  # 3% нижче нижньої межі сітки → жорсткий стоп
+MIN_ORDER_SPREAD       = 0.002 # 0.2% мінімальний спред між limit та market — PostOnly safe
 
 # ─── State ───────────────────────────────────────────────────────────────────
 
@@ -1060,9 +1061,14 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
                     elif len(positions) + len(pending_orders) < max_pos:
                         limit_price = levels[current_zone]  # floor зони — maker order
+                        _spread = (price - limit_price) / price if price > 0 else 0
                         if limit_price >= price:
                             # PostOnly відхилить ордер якщо ціна вже вище floor — пропускаємо
-                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — PostOnly буде відхилено, пропускаємо")
+                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — пропускаємо")
+                            result = None
+                        elif _spread < MIN_ORDER_SPREAD:
+                            # Занадто близько до ринку — PostOnly може відхилити на Demo
+                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
                             result = None
                         else:
                             result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
