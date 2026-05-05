@@ -457,18 +457,18 @@ def run_signal_engine():
                             now_ts - last_sig_ts < SIGNAL_DEDUP_SEC:
                         # Підсилюємо score замість пропуску
                         dup_count = _signal_duplicates.get(dedup_key, 0) + 1
-                        _signal_duplicates[dedup_key] = dup_count
+                        _signal_duplicates[dedup_key] = min(dup_count, 5)  # cap at 5× max boost
                         if dup_count >= 2:
-                            signal["total_score"] = signal["total_score"] * (1 + dup_count * 0.3)
+                            signal["total_score"] = signal["total_score"] * (1 + min(dup_count, 5) * 0.3)
                             print(f"   🔥 Дубль x{dup_count}: {dedup_key[0]} {dedup_key[1]} — score підсилено до {signal['total_score']:.1f}")
                         else:
                             print(f"   ⏭ Дубль сигнала {dedup_key[1]} {dedup_key[0]} — пропускаємо")
                             continue
                     else:
-                        # Новий сигнал — скидаємо лічильник дублікатів якщо вийшли за вікно
-                        if now_ts - _signal_dedup.get(dedup_key, 0) >= DUPLICATE_WINDOW_SEC:
+                        # Новий сигнал — скидаємо лічильник і оновлюємо timestamp
+                        if now_ts - last_sig_ts >= DUPLICATE_WINDOW_SEC:
                             _signal_duplicates.pop(dedup_key, None)
-                    _signal_dedup[dedup_key] = now_ts
+                        _signal_dedup[dedup_key] = now_ts  # оновлюємо тільки для нових сигналів
 
                     signal['timestamp'] = datetime.now(timezone.utc).isoformat()
                     signal_ledger.append(signal)
@@ -521,7 +521,6 @@ def run_signal_engine():
                                 remaining = int((COIN_COOLDOWN_SEC - (now_ts - last_ts)) / 60)
                                 print(f"⏳ Cooldown {coin}: ещё {remaining} мин до следующей сделки")
                             else:
-                                _coin_cooldown[coin] = now_ts
                                 _btc_eth = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
 
                                 # Проверка лимита суммарной экспозиции
@@ -566,6 +565,9 @@ def run_signal_engine():
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
+
+                                # Всі фільтри пройдено — тільки тепер ставимо cooldown
+                                _coin_cooldown[coin] = now_ts
 
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")

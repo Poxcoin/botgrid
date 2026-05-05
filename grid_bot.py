@@ -989,7 +989,7 @@ def _run_single(cfg: dict) -> None:
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
                 state.pop("pending_backoff", None)  # zone indices change after rebuild
-                realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction)
+                realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction, user_id)
                 state["total_pnl"] += realized
                 state["positions"] = {}
                 upper, lower = _detect_range(exchange, symbol)
