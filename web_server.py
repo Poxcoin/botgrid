@@ -1323,6 +1323,46 @@ async def get_signals(
     }
 
 
+@app.get("/api/bot-pnl")
+async def get_bot_pnl(token: str = Depends(require_any_auth)):
+    """Unified PnL report across ALL bots (signal + grid + funding)."""
+    try:
+        from modules.unified_pnl import get_report
+        return get_report()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/bot-trades")
+async def get_bot_trades(
+    n: int = Query(default=50, ge=1, le=500),
+    source: str = Query(default="all"),
+    token: str = Depends(require_any_auth),
+):
+    """Recent trades across all bots. source= all | signal | grid | funding"""
+    try:
+        from modules.unified_pnl import get_recent_trades, init_all_trades_table, _conn
+        init_all_trades_table()
+        con = _conn()
+        if source == "all":
+            rows = con.execute(
+                "SELECT bot_source,coin,action,qty,entry_price,exit_price,"
+                "pnl_usdt,result,timestamp_open,timestamp_close,duration_min "
+                "FROM all_trades ORDER BY timestamp_close DESC LIMIT ?", (n,)
+            ).fetchall()
+        else:
+            rows = con.execute(
+                "SELECT bot_source,coin,action,qty,entry_price,exit_price,"
+                "pnl_usdt,result,timestamp_open,timestamp_close,duration_min "
+                "FROM all_trades WHERE bot_source=? ORDER BY timestamp_close DESC LIMIT ?",
+                (source, n)
+            ).fetchall()
+        con.close()
+        return {"trades": [dict(r) for r in rows]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/stats")
 async def get_stats(token: str = Depends(require_any_auth)):
     all_signals = _load_signals()
@@ -1334,9 +1374,20 @@ async def get_stats(token: str = Depends(require_any_auth)):
     total_pnl      = round(sum(float(s.get("pnl_usdt", 0)) for s in closed_trades), 2)
     win_rate       = round(winning_trades / len(closed_trades) * 100, 1) if closed_trades else 0.0
 
+    # Merge with unified PnL for full picture
+    try:
+        from modules.unified_pnl import get_report
+        unified = get_report()
+        total_pnl = unified["all"]["total"]
+        win_rate  = unified["all"]["wr"]
+        winning_trades = unified["all"]["wins"]
+        closed_trades_n = unified["all"]["trades"]
+    except Exception:
+        closed_trades_n = len(closed_trades)
+
     return {
         "total_trades":   len(trades),
-        "closed_trades":  len(closed_trades),
+        "closed_trades":  closed_trades_n,
         "win_rate":       win_rate,
         "total_pnl":      total_pnl,
         "winning_trades": winning_trades,

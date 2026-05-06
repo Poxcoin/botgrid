@@ -130,67 +130,72 @@ def _balance_text():
 
 def _pnl_text():
     try:
-        con = sqlite3.connect(_DB)
-        con.row_factory = sqlite3.Row
-        closed = con.execute("SELECT pnl_usdt, timestamp_open, coin FROM trades WHERE result != 'OPEN'").fetchall()
-        open_n = con.execute("SELECT COUNT(*) FROM trades WHERE result='OPEN'").fetchone()[0]
-        con.close()
+        from modules.unified_pnl import get_report
+        r = get_report()
+        a = r["all"]
+        s = r["signal"]
+        g = r["grid"]
+        f = r["funding"]
 
-        today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        t_icon = "📈" if a["today"] >= 0 else "📉"
+        w_icon = "📈" if a["week"]  >= 0 else "📉"
+        a_icon = "📈" if a["total"] >= 0 else "📉"
 
-        # Grid coins (multi-word, tracked separately)
-        grid_coins = {"SOL", "BTC", "ETH", "DOGE", "XRP"}
+        lines = [
+            f"📊 <b>PnL — Всі боти</b>\n",
+            f"{t_icon} Сьогодні:  <b>{a['today']:+.2f}$</b>",
+            f"{w_icon} Тиждень:   <b>{a['week']:+.2f}$</b>",
+            f"{a_icon} Всього:    <b>{a['total']:+.2f}$</b>   ({a['trades']} угод  WR {a['wr']}%)\n",
+        ]
 
-        grid_closed   = [r for r in closed if r["coin"] in grid_coins]
-        signal_closed = [r for r in closed if r["coin"] not in grid_coins]
+        if s["trades"]:
+            s_icon = "📈" if s["total"] >= 0 else "📉"
+            lines.append(
+                f"🚀 <b>Signal</b>  {s['trades']} угод  WR {s['wr']}%\n"
+                f"   Сьогодні {s['today']:+.2f}$  ·  7д {s['week']:+.2f}$  ·  {s_icon}{s['total']:+.2f}$"
+            )
+        if g["trades"]:
+            g_icon = "📈" if g["total"] >= 0 else "📉"
+            lines.append(
+                f"🔷 <b>Grid</b>    {g['trades']} угод  WR {g['wr']}%\n"
+                f"   Сьогодні {g['today']:+.2f}$  ·  7д {g['week']:+.2f}$  ·  {g_icon}{g['total']:+.2f}$"
+            )
+        if f["trades"]:
+            f_icon = "📈" if f["total"] >= 0 else "📉"
+            lines.append(
+                f"📊 <b>Funding</b> {f['trades']} угод  WR {f['wr']}%\n"
+                f"   Всього {f_icon}{f['total']:+.2f}$"
+            )
 
-        def _stats(rows):
-            total = sum((r["pnl_usdt"] or 0) for r in rows)
-            today = sum((r["pnl_usdt"] or 0) for r in rows
-                        if (r["timestamp_open"] or "")[:10] >= today_str)
-            wins  = sum(1 for r in rows if (r["pnl_usdt"] or 0) > 0)
-            wr    = wins / max(len(rows), 1) * 100
-            return total, today, len(rows), wr
+        if r["top_coins"]:
+            tops = "  ".join(f"{c} {v:+.0f}$" for c, v in r["top_coins"][:3])
+            lines.append(f"\n🏆 <b>Топ:</b> {tops}")
+        if r["worst_coins"]:
+            bads = "  ".join(f"{c} {v:+.0f}$" for c, v in r["worst_coins"])
+            if any(v < 0 for _, v in r["worst_coins"]):
+                lines.append(f"⚠️ <b>Збитки:</b> {bads}")
 
-        g_total, g_today, g_n, g_wr   = _stats(grid_closed)
-        s_total, s_today, s_n, s_wr   = _stats(signal_closed)
-        all_total = g_total + s_total
-        all_today = g_today + s_today
-
-        t_icon = "📈" if all_today >= 0 else "📉"
-        a_icon = "📈" if all_total >= 0 else "📉"
-
-        return (
-            f"📊 <b>PnL Звіт</b>\n\n"
-            f"{t_icon} Сьогодні:   <b>{all_today:+.2f}$</b>\n"
-            f"{a_icon} Всього:     <b>{all_total:+.2f}$</b>\n\n"
-            f"🔷 <b>Grid бот</b>  ({g_n} угод  WR {g_wr:.0f}%)\n"
-            f"   Сьогодні {g_today:+.2f}$  ·  Всього {g_total:+.2f}$\n\n"
-            f"🚀 <b>Signal бот</b>  ({s_n} угод  WR {s_wr:.0f}%)\n"
-            f"   Сьогодні {s_today:+.2f}$  ·  Всього {s_total:+.2f}$\n\n"
-            f"Відкрито зараз: {open_n}"
-        )
+        return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка: {e}"
+        return f"❌ Помилка PnL: {e}"
 
 
-def _trades_text(n=10):
+def _trades_text(n=20):
     try:
-        con = sqlite3.connect(_DB)
-        con.row_factory = sqlite3.Row
-        rows = con.execute(
-            "SELECT coin, action, pnl_usdt, timestamp_open FROM trades "
-            "WHERE result != 'OPEN' ORDER BY rowid DESC LIMIT ?", (n,)
-        ).fetchall()
-        con.close()
+        from modules.unified_pnl import get_recent_trades
+        rows = get_recent_trades(n)
         if not rows:
             return "Закритих угод немає."
-        lines = [f"📋 <b>Останні угоди</b>\n"]
+
+        source_icon = {"signal": "🚀", "grid": "🔷", "funding": "📊"}
+        lines = [f"📋 <b>Останні угоди (всі боти)</b>\n"]
         for r in rows:
-            pnl  = r["pnl_usdt"] or 0
+            pnl  = float(r["pnl_usdt"] or 0)
             icon = "✅" if pnl > 0 else "❌"
-            date = (r["timestamp_open"] or "")[:10]
-            lines.append(f"{icon} {r['coin']} {r['action']}   <b>{pnl:+.2f}$</b>   {date}")
+            src  = source_icon.get(r["bot_source"], "🤖")
+            date = (r["timestamp_close"] or "")[:10]
+            dur  = f" {r['duration_min']}хв" if r["duration_min"] else ""
+            lines.append(f"{icon}{src} {r['coin']} {r['action']}  <b>{pnl:+.2f}$</b>  {date}{dur}")
         return "\n".join(lines)
     except Exception as e:
         return f"❌ Помилка: {e}"
