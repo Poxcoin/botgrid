@@ -264,8 +264,8 @@ def _set_leverage(exchange, symbol: str, leverage: int) -> None:
 def _close_all_positions(exchange, symbol: str, positions: dict,
                          leverage: int, price: float, direction: str = "long",
                          user_id: Optional[int] = None) -> float:
-    """Закриває всі відкриті позиції. direction визначає сторону закриття.
-    Рахує комісії та закриває DB записи (як _close_long/_close_short).
+    """Закриває відстежувані позиції з повним PnL-обліком.
+    Повертає реалізований PnL. positions.clear() після виконання.
     """
     total_pnl = 0.0
     close_side = "buy" if direction == "short" else "sell"
@@ -313,6 +313,53 @@ def _close_all_positions(exchange, symbol: str, positions: dict,
         except Exception as e:
             print(f"[GRID:{symbol}] CLOSE-ALL error level {idx_str}: {e}")
     positions.clear()
+    return total_pnl
+
+
+def _sync_close_all(exchange, symbol: str, tracked: dict,
+                    leverage: int, price: float, direction: str,
+                    user_id: Optional[int] = None) -> float:
+    """Авторитетне закриття: відстежувані позиції + всі orphaned позиції на біржі.
+
+    Єдина функція яку потрібно викликати перед rebuild, trend-flip, boundary SL або hard stop.
+    Гарантує що після повернення на біржі не лишається жодної відкритої позиції по символу.
+
+    Кроки:
+      1. _close_all_positions() — закриває tracked позиції з PnL-обліком
+      2. Запит до Bybit API — знаходить і закриває orphaned позиції
+         (втрачені після rebuild/restart, без entry_price → без PnL-обліку)
+    """
+    # Крок 1: закриваємо відстежувані позиції (з PnL)
+    total_pnl = _close_all_positions(exchange, symbol, tracked, leverage, price, direction, user_id)
+
+    # Крок 2: синхронізуємо з біржею — закриваємо будь-що що залишилось
+    try:
+        market_id = exchange.market_id(symbol)
+        r = exchange.private_get_v5_position_list(
+            params={"category": "linear", "symbol": market_id}
+        )
+        orphans_found = 0
+        for pos in r.get("result", {}).get("list", []):
+            qty = abs(float(pos.get("size") or 0))
+            if qty <= 0:
+                continue
+            # Використовуємо реальну сторону позиції (не direction) — безпечно для будь-якого стану
+            actual_side = pos.get("side", "").lower()  # "buy" або "sell"
+            close_side  = "sell" if actual_side == "buy" else "buy"
+            try:
+                exchange.create_order(
+                    symbol, "market", close_side, qty,
+                    params={"category": "linear", "reduceOnly": True},
+                )
+                orphans_found += 1
+                print(f"[GRID:{symbol}] 🧹 Orphan {actual_side.upper()} qty={qty} закрито")
+            except Exception as close_err:
+                print(f"[GRID:{symbol}] ⚠️ Orphan close failed qty={qty}: {close_err}")
+        if orphans_found:
+            print(f"[GRID:{symbol}] 🧹 Sync: закрито {orphans_found} orphaned позицій на біржі")
+    except Exception as e:
+        print(f"[GRID:{symbol}] ⚠️ Exchange sync check не вдався: {e}")
+
     return total_pnl
 
 
@@ -716,11 +763,10 @@ def _run_single(cfg: dict) -> None:
             _old_pending   = state.get("pending_orders", {})
             if _old_pending:
                 _cancel_all_pending(exchange, symbol, _old_pending)
-            if _old_positions:
-                _restart_price = _get_current_price(exchange, symbol)
-                _restart_pnl   = _close_all_positions(
-                    exchange, symbol, _old_positions, leverage, _restart_price, saved_direction, user_id)
-                print(f"[GRID:{symbol}] Реалізований PnL при рестарт-тренді: ${_restart_pnl:.2f}")
+            _restart_price = _get_current_price(exchange, symbol)
+            _restart_pnl   = _sync_close_all(
+                exchange, symbol, _old_positions, leverage, _restart_price, saved_direction, user_id)
+            print(f"[GRID:{symbol}] Реалізований PnL при рестарт-тренді: ${_restart_pnl:.2f}")
             _state_valid = False
         else:
             upper  = state["upper"]
@@ -768,20 +814,11 @@ def _run_single(cfg: dict) -> None:
             "started_at":    datetime.now(timezone.utc).isoformat(),
         }
         _save_state(symbol, state, user_id)
-        # Закрити orphaned позиції на біржі (обидві сторони)
+        # Закриваємо будь-які orphaned позиції на біржі через _sync_close_all
+        # (tracked={} → тільки exchange-sync крок спрацює)
+        _sync_close_all(exchange, symbol, {}, leverage, price, direction, user_id)
+        # Очищаємо OPEN записи в DB для цієї монети
         coin = symbol.split("/")[0]
-        try:
-            ex_pos = exchange.fetch_positions([symbol], params={"category": "linear"})
-            for p in ex_pos:
-                qty = abs(float(p.get("contracts") or 0))
-                if qty > 0:
-                    close_side = "buy" if p["side"] == "short" else "sell"
-                    exchange.create_order(symbol, "market", close_side, qty,
-                        params={"category": "linear", "reduceOnly": True})
-                    print(f"[GRID:{symbol}] 🧹 Orphaned {p['side']} qty={qty} закрито")
-        except Exception as _e:
-            print(f"[GRID:{symbol}] Orphan exchange close помилка: {_e}")
-        # Очищаємо OPEN записи в DB
         try:
             import sqlite3 as _sq
             _con = _sq.connect(os.path.join(os.path.dirname(__file__), "analytics.db"))
@@ -874,7 +911,7 @@ def _run_single(cfg: dict) -> None:
                     _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                     state.pop("pending_backoff", None)  # zone indices change after direction flip
                     state["pending_orders"] = {}
-                    realized = _close_all_positions(exchange, symbol, positions, leverage, price, direction, user_id)
+                    realized = _sync_close_all(exchange, symbol, positions, leverage, price, direction, user_id)
                     state["total_pnl"] += realized
                     state["positions"] = {}
                     direction = new_direction
@@ -895,7 +932,7 @@ def _run_single(cfg: dict) -> None:
                 print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: ${price:.2f} < ${_sl_threshold:.2f} (3% нижче межі) — закриваємо")
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
-                realized = _close_all_positions(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
+                realized = _sync_close_all(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
                 state["total_pnl"] += realized
                 state["positions"] = {}
                 state["stop_until"] = time.time() + 3600
@@ -958,7 +995,7 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] 🛑 СТОП — {reason}. Закриваємо всі позиції.")
                         _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                         state["pending_orders"] = {}
-                        realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction, user_id)
+                        realized = _sync_close_all(exchange, symbol, state["positions"], leverage, price, direction, user_id)
                         state["total_pnl"] += realized
                         state["positions"] = {}
                         # Зберігаємо stop_until: наступна північ UTC + 1h, мінімум 6h від зараз
@@ -989,7 +1026,7 @@ def _run_single(cfg: dict) -> None:
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
                 state.pop("pending_backoff", None)  # zone indices change after rebuild
-                realized = _close_all_positions(exchange, symbol, state["positions"], leverage, price, direction, user_id)
+                realized = _sync_close_all(exchange, symbol, state["positions"], leverage, price, direction, user_id)
                 state["total_pnl"] += realized
                 state["positions"] = {}
                 upper, lower = _detect_range(exchange, symbol)
