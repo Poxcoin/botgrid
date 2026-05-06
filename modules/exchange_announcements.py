@@ -78,7 +78,7 @@ def _poll_binance() -> list[dict]:
         resp = _SESSION.get(
             "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query",
             params={"type": 1, "pageNo": 1, "pageSize": 10},
-            timeout=10,
+            timeout=4,
         )
         catalogs = resp.json().get("data", {}).get("catalogs", [])
         new_items = []
@@ -113,7 +113,7 @@ def _poll_bybit() -> list[dict]:
         resp = _SESSION.get(
             "https://api.bybit.com/v5/announcements/index",
             params={"locale": "en-US", "type": "new_crypto", "page": 1, "limit": 10},
-            timeout=10,
+            timeout=4,
         )
         items = resp.json().get("result", {}).get("list", [])
         new_items = []
@@ -150,10 +150,10 @@ def _monitor_loop():
     _poll_binance()
     _poll_bybit()
     _save_seen()
-    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit, кожні 30 сек)")
+    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit, кожні 10 сек)")
 
     while _running:
-        time.sleep(30)
+        time.sleep(10)
         fresh = _poll_binance() + _poll_bybit()
         if fresh:
             for item in fresh:

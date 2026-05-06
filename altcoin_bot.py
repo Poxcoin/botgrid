@@ -10,6 +10,7 @@ altcoin_bot.py — Listing pump bot.
 import time
 import json
 import os
+import threading
 from datetime import datetime
 
 import httpx
@@ -157,7 +158,6 @@ def run_alt_engine():
         start_bal = 0.0
     daily_guard.init(current_balance=start_bal)
 
-    import threading
     if not any(t.name == "position-monitor" for t in threading.enumerate()):
         position_monitor.start_monitor(
             exchange_factory=_init_exchange,
@@ -219,8 +219,16 @@ def run_alt_engine():
                     print(f"[ALT] ⏭ {coin} вже торгували — пропускаємо (ще {remaining} хв)")
                     continue
 
-                # DEX filter: якщо монета вже активно торгується на DEX — памп стався раніше
-                if _is_on_dex(coin):
+                # DEX filter: запускаємо в окремому потоці з timeout 3s (fail-safe = False)
+                _dex_result = [False]
+
+                def _dex_check(c=coin, out=_dex_result):
+                    out[0] = _is_on_dex(c)
+
+                _dex_thread = threading.Thread(target=_dex_check, daemon=True)
+                _dex_thread.start()
+                _dex_thread.join(timeout=3)
+                if _dex_result[0]:
                     continue
 
                 traded_coins[coin] = now_ts
@@ -269,7 +277,7 @@ def run_alt_engine():
             if urls_changed:
                 save_processed_urls(processed_urls)
 
-            time.sleep(30)
+            time.sleep(10)
 
         except KeyboardInterrupt:
             print("\nALT бот остановлен.")

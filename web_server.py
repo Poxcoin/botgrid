@@ -35,6 +35,14 @@ from modules import position_closer
 from modules import stripe_billing
 from saas_dispatcher import start_dispatcher, get_status as dispatcher_status, sync_user as dispatcher_sync_user, stop_user as dispatcher_stop_user
 
+try:
+    from modules.liquidation_monitor import get_liquidation_signal, liquidation_signal_queue as _liq_queue
+    _LIQ_AVAILABLE = True
+except Exception as _liq_import_err:
+    print(f"[LIQ] Import skipped: {_liq_import_err}")
+    _LIQ_AVAILABLE = False
+    _liq_queue = None  # type: ignore
+
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
 
@@ -42,6 +50,7 @@ app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=
 async def _startup():
     asyncio.create_task(position_closer.run_loop())
     asyncio.get_running_loop().run_in_executor(None, start_dispatcher)
+    _threading.Thread(target=_cascade_reader_loop, daemon=True, name="CascadeReader").start()
 
 # ─── CORS: только явно разрешённые origins ────────────────────────────────────
 app.add_middleware(
@@ -184,10 +193,34 @@ LEDGER_FILE = "signals_log.json"
 
 # ─── Backtest in-process runner ──────────────────────────────────────────────
 import threading as _bt_thread
+import threading as _threading
 
 _backtest_running  = False
 _backtest_progress: dict = {"current": 0, "total": 0, "run_id": None}
 _backtest_owner_id: Optional[int] = None   # None = admin (no ownership filter)
+
+# ─── Liquidation cascade history ──────────────────────────────────────────────
+_cascade_history: list = []   # останні 50 cascade сигналів
+_cascade_lock = _threading.Lock()
+
+_LIQ_COINS = ["BTC", "ETH", "SOL", "BNB", "XRP", "LINK", "AVAX", "ARB", "OP", "INJ", "SUI", "APT", "AAVE"]
+
+
+def _cascade_reader_loop():
+    """Фоновий daemon thread: читає liquidation_signal_queue кожні 5 сек."""
+    global _cascade_history
+    while True:
+        if _LIQ_AVAILABLE and _liq_queue is not None:
+            while True:
+                try:
+                    item = _liq_queue.get_nowait()
+                    with _cascade_lock:
+                        _cascade_history.append(item)
+                        if len(_cascade_history) > 50:
+                            _cascade_history = _cascade_history[-50:]
+                except Exception:
+                    break
+        time.sleep(5)
 
 
 def _token_user_id(token: str) -> Optional[int]:
@@ -1581,6 +1614,50 @@ async def public_news_feed(
         return {"items": rows, "total": total, "mock": False}
     except Exception:
         return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  LIQUIDATION DASHBOARD ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/liquidations/live")
+async def liquidations_live():
+    """Поточний стан ліквідацій по топ монетах."""
+    coins_data: dict = {}
+    if _LIQ_AVAILABLE:
+        for coin in _LIQ_COINS:
+            try:
+                sig = get_liquidation_signal(coin)
+                coins_data[coin] = {
+                    "long_liq_usd":  sig.get("long_liq_usd", 0),
+                    "short_liq_usd": sig.get("short_liq_usd", 0),
+                    "signal":        sig.get("signal", "NEUTRAL"),
+                    "signal_score":  sig.get("signal_score", 0.0),
+                }
+            except Exception as _e:
+                coins_data[coin] = {
+                    "long_liq_usd":  0,
+                    "short_liq_usd": 0,
+                    "signal":        "NEUTRAL",
+                    "signal_score":  0.0,
+                    "error":         str(_e),
+                }
+    return {
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "coins": coins_data,
+    }
+
+
+@app.get("/api/liquidations/cascades")
+async def liquidations_cascades():
+    """Останні cascade сигнали від liquidation_signal_queue."""
+    with _cascade_lock:
+        history = list(_cascade_history)
+    return {
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "count":   len(history),
+        "cascades": list(reversed(history)),  # newest first
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
