@@ -27,6 +27,8 @@ import time
 from datetime import datetime, timezone, timedelta
 from typing import Callable
 
+from config.settings import MAX_TRADE_LOSS_USDT
+
 MAX_AGE_HOURS       = 4     # Позиция старше 4h → принудительно закрываем
 CHECK_INTERVAL_SEC  = 300   # Проверяем каждые 5 минут
 TRACK_FILE          = "open_positions.json"
@@ -100,6 +102,45 @@ def _monitor_loop(
                 sym: info for sym, info in tracked.items()
                 if (now - datetime.fromisoformat(info["opened_at"])) > timedelta(hours=MAX_AGE_HOURS)
             }
+
+            # ── Hard loss cap: close any position whose unrealized loss > MAX_TRADE_LOSS_USDT ──
+            if MAX_TRADE_LOSS_USDT > 0:
+                try:
+                    ex_lc = exchange_factory()
+                    for symbol in list(tracked.keys()):
+                        try:
+                            live_lc = ex_lc.fetch_positions([symbol], params={"category": "linear"})
+                            active_lc = [p for p in live_lc if abs(float(p.get("contracts") or 0)) > 0]
+                            if not active_lc:
+                                continue
+                            pos_lc = active_lc[0]
+                            upnl = float(pos_lc.get("unrealizedPnl") or pos_lc.get("info", {}).get("unrealisedPnl") or 0)
+                            if upnl < -MAX_TRADE_LOSS_USDT:
+                                contracts_lc = abs(float(pos_lc["contracts"]))
+                                side_lc = "sell" if pos_lc["side"] == "long" else "buy"
+                                ex_lc.create_order(
+                                    symbol, "market", side_lc, contracts_lc,
+                                    params={"category": "linear", "reduceOnly": True},
+                                )
+                                untrack(symbol)
+                                msg = (
+                                    f"🛑 <b>Hard loss cap triggered</b>\n"
+                                    f"<b>Монета:</b> <code>{symbol}</code>\n"
+                                    f"<b>Збиток:</b> ${upnl:.2f} (ліміт -${MAX_TRADE_LOSS_USDT})\n"
+                                    f"<b>Направлення:</b> {tracked[symbol].get('action','?')}\n"
+                                    f"<b>Вхід:</b> {tracked[symbol].get('entry','?')}$"
+                                )
+                                send_tg(msg, chat_id)
+                                print(f"[monitor] 🛑 {symbol} закрита: збиток ${upnl:.2f} > ліміт ${MAX_TRADE_LOSS_USDT}")
+                        except Exception as e_lc:
+                            err = str(e_lc)
+                            if "110017" in err or "position is zero" in err.lower():
+                                untrack(symbol)
+                            else:
+                                print(f"[monitor] loss-cap check {symbol}: {e_lc}")
+                except Exception as e_outer:
+                    print(f"[monitor] loss-cap loop error: {e_outer}")
+            # ─────────────────────────────────────────────────────────────────────
 
             if not stale:
                 continue

@@ -8,6 +8,12 @@ from modules.gemini_filter import analyze_news as gemini_analyze
 
 _STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"})
 
+# Монети заблоковані для news-signal бота.
+# Причина: BTC/ETH/SOL/BNB не реагують на Telegram-новини з >30s затримкою —
+# institutional algo прайсить їх за мікросекунди. Статистика: 117 угод, 16% WR, -$86.70.
+# Для них є окремі стратегії: Grid (SOL/BTC/ETH) та Funding Rate (всі).
+_NEWS_BLOCKED = frozenset({"BTC", "ETH", "SOL", "BNB", "BITCOIN", "ETHEREUM", "SOLANA", "BINANCE COIN"})
+
 import re as _re
 
 _TICKER_RE = _re.compile(r'\(([A-Z]{2,10})\)')  # "Binance Will List Chip (CHIP)" → CHIP
@@ -224,6 +230,11 @@ def generate_signal(news_item: dict) -> dict | None:
     ai_confidence = ai_result["confidence"]  # 0-10
 
     if coin_upper in _STABLECOINS:
+        return None
+
+    # BTC/ETH/SOL/BNB: новини не мають edge при >30s затримці → Grid та Funding Rate їх покривають
+    if coin_upper in _NEWS_BLOCKED:
+        print(f"   🚫 {coin} заблокований для news-сигналів (Grid/FR coverage) — пропускаємо")
         return None
 
     # Слабая новость — не рискуем

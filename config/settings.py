@@ -40,16 +40,18 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 USE_TESTNET = os.getenv("USE_TESTNET", "True").lower() == "true"
 IS_DEMO_TRADING = os.getenv("IS_DEMO_TRADING", "False").lower() == "true"
 TRADE_PERCENT_SIZE = 5      # Мы заходим на 5% от свободного баланса USDT
-LEVERAGE = 2                # Плечо BTC/ETH (стабільні, менше шуму)
+LEVERAGE = 2                # Плечо BTC/ETH (тепер тільки для Funding Rate/Grid, не news)
 
-TAKE_PROFIT_PERCENT = 5.0   # TP для BTC/ETH — новинний рух 2-4%, 5% реально
-STOP_LOSS_PERCENT = 2.0     # SL для BTC/ETH — якщо не пішло одразу, виходимо
+TAKE_PROFIT_PERCENT = 5.0   # TP для BTC/ETH (Funding Rate стратегія)
+STOP_LOSS_PERCENT = 2.0     # SL для BTC/ETH
 
-# Параметри для альткоінів (будь-яка монета крім BTC/ETH)
-ALT_LEVERAGE = 3            # Вищий потенціал руху у альтів
-ALT_TP = 10.0               # Альти рухаються більше, але 20% це занадто довго чекати
-ALT_SL = 4.0                # Тісніший SL — менше збитків на поганих угодах
-ALT_SIZE = 3.0              # % балансу на угоду
+# Параметри для альткоінів — ТІЛЬКИ вони торгуються через news signal bot
+# Статистика: alt-only 20 угод, 50% WR, +$7.65 (проти BTC/ETH/SOL 117 угод, 16% WR, -$86.70)
+ALT_LEVERAGE = 2            # 3x→2x: зменшуємо ризик, alt-coin рухи без overshoot
+ALT_TP = 12.0               # 10%→12%: більше простору для WLD-тип угод (avg win $18)
+ALT_SL = 3.0                # 4%→3%: менше збитків при невірних сигналах
+ALT_SIZE = 4.0              # 3%→4%: збільшуємо розмір оскільки кількість угод падає
+MAX_TRADE_LOSS_USDT = 20.0  # Hard cap: примусово закрити якщо збиток > $20 (запобігає ZETA/STX катастрофам)
 MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм щоб уникнути неліквіду
 
 # Signal bot торгівля: False = збираємо сигнали для статистики але НЕ торгуємо
