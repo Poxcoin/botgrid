@@ -33,7 +33,7 @@ export default function LandingHeader() {
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="px-5 md:px-14" style={{ maxWidth: 1400, margin: '0 auto', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
           {/* Logo */}
           <Link to="/" style={{ textDecoration: 'none' }}>
