@@ -93,37 +93,64 @@ def save_processed_urls(urls: set):
 
 
 def _tg_pnl_summary() -> str:
-    """Returns PnL summary from analytics.db."""
+    """Returns detailed PnL summary with per-coin breakdown."""
     import sqlite3
     try:
         con = sqlite3.connect(DB_PATH)
         con.row_factory = sqlite3.Row
+
         all_closed = con.execute(
-            "SELECT pnl_usdt, result, coin, timestamp_open FROM trades WHERE result != 'OPEN'"
+            "SELECT pnl_usdt, coin FROM trades WHERE result != 'OPEN'"
         ).fetchall()
         today_closed = con.execute(
+            "SELECT pnl_usdt, coin FROM trades WHERE result != 'OPEN' "
+            "AND timestamp_open >= datetime('now', 'start of day')"
+        ).fetchall()
+        week_closed = con.execute(
             "SELECT pnl_usdt FROM trades WHERE result != 'OPEN' "
-            "AND timestamp_open >= datetime('now', '-24 hours')"
+            "AND timestamp_open >= datetime('now', '-7 days')"
         ).fetchall()
         open_count = con.execute(
             "SELECT COUNT(*) FROM trades WHERE result = 'OPEN'"
         ).fetchone()[0]
+        coin_stats = con.execute(
+            "SELECT coin, COUNT(*) total, "
+            "SUM(CASE WHEN pnl_usdt > 0 THEN 1 ELSE 0 END) wins, "
+            "ROUND(SUM(pnl_usdt), 2) pnl "
+            "FROM trades WHERE result != 'OPEN' "
+            "GROUP BY coin ORDER BY pnl DESC LIMIT 6"
+        ).fetchall()
         con.close()
 
         total_pnl = sum((r["pnl_usdt"] or 0) for r in all_closed)
         today_pnl = sum((r["pnl_usdt"] or 0) for r in today_closed)
+        week_pnl  = sum((r["pnl_usdt"] or 0) for r in week_closed)
         wins = sum(1 for r in all_closed if (r["pnl_usdt"] or 0) > 0)
         total = len(all_closed)
         wr = wins / max(total, 1) * 100
+        today_wins = sum(1 for r in today_closed if (r["pnl_usdt"] or 0) > 0)
+        today_wr = today_wins / max(len(today_closed), 1) * 100
 
         icon = "📈" if total_pnl >= 0 else "📉"
-        return (
-            f"{icon} <b>PnL Статистика</b>\n\n"
-            f"Сьогодні: <b>{today_pnl:+.2f}$</b>\n"
-            f"Всього: <b>{total_pnl:+.2f}$</b>\n"
-            f"Угод: {total} | Win Rate: {wr:.0f}%\n"
-            f"Відкрито зараз: {open_count}"
-        )
+        today_icon = "📈" if today_pnl >= 0 else "📉"
+
+        lines = [
+            f"{icon} <b>PnL Статистика</b>\n",
+            f"{today_icon} Сьогодні: <b>{today_pnl:+.2f}$</b> | WR {today_wr:.0f}% ({len(today_closed)} угод)",
+            f"📅 7 днів: <b>{week_pnl:+.2f}$</b>",
+            f"📊 Всього: <b>{total_pnl:+.2f}$</b> | WR {wr:.0f}% ({total} угод)",
+            f"🔄 Відкрито: {open_count}",
+        ]
+
+        if coin_stats:
+            lines.append("\n<b>По монетах (топ):</b>")
+            for r in coin_stats:
+                wr_c = (r["wins"] / max(r["total"], 1)) * 100
+                pnl_c = r["pnl"] or 0
+                ci = "✅" if pnl_c >= 0 else "❌"
+                lines.append(f"{ci} {r['coin']}: {pnl_c:+.1f}$ | {wr_c:.0f}% ({r['total']})")
+
+        return "\n".join(lines)
     except Exception as e:
         return f"❌ Помилка БД: {e}"
 
@@ -279,18 +306,27 @@ LIVE_INTEL_FILE = "live_intel.json"
 def _dynamic_leverage(signal: dict, is_btc_eth: bool) -> int:
     """Возвращает плечо на основе скора сигнала.
 
-    Размер позиции уже масштабирует decision_maker через size_multiplier.
-    Здесь только плечо — чтобы не было двойного скалирования.
+    Коли leverage підвищується — size_multiplier в сигналі знижується щоб
+    уникнути подвійного масштабування ризику.
     """
     score = abs(signal.get("total_score", 0))
     base_lev = 2 if is_btc_eth else ALT_LEVERAGE
 
     if score >= 14:
-        return min(base_lev + 2, 5)
+        lev = min(base_lev + 2, 5)
     elif score >= 12:
-        return min(base_lev + 1, 4)
+        lev = min(base_lev + 1, 4)
     else:
-        return base_lev
+        lev = base_lev
+
+    # Компенсуємо зростання плеча зниженням розміру позиції
+    # щоб реальний ризик на угоду лишався постійним
+    if lev > base_lev:
+        reduction = base_lev / lev  # lev=4 vs base=2 → 0.5; lev=5 vs base=3 → 0.6
+        current_mult = signal.get("size_multiplier", 1.0)
+        signal["size_multiplier"] = round(current_mult * reduction, 2)
+
+    return lev
 
 def _write_live_intel(tg_enabled: bool) -> None:
     """Пишет текущий статус источников и live данные для дашборда."""
@@ -361,6 +397,12 @@ def run_signal_engine():
     # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 2 часа
     _coin_cooldown: dict = {}
     COIN_COOLDOWN_SEC = 2 * 3600
+
+    # Денний ліміт угод на монету: BTC/ETH max 2, альти max 2
+    # {coin: {"count": int, "date": str "YYYY-MM-DD"}}
+    _daily_trade_count: dict = {}
+    MAX_DAILY_TRADES_BTC_ETH = 2
+    MAX_DAILY_TRADES_ALT = 2
 
     # Лимит суммарной экспозиции: не более MAX_EXPOSURE_PCT% баланса в открытых позициях
     MAX_EXPOSURE_PCT = 15.0
@@ -553,21 +595,34 @@ def run_signal_engine():
                                 _score_boost = get_score_threshold_boost(coin)
                                 if _score_boost > 0:
                                     _btc_eth_local = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
-                                    _base_min = 9.0 if coin.upper() in _btc_eth_local else 8.0
+                                    _base_min = 13.0 if coin.upper() in _btc_eth_local else 11.0
                                     if abs(signal["total_score"]) < _base_min + _score_boost:
-                                        print(f"⚙️ {coin}: адаптивный порог {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не прошёл")
+                                        print(f"⚙️ {coin}: адаптивний поріг {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не пройшов")
                                         continue
 
-                                # Safety: explicit min-score guard (belt+suspenders over decision_maker)
+                                # Safety: explicit min-score guard (синхронізовано з decision_maker)
                                 _btc_eth_guard = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
-                                _min_safe = 8.0 if _is_sm_guard else (11.0 if coin.upper() in _btc_eth_guard else 10.0)
+                                _min_safe = 10.0 if _is_sm_guard else (13.0 if coin.upper() in _btc_eth_guard else 11.0)
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
 
-                                # Всі фільтри пройдено — тільки тепер ставимо cooldown
+                                # Денний ліміт угод на монету
+                                _today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                                _dc = _daily_trade_count.get(coin.upper(), {"count": 0, "date": ""})
+                                if _dc["date"] != _today:
+                                    _dc = {"count": 0, "date": _today}
+                                _is_btc_eth_daily = coin.upper() in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                                _max_daily = MAX_DAILY_TRADES_BTC_ETH if _is_btc_eth_daily else MAX_DAILY_TRADES_ALT
+                                if _dc["count"] >= _max_daily:
+                                    print(f"📅 {coin}: денний ліміт {_max_daily} угод вичерпано — пропускаємо")
+                                    continue
+
+                                # Всі фільтри пройдено — тільки тепер ставимо cooldown і рахуємо
                                 _coin_cooldown[coin] = now_ts
+                                _dc["count"] += 1
+                                _daily_trade_count[coin.upper()] = _dc
 
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")

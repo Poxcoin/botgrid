@@ -68,6 +68,10 @@ def generate_whale_signal(news_item: dict) -> dict | None:
         return None
     if coin in _STABLECOINS:
         return None
+    # BTC/ETH whale alerts are too noisy — score too low to pass 13.0 threshold, skip
+    _btc_eth = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+    if coin.upper() in _btc_eth:
+        return None
     score = 8.0 if action == "LONG" else -8.0
     return {
         "coin":           coin,
@@ -426,15 +430,15 @@ def generate_signal(news_item: dict) -> dict | None:
 
     btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
     if is_smart_wallet:
-        min_score = 8.0   # smart money теж потребує чіткого сигналу
+        min_score = 10.0  # smart money: підняли з 8.0 (занадто багато шумних угод)
     elif coin_upper in btc_eth_coins:
-        min_score = 11.0  # BTC/ETH — великий обсяг, рухається важче
+        min_score = 13.0  # BTC/ETH: підняли з 11.0 (12% winrate = поріг був занадто низький)
     else:
-        min_score = 10.0  # алти — більший шум, вищий поріг
+        min_score = 11.0  # алти: підняли з 10.0 (загальний winrate 21% = недостатньо)
 
-    if total_score >= min_score and confidence >= 55:
+    if total_score >= min_score and confidence >= 60:
         action = "LONG"
-    elif total_score <= -min_score and confidence >= 55:
+    elif total_score <= -min_score and confidence >= 60:
         action = "SHORT"
 
     # size_multiplier: 0.4–2.0, ступенчатые тиры по скору + confidence + время суток

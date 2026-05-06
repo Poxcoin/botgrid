@@ -129,11 +129,13 @@ def _diagnose(coin: str, action: str, ctx: dict, pnl_pct: float) -> list[tuple[s
     if news_age and news_age > 25:
         reasons.append(("OLD_NEWS", f"Новость была {news_age} мин (рынок уже отреагировал)"))
 
-    if score < 9.5:
-        reasons.append(("WEAK_SIGNAL", f"Скор был {score:.1f} (пограничный сигнал)"))
+    # Пороги синхронізовано з decision_maker: BTC/ETH=13, Alt=11
+    _weak_threshold = 13.5 if coin.upper() in ("BTC", "ETH") else 11.5
+    if score < _weak_threshold:
+        reasons.append(("WEAK_SIGNAL", f"Скор був {score:.1f} (пограничний, поріг {_weak_threshold})"))
 
     if losses_6h >= 2:
-        reasons.append(("STREAK", f"Убыточная серия: {losses_6h} потери за 6ч"))
+        reasons.append(("STREAK", f"Серія потерь: {losses_6h} за 6ч"))
 
     return reasons
 

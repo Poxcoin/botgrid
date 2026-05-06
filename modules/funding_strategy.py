@@ -39,7 +39,7 @@ FR_LONG_T3  = -0.10
 RSI_OB = 65
 RSI_OS = 35
 TREND_CONFIRM    = 3.0
-SIGNAL_THRESHOLD = 4.0   # знижено з 5.0 щоб включити tier-1 сигнали
+SIGNAL_THRESHOLD = 5.5   # підняли з 4.0: tier-1 сигнали (0.04% FR) були занадто слабкі
 FR_TREND_BONUS   = 1.5   # бонус якщо FR зростає 3 цикли підряд
 
 COIN_COOLDOWN_SEC = 4 * 3600
