@@ -121,7 +121,7 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
 
 
 def _init_exchange() -> ccxt.Exchange:
-    """Создаёт и настраивает объект биржи с текущими настройками."""
+    """Створює та налаштовує об'єкт біржі. Markets завантажуються одразу."""
     exchange = ccxt.bybit({
         "apiKey": BYBIT_API_KEY,
         "secret": BYBIT_SECRET,
@@ -135,21 +135,22 @@ def _init_exchange() -> ccxt.Exchange:
     if IS_DEMO_TRADING:
         exchange.urls['api'] = exchange.urls['demotrading']
         exchange.options['defaultType'] = 'linear'
-        # Bybit Demo не поддерживает /v5/asset/coin/query-info (fetchCurrencies).
-        # ccxt вызывает его внутри load_markets() → 10032. Отключаем явно.
+        # Bybit Demo не підтримує /v5/asset/coin/query-info → 10032 всередині load_markets()
         exchange.has['fetchCurrencies'] = False
     if USE_TESTNET:
-        # Явно указываем testnet URL — не полагаемся только на set_sandbox_mode()
         exchange.urls['api'] = {
             'public': 'https://api-testnet.bybit.com',
             'private': 'https://api-testnet.bybit.com',
         }
         exchange.set_sandbox_mode(True)
+    # Markets потрібні для market_id() та інших symbol lookups.
+    # fetchCurrencies вже відключено вище, тому load_markets() безпечний на Demo.
+    exchange.load_markets()
     return exchange
 
 
 def _init_exchange_for_user(api_key: str, secret: str) -> ccxt.Exchange:
-    """Exchange для конкретного пользователя с его API ключами (реальный аккаунт)."""
+    """Exchange для конкретного користувача з його API ключами (реальний акаунт)."""
     exchange = ccxt.bybit({
         "apiKey": api_key,
         "secret": secret,
@@ -161,16 +162,20 @@ def _init_exchange_for_user(api_key: str, secret: str) -> ccxt.Exchange:
         },
     })
     exchange.has['fetchCurrencies'] = False
+    exchange.load_markets()
     return exchange
 
 
 def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
-    """Проверяет, есть ли уже открытая позиция по монете. Защита от дублей."""
+    """Перевіряє наявність відкритої позиції по символу (живий API-запит).
+
+    Fallback-ієрархія при помилці API:
+      1. Перевіряємо локальний position_monitor tracker (файл на диску)
+      2. Якщо і tracker недоступний — дозволяємо вхід з попередженням
+         (дубль-позиція краще ніж пропущений сигнал; дублі фільтруються TP/SL)
+    """
     try:
-        # Bybit V5 raw API требует нативный формат символа (BTCUSDT), не ccxt (BTC/USDT:USDT)
-        coin = symbol.split("/")[0].upper()
-        market_id = f"{coin}USDT"
-        # Demo и Testnet: прямой API вызов (ccxt fetch_positions несовместим с demo)
+        market_id = exchange.market_id(symbol)  # безпечно: markets завантажено в _init_exchange
         r = exchange.private_get_v5_position_list(params={
             'category': 'linear',
             'symbol': market_id,
@@ -179,9 +184,26 @@ def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
             if abs(float(pos.get('size') or 0)) > 0:
                 return True
         return False
-    except Exception as e:
-        print(f"⚠️ has_open_position error ({symbol}): {e} — дозволяємо вхід")
-        return False  # При ошибке — пропускаємо (не блокуємо можливий хороший сигнал)
+
+    except Exception as api_err:
+        print(f"[has_open_position] ⚠️ Живий API-запит не вдався для {symbol}: {api_err}")
+        # Fallback 1: перевіряємо локальний tracker
+        try:
+            from modules.position_monitor import _load_tracked
+            tracked = _load_tracked()
+            is_tracked = symbol in tracked
+            print(
+                f"[has_open_position] Tracker fallback: {symbol} "
+                f"{'знайдено — блокуємо' if is_tracked else 'не знайдено — дозволяємо'}"
+            )
+            return is_tracked
+        except Exception as tracker_err:
+            # Fallback 2: дозволяємо вхід — дубль менш шкідливий ніж заблокований сигнал
+            print(
+                f"[has_open_position] ⚠️ Tracker також недоступний ({tracker_err}) "
+                f"— дозволяємо вхід для {symbol}"
+            )
+            return False
 
 
 def close_all_positions(signal: Dict[str, Any] = None) -> None:
