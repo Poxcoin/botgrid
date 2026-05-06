@@ -9,10 +9,25 @@ liquidation_monitor.py — Реалтайм мониторинг ликвида�
   BUY  = ликвидирован SHORT (бычий сигнал — шорт-сквиз продолжится)
 """
 import json
+import queue
 import threading
 import time
 from collections import defaultdict, deque
 from datetime import datetime, timezone
+
+# ─── Standalone cascade signal queue ─────────────────────────────────────────
+liquidation_signal_queue: queue.Queue = queue.Queue()
+
+# Cooldown: не генеруємо більше одного сигналу з монети за 30 хв
+_last_liq_signal: dict[str, float] = {}
+_LIQ_COOLDOWN_SEC = 1800
+
+# Тільки алти — BTC/ETH/SOL/BNB покриваються Grid/Funding, конфлікт небажаний
+_LIQ_CASCADE_WATCHLIST = frozenset({
+    "XRP", "ADA", "DOGE", "AVAX", "DOT", "LINK",
+    "INJ", "SUI", "APT", "OP", "ARB", "NEAR", "TON",
+    "AAVE", "UNI", "LDO", "CRV", "RUNE", "JUP", "PENDLE", "ONDO", "WLD",
+})
 
 # Порог ликвидации в USD за 5 минут для сигнала
 _THRESHOLD_BIG = {
@@ -33,6 +48,67 @@ _running = False
 
 def _get_threshold(coin: str) -> float:
     return _THRESHOLD_BIG.get(coin.upper(), _THRESHOLD_BIG["DEFAULT"])
+
+
+def _check_cascade(coin: str) -> None:
+    """Якщо ліквідаційний каскад перетнув поріг — пушимо сигнал у черги."""
+    if coin not in _LIQ_CASCADE_WATCHLIST:
+        return
+
+    now = datetime.now(timezone.utc).timestamp()
+    if now - _last_liq_signal.get(coin, 0) < _LIQ_COOLDOWN_SEC:
+        return
+
+    threshold = _get_threshold(coin)
+
+    with _lock:
+        _cleanup_old(coin, now)
+        entries = list(_liq_data.get(coin, []))
+
+    long_liq  = sum(v for _, s, v in entries if s == "SELL")
+    short_liq = sum(v for _, s, v in entries if s == "BUY")
+
+    action      = None
+    cascade_usd = 0.0
+
+    if short_liq >= threshold and short_liq >= long_liq * 2.5:
+        action, cascade_usd = "LONG", short_liq    # шорти ліквідуються → памп продовжується
+    elif long_liq >= threshold and long_liq >= short_liq * 2.5:
+        action, cascade_usd = "SHORT", long_liq    # лонги ліквідуються → дамп продовжується
+
+    if not action:
+        return
+
+    _last_liq_signal[coin] = now
+
+    # score: 11.0 при мінімальному каскаді, до ~17.0 при 4× порозі
+    scale = min(cascade_usd / threshold, 4.0)
+    score = round(9.0 + scale * 2.0, 1)
+    signed_score = score if action == "LONG" else -score
+
+    title = (
+        f"Short squeeze {coin}: ${cascade_usd/1e6:.2f}M shorts liquidated in 5min"
+        if action == "LONG" else
+        f"Long cascade {coin}: ${cascade_usd/1e6:.2f}M longs liquidated in 5min"
+    )
+
+    liquidation_signal_queue.put_nowait({
+        "coin":           coin,
+        "action":         action,
+        "source":         "LiqCascade",
+        "total_score":    signed_score,
+        "confidence":     65,
+        "size_multiplier": 1.0,
+        "reason":         title,
+        "news_title":     title,
+        "title":          title,
+        "cascade_usd":    round(cascade_usd),
+        "link":           f"liq://{coin}/{int(now)}",
+        "published_dt":   datetime.fromtimestamp(now, tz=timezone.utc).isoformat(),
+        "is_liq_cascade": True,
+    })
+    emoji = "🚀" if action == "LONG" else "🔴"
+    print(f"[LIQ] {emoji} CASCADE SIGNAL {coin}: ${cascade_usd/1e6:.2f}M → {action} (score={score})")
 
 
 def _process_message(raw: str):
@@ -56,6 +132,8 @@ def _process_message(raw: str):
         with _lock:
             _liq_data[coin].append((now, side, usd_value))
             _liq_data_1h[coin].append((now, side, usd_value))
+
+        _check_cascade(coin)
 
     except Exception:
         pass

@@ -19,6 +19,15 @@ _MIN_ETH = 500.0   # $1M+ при цене $2000/ETH
 # Скользящее окно для агрегации (секунды)
 _WINDOW_SEC = 600  # 10 минут
 
+# ─── ETH-ecosystem alt coins ─────────────────────────────────────────────────
+# Коли великий кит накопичує ETH → macro bullish для цих монет (корелюють з ETH)
+_ETH_ECOSYSTEM = frozenset({"AAVE", "UNI", "LDO", "LINK", "CRV", "PENDLE", "RUNE", "ONDO"})
+
+# Macro state: оновлюється при кожному значущому on-chain переміщенні
+# Тримає сигнал 45 хвилин — достатньо для підтвердження через news/liq сигнали
+_macro_state: dict = {"score": 0.0, "expires_at": 0.0, "reason": ""}
+_macro_lock = threading.Lock()
+
 # Известные биржевые горячие кошельки
 _EXCHANGE_WALLETS = {
     # Binance
@@ -105,6 +114,48 @@ def get_onchain_signal(coin: str = "ETH") -> dict:
     }
 
 
+def get_macro_onchain_boost(coin: str) -> float:
+    """
+    Macro on-chain boost для рішень сигнал-бота.
+
+    Повертає значення від -2.0 до +2.0:
+      +X → накопичення ETH (кити виводять з бірж) → bullish для ETH-ecosystem
+      -X → розподіл ETH (кити депозитять на біржі) → bearish для ETH-ecosystem
+      ±0.3 для монет поза ETH-ecosystem (загальний macro)
+      0.0 → сигнал протермінувався або відсутній
+
+    Використовується в decision_maker.py як Фактор Е2.
+    """
+    now = time.time()
+    with _macro_lock:
+        if now > _macro_state["expires_at"]:
+            return 0.0
+        score = _macro_state["score"]
+
+    coin_upper = coin.upper()
+    if coin_upper in _ETH_ECOSYSTEM:
+        return score               # повний буст для ETH-ecosystem алтів
+    return round(score * 0.2, 2)  # слабкий macro-буст для решти
+
+
+def _update_macro_state(direction: str, eth_value: float, exchange: str) -> None:
+    """Оновлює macro_state при значущому on-chain русі."""
+    # score: від 0.5 (500 ETH) до 2.0 (2000+ ETH)
+    score = min(eth_value / _MIN_ETH, 2.0)
+    signed = score if direction == "BULLISH" else -score
+    expires = time.time() + 45 * 60  # сигнал живе 45 хвилин
+    reason = (
+        f"Whale withdrew {eth_value:.0f} ETH from {exchange} — macro bullish"
+        if direction == "BULLISH" else
+        f"Whale deposited {eth_value:.0f} ETH to {exchange} — macro bearish"
+    )
+    with _macro_lock:
+        _macro_state["score"]      = round(signed, 2)
+        _macro_state["expires_at"] = expires
+        _macro_state["reason"]     = reason
+    print(f"[ONCHAIN] 📡 Macro state: {signed:+.1f} ({reason[:60]})")
+
+
 def _process_tx(tx: dict):
     """Обрабатывает одну транзакцию из Alchemy."""
     try:
@@ -121,10 +172,14 @@ def _process_tx(tx: dict):
         with _lock:
             if to_addr in _EXCHANGE_SET and value_eth >= _MIN_ETH:
                 _flow_data["ETH"].append((now, "TO_EXCHANGE", value_eth, to_addr))
-                print(f"[ONCHAIN] 🐋 → {_EXCHANGE_WALLETS[to_addr]}: {value_eth:.0f} ETH (продажа?)")
+                exchange_name = _EXCHANGE_WALLETS[to_addr]
+                print(f"[ONCHAIN] 🐋 → {exchange_name}: {value_eth:.0f} ETH (продажа?)")
+                _update_macro_state("BEARISH", value_eth, exchange_name)
             elif from_addr in _EXCHANGE_SET and value_eth >= _MIN_ETH:
                 _flow_data["ETH"].append((now, "FROM_EXCHANGE", value_eth, from_addr))
-                print(f"[ONCHAIN] 🐋 ← {_EXCHANGE_WALLETS[from_addr]}: {value_eth:.0f} ETH (накопление?)")
+                exchange_name = _EXCHANGE_WALLETS[from_addr]
+                print(f"[ONCHAIN] 🐋 ← {exchange_name}: {value_eth:.0f} ETH (накопление?)")
+                _update_macro_state("BULLISH", value_eth, exchange_name)
 
     except Exception:
         pass

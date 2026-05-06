@@ -3,7 +3,7 @@ from modules.ai_analyzer import analyze_sentiment
 from modules.market_data import get_market_metrics, get_fear_greed_index, get_btc_dominance
 from modules.macro_calendar import get_size_modifier, get_active_macro_event, get_funding_settlement
 from modules.liquidation_monitor import get_liquidation_signal, get_liquidation_1h_boost
-from modules.onchain_monitor import get_onchain_signal
+from modules.onchain_monitor import get_macro_onchain_boost
 from modules.gemini_filter import analyze_news as gemini_analyze
 
 _STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"})
@@ -386,18 +386,17 @@ def generate_signal(news_item: dict) -> dict | None:
         elif fng_value <= 20:
             total_score += 1.5    # Extreme Fear: рынок уже перепродан, шорт рискован
 
-    # Фактор Е2: On-chain (whale переводы на/с бирж)
-    onchain = get_onchain_signal("ETH")
-    onchain_score = onchain["signal_score"]
-    if coin_upper in ("ETH", "ETHEREUM") or coin_upper == "BTC":
-        if news_score > 0 and onchain["signal"] == "BULLISH":
-            total_score += onchain_score
-        elif news_score < 0 and onchain["signal"] == "BEARISH":
-            total_score += abs(onchain_score)
-        elif news_score > 0 and onchain["signal"] == "BEARISH":
-            total_score -= abs(onchain_score) * 0.5
-        elif news_score < 0 and onchain["signal"] == "BULLISH":
-            total_score += onchain_score * 0.5
+    # Фактор Е2: On-chain macro boost (ETH whale накопичення/розподіл)
+    # Повний буст для ETH-ecosystem алтів (AAVE/UNI/LDO/LINK/...),
+    # слабкий macro-сигнал для решти. BTC/ETH заблоковані, тому тут тільки алти.
+    onchain_boost = get_macro_onchain_boost(coin_upper)
+    if onchain_boost != 0.0:
+        if (news_score > 0 and onchain_boost > 0) or (news_score < 0 and onchain_boost < 0):
+            total_score += abs(onchain_boost)
+            print(f"   🐋 On-chain macro {coin}: {onchain_boost:+.2f} (підтверджує сигнал)")
+        else:
+            total_score += onchain_boost * 0.5   # проти сигналу — слабший вплив
+            print(f"   🐋 On-chain macro {coin}: {onchain_boost * 0.5:+.2f} (проти сигналу)")
 
     # Фактор Ж: Bitcoin Dominance (альт-сезон vs BTC-сезон)
     # Когда BTC dominance высокая — капитал уходит в BTC, альты страдают.

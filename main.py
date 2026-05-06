@@ -9,7 +9,7 @@ from modules import daily_guard, position_monitor, pnl_tracker, unified_pnl
 from modules.tg_commander import start_commander
 from modules.news_archive import archive_news
 from modules.telegram_monitor import start_telegram_monitor, tg_news_queue, tg_news_event
-from modules.liquidation_monitor import start_liquidation_monitor
+from modules.liquidation_monitor import start_liquidation_monitor, liquidation_signal_queue
 from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.dex_scanner import start_dex_scanner, dex_queue
@@ -694,6 +694,71 @@ def run_signal_engine():
                         size_pct=ALT_SIZE)
                     _saas_dispatch(fsig, "fr",
                         ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE)
+
+            # ─── Liquidation cascade signals — standalone trades без новин ───────
+            while not liquidation_signal_queue.empty():
+                try:
+                    liq_sig = liquidation_signal_queue.get_nowait()
+                except Exception:
+                    break
+
+                coin    = liq_sig.get("coin", "")
+                now_ts  = datetime.now(timezone.utc).timestamp()
+
+                # Cooldown
+                if now_ts - _coin_cooldown.get(coin, 0) < COIN_COOLDOWN_SEC:
+                    remaining = int((COIN_COOLDOWN_SEC - (now_ts - _coin_cooldown.get(coin, 0))) / 60)
+                    print(f"[LIQ] ⏳ Cooldown {coin}: ще {remaining} хв")
+                    continue
+
+                # Адаптивний фільтр серій збитків
+                if is_coin_paused(coin):
+                    print(f"[LIQ] ⏸ {coin} призупинено (серія збитків) — пропускаємо")
+                    continue
+
+                # BTC кореляційний фільтр (жорсткіший: ±3%)
+                _btc_2h_liq = get_btc_2h_change()
+                if liq_sig["action"] == "LONG" and _btc_2h_liq < -3.0:
+                    print(f"[LIQ] 🚫 BTC {_btc_2h_liq:.1f}% за 2h — LONG {coin} заблокований")
+                    continue
+                if liq_sig["action"] == "SHORT" and _btc_2h_liq > 3.0:
+                    print(f"[LIQ] 🚫 BTC +{_btc_2h_liq:.1f}% за 2h — SHORT {coin} заблокований")
+                    continue
+
+                # Ліміт відкритих позицій
+                if position_monitor.get_tracked_count() * 5.0 >= MAX_EXPOSURE_PCT:
+                    print(f"[LIQ] ⚠️ Ліміт експозиції — пропускаємо {coin}")
+                    continue
+
+                # Денний ліміт
+                _today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                _dc_liq = _daily_trade_count.get(coin.upper(), {"count": 0, "date": ""})
+                if _dc_liq["date"] != _today:
+                    _dc_liq = {"count": 0, "date": _today}
+                if _dc_liq["count"] >= MAX_DAILY_TRADES_ALT:
+                    print(f"[LIQ] 📅 {coin}: денний ліміт вичерпано")
+                    continue
+
+                _coin_cooldown[coin] = now_ts
+                _dc_liq["count"] += 1
+                _daily_trade_count[coin.upper()] = _dc_liq
+
+                signal_id = save_signal(liq_sig, executed=False)
+                print(f"\n[LIQ] ⚡ CASCADE TRADE: {coin} {liq_sig['action']} "
+                      f"cascade=${liq_sig['cascade_usd']/1e6:.2f}M score={liq_sig['total_score']:.1f}")
+
+                if not SIGNAL_BOT_TRADING:
+                    print(f"📊 [LIQ] {coin} {liq_sig['action']} — статистика (торгівля вимкнена)")
+                    continue
+
+                execute_trade(liq_sig,
+                    leverage_override=ALT_LEVERAGE,
+                    tp_pct=6.0, sl_pct=2.5,
+                    size_pct=round(ALT_SIZE * 0.8, 1),
+                    signal_id=signal_id)
+                _saas_dispatch(liq_sig, "liq_cascade",
+                    ALT_LEVERAGE, 6.0, 2.5, round(ALT_SIZE * 0.8, 1))
+            # ──────────────────────────────────────────────────────────────────
 
             # Пишем live intel для дашборда
             _write_live_intel(tg_enabled)
