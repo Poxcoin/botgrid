@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import SpiralText from '@/components/shared/SpiralText';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Inter','Segoe UI',sans-serif";
 const MONO = "'JetBrains Mono','SF Mono','Fira Code',monospace";
@@ -19,7 +20,6 @@ function HomeHero() {
 
   return (
     <section style={{
-      background: '#050505',
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -28,23 +28,24 @@ function HomeHero() {
       textAlign: 'center',
       padding: '0 32px',
       position: 'relative',
+      background: 'transparent',
     }}>
-      {/* KADO */}
+      {/* KADO — spiral particle assembly then bold reveal */}
       <h1 style={fade(0, {
         fontFamily: FONT,
         fontSize: 'clamp(96px, 18vw, 260px)',
-        fontWeight: 200,
-        letterSpacing: '0.18em',
-        paddingLeft: '0.18em',
+        fontWeight: 900,
+        letterSpacing: '0.12em',
+        paddingLeft: '0.12em',
         lineHeight: 1,
         color: '#ffffff',
         margin: 0,
       })}>
-        KADO
+        <SpiralText text="KADO" style={{ width: '100%' }} />
       </h1>
 
       {/* Tagline */}
-      <p style={fade(180, {
+      <p style={fade(2000, {
         fontFamily: FONT,
         fontSize: 'clamp(15px, 1.6vw, 18px)',
         fontWeight: 400,
@@ -60,7 +61,7 @@ function HomeHero() {
       </p>
 
       {/* CTA */}
-      <div style={fade(320, {
+      <div style={fade(2200, {
         display: 'flex',
         alignItems: 'center',
         gap: 20,
@@ -108,11 +109,11 @@ function HomeHero() {
       </div>
 
       {/* Scroll hint */}
-      <div style={fade(600, {
+      <div style={fade(2600, {
         position: 'absolute',
         bottom: 40,
         left: '50%',
-        transform: 'translateX(-50%)',
+        transform: in_ ? 'translateX(-50%)' : 'translateX(-50%) translateY(20px)',
         fontSize: 9,
         color: '#2a2a2a',
         letterSpacing: '0.2em',
@@ -138,7 +139,7 @@ const STATS = [
 
 function StatsBar() {
   return (
-    <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#050505' }}>
+    <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(5,5,5,0.85)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${STATS.length}, 1fr)` }}>
         {STATS.map((s, i) => (
           <div key={i} style={{
@@ -164,13 +165,13 @@ const STEPS = [
 
 function HowItWorks() {
   return (
-    <section id="how-it-works" style={{ background: '#050505', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ padding: '120px 64px', maxWidth: 1400, margin: '0 auto' }}>
+    <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: '120px 64px' }}>
         <SectionHeader label="Setup in 60 seconds" title="Three steps. Then step back." sub="No code. No constant monitoring. Connect once, choose your strategy, and let the bots handle everything else." />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 12, overflow: 'hidden' }}>
           {STEPS.map(s => (
-            <div key={s.n} style={{ background: '#050505', padding: '48px 40px' }}>
+            <div key={s.n} style={{ background: 'rgba(5,5,5,0.92)', padding: '48px 40px' }}>
               <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.1em', fontFamily: MONO, marginBottom: 28 }}>{s.n}</div>
               <div style={{ fontSize: 18, fontWeight: 600, color: '#e0e0e0', marginBottom: 16, letterSpacing: '-0.02em', fontFamily: FONT }}>{s.title}</div>
               <div style={{ fontSize: 13, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{s.body}</div>
@@ -244,17 +245,17 @@ const BOTS = [
 
 function BotsSection() {
   return (
-    <section style={{ background: '#050505', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ padding: '120px 64px', maxWidth: 1400, margin: '0 auto' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: '120px 64px' }}>
         <SectionHeader label="The Arsenal" title="Eight strategies. One platform." sub="Each bot is independent, specialized, and running 24/7. Together they cover every major market opportunity." />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 12, overflow: 'hidden' }}>
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
-                style={{ background: '#050505', padding: '40px 32px', textAlign: 'left', transition: 'background 200ms', height: '100%', boxSizing: 'border-box' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#0a0a0a'}
-                onMouseLeave={e => e.currentTarget.style.background = '#050505'}
+                style={{ background: 'rgba(5,5,5,0.92)', padding: '40px 32px', textAlign: 'left', transition: 'background 200ms', height: '100%', boxSizing: 'border-box' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(12,12,12,0.97)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(5,5,5,0.92)'}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                   <span style={{ fontSize: 10, color: '#333', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>
@@ -287,13 +288,13 @@ const RISK = [
 
 function RiskSection() {
   return (
-    <section style={{ background: '#050505', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ padding: '120px 64px', maxWidth: 1400, margin: '0 auto' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: '120px 64px' }}>
         <SectionHeader label="Risk Management" title="Your capital is protected." sub="Multiple independent safeguards run on every trade. No single bet can wipe an account." />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 12, overflow: 'hidden' }}>
           {RISK.map(r => (
-            <div key={r.title} style={{ background: '#050505', padding: '40px 32px' }}>
+            <div key={r.title} style={{ background: 'rgba(5,5,5,0.92)', padding: '40px 32px' }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: '#d0d0d0', marginBottom: 14, letterSpacing: '-0.02em', fontFamily: FONT }}>{r.title}</div>
               <div style={{ fontSize: 12, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{r.body}</div>
             </div>
@@ -313,15 +314,15 @@ const STRATS = [
 
 function Strategies() {
   return (
-    <section style={{ background: '#050505', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ padding: '120px 64px', maxWidth: 1400, margin: '0 auto' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: '120px 64px' }}>
         <SectionHeader label="Strategies" title="Find your match." sub="Start with one bot. Scale to all eight. Switch any time from your dashboard." />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {STRATS.map(s => (
             <Link key={s.n} to="/strategies" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
-                style={{ background: '#080808', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '48px 40px', textAlign: 'left', transition: 'border-color 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
+                style={{ background: 'rgba(8,8,8,0.92)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '48px 40px', textAlign: 'left', transition: 'border-color 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
               >
@@ -351,9 +352,9 @@ function Strategies() {
 /* ── CTA ── */
 function CTA() {
   return (
-    <section style={{ background: '#050505', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ padding: '160px 64px', textAlign: 'center', maxWidth: 1400, margin: '0 auto' }}>
-        <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,200px)', fontWeight: 200, letterSpacing: '0.18em', paddingLeft: '0.18em', lineHeight: 1, color: '#fff', margin: '0 0 48px' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: '160px 64px', textAlign: 'center' }}>
+        <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,200px)', fontWeight: 900, letterSpacing: '0.12em', paddingLeft: '0.12em', lineHeight: 1, color: '#fff', margin: '0 0 48px' }}>
           KADO
         </h2>
         <p style={{ fontSize: 16, color: '#555', letterSpacing: '-0.01em', marginBottom: 12, fontFamily: FONT }}>Your edge, automated.</p>
@@ -392,7 +393,7 @@ function SectionHeader({ label, title, sub }) {
 /* ── EXPORT ── */
 export default function Landing() {
   return (
-    <div style={{ background: '#050505', color: '#fff', minHeight: '100vh' }}>
+    <div style={{ color: '#fff', minHeight: '100vh' }}>
       <LandingHeader />
       <HomeHero />
       <StatsBar />
