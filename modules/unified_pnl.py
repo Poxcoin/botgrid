@@ -63,12 +63,19 @@ def init_all_trades_table() -> None:
 
 def _fetch_closed_pnl(exchange, symbol: str, since_ms: int) -> list:
     try:
-        resp = exchange.private_get_v5_position_closed_pnl({
-            "category":  "linear",
-            "symbol":    symbol,
-            "limit":     200,
-            "startTime": str(since_ms),
-        })
+        params = {"category": "linear", "symbol": symbol, "limit": 200}
+        # startTime не підтримується на demo — пробуємо з ним, фолбек без нього
+        try:
+            resp = exchange.private_get_v5_position_closed_pnl(
+                {**params, "startTime": str(since_ms)}
+            )
+            rows = resp.get("result", {}).get("list", [])
+            if rows:
+                return rows
+        except Exception:
+            pass
+        # Фолбек: без startTime — деду через bybit_key
+        resp = exchange.private_get_v5_position_closed_pnl(params)
         return resp.get("result", {}).get("list", [])
     except Exception as e:
         print(f"[unified_pnl] fetch {symbol}: {e}")
