@@ -32,12 +32,11 @@ function HomeHero() {
     }}>
       {/* KADO — spiral particle assembly then bold reveal */}
       <h1 style={fade(0, {
-        fontFamily: FONT,
-        fontSize: 'clamp(96px, 18vw, 260px)',
+        fontFamily: MONO,
+        fontSize: 'clamp(64px, 10vw, 120px)',
         fontWeight: 900,
-        letterSpacing: '0.12em',
-        paddingLeft: '0.12em',
-        lineHeight: 1,
+        letterSpacing: '-0.06em',
+        lineHeight: 0.87,
         color: '#ffffff',
         margin: 0,
       })}>
@@ -354,7 +353,7 @@ function CTA() {
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '160px 64px', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,200px)', fontWeight: 900, letterSpacing: '0.12em', paddingLeft: '0.12em', lineHeight: 1, color: '#fff', margin: '0 0 48px' }}>
+        <h2 style={{ fontFamily: MONO, fontSize: 'clamp(64px,10vw,120px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', margin: '0 0 48px' }}>
           KADO
         </h2>
         <p style={{ fontSize: 16, color: '#555', letterSpacing: '-0.01em', marginBottom: 12, fontFamily: FONT }}>Your edge, automated.</p>
