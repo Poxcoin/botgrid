@@ -81,7 +81,7 @@ export default function ApiKeysTab() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 480 }}>
+    <div style={{ width: '100%', maxWidth: 600 }}>
 
       {/* Status row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, padding: '14px 0', borderBottom: '1px solid var(--border)' }}>

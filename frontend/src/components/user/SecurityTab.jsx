@@ -298,56 +298,32 @@ function SecurityRow({ label, status, statusColor, action, actionLabel, descript
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function SecurityTab() {
-  const [me, setMe]           = useState(null);
+  const [me, setMe]             = useState(null);
   const [modal2fa, setModal2fa] = useState(null);
-  const [section, setSection] = useState('overview'); // 'overview' | 'apikeys'
 
   useEffect(() => {
     API('/api/users/me').then(setMe).catch(console.error);
   }, []);
 
-  function updateMe(patch) {
-    setMe(m => ({ ...m, ...patch }));
-  }
-
-  function on2faDone(enabled) {
-    updateMe({ totp_enabled: enabled });
-    setModal2fa(null);
-  }
+  function updateMe(patch) { setMe(m => ({ ...m, ...patch })); }
+  function on2faDone(enabled) { updateMe({ totp_enabled: enabled }); setModal2fa(null); }
 
   const secScore = !me ? 0 : (me.totp_enabled ? 50 : 0) + (me.has_api_keys ? 30 : 0) + 20;
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div style={{ width: '100%' }}>
       {modal2fa && <TwoFAModal mode={modal2fa} onClose={() => setModal2fa(null)} onDone={on2faDone} />}
 
-      {/* Sub-nav */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid var(--border)' }}>
-        {[
-          { id: 'overview', label: 'Security' },
-          { id: 'apikeys',  label: 'API Keys' },
-        ].map(s => (
-          <button
-            key={s.id}
-            onClick={() => setSection(s.id)}
-            style={{
-              background: 'none', border: 'none',
-              borderBottom: `2px solid ${section === s.id ? 'var(--fg)' : 'transparent'}`,
-              color: section === s.id ? 'var(--fg)' : 'var(--muted-fg)',
-              padding: '0 0 12px', marginRight: 24,
-              fontSize: 13, cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              transition: 'color 150ms',
-            }}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <style>{`
+        .sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+        @media (max-width: 900px) { .sec-grid { grid-template-columns: 1fr !important; } }
+      `}</style>
 
-      {/* ── SECURITY OVERVIEW ── */}
-      {section === 'overview' && (
+      <div className="sec-grid">
+
+        {/* ── Left: Security overview ── */}
         <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>Security</div>
           {/* Score */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28, padding: '16px 20px', border: '1px solid var(--border)', background: 'var(--bg2)' }}>
             <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
@@ -385,29 +361,28 @@ export default function SecurityTab() {
               : 'Connect your Bybit API keys to start automated trading.'}
             status={me?.has_api_keys ? 'Connected' : 'Not connected'}
             statusColor={me?.has_api_keys ? '#22c55e' : '#555'}
-            action={() => setSection('apikeys')}
-            actionLabel={me?.has_api_keys ? 'Manage' : 'Connect →'}
           />
 
           <SecurityRow
             label="Encryption"
-            description="All API keys are stored encrypted with AES-256 (Fernet). Keys are never logged in plaintext."
+            description="API keys stored encrypted AES-256 (Fernet). Never logged in plaintext."
             status="Active"
             statusColor="#22c55e"
           />
 
-          {/* Email */}
           <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>Account email</div>
             <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{me?.email || '—'}</div>
           </div>
         </div>
-      )}
 
-      {/* ── API KEYS ── */}
-      {section === 'apikeys' && (
-        <ApiKeysSection me={me} onUpdate={updateMe} />
-      )}
+        {/* ── Right: API Keys ── */}
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>API Keys</div>
+          <ApiKeysSection me={me} onUpdate={updateMe} />
+        </div>
+
+      </div>
     </div>
   );
 }

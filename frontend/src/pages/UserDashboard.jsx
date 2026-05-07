@@ -256,7 +256,7 @@ export default function UserDashboard() {
         </header>
 
         {/* Content */}
-        <main style={{ flex: 1, padding: '36px 28px 60px', minWidth: 0 }}>
+        <main className="kado-content" style={{ flex: 1, padding: '36px 28px 60px', minWidth: 0 }}>
           <TabContent tab={activeTab} />
         </main>
       </div>
@@ -358,10 +358,15 @@ export default function UserDashboard() {
 
       <style>{`
         @media (max-width: 768px) {
-          .kado-sidebar  { display: none !important; }
-          .kado-burger   { display: block !important; }
-          .kado-main     { margin-left: 0 !important; padding-bottom: 52px; }
+          .kado-sidebar    { display: none !important; }
+          .kado-burger     { display: block !important; }
+          .kado-main       { margin-left: 0 !important; }
+          .kado-content    { padding: 20px 16px 72px !important; }
           .kado-mobile-nav { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .kado-burger     { display: none !important; }
+          .kado-mobile-nav { display: none !important; }
         }
       `}</style>
     </div>

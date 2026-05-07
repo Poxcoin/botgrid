@@ -382,42 +382,51 @@ export default function SettingsTab() {
   }
 
   return (
-    <div style={{ maxWidth: 420 }}>
+    <div style={{ width: '100%' }}>
+      <style>{`
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 48px; }
+        @media (max-width: 900px) { .settings-grid { grid-template-columns: 1fr !important; } }
+      `}</style>
+      <div className="settings-grid">
 
-      <form onSubmit={saveProfile}>
-        <Field label="Email">
-          <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
-        </Field>
+        {/* Left: profile */}
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>Profile</div>
+          <form onSubmit={saveProfile}>
+            <Field label="Email">
+              <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
+            </Field>
 
-        <Field label="Тариф">
-          <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
-            {me?.plan?.toUpperCase() || '—'}
-          </span>
-          {me?.subscription_expires && (
-            <span style={{ fontSize: 12, color: 'var(--muted-fg)', marginLeft: 10 }}>
-              истекает {new Date(me.subscription_expires).toLocaleDateString('ru-RU')}
-            </span>
-          )}
-        </Field>
+            <Field label="Plan">
+              <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
+                {me?.plan?.toUpperCase() || '—'}
+              </span>
+              {me?.subscription_expires && (
+                <span style={{ fontSize: 12, color: 'var(--muted-fg)', marginLeft: 10 }}>
+                  expires {new Date(me.subscription_expires).toLocaleDateString('en-US')}
+                </span>
+              )}
+            </Field>
 
-        <Field label="Telegram Chat ID">
-          <input type="text" value={tgId} onChange={e => setTgId(e.target.value)} placeholder="напр. 123456789" style={inp} />
-          <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 4 }}>Узнать у @userinfobot в Telegram</div>
-        </Field>
+            <Field label="Telegram Chat ID">
+              <input type="text" value={tgId} onChange={e => setTgId(e.target.value)} placeholder="e.g. 123456789" style={inp} />
+              <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 4 }}>Get it from @userinfobot on Telegram</div>
+            </Field>
 
-        {msg && <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>{msg}</div>}
+            {msg && <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>{msg}</div>}
 
-        <button type="submit" disabled={saving} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1, marginBottom: 32 }}>
-          {saving ? 'Сохранение…' : 'Сохранить'}
-        </button>
-      </form>
-
-      {/* Подписка */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24, marginTop: 24 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>
-          Подписка
+            <button type="submit" disabled={saving} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </form>
         </div>
-        <BillingSection plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
+
+        {/* Right: billing */}
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>Billing</div>
+          <BillingSection plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
+        </div>
+
       </div>
     </div>
   );

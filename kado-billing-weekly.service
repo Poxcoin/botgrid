@@ -1,0 +1,7 @@
+[Unit]
+Description=Kado weekly performance fee billing
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/botgrid
+ExecStart=/usr/bin/python3 /opt/botgrid/billing_cron_weekly.py
