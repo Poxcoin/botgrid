@@ -11,15 +11,15 @@ from difflib import SequenceMatcher
 # "crypto_only": False → пропускаем ВСЕ статьи (макро, гео, commodities)
 # ---------------------------------------------------------------------------
 RSS_SOURCES = [
-    # ── ГЕОПОЛИТИКА & МИРОВЫЕ НОВОСТИ ──────────────────────────────────────
+    # ── ГЕОПОЛИТИКА & МИРОВЫЕ НОВОСТИ — market_filter=True: убираем спорт/шоу ──
     {"url": "https://feeds.bbci.co.uk/news/world/rss.xml",
-     "weight": 1.0,  "crypto_only": False, "cat": "GEOPOLITICS"},
+     "weight": 1.0,  "crypto_only": False, "market_filter": True, "cat": "GEOPOLITICS"},
     {"url": "https://feeds.reuters.com/reuters/worldNews",
-     "weight": 1.0,  "crypto_only": False, "cat": "GEOPOLITICS"},
+     "weight": 1.0,  "crypto_only": False, "market_filter": True, "cat": "GEOPOLITICS"},
     {"url": "https://www.aljazeera.com/xml/rss/all.xml",
-     "weight": 0.85, "crypto_only": False, "cat": "GEOPOLITICS"},
+     "weight": 0.85, "crypto_only": False, "market_filter": True, "cat": "GEOPOLITICS"},
 
-    # ── МАКРО & ЭКОНОМИКА ───────────────────────────────────────────────────
+    # ── МАКРО & ЭКОНОМИКА (тематические фиды — фильтр не нужен) ────────────
     {"url": "https://feeds.reuters.com/reuters/businessNews",
      "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
     {"url": "https://feeds.reuters.com/reuters/financialsNews",
@@ -41,9 +41,9 @@ RSS_SOURCES = [
 
     # ── FINANCIAL MARKETS ───────────────────────────────────────────────────
     {"url": "https://feeds.reuters.com/reuters/topNews",
-     "weight": 1.0,  "crypto_only": False, "cat": "MARKETS"},
+     "weight": 1.0,  "crypto_only": False, "market_filter": True, "cat": "MARKETS"},
     {"url": "https://finance.yahoo.com/news/rssindex",
-     "weight": 0.85, "crypto_only": False, "cat": "MARKETS"},
+     "weight": 0.85, "crypto_only": False, "market_filter": True, "cat": "MARKETS"},
     {"url": "https://feeds.marketwatch.com/marketwatch/topstories/",
      "weight": 0.85, "crypto_only": False, "cat": "MARKETS"},
 
@@ -77,8 +77,8 @@ RSS_SOURCES = [
 RSS_FEEDS = [s["url"] for s in RSS_SOURCES]
 _SOURCE_WEIGHT: dict[str, float] = {s["url"]: s["weight"] for s in RSS_SOURCES}
 
-_MAX_AGE_HOURS = 12   # расширяем окно до 12ч — больше контента в каждой категории
-_DUPLICATE_THRESHOLD = 0.72
+_MAX_AGE_HOURS = 8
+_DUPLICATE_THRESHOLD = 0.60
 
 
 def _parse_published(entry) -> datetime | None:
@@ -143,6 +143,46 @@ def check_panic_news(title: str, source_url: str = "") -> bool:
     return False
 
 
+# Темы, которые никогда не попадут в ленту (спорт, шоу-бизнес, быт)
+_JUNK_TOPICS: frozenset[str] = frozenset({
+    "football", "soccer", "basketball", "tennis", "baseball", "hockey", "rugby",
+    "cricket", "golf", "world cup", "premier league", "nfl", "nba", "nhl", "mlb",
+    "champions league", "serie a", "bundesliga", "la liga", "ligue 1",
+    "formula 1", " f1 ", "motogp", "cycling race", "marathon", "athletics",
+    "olympic games", "paralympic", "world athletics",
+    "oscar", "grammy", "emmy", "golden globe", "bafta",
+    "music video", "album release", "tour dates", "singer", "rapper",
+    "movie premiere", "film review", "box office", "streaming series",
+    "reality tv", "celebrity", "actor ", "actress ",
+    "recipe", "cooking", "fashion week", "beauty tips", "diet plan",
+    "horoscope", "astrology",
+})
+
+# Ключевые слова рыночной релевантности для широких новостных фидов
+_MARKET_TERMS: frozenset[str] = frozenset({
+    "economy", "economic", "gdp", "inflation", "interest rate", "rate hike", "rate cut",
+    "federal reserve", "fed ", "central bank", "ecb", "bank of england", "boe",
+    "recession", "stagflation", "debt", "deficit", "budget",
+    "market", "stock", "equity", "bond", "yield", "dollar", "currency", "forex",
+    "oil", "gold", "silver", "commodity", "commodities", "crude", "brent", "lng",
+    "tariff", "sanctions", "embargo", "trade war", "trade deal", "export", "import",
+    "unemployment", "jobs report", "payrolls", "cpi", "ppi", "pce",
+    "war", "invasion", "nuclear", "military strike", "conflict", "geopolit",
+    "opec", "energy crisis", "supply chain",
+    "imf", "world bank", "g7", "g20", "treasury",
+    "crypto", "bitcoin", "ethereum", "blockchain", "defi",
+    "bank run", "banking crisis", "financial crisis", "liquidity",
+})
+
+
+def _is_market_relevant(title: str) -> bool:
+    """Для широких фидов (BBC World, Reuters Top): пропускать только рыночные темы."""
+    tl = title.lower()
+    if any(j in tl for j in _JUNK_TOPICS):
+        return False
+    return any(m in tl for m in _MARKET_TERMS)
+
+
 _CRYPTO_TERMS: frozenset[str] = frozenset({
     "crypto", "cryptocurrency", "blockchain", "defi", "nft", "token", "coin",
     "web3", "dex", "cefi", "altcoin", "protocol", "smart contract", "wallet",
@@ -181,28 +221,55 @@ def _get_description(entry) -> str:
     return ""
 
 
+_BAD_IMAGE_PATTERNS = (
+    "pixel", "tracking", "1x1", "icon", "logo", "avatar",
+    "placeholder", "default", "blank", "spacer", "transparent",
+    "ads", "doubleclick", "analytics", "beacon",
+)
+_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+
+def _is_good_image(url: str) -> bool:
+    if not url or not url.startswith("http"):
+        return False
+    ul = url.lower()
+    if any(b in ul for b in _BAD_IMAGE_PATTERNS):
+        return False
+    # Must look like a real image (has extension or known image CDN path)
+    has_ext = any(ext in ul for ext in _IMAGE_EXTS)
+    is_cdn = any(x in ul for x in ("images.", "img.", "media.", "cdn.", "photo", "thumb", "asset"))
+    return has_ext or is_cdn
+
+
 def _extract_image(entry) -> str | None:
-    """Extract image URL directly from RSS entry fields."""
-    # 1) media:content
+    """Extract best-quality image URL from RSS entry."""
+    # 1) media:content — prefer largest by width attribute
     media = getattr(entry, "media_content", None)
     if media and isinstance(media, list):
-        for m in media:
-            u = m.get("url", "")
-            if u.startswith("http") and any(ext in u.lower() for ext in (".jpg", ".jpeg", ".png", ".webp")):
+        candidates = [(int(m.get("width", 0) or 0), m.get("url", "")) for m in media]
+        candidates.sort(reverse=True)
+        for _, u in candidates:
+            if _is_good_image(u):
                 return u
     # 2) media:thumbnail
     thumb = getattr(entry, "media_thumbnail", None)
-    if thumb and isinstance(thumb, list) and thumb[0].get("url"):
-        return thumb[0]["url"]
+    if thumb and isinstance(thumb, list):
+        for t in thumb:
+            u = t.get("url", "")
+            if _is_good_image(u):
+                return u
     # 3) enclosure
     for enc in getattr(entry, "enclosures", []):
         if enc.get("type", "").startswith("image"):
-            return enc.get("href") or enc.get("url")
-    # 4) img tag in summary HTML
+            u = enc.get("href") or enc.get("url") or ""
+            if _is_good_image(u):
+                return u
+    # 4) img tag in summary HTML — skip tiny tracker images
     summary = getattr(entry, "summary", "") or ""
-    m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', summary)
-    if m and m.group(1).startswith("http"):
-        return m.group(1)
+    for m in re.finditer(r'<img[^>]+src=["\']([^"\']+)["\']', summary):
+        u = m.group(1)
+        if _is_good_image(u):
+            return u
     return None
 
 
@@ -225,9 +292,10 @@ def get_aggregated_news(limit_per_source: int = 15) -> list[dict]:
         if not feed or not feed.entries:
             continue
 
-        url          = source["url"]
-        weight       = source["weight"]
-        crypto_only  = source.get("crypto_only", True)
+        url           = source["url"]
+        weight        = source["weight"]
+        crypto_only   = source.get("crypto_only", True)
+        market_filter = source.get("market_filter", False)
 
         for entry in feed.entries[:limit_per_source]:
             if not _is_fresh(entry):
@@ -238,9 +306,9 @@ def get_aggregated_news(limit_per_source: int = 15) -> list[dict]:
 
             is_panic = check_panic_news(title, source_url=url)
 
-            # For crypto-only sources: filter non-crypto articles
-            # For broad sources (macro/geo/commodities): let everything through
             if crypto_only and not is_panic and not is_altcoin_news(title):
+                continue
+            if market_filter and not is_panic and not _is_market_relevant(title):
                 continue
 
             pub = _parse_published(entry)

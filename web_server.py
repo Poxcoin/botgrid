@@ -1835,16 +1835,26 @@ async def public_news_feed(
         conn.close()
 
         # Merge: RSS first (images, then text), then on-chain, dedup by id
-        seen: set = set()
+        seen_ids: set = set()
         merged: list = []
         for item in rss_with_img + rss_no_img + onchain:
-            if item["id"] not in seen:
-                seen.add(item["id"])
+            if item["id"] not in seen_ids:
+                seen_ids.add(item["id"])
                 merged.append(item)
 
         # Sort by published_at descending
         merged.sort(key=lambda x: x.get("published_at") or "", reverse=True)
-        merged = merged[:limit]
+
+        # Title-level dedup: catch same story from different outlets
+        seen_titles: set = set()
+        deduped: list = []
+        for item in merged:
+            words = item["title"].lower().split()
+            key = " ".join(w for w in words if len(w) > 3)[:60]
+            if key not in seen_titles:
+                seen_titles.add(key)
+                deduped.append(item)
+        merged = deduped[:limit]
 
         for r in merged:
             if r.get("description"):
