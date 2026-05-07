@@ -82,6 +82,7 @@ function getUser() {
 
 function SettingsDropdown({ onClose }) {
   const { lang, setLang, LANGS, t } = useLang();
+  const [subMenu, setSubMenu] = useState(null); // null | 'language'
   const isLoggedIn = !!localStorage.getItem('kado_token');
   const user = isLoggedIn ? getUser() : {};
 
@@ -92,14 +93,72 @@ function SettingsDropdown({ onClose }) {
     onClose();
   }
 
+  const panelStyle = {
+    position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+    width: 296, background: '#0d0d0d',
+    border: '1px solid rgba(255,255,255,0.1)',
+    boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
+    zIndex: 200, overflow: 'hidden',
+  };
+
+  /* ── Language sub-menu ── */
+  if (subMenu === 'language') {
+    return (
+      <div style={panelStyle}>
+        {/* Back header */}
+        <button
+          onClick={() => setSubMenu(null)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            width: '100%', padding: '13px 18px',
+            background: 'none', border: 'none', cursor: 'pointer',
+            borderBottom: '1px solid rgba(255,255,255,0.07)',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M9 2L4 7l5 5" stroke="#555" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <span style={{ fontFamily: FONT, fontSize: 13, color: '#555' }}>{t.settings.language}</span>
+        </button>
+
+        {/* Language list */}
+        <div style={{ paddingTop: 4, paddingBottom: 6 }}>
+          {LANGS.map(({ code }) => {
+            const active = lang === code;
+            return (
+              <button key={code}
+                onClick={() => { setLang(code); setSubMenu(null); }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: '11px 18px',
+                  background: active ? 'rgba(255,255,255,0.04)' : 'none',
+                  border: 'none', cursor: 'pointer',
+                  transition: 'background 120ms',
+                }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'none'; }}
+              >
+                <span style={{ fontFamily: FONT, fontSize: 13, color: active ? '#fff' : '#888' }}>
+                  {LANG_LABELS[code]}
+                </span>
+                {active && (
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                    <path d="M2 6.5l3.5 3.5 5.5-6" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Main menu ── */
   return (
-    <div style={{
-      position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-      width: 296, background: '#0d0d0d',
-      border: '1px solid rgba(255,255,255,0.1)',
-      boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
-      zIndex: 200, overflow: 'hidden',
-    }}>
+    <div style={panelStyle}>
 
       {/* ── Account info bar (logged in only) ── */}
       {isLoggedIn && (
@@ -164,26 +223,31 @@ function SettingsDropdown({ onClose }) {
 
       <Divider />
 
-      {/* ── Language section ── */}
-      <div>
-        <SectionLabel>{t.settings.language}</SectionLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '6px 18px 10px' }}>
-          {LANGS.map(({ code }) => (
-            <button key={code} onClick={() => setLang(code)}
-              style={{
-                padding: '7px 0', borderRadius: 6, cursor: 'pointer',
-                border: lang === code ? '1px solid rgba(255,255,255,0.22)' : '1px solid rgba(255,255,255,0.07)',
-                background: lang === code ? 'rgba(255,255,255,0.09)' : 'none',
-                fontFamily: FONT, fontSize: 12,
-                color: lang === code ? '#fff' : '#4a4a4a',
-                transition: 'all 130ms', textAlign: 'center',
-              }}
-              onMouseEnter={e => { if (lang !== code) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = '#888'; } }}
-              onMouseLeave={e => { if (lang !== code) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#4a4a4a'; } }}
-            >
-              {LANG_LABELS[code]}
-            </button>
-          ))}
+      {/* ── Language row → opens sub-menu ── */}
+      <div style={{ paddingTop: 4, paddingBottom: 4 }}>
+        <div
+          onClick={() => setSubMenu('language')}
+          style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 18px', cursor: 'pointer', transition: 'background 120ms' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <div style={{
+            width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+            background: 'rgba(255,255,255,0.05)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONT, fontSize: 13, color: '#bbb' }}>{t.settings.language}</div>
+            <div style={{ fontFamily: MONO, fontSize: 9, color: '#444', marginTop: 2 }}>{LANG_LABELS[lang]}</div>
+          </div>
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M3 2l4 3-4 3" stroke="#333" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
       </div>
 
