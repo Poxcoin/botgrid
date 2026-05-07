@@ -67,11 +67,11 @@ export default function ApiKeysTab() {
       </div>
 
       {/* Form */}
-      <form onSubmit={save}>
+      <form onSubmit={save} autoComplete="off">
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>API Key</div>
           <div style={{ position: 'relative' }}>
-            <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your Bybit API key" style={inp} />
+            <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your Bybit API key" style={inp} name="bybit-api-key" autoComplete="new-password" />
             <button type="button" onClick={() => setShowKey(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 11 }}>
               {showKey ? 'HIDE' : 'SHOW'}
             </button>
@@ -81,7 +81,7 @@ export default function ApiKeysTab() {
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>Secret</div>
           <div style={{ position: 'relative' }}>
-            <input type={showSecret ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inp} />
+            <input type={showSecret ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inp} name="bybit-api-secret" autoComplete="new-password" />
             <button type="button" onClick={() => setShowSecret(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 11 }}>
               {showSecret ? 'HIDE' : 'SHOW'}
             </button>

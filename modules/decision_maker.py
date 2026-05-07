@@ -19,6 +19,15 @@ import re as _re
 _TICKER_RE = _re.compile(r'\(([A-Z]{2,10})\)')  # "Binance Will List Chip (CHIP)" → CHIP
 _USDT_RE   = _re.compile(r'\b([A-Z]{2,10})USDT\b')  # "New listing: CHIPUSDT" → CHIP
 
+# Pre-filter: быстрая проверка заголовка ДО вызова Gemini/Claude API.
+# Если новость явно о BTC/ETH/SOL/BNB — молча пропускаем без API-вызовов.
+_BLOCKED_TITLE_RE = _re.compile(
+    r'(?<!\w)(\$BTC|\$ETH|\$SOL|\$BNB|BTCUSDT|ETHUSDT|SOLUSDT|BNBUSDT'
+    r'|Bitcoin|Ethereum|Solana|(?<![A-Za-z])BTC(?![A-Za-z])|(?<![A-Za-z])ETH(?![A-Za-z])'
+    r'|(?<![A-Za-z])SOL(?![A-Za-z])|(?<![A-Za-z])BNB(?![A-Za-z]))',
+    _re.IGNORECASE,
+)
+
 
 def generate_listing_signal(news_item: dict) -> dict | None:
     """
@@ -190,7 +199,11 @@ def generate_signal(news_item: dict) -> dict | None:
     # Smart wallet сигнал — знижений поріг (не потрібно 9 балів)
     is_smart_wallet = str(news_item.get("source", "")).startswith("Smart Wallet")
 
-    # 1. Защита от глобальной паники
+    # 1. Быстрый pre-filter: BTC/ETH/SOL/BNB — без API-вызовов
+    if _BLOCKED_TITLE_RE.search(news_item.get("title", "")):
+        return None
+
+    # 2. Защита от глобальной паники
     if news_item.get("is_panic"):
         return {
             "coin": "ALL",
@@ -232,9 +245,7 @@ def generate_signal(news_item: dict) -> dict | None:
     if coin_upper in _STABLECOINS:
         return None
 
-    # BTC/ETH/SOL/BNB: новини не мають edge при >30s затримці → Grid та Funding Rate їх покривають
     if coin_upper in _NEWS_BLOCKED:
-        print(f"   🚫 {coin} заблокований для news-сигналів (Grid/FR coverage) — пропускаємо")
         return None
 
     # Слабая новость — не рискуем
