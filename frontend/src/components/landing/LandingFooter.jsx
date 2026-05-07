@@ -29,7 +29,7 @@ export default function LandingFooter() {
             AI-driven crypto signal intelligence. Six bots. One platform.
           </p>
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontSize: 11, color: '#444' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#333', display: 'inline-block' }} />
             Systems operational
           </div>
         </div>

@@ -34,7 +34,7 @@ function Skeleton({ w = '100%', h = 18, style = {} }) {
     <div style={{
       width: w, height: h, borderRadius: 3,
       background: 'rgba(255,255,255,0.06)',
-      animation: 'kado-pulse 1.4s ease-in-out infinite',
+      animation: 'kado-skeleton 1.4s ease-in-out infinite',
       ...style,
     }} />
   );
@@ -346,7 +346,7 @@ export default function AnalyticsTab() {
   if (loading) {
     return (
       <div style={{ color: S.fg }}>
-        <style>{`@keyframes kado-pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }`}</style>
+        <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
         <div style={{ display: 'flex', gap: 12, marginBottom: 32, flexWrap: 'wrap' }}>
           {[1, 2, 3, 4].map(i => (
             <div key={i} style={{ flex: 1, minWidth: 140, border: `1px solid ${S.border}`, padding: '18px 20px', background: S.card }}>
@@ -391,7 +391,7 @@ export default function AnalyticsTab() {
 
   return (
     <div style={{ color: S.fg }}>
-      <style>{`@keyframes kado-pulse { 0%,100%{opacity:.4} 50%{opacity:.9} }`}</style>
+      <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
 
       {/* ── Summary row ─────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
