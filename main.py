@@ -367,12 +367,13 @@ def start_rss_archiver():
                 articles = get_aggregated_news(limit_per_source=15)
                 for item in articles:
                     archive_news({
-                        "title":       item["title"],
-                        "link":        item["link"],
-                        "source":      item["source"],
+                        "title":        item["title"],
+                        "link":         item["link"],
+                        "source":       item["source"],
                         "source_weight": item["source_weight"],
-                        "description": item.get("description", ""),
-                        "published":   item.get("published_dt") or item.get("published", ""),
+                        "description":  item.get("description", ""),
+                        "published":    item.get("published_dt") or item.get("published", ""),
+                        "image_url":    item.get("image_url"),
                     })
             except Exception as e:
                 print(f"[rss_archiver] error: {e}")
