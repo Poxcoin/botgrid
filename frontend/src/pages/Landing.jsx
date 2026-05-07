@@ -156,6 +156,20 @@ function HomeHero() {
           AI-DRIVEN SIGNAL INTELLIGENCE
         </div>
 
+        <p style={fade(2100, {
+          fontFamily: FONT,
+          fontSize: 'clamp(15px, 1.4vw, 18px)',
+          fontWeight: 300,
+          color: '#4a4a4a',
+          marginTop: 24,
+          lineHeight: 1.7,
+          letterSpacing: '-0.01em',
+          maxWidth: 460,
+        })}>
+          Eight autonomous strategies running in parallel —<br />
+          news, grid, cascades, funding, on-chain. While you sleep.
+        </p>
+
         <div style={fade(2200, {
           display: 'flex',
           alignItems: 'center',
