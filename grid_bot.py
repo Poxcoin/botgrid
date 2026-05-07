@@ -68,10 +68,10 @@ POLL_INTERVAL          = 30     # секунд між перевірками
 RANGE_BUFFER           = 0.02   # 2% буфер по краях ATR-діапазону
 MAX_REBUILDS_DAY       = 4      # макс перебудов сітки за день
 MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
-ATR_RANGE_PERIODS      = 12     # повернули до 12 (було 8 — занадто тісний, багато ребілдів)
+ATR_RANGE_PERIODS      = 10     # тісніші кроки → частіші fills
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
-SHORT_CONFIRM_TICKS    = 3      # потрібно 3 послідовних SHORT-читань перед flip long→short
-SHORT_EMA_MARGIN       = 0.98   # ціна повинна бути нижче EMA50×0.98 (−2%) для SHORT режиму
+SHORT_CONFIRM_TICKS    = 9999   # SHORT режим ВИМКНЕНО — тільки LONG (grid накопичує позицію)
+SHORT_EMA_MARGIN       = 0.94   # не використовується поки SHORT_CONFIRM_TICKS=9999
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера

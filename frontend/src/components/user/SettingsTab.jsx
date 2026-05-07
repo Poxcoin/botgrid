@@ -434,6 +434,79 @@ function TelegramLinkSection({ me, onChange }) {
 
 
 // ── Main SettingsTab ───────────────────────────────────────────────────────────
+function TelegramPanel({ tgChatId, onLinked, onUnlinked }) {
+  const [step, setStep] = useState('idle'); // idle | waiting | done | error
+  const [deepLink, setDeepLink] = useState('');
+  const [unlinking, setUnlinking] = useState(false);
+  const connected = !!tgChatId;
+
+  async function handleConnect() {
+    setStep('loading');
+    try {
+      const d = await API('/api/telegram/generate-link');
+      setDeepLink(d.link);
+      setStep('waiting');
+      // Poll for up to 15 min (every 3s)
+      let attempts = 0;
+      const iv = setInterval(async () => {
+        attempts++;
+        if (attempts > 300) { clearInterval(iv); setStep('idle'); return; }
+        try {
+          const s = await API('/api/telegram/status');
+          if (s.connected) { clearInterval(iv); setStep('done'); onLinked(s.chat_id); }
+        } catch {}
+      }, 3000);
+    } catch { setStep('error'); }
+  }
+
+  async function handleUnlink() {
+    setUnlinking(true);
+    try { await API('/api/telegram/unlink', { method: 'DELETE' }); onUnlinked(); setStep('idle'); }
+    catch {}
+    finally { setUnlinking(false); }
+  }
+
+  const btn = { border: '1px solid var(--border)', background: 'none', color: 'var(--fg)', padding: '9px 18px', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' };
+
+  if (connected) return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+      <span style={{ fontSize: 12, color: 'var(--fg)', fontFamily: 'var(--font-mono)' }}>Telegram подключён</span>
+      <span style={{ fontSize: 11, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>ID: {tgChatId}</span>
+      <button onClick={handleUnlink} disabled={unlinking} style={{ ...btn, marginLeft: 'auto', color: 'var(--muted-fg)', fontSize: 11 }}>
+        {unlinking ? '...' : 'Отключить'}
+      </button>
+    </div>
+  );
+
+  if (step === 'waiting') return (
+    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+      <div style={{ fontSize: 12, color: 'var(--fg)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>Шаг 1: Открой ссылку и нажми START в боте</div>
+      <a href={deepLink} target="_blank" rel="noopener noreferrer"
+        style={{ display: 'inline-block', background: '#0088cc', color: '#fff', padding: '10px 20px', fontSize: 13, fontWeight: 600, textDecoration: 'none', marginBottom: 12 }}>
+        Открыть @pulseplusebot →
+      </a>
+      <div style={{ fontSize: 11, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#0088cc', animation: 'pulse 1.4s infinite' }} />
+        Ожидаю подтверждения…
+      </div>
+    </div>
+  );
+
+  if (step === 'done') return (
+    <div style={{ padding: '12px 16px', background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.3)', fontSize: 12, color: '#22c55e', fontFamily: 'var(--font-mono)' }}>
+      ✓ Telegram успешно подключён!
+    </div>
+  );
+
+  return (
+    <button onClick={handleConnect} disabled={step === 'loading'} style={{ ...btn, display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px' }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.008 9.461c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.871.76z"/></svg>
+      {step === 'loading' ? 'Генерирую ссылку…' : 'Подключить Telegram'}
+    </button>
+  );
+}
+
 export default function SettingsTab() {
   const [me, setMe] = useState(null);
 
@@ -448,6 +521,7 @@ export default function SettingsTab() {
       <style>{`
         .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 48px; }
         @media (max-width: 900px) { .settings-grid { grid-template-columns: 1fr !important; } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
       `}</style>
       <div className="settings-grid">
 

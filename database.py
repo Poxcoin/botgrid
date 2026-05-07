@@ -115,6 +115,20 @@ class Subscription(Base):
         return self.expires_at > datetime.utcnow()
 
 
+# ── Telegram Link Tokens ───────────────────────────────────────────────────────
+class TelegramLinkToken(Base):
+    __tablename__ = "telegram_link_tokens"
+
+    id         = Column(Integer, primary_key=True)
+    token      = Column(String, unique=True, index=True, nullable=False)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=False)
+    used       = Column(Boolean, default=False)
+
+    user = relationship("User")
+
+
 # ── API Keys (encrypted) ──────────────────────────────────────────────────────
 class UserApiKey(Base):
     __tablename__ = "user_api_keys"

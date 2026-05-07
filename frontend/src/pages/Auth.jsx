@@ -125,7 +125,7 @@ function EmailOtpScreen({ otpToken, onSuccess, onBack }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Check your email</h2>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2 text-kado-black">Check your email</h2>
         <p className="text-kado-black/60 text-[15px]">We sent a 6-digit verification code to your email address.</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -185,7 +185,7 @@ function TwoFAScreen({ partialToken, onSuccess, onBack }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Two-Factor Auth</h2>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2 text-kado-black">Two-Factor Auth</h2>
         <p className="text-kado-black/60 text-[15px]">Enter the 6-digit code from your authenticator app.</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -246,7 +246,7 @@ function VerifyEmailScreen({ token }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Email Verification</h2>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2 text-kado-black">Email Verification</h2>
       </div>
       {status === 'loading' && (
         <div className="font-mono text-[13px] text-kado-black/60 tracking-wide">Verifying your email…</div>
@@ -300,7 +300,7 @@ function ForgotPasswordScreen({ onBack }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">Reset password</h2>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2 text-kado-black">Reset password</h2>
         <p className="text-kado-black/60 text-[15px]">Enter your email — we'll send a link to reset your password.</p>
       </div>
       {done ? (
@@ -354,7 +354,7 @@ function ResetPasswordScreen({ token }) {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2">New password</h2>
+        <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2 text-kado-black">New password</h2>
         <p className="text-kado-black/60 text-[15px]">Choose a new password for your account.</p>
       </div>
       {done ? (
@@ -507,7 +507,7 @@ export default function Auth() {
                 ))}
               </div>
 
-              <h2 className="font-black text-4xl md:text-5xl tracking-[-0.03em] leading-none mb-2">
+              <h2 className="font-black text-4xl md:text-5xl tracking-[-0.03em] leading-none mb-2 text-kado-black">
                 {mode === 'login' ? 'Welcome back.' : 'Get access.'}
               </h2>
               <p className="text-kado-black/60 mb-10 text-[15px]">

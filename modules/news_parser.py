@@ -6,39 +6,82 @@ from datetime import datetime, timezone, timedelta
 from difflib import SequenceMatcher
 
 # ---------------------------------------------------------------------------
-# RSS источники с весами надёжности (source_weight: 1.0 = эталон)
-# Вес влияет на итоговый confidence signal в decision_maker.
+# RSS источники
+# "crypto_only": True  → фильтруем, пропускаем только крипто-статьи
+# "crypto_only": False → пропускаем ВСЕ статьи (макро, гео, commodities)
 # ---------------------------------------------------------------------------
 RSS_SOURCES = [
-    # --- Макро / Геополітика (планові події — лаг не критичний) ---
-    {"url": "https://feeds.bbci.co.uk/news/world/rss.xml",            "weight": 1.0},   # BBC World
-    {"url": "https://feeds.reuters.com/reuters/businessNews",          "weight": 1.0},   # Reuters Business
+    # ── ГЕОПОЛИТИКА & МИРОВЫЕ НОВОСТИ ──────────────────────────────────────
+    {"url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+     "weight": 1.0,  "crypto_only": False, "cat": "GEOPOLITICS"},
+    {"url": "https://feeds.reuters.com/reuters/worldNews",
+     "weight": 1.0,  "crypto_only": False, "cat": "GEOPOLITICS"},
+    {"url": "https://www.aljazeera.com/xml/rss/all.xml",
+     "weight": 0.85, "crypto_only": False, "cat": "GEOPOLITICS"},
 
-    # --- Регуляторика (SEC/CFTC/ФРС — важливо для крипти) ---
-    {"url": "https://www.federalreserve.gov/feeds/press_all.xml",      "weight": 1.0},   # ФРС прес-релізи
-    {"url": "https://dlnews.com/arc/outboundfeeds/rss/",               "weight": 0.95},  # DL News — SEC/CFTC/DeFi
+    # ── МАКРО & ЭКОНОМИКА ───────────────────────────────────────────────────
+    {"url": "https://feeds.reuters.com/reuters/businessNews",
+     "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
+    {"url": "https://feeds.reuters.com/reuters/financialsNews",
+     "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
+    {"url": "https://feeds.reuters.com/reuters/economicsNews",
+     "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
+    {"url": "https://www.federalreserve.gov/feeds/press_all.xml",
+     "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
+    {"url": "https://dlnews.com/arc/outboundfeeds/rss/",
+     "weight": 0.95, "crypto_only": False, "cat": "MACRO"},
 
-    # --- Криптомедіа (залишаємо тільки топ-2 — решту замінив Telegram) ---
-    {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/",        "weight": 1.0},
-    {"url": "https://theblock.co/rss.xml",                             "weight": 1.0},
+    # ── COMMODITIES ─────────────────────────────────────────────────────────
+    {"url": "https://feeds.reuters.com/reuters/globalcoverage/commodities",
+     "weight": 1.0,  "crypto_only": False, "cat": "COMMODITIES"},
+    {"url": "https://oilprice.com/rss/main",
+     "weight": 0.85, "crypto_only": False, "cat": "COMMODITIES"},
+    {"url": "https://www.mining.com/feed/",
+     "weight": 0.80, "crypto_only": False, "cat": "COMMODITIES"},
+
+    # ── FINANCIAL MARKETS ───────────────────────────────────────────────────
+    {"url": "https://feeds.reuters.com/reuters/topNews",
+     "weight": 1.0,  "crypto_only": False, "cat": "MARKETS"},
+    {"url": "https://finance.yahoo.com/news/rssindex",
+     "weight": 0.85, "crypto_only": False, "cat": "MARKETS"},
+    {"url": "https://feeds.marketwatch.com/marketwatch/topstories/",
+     "weight": 0.85, "crypto_only": False, "cat": "MARKETS"},
+
+    # ── CRYPTO — главные медиа ──────────────────────────────────────────────
+    {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+     "weight": 1.0,  "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/?category=markets",
+     "weight": 0.95, "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://theblock.co/rss.xml",
+     "weight": 1.0,  "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://cointelegraph.com/rss",
+     "weight": 0.95, "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://decrypt.co/feed",
+     "weight": 0.90, "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://cryptoslate.com/feed/",
+     "weight": 0.85, "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://beincrypto.com/feed/",
+     "weight": 0.85, "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://blockworks.co/feed",
+     "weight": 0.90, "crypto_only": True,  "cat": "CRYPTO"},
+    {"url": "https://www.thedefiant.io/feed",
+     "weight": 0.85, "crypto_only": True,  "cat": "CRYPTO"},
+
+    # ── LISTINGS / ANNOUNCEMENTS ────────────────────────────────────────────
+    {"url": "https://www.binance.com/en/rss/announcement",
+     "weight": 1.0,  "crypto_only": True,  "cat": "LISTINGS"},
+    {"url": "https://blog.bybit.com/en-US/rss/",
+     "weight": 1.0,  "crypto_only": True,  "cat": "LISTINGS"},
 ]
 
-# Для обратной совместимости с кодом, который импортирует RSS_FEEDS
 RSS_FEEDS = [s["url"] for s in RSS_SOURCES]
-
-# Словарь url -> вес (быстрый доступ)
 _SOURCE_WEIGHT: dict[str, float] = {s["url"]: s["weight"] for s in RSS_SOURCES}
 
-# Максимальный возраст новости, которую считаем свежей
-_MAX_AGE_HOURS = 6
-
-# Порог сходства заголовков для дедупликации (0.0–1.0)
+_MAX_AGE_HOURS = 12   # расширяем окно до 12ч — больше контента в каждой категории
 _DUPLICATE_THRESHOLD = 0.72
 
 
 def _parse_published(entry) -> datetime | None:
-    """Возвращает aware-datetime публикации записи или None."""
-    # feedparser кладёт parsed-время в published_parsed / updated_parsed
     for attr in ("published_parsed", "updated_parsed"):
         t = getattr(entry, attr, None)
         if t:
@@ -50,12 +93,10 @@ def _parse_published(entry) -> datetime | None:
 
 
 def _is_fresh(entry) -> bool:
-    """True, если новость не старше _MAX_AGE_HOURS. Без даты — блокируем."""
     pub = _parse_published(entry)
     if pub is None:
-        return False  # нет даты — невозможно оценить свежесть, пропускаем
-    age = datetime.now(timezone.utc) - pub
-    return age <= timedelta(hours=_MAX_AGE_HOURS)
+        return False
+    return (datetime.now(timezone.utc) - pub) <= timedelta(hours=_MAX_AGE_HOURS)
 
 
 def _similar(a: str, b: str) -> float:
@@ -63,17 +104,11 @@ def _similar(a: str, b: str) -> float:
 
 
 def _deduplicate(news_list: list[dict]) -> list[dict]:
-    """
-    Убирает дубликаты по заголовку.
-    Если два заголовка похожи на >= _DUPLICATE_THRESHOLD — оставляем
-    тот, у которого source_weight выше.
-    """
     unique: list[dict] = []
     for candidate in news_list:
         is_dup = False
         for kept in unique:
             if _similar(candidate["title"], kept["title"]) >= _DUPLICATE_THRESHOLD:
-                # Оставляем источник с большим весом
                 if candidate["source_weight"] > kept["source_weight"]:
                     unique.remove(kept)
                     unique.append(candidate)
@@ -85,18 +120,8 @@ def _deduplicate(news_list: list[dict]) -> list[dict]:
 
 
 def check_panic_news(title: str, source_url: str = "") -> bool:
-    """
-    Анти-фильтр: реагирует ТОЛЬКО на реальные макро-кризисы.
-
-    - BBC / Reuters: война, вторжение, ядерная угроза
-    - Любой источник: катастрофические крипто-события (взлом биржи, банкротство)
-
-    НЕ реагирует на: "BTC crashes 5%", "Altcoin hits new low" — обычная волатильность.
-    """
     title_lower = title.lower()
-
-    # Глобальные макро-кризисы — только из мировых новостей
-    is_world_news = any(x in source_url.lower() for x in ("bbc", "reuters"))
+    is_world_news = any(x in source_url.lower() for x in ("bbc", "reuters", "aljazeera"))
     if is_world_news:
         world_crisis = [
             "war declared", "invasion", "nuclear", "warhead",
@@ -106,8 +131,6 @@ def check_panic_news(title: str, source_url: str = "") -> bool:
         for phrase in world_crisis:
             if phrase in title_lower:
                 return True
-
-    # Катастрофы крипто-инфраструктуры — для любого источника
     infra_catastrophe = [
         "exchange hacked", "exchange bankrupt", "exchange collapse",
         "exchange shutdown", "billion stolen", "billion hack",
@@ -117,22 +140,16 @@ def check_panic_news(title: str, source_url: str = "") -> bool:
     for phrase in infra_catastrophe:
         if phrase in title_lower:
             return True
-
     return False
 
 
-
-# Известные тикеры и крипто-термины. Если ни одного нет в заголовке → новость
-# не про крипту и не тратим Claude API токены.
 _CRYPTO_TERMS: frozenset[str] = frozenset({
-    # Общие крипто-термины
     "crypto", "cryptocurrency", "blockchain", "defi", "nft", "token", "coin",
     "web3", "dex", "cefi", "altcoin", "protocol", "smart contract", "wallet",
     "staking", "yield", "airdrop", "mainnet", "testnet", "layer", "l2",
     "bridge", "liquidity", "tvl", "dao", "dapp", "mint", "burn", "swap",
     "perpetual", "futures", "bybit", "binance", "coinbase", "kraken", "okx",
     "stablecoin", "usdt", "usdc", "depeg",
-    # Тикеры / проекты
     "btc", "bitcoin", "eth", "ethereum", "sol", "solana", "bnb", "xrp", "ripple",
     "ada", "cardano", "dot", "polkadot", "link", "chainlink", "uni", "uniswap",
     "aave", "sui", "apt", "aptos", "op", "optimism", "near", "inj", "injective",
@@ -143,135 +160,120 @@ _CRYPTO_TERMS: frozenset[str] = frozenset({
 
 
 def is_altcoin_news(title: str) -> bool:
-    """
-    Двухэтапный фильтр:
-
-    1. Крипто-гейт: если нет ни одного крипто-термина/тикера → False (без AI).
-       Это блокирует "Google's Latest AI Update", "Fed raises rates", etc.
-
-    2. Boring-keywords: регуляторика / макро вокруг BTC/ETH → False.
-
-    3. Hot-keywords: конкретные события → True.
-
-    4. Незнакомая крипто-тема → True (прошла гейт, пропускаем на AI).
-    """
     title_lower = title.lower()
-
-    # ── Шаг 1: крипто-гейт ───────────────────────────────────────────────────
-    # Хотя бы одно крипто-слово должно присутствовать.
     if not any(term in title_lower for term in _CRYPTO_TERMS):
         return False
-
-    hot_keywords = [
-        "airdrop", "hack", "partner", "listing", "launch", "mainnet",
-        "secures", "raises", "upgrade", "exploit", "vulnerability",
-        "acquisition", "merger", "token burn", "buyback", "defi",
-        "nft", "bridge", "layer 2", "l2", "staking", "yield",
-        "grant", "investment", "fund", "integrate", "integration",
-    ]
-
-    boring_keywords = [
-        "mining", "taxes",
-    ]
-
-    # ── Шаг 2: boring-keywords первыми ───────────────────────────────────────
+    boring_keywords = ["mining", "taxes"]
     for pattern in boring_keywords:
         if re.search(pattern, title_lower):
             return False
-
-    # ── Шаг 3: hot-keywords ──────────────────────────────────────────────────
-    for word in hot_keywords:
-        if word in title_lower:
-            return True
-
-    # ── Шаг 4: крипто-тема, но не boring и не hot → AI сам разберётся ────────
     return True
 
 
 def _get_description(entry) -> str:
-    """Извлекает краткое описание / summary из RSS-записи (до 300 символов)."""
     for attr in ("summary", "description", "content"):
         val = getattr(entry, attr, None)
         if isinstance(val, list) and val:
             val = val[0].get("value", "")
         if val:
-            # Убираем HTML-теги простым regex
             clean = re.sub(r"<[^>]+>", "", str(val)).strip()
             return clean[:300]
     return ""
 
 
+def _extract_image(entry) -> str | None:
+    """Extract image URL directly from RSS entry fields."""
+    # 1) media:content
+    media = getattr(entry, "media_content", None)
+    if media and isinstance(media, list):
+        for m in media:
+            u = m.get("url", "")
+            if u.startswith("http") and any(ext in u.lower() for ext in (".jpg", ".jpeg", ".png", ".webp")):
+                return u
+    # 2) media:thumbnail
+    thumb = getattr(entry, "media_thumbnail", None)
+    if thumb and isinstance(thumb, list) and thumb[0].get("url"):
+        return thumb[0]["url"]
+    # 3) enclosure
+    for enc in getattr(entry, "enclosures", []):
+        if enc.get("type", "").startswith("image"):
+            return enc.get("href") or enc.get("url")
+    # 4) img tag in summary HTML
+    summary = getattr(entry, "summary", "") or ""
+    m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', summary)
+    if m and m.group(1).startswith("http"):
+        return m.group(1)
+    return None
+
+
 def fetch_feed(source: dict) -> tuple[dict, object]:
-    url = source["url"]
     try:
-        feed = feedparser.parse(url)
+        feed = feedparser.parse(source["url"])
         return source, feed
     except Exception as e:
-        print(f"[news_parser] Ошибка при чтении {url}: {e}")
+        print(f"[news_parser] error {source['url']}: {e}")
         return source, None
 
 
-def get_aggregated_news(limit_per_source: int = 10) -> list[dict]:
+def get_aggregated_news(limit_per_source: int = 15) -> list[dict]:
     all_news: list[dict] = []
 
-    with ThreadPoolExecutor(max_workers=len(RSS_SOURCES)) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(RSS_SOURCES), 16)) as executor:
         results = list(executor.map(fetch_feed, RSS_SOURCES))
 
     for source, feed in results:
         if not feed or not feed.entries:
             continue
 
-        url = source["url"]
-        weight = source["weight"]
+        url          = source["url"]
+        weight       = source["weight"]
+        crypto_only  = source.get("crypto_only", True)
 
         for entry in feed.entries[:limit_per_source]:
-            # Фильтр по свежести
             if not _is_fresh(entry):
                 continue
-
             title = getattr(entry, "title", "").strip()
             if not title:
                 continue
 
             is_panic = check_panic_news(title, source_url=url)
 
-            if not is_panic and not is_altcoin_news(title):
+            # For crypto-only sources: filter non-crypto articles
+            # For broad sources (macro/geo/commodities): let everything through
+            if crypto_only and not is_panic and not is_altcoin_news(title):
                 continue
 
             pub = _parse_published(entry)
+            image_url = _extract_image(entry)
 
             news_item = {
-                "title": title,
-                "description": _get_description(entry),
-                "link": getattr(entry, "link", ""),
-                "published": getattr(entry, "published", ""),
+                "title":        title,
+                "description":  _get_description(entry),
+                "link":         getattr(entry, "link", ""),
+                "published":    getattr(entry, "published", ""),
                 "published_dt": pub.isoformat() if pub else "",
-                "source": feed.feed.get("title", "Unknown"),
-                "source_url": url,
+                "source":       feed.feed.get("title", "Unknown"),
+                "source_url":   url,
                 "source_weight": weight,
-                "is_panic": is_panic,
+                "is_panic":     is_panic,
+                "image_url":    image_url,
             }
             all_news.append(news_item)
 
-    # Дедупликация
     all_news = _deduplicate(all_news)
-
-    # Сортируем: паника первой, затем по времени (свежее выше)
-    all_news.sort(key=lambda x: (not x["is_panic"], x.get("published_dt", "") or ""), reverse=True)
-
+    all_news.sort(
+        key=lambda x: (not x["is_panic"], x.get("published_dt", "") or ""),
+        reverse=True,
+    )
     return all_news
 
 
 if __name__ == "__main__":
-    start_time = time.time()
-
-    print("Собираем новости (Крипта + Геополитика, 14 источников)...")
+    start = time.time()
+    print("Собираем новости (все категории)...")
     news = get_aggregated_news()
-
-    print(f"Заняло: {time.time() - start_time:.2f} сек.  |  Уникальных новостей: {len(news)}\n")
-    for n in news[:15]:
-        tag = "🚨 [ПАНИКА]" if n["is_panic"] else "🟢 [Сигнал]"
-        src = f"{n['source']} (w={n['source_weight']})"
-        print(f"{tag} {n['title']}  |  {src}")
-        if n.get("description"):
-            print(f"   ↳ {n['description'][:120]}...")
+    print(f"Время: {time.time() - start:.2f}s | Статей: {len(news)}\n")
+    for n in news[:20]:
+        tag = "🚨" if n["is_panic"] else "✅"
+        img = "🖼" if n.get("image_url") else "  "
+        print(f"{tag}{img} [{n['source_url'].split('/')[2][:20]:20}] {n['title'][:80]}")

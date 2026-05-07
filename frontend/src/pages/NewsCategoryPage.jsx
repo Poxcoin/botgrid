@@ -2,24 +2,33 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import { useLang } from '@/lib/LangContext';
 
 const MONO = "'Courier New','SF Mono',monospace";
 const SANS = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif";
+const ACC  = '#0047FF';
+const LINE = 'rgba(255,255,255,0.07)';
+
+const LOCALE_MAP = { ru: 'ru-RU', uk: 'uk-UA', en: 'en-US', de: 'de-DE' };
+const CAT_IDS    = ['ALL','CRYPTO','MACRO','GEOPOLITICS','COMMODITIES','MARKETS','ON-CHAIN','LISTINGS'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60)    return `${Math.floor(diff)}s ago`;
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60)    return `${Math.floor(diff)}s`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
 }
 
 function getCategory(source = '', title = '', description = '') {
   const s    = source.toLowerCase();
   const text = (title + ' ' + (description || '')).toLowerCase();
 
-  if (s.includes('whale_alert') || s.includes('lookonchain')) return 'ON-CHAIN';
+  if (s.includes('whale_alert') || s.includes('whale alert')) return 'ON-CHAIN';
+  if (s.includes('lookonchain'))                               return 'ON-CHAIN';
   if (s.includes('announcement') || s.includes('listing'))    return 'LISTINGS';
 
   const geoKw = ['war ', 'warfare', 'military', 'sanctions', 'geopolit', 'nato', 'conflict',
@@ -46,102 +55,170 @@ function getCategory(source = '', title = '', description = '') {
   return 'CRYPTO';
 }
 
-const CATEGORY_META = {
-  'ALL':         { label: 'All Stories',  desc: 'The latest across all markets and topics.' },
-  'CRYPTO':      { label: 'Crypto',       desc: 'Bitcoin, Ethereum, altcoins and digital asset markets.' },
-  'MACRO':       { label: 'Macro',        desc: 'Central banks, inflation, GDP, interest rates and monetary policy.' },
-  'GEOPOLITICS': { label: 'Geopolitics',  desc: 'Wars, conflicts, sanctions and their impact on global markets.' },
-  'COMMODITIES': { label: 'Commodities',  desc: 'Gold, silver, crude oil, energy and raw materials.' },
-  'MARKETS':     { label: 'Markets',      desc: 'Equities, indices, earnings and traditional finance.' },
-  'ON-CHAIN':    { label: 'On-Chain',     desc: 'Whale moves, DeFi, blockchain analytics and smart contracts.' },
-  'LISTINGS':    { label: 'Listings',     desc: 'New exchange listings and project launches.' },
-};
-
 function fromSlug(slug = '') {
   const map = {
-    'all': 'ALL', 'crypto': 'CRYPTO', 'macro': 'MACRO',
-    'geopolitics': 'GEOPOLITICS', 'commodities': 'COMMODITIES',
-    'markets': 'MARKETS', 'on-chain': 'ON-CHAIN', 'listings': 'LISTINGS',
-    'whale-alert': 'ON-CHAIN',
+    'all': 'ALL', 'crypto': 'CRYPTO', 'macro': 'MACRO', 'geopolitics': 'GEOPOLITICS',
+    'commodities': 'COMMODITIES', 'markets': 'MARKETS', 'on-chain': 'ON-CHAIN',
+    'listings': 'LISTINGS', 'whale-alert': 'ON-CHAIN',
   };
   return map[slug.toLowerCase()] || slug.toUpperCase();
 }
 
-const ArticleCard = React.memo(function ArticleCard({ item, index }) {
-  const hasLink = item.link?.startsWith('http');
-  const isLead  = index === 0;
+// ─── Components ───────────────────────────────────────────────────────────────
 
+const LeadCard = React.memo(function LeadCard({ item }) {
+  const { t } = useLang();
+  if (!item) return null;
+  const hasLink = item.link?.startsWith('http');
+  const img = item.image_url;
   return (
     <article
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
-      style={{
-        padding: isLead ? '28px 0 24px' : '20px 0',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        cursor: hasLink ? 'pointer' : 'default',
-      }}
-      onMouseEnter={e => { e.currentTarget.querySelector('.art-hl').style.opacity = hasLink ? '0.7' : '1'; }}
-      onMouseLeave={e => { e.currentTarget.querySelector('.art-hl').style.opacity = '1'; }}
+      style={{ paddingBottom: 32, marginBottom: 32, borderBottom: `1px solid ${LINE}`, cursor: hasLink ? 'pointer' : 'default' }}
     >
-      <div style={{ marginBottom: 10 }}>
-        <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#0047FF' }}>
-          {item._category}
+      {img && (
+        <div style={{ marginBottom: 20, overflow: 'hidden' }}>
+          <img src={img} alt="" style={{ width: '100%', height: 280, objectFit: 'cover', display: 'block', filter: 'brightness(0.85)' }}
+            onError={e => { e.currentTarget.parentElement.style.display = 'none'; }} />
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: ACC, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+          — {t.cats[item._category] || item._category}
         </span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: '#444' }}>{timeAgo(item.published_at)}</span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: '#333', textTransform: 'uppercase' }}>{item.source}</span>
       </div>
-
-      <h2 className="art-hl" style={{
-        fontFamily: SANS,
-        fontSize: isLead ? 'clamp(20px, 2.5vw, 32px)' : 16,
-        fontWeight: isLead ? 700 : 600,
-        lineHeight: isLead ? 1.12 : 1.35,
-        letterSpacing: isLead ? '-0.04em' : '-0.02em',
-        color: '#f5f5f5', margin: '0 0 10px 0',
-        transition: 'opacity 180ms',
-      }}>
+      <h1 style={{
+        fontFamily: SANS, fontSize: 'clamp(26px, 3.2vw, 48px)', fontWeight: 700,
+        lineHeight: 1.06, letterSpacing: '-0.04em', color: '#f5f5f5', margin: '0 0 16px', transition: 'opacity 180ms',
+      }}
+        onMouseEnter={e => { if (hasLink) e.currentTarget.style.opacity = '0.72'; }}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
         {item.title}
-      </h2>
-
+      </h1>
       {item.description && (
-        <p style={{
-          fontFamily: SANS, fontSize: isLead ? 14 : 13, color: '#666', lineHeight: 1.65,
-          margin: '0 0 12px 0',
-          display: '-webkit-box', WebkitLineClamp: isLead ? 4 : 2,
-          WebkitBoxOrient: 'vertical', overflow: 'hidden',
-        }}>
+        <p style={{ fontFamily: SANS, fontSize: 15, color: '#666', lineHeight: 1.62, margin: '0 0 16px',
+          display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {item.description}
         </p>
       )}
-
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <span style={{ fontFamily: MONO, fontSize: 8, color: '#3a3a3a', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-          {item.source}
-        </span>
-        <span style={{ fontFamily: MONO, fontSize: 8, color: '#252525' }}>·</span>
-        <span style={{ fontFamily: MONO, fontSize: 8, color: '#3a3a3a' }}>{timeAgo(item.published_at)}</span>
-        {hasLink && <span style={{ fontFamily: MONO, fontSize: 8, color: '#0047FF', letterSpacing: '0.1em' }}>↗</span>}
-      </div>
+      {hasLink && <span style={{ fontFamily: MONO, fontSize: 9, color: ACC, letterSpacing: '0.12em' }}>{t.news.read}</span>}
     </article>
   );
 });
 
+const ArticleRow = React.memo(function ArticleRow({ item, last = false }) {
+  const { t } = useLang();
+  const hasLink = item.link?.startsWith('http');
+  const img = item.image_url;
+  return (
+    <article
+      onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
+      style={{
+        display: 'flex', gap: 16, alignItems: 'flex-start',
+        padding: '18px 0', borderBottom: last ? 'none' : `1px solid ${LINE}`,
+        cursor: hasLink ? 'pointer' : 'default', transition: 'opacity 180ms',
+      }}
+      onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 7 }}>
+          <span style={{ fontFamily: MONO, fontSize: 9, color: ACC, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            {t.cats[item._category] || item._category}
+          </span>
+          <span style={{ fontFamily: MONO, fontSize: 8, color: '#444' }}>{timeAgo(item.published_at)}</span>
+        </div>
+        <h2 style={{ fontFamily: SANS, fontSize: 16, fontWeight: 600, lineHeight: 1.25, letterSpacing: '-0.025em', color: '#f0f0f0', margin: '0 0 8px' }}>
+          {item.title}
+        </h2>
+        {item.description && (
+          <p style={{ fontFamily: SANS, fontSize: 13, color: '#555', lineHeight: 1.55, margin: 0,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {item.description}
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <span style={{ fontFamily: MONO, fontSize: 8, color: '#333', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.source}</span>
+          {hasLink && <span style={{ fontFamily: MONO, fontSize: 8, color: ACC }}>↗</span>}
+        </div>
+      </div>
+      {img && (
+        <div style={{ flexShrink: 0, width: 90, height: 68, overflow: 'hidden' }}>
+          <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', filter: 'brightness(0.85)' }}
+            onError={e => { e.currentTarget.parentElement.style.display = 'none'; }} />
+        </div>
+      )}
+    </article>
+  );
+});
+
+const WireItem = React.memo(function WireItem({ item, index }) {
+  const hasLink = item.link?.startsWith('http');
+  return (
+    <div
+      onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
+      style={{
+        display: 'grid', gridTemplateColumns: '26px 1fr', gap: 10,
+        padding: '11px 0', borderBottom: `1px solid ${LINE}`,
+        cursor: hasLink ? 'pointer' : 'default', transition: 'opacity 180ms',
+      }}
+      onMouseEnter={e => e.currentTarget.style.opacity = '0.6'}
+      onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+    >
+      <span style={{ fontFamily: MONO, fontSize: 9, color: '#2a2a2a', paddingTop: 2 }}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <div>
+        <h3 style={{ fontFamily: SANS, fontSize: 12, fontWeight: 500, lineHeight: 1.38, color: '#bbb', margin: '0 0 5px' }}>
+          {item.title}
+        </h3>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: '#333' }}>{timeAgo(item.published_at)}</span>
+      </div>
+    </div>
+  );
+});
+
+function Skeleton() {
+  const bar = (w, h, mb = 8) => <div style={{ width: w, height: h, background: 'rgba(255,255,255,0.04)', marginBottom: mb }} />;
+  return (
+    <div style={{ paddingTop: 40 }}>
+      {bar('60px', 10, 16)}{bar('80%', 36, 10)}{bar('65%', 36, 20)}
+      {bar('100%', 14)}{bar('75%', 14)}{bar('55%', 14)}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function NewsCategoryPage() {
   const { category: slug } = useParams();
   const catId = fromSlug(slug || '');
-  const meta  = CATEGORY_META[catId] || { label: catId, desc: '' };
+  const { t, lang } = useLang();
+  const locale = LOCALE_MAP[lang] || 'en-US';
 
-  const [items, setItems]         = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [items,     setItems]     = useState([]);
+  const [loading,   setLoading]   = useState(true);
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [now,       setNow]       = useState(new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchNews = useCallback(async () => {
     try {
-      const res = await fetch('/api/news/public?limit=60');
+      const res = await fetch('/api/news/public?limit=80');
       if (!res.ok) return;
       const data = await res.json();
       setItems(data.items || []);
-      setUpdatedAt(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
+      setUpdatedAt(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }));
     } catch {}
     finally { setLoading(false); }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -158,103 +235,168 @@ export default function NewsCategoryPage() {
     catId === 'ALL' ? enriched : enriched.filter(i => i._category === catId),
   [enriched, catId]);
 
-  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const counts = useMemo(() => {
+    const c = { ALL: enriched.length };
+    for (const it of enriched) c[it._category] = (c[it._category] || 0) + 1;
+    return c;
+  }, [enriched]);
+
+  const lead = filtered[0] || null;
+  const main = filtered.slice(1, 16);
+  const wire = filtered.slice(16, 30);
+
+  const timeStr = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
     <div style={{ background: '#060606', color: '#f5f5f5', fontFamily: SANS, minHeight: '100vh' }}>
       <LandingHeader />
 
-      {/* Header */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '11px 0' }}>
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Link to="/news" style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', fontWeight: 700, color: '#fff', textDecoration: 'none' }}>
-              KADO INTELLIGENCE
+      <style>{`
+        @keyframes dot-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        @media (max-width: 960px) {
+          .jcat-grid { grid-template-columns: 1fr !important; }
+          .jcat-wire { display: none !important; }
+        }
+        .j-catnav::-webkit-scrollbar { display: none; }
+        .j-catnav { scrollbar-width: none; }
+      `}</style>
+
+      {/* ── Шапка ──────────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom: `1px solid ${LINE}` }}>
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: '16px 32px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 24 }}>
+          <div>
+            <Link to="/news" style={{ fontFamily: MONO, fontSize: 9, color: '#fff', letterSpacing: '0.16em', textDecoration: 'none', textTransform: 'uppercase' }}>
+              {t.news.brand}
             </Link>
-            <span style={{ fontFamily: MONO, fontSize: 9, color: '#333' }}>·</span>
-            <span style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.06em' }}>{dateStr}</span>
           </div>
-          {updatedAt && (
-            <span style={{ fontFamily: MONO, fontSize: 8, color: '#333', letterSpacing: '0.1em' }}>UPDATED {updatedAt}</span>
-          )}
+          <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 20, letterSpacing: '-0.03em', textAlign: 'center', whiteSpace: 'nowrap' }}>
+            {t.news.masthead}<span style={{ color: ACC }}>.</span>
+          </div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'flex-end' }}>
+            <span style={{ fontFamily: MONO, fontSize: 9, color: ACC, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: ACC, display: 'inline-block', animation: 'dot-pulse 1.6s ease-in-out infinite' }} />
+              {t.news.live}
+            </span>
+            <span style={{ fontFamily: MONO, fontSize: 9, color: '#444' }}>{timeStr}</span>
+            {updatedAt && <span style={{ fontFamily: MONO, fontSize: 8, color: '#333' }}>{t.news.updated} {updatedAt}</span>}
+          </div>
         </div>
       </div>
 
-      {/* Category title */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '32px 0 24px' }}>
-        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px' }}>
-          <div style={{ marginBottom: 12 }}>
-            <Link to="/news" style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.14em', textDecoration: 'none', textTransform: 'uppercase' }}>
-              ← All stories
+      {/* ── Навигация ──────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom: `1px solid ${LINE}` }}>
+        <div className="j-catnav" style={{ maxWidth: 1440, margin: '0 auto', padding: '0 32px', display: 'flex', alignItems: 'stretch', overflowX: 'auto' }}>
+          {CAT_IDS.map(id => {
+            const on  = catId === id;
+            const cnt = counts[id] || 0;
+            return (
+              <Link
+                key={id}
+                to={id === 'ALL' ? '/news' : `/news/${id.toLowerCase().replace(/\s+/g,'-')}`}
+                style={{
+                  fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase',
+                  padding: '13px 16px', textDecoration: 'none',
+                  borderBottom: on ? '2px solid #fff' : '2px solid transparent',
+                  color: on ? '#fff' : '#444', cursor: 'pointer',
+                  transition: 'color 150ms', whiteSpace: 'nowrap', marginBottom: '-1px',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+                onMouseEnter={e => { if (!on) e.currentTarget.style.color = '#aaa'; }}
+                onMouseLeave={e => { if (!on) e.currentTarget.style.color = '#444'; }}
+              >
+                {t.cats[id]}
+                {cnt > 0 && <span style={{ fontFamily: MONO, fontSize: 8, color: '#333' }}>{String(cnt).padStart(2,'0')}</span>}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Заголовок категории ────────────────────────────────────────────── */}
+      <div style={{ borderBottom: `1px solid ${LINE}`, padding: '36px 0 28px' }}>
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: '0 32px' }}>
+          <div style={{ marginBottom: 14 }}>
+            <Link to="/news" style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.14em', textDecoration: 'none', textTransform: 'uppercase', transition: 'color 150ms' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={e => e.currentTarget.style.color = '#444'}
+            >
+              {t.news.allBack}
             </Link>
           </div>
-          <h1 style={{ fontFamily: SANS, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 700, letterSpacing: '-0.04em', margin: '0 0 10px 0', color: '#f5f5f5' }}>
-            {meta.label}
-          </h1>
-          {meta.desc && (
-            <p style={{ fontFamily: SANS, fontSize: 14, color: '#555', margin: 0, lineHeight: 1.6, maxWidth: 500 }}>
-              {meta.desc}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: ACC, letterSpacing: '0.16em' }}>— {catId}</span>
+            <h1 style={{ fontFamily: SANS, fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 700, letterSpacing: '-0.04em', margin: 0, color: '#f5f5f5' }}>
+              {t.cats[catId] || catId}
+            </h1>
+          </div>
+          {t.catDesc[catId] && (
+            <p style={{ fontFamily: SANS, fontSize: 14, color: '#555', margin: '10px 0 0', lineHeight: 1.6, maxWidth: 520 }}>
+              {t.catDesc[catId]}
             </p>
           )}
-          <div style={{ marginTop: 16, fontFamily: MONO, fontSize: 8, color: '#2a2a2a', letterSpacing: '0.12em' }}>
-            {filtered.length} STORIES · LIVE UPDATE 30s
+          <div style={{ marginTop: 14, fontFamily: MONO, fontSize: 8, color: '#2a2a2a', letterSpacing: '0.12em' }}>
+            {filtered.length} {t.news.stories} · {t.news.update30}
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px 80px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,300px)', gap: '0 60px' }}>
-
-          <div>
-            {loading ? (
-              <div style={{ paddingTop: 40 }}>
-                {[0,1,2,3].map(i => (
-                  <div key={i} style={{ padding: '20px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ width: 60, height: 9, background: 'rgba(255,255,255,0.04)', marginBottom: 14 }} />
-                    <div style={{ width: '80%', height: i === 0 ? 30 : 18, background: 'rgba(255,255,255,0.06)', marginBottom: 10 }} />
-                    <div style={{ width: '65%', height: 14, background: 'rgba(255,255,255,0.04)' }} />
-                  </div>
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div style={{ paddingTop: 60, fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-                No stories in this category yet.
-              </div>
-            ) : (
-              filtered.map((item, i) => <ArticleCard key={item.id} item={item} index={i} />)
-            )}
+      {/* ── Контент ────────────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: 1440, margin: '0 auto', padding: '0 32px 80px' }}>
+        {loading ? <Skeleton /> : filtered.length === 0 ? (
+          <div style={{ paddingTop: 60, fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+            {t.news.noCategory}
           </div>
+        ) : (
+          <div className="jcat-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 320px)', gap: '0 60px', paddingTop: 40 }}>
 
-          {/* Sidebar */}
-          <div style={{ paddingTop: 32 }}>
-            <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '0.2em', color: '#333', marginBottom: 20, textTransform: 'uppercase' }}>
-              Other Sections
+            {/* Основная колонка */}
+            <div>
+              <LeadCard item={lead} />
+              {main.map((item, i) => (
+                <ArticleRow key={item.id} item={item} last={i === main.length - 1} />
+              ))}
             </div>
-            {Object.entries(CATEGORY_META)
-              .filter(([id]) => id !== catId && id !== 'ALL')
-              .map(([id, m]) => {
-                const count = enriched.filter(i => i._category === id).length;
+
+            {/* Боковая панель */}
+            <div className="jcat-wire">
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', color: '#fff', paddingBottom: 12, marginBottom: 18, borderBottom: '1px solid #fff', display: 'flex', justifyContent: 'space-between' }}>
+                <span>{t.news.other}</span>
+              </div>
+
+              {CAT_IDS.filter(id => id !== catId && id !== 'ALL').map(id => {
+                const cnt = counts[id] || 0;
                 return (
                   <Link
                     key={id}
-                    to={`/news/${id.toLowerCase().replace(/\s+/g, '-')}`}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', textDecoration: 'none' }}
-                    onMouseEnter={e => e.currentTarget.querySelector('.scat-label').style.color = '#fff'}
-                    onMouseLeave={e => e.currentTarget.querySelector('.scat-label').style.color = '#777'}
+                    to={`/news/${id.toLowerCase().replace(/\s+/g,'-')}`}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '12px 0', borderBottom: `1px solid ${LINE}`, textDecoration: 'none',
+                    }}
+                    onMouseEnter={e => e.currentTarget.querySelector('.scat-lbl').style.color = '#fff'}
+                    onMouseLeave={e => e.currentTarget.querySelector('.scat-lbl').style.color = '#666'}
                   >
-                    <span className="scat-label" style={{ fontFamily: SANS, fontSize: 13, fontWeight: 500, color: '#777', transition: 'color 140ms' }}>
-                      {m.label}
+                    <span className="scat-lbl" style={{ fontFamily: SANS, fontSize: 13, fontWeight: 500, color: '#666', transition: 'color 150ms' }}>
+                      {t.cats[id]}
                     </span>
-                    {count > 0 && (
-                      <span style={{ fontFamily: MONO, fontSize: 8, color: '#333', letterSpacing: '0.08em' }}>{count}</span>
-                    )}
+                    {cnt > 0 && <span style={{ fontFamily: MONO, fontSize: 8, color: '#333' }}>{cnt}</span>}
                   </Link>
                 );
               })}
-          </div>
 
-        </div>
+              {wire.length > 0 && (
+                <>
+                  <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', color: '#fff', paddingBottom: 12, marginTop: 32, marginBottom: 4, borderBottom: '1px solid #fff' }}>
+                    {t.news.wire}
+                  </div>
+                  {wire.map((item, i) => (
+                    <WireItem key={item.id} item={item} index={i} />
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <LandingFooter />

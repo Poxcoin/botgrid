@@ -24,7 +24,7 @@ _ALL_COINS = [
     "INJ", "SUI", "APT", "OP", "ARB",
     "NEAR", "FET", "TON", "TRX", "ATOM",
     "AAVE", "UNI", "LDO", "CRV", "RUNE",
-    "STX", "WLD", "JUP", "PENDLE", "ONDO",
+    "WLD", "JUP", "PENDLE", "ONDO",
 ]
 
 SYNC_INTERVAL = 300   # 5 хвилин

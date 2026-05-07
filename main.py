@@ -8,6 +8,7 @@ from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker, unified_pnl
 from modules.tg_commander import start_commander
 from modules.news_archive import archive_news
+from modules.news_parser import get_aggregated_news
 from modules.telegram_monitor import start_telegram_monitor, tg_news_queue, tg_news_event
 from modules.liquidation_monitor import start_liquidation_monitor, liquidation_signal_queue
 from modules.onchain_monitor import start_onchain_monitor
@@ -249,7 +250,35 @@ def handle_telegram_commands(processed_updates):
         chat_id = message.get("chat", {}).get("id")
         text = (message.get("text", "") or "").strip().lower()
 
+        # Allow /start for account linking from ANY user
         if str(chat_id) != str(TG_CHAT_ID):
+            # Only process /start for non-owners (account linking)
+            if text.startswith("/start "):
+                token = text.split(" ", 1)[1].strip()
+                if len(token) == 32:  # UUID hex token
+                    try:
+                        import requests as _req
+                        resp = _req.post(
+                            "http://localhost:8000/api/telegram/verify",
+                            json={"token": token, "chat_id": str(chat_id)},
+                            timeout=5,
+                        )
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            send_telegram_message(
+                                f"✅ <b>Аккаунт привязан!</b>\n\n"
+                                f"👤 {data.get('username', '')}\n"
+                                f"📧 {data.get('email', '')}\n\n"
+                                f"Теперь ты будешь получать уведомления от своего бота здесь.",
+                                chat_id
+                            )
+                        else:
+                            send_telegram_message(
+                                "❌ Ссылка недействительна или истекла.\n\nПолучи новую ссылку в личном кабинете на kadoclub.net",
+                                chat_id
+                            )
+                    except Exception as e:
+                        send_telegram_message("❌ Ошибка сервера. Попробуй позже.", chat_id)
             continue
 
         if text == "/status":
@@ -288,15 +317,15 @@ def handle_telegram_commands(processed_updates):
         elif text == "/open":
             send_telegram_message(_tg_open_positions(), chat_id)
 
-        elif text in ("/start", "/help"):
+        elif text in ("/start", "/help") or (text.startswith("/start") and len(text.split()) == 1):
             send_telegram_message(
-                "👋 <b>Trading Bot</b>\n\n"
-                "/status — сервіси\n"
+                "👋 <b>KADO Trading Bot</b>\n\n"
+                "/status — сервісы\n"
                 "/balance — баланс Bybit\n"
-                "/pnl — прибуток/збиток\n"
-                "/trades [N] — останні N угод\n"
-                "/signals — останні сигнали\n"
-                "/open — відкриті позиції",
+                "/pnl — прибыль/убыток\n"
+                "/trades [N] — последние N сделок\n"
+                "/signals — последние сигналы\n"
+                "/open — открытые позиции",
                 chat_id
             )
 
@@ -328,6 +357,32 @@ def _dynamic_leverage(signal: dict, is_btc_eth: bool) -> int:
 
     return lev
 
+def start_rss_archiver():
+    """Background thread: poll RSS every 5 min and archive articles for the news feed."""
+    import threading
+
+    def _loop():
+        while True:
+            try:
+                articles = get_aggregated_news(limit_per_source=15)
+                for item in articles:
+                    archive_news({
+                        "title":       item["title"],
+                        "link":        item["link"],
+                        "source":      item["source"],
+                        "source_weight": item["source_weight"],
+                        "description": item.get("description", ""),
+                        "published":   item.get("published_dt") or item.get("published", ""),
+                    })
+            except Exception as e:
+                print(f"[rss_archiver] error: {e}")
+            time.sleep(300)  # 5 min
+
+    t = threading.Thread(target=_loop, name="rss-archiver", daemon=True)
+    t.start()
+    return True
+
+
 def _write_live_intel(tg_enabled: bool) -> None:
     """Пишет текущий статус источников и live данные для дашборда."""
     try:
@@ -337,7 +392,7 @@ def _write_live_intel(tg_enabled: bool) -> None:
         intel = {
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "sources": {
-                "rss":         False,
+                "rss":         True,
                 "telegram":    tg_enabled,
                 "liquidations": True,
                 "onchain":     True,
@@ -381,6 +436,7 @@ def run_signal_engine():
     start_funding_strategy()
     start_smart_wallet_tracker()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
+    start_rss_archiver()
 
     sources = "Binance/Bybit Announcements + Telegram"
     sig_mode = "📊 збір статистики (торгівля вимкнена)" if not SIGNAL_BOT_TRADING else "⚡ активна торгівля"

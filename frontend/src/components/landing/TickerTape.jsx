@@ -27,7 +27,7 @@ export default function TickerTape() {
 
   if (!items.length) return null;
 
-  const tape = [...items, ...items]; // duplicate for seamless loop
+  const tape = [...items, ...items, ...items]; // triple for seamless loop at wide viewports
 
   return (
     <div style={{
@@ -41,7 +41,7 @@ export default function TickerTape() {
 
       <div style={{
         display: 'flex', alignItems: 'center', height: '100%',
-        animation: `ticker-scroll ${items.length * 3}s linear infinite`,
+        animation: `ticker-scroll ${items.length * 4}s linear infinite`,
         width: 'max-content',
       }}>
         {tape.map((item, i) => (
@@ -65,7 +65,7 @@ export default function TickerTape() {
       <style>{`
         @keyframes ticker-scroll {
           from { transform: translateX(0); }
-          to   { transform: translateX(-50%); }
+          to   { transform: translateX(-33.333%); }
         }
       `}</style>
     </div>

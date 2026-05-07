@@ -103,7 +103,7 @@ async def add_security_headers(request: Request, call_next):
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173 "
         "https://api.bybit.com wss://stream.bybit.com; "
-        "img-src 'self' data:; "
+        "img-src 'self' data: https:; "
         "frame-ancestors 'none'; "
         "upgrade-insecure-requests;"
     )
@@ -1772,10 +1772,11 @@ _MOCK_NEWS = [
 
 @app.get("/api/news/public")
 async def public_news_feed(
-    limit: int = Query(default=30, ge=1, le=100),
+    limit: int = Query(default=120, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ):
     import sqlite3
+    import html as _html
     db_path = "news.db"
     if not os.path.exists(db_path):
         return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
@@ -1788,18 +1789,71 @@ async def public_news_feed(
         if total == 0:
             conn.close()
             return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
+
+        # ── Balanced mix: avoid Telegram flood pushing out RSS articles ──────
+        # Telegram/on-chain sources flood the DB every minute.
+        # Strategy: fetch separately by source type, then merge.
+
+        TELEGRAM_SOURCES = ("Telegram", "Smart Wallet", "whale_alert", "lookonchain",
+                            "WatcherGuru", "wublockchain")
+
+        def is_telegram(source: str) -> bool:
+            s = (source or "").lower()
+            return any(t.lower() in s for t in TELEGRAM_SOURCES)
+
+        # 1. RSS articles with images — top quality, up to 25
         cur.execute(
-            "SELECT id, title, source, description, published_at, link, from_newsapi "
-            "FROM news ORDER BY published_at DESC LIMIT ? OFFSET ?",
-            (limit, offset),
+            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url "
+            "FROM news WHERE image_url IS NOT NULL AND image_url != '' "
+            "  AND source NOT LIKE '%Telegram%' "
+            "  AND source NOT LIKE '%Smart Wallet%' "
+            "  AND source NOT LIKE '%whale_alert%' "
+            "ORDER BY published_at DESC LIMIT 25"
         )
-        rows = [dict(r) for r in cur.fetchall()]
+        rss_with_img = [dict(r) for r in cur.fetchall()]
+
+        # 2. RSS articles without images — up to 35
+        cur.execute(
+            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url "
+            "FROM news WHERE (image_url IS NULL OR image_url = '') "
+            "  AND source NOT LIKE '%Telegram%' "
+            "  AND source NOT LIKE '%Smart Wallet%' "
+            "  AND source NOT LIKE '%whale_alert%' "
+            "ORDER BY published_at DESC LIMIT 35"
+        )
+        rss_no_img = [dict(r) for r in cur.fetchall()]
+
+        # 3. On-chain / Telegram — up to 30 (for ON-CHAIN category)
+        cur.execute(
+            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url "
+            "FROM news WHERE (source LIKE '%Telegram%' OR source LIKE '%Smart Wallet%' "
+            "  OR source LIKE '%whale_alert%' OR source LIKE '%lookonchain%') "
+            "ORDER BY published_at DESC LIMIT 30"
+        )
+        onchain = [dict(r) for r in cur.fetchall()]
+
         conn.close()
-        for r in rows:
+
+        # Merge: RSS first (images, then text), then on-chain, dedup by id
+        seen: set = set()
+        merged: list = []
+        for item in rss_with_img + rss_no_img + onchain:
+            if item["id"] not in seen:
+                seen.add(item["id"])
+                merged.append(item)
+
+        # Sort by published_at descending
+        merged.sort(key=lambda x: x.get("published_at") or "", reverse=True)
+        merged = merged[:limit]
+
+        for r in merged:
             if r.get("description"):
                 r["description"] = r["description"][:200]
-        return {"items": rows, "total": total, "mock": False}
-    except Exception:
+            if r.get("image_url"):
+                r["image_url"] = _html.unescape(r["image_url"])
+
+        return {"items": merged, "total": total, "mock": False}
+    except Exception as e:
         return {"items": _MOCK_NEWS[:limit], "total": len(_MOCK_NEWS), "mock": True}
 
 
