@@ -4,315 +4,240 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 
 const REFRESH_INTERVAL = 30_000;
+const MONO = "'Courier New','SF Mono',monospace";
+const SANS = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif";
 
-// ─── Helpers (pure, no state) ─────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
   const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60)    return `${Math.floor(diff)}s ago`;
-  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
-function detectSentiment(title, desc) {
-  const text = (title + ' ' + (desc || '')).toLowerCase();
-  const bearishKw = ['hack', 'exploit', 'stolen', 'crash', 'ban', 'scam', 'drop', 'dump', 'fear', 'warning', 'seized', 'investigation', 'fraud', 'loses', 'loss'];
-  const bullishKw = ['partnership', 'launch', 'bullish', 'etf', 'adoption', 'milestone', 'record', 'surge', 'rally', 'accumulate', 'buy', 'breakout', 'upgrade', 'growth'];
-  const b = bearishKw.filter(k => text.includes(k)).length;
-  const u = bullishKw.filter(k => text.includes(k)).length;
-  if (b > u) return 'BEARISH';
-  if (u > b) return 'BULLISH';
-  return 'NEUTRAL';
+  if (diff < 60)    return `${Math.floor(diff)}s`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
 }
 
 function getCategory(source = '', title = '', description = '') {
-  const s = source.toLowerCase();
+  const s    = source.toLowerCase();
   const text = (title + ' ' + (description || '')).toLowerCase();
 
-  // Source-based first
-  if (s.includes('whale_alert') || s.includes('whale alert')) return 'WHALE ALERT';
-  if (s.includes('lookonchain')) return 'ON-CHAIN';
-  if (s.includes('announcement') || s.includes('listing') || s.includes('binance') || s.includes('coinbase') || s.includes('okx')) return 'LISTINGS';
-  if (s.includes('breaking') || s.includes('urgent')) return 'BREAKING';
+  if (s.includes('whale_alert') || s.includes('whale alert')) return 'ON-CHAIN';
+  if (s.includes('lookonchain'))                               return 'ON-CHAIN';
+  if (s.includes('announcement') || s.includes('listing'))    return 'LISTINGS';
 
-  // Content-based detection
-  const macroKw = ['war', 'military', 'sanctions', 'geopolit', 'inflation', 'recession', 'federal reserve', ' cpi ', ' gdp ', 'tariff', 'nato', 'conflict', 'ukraine', 'russia', 'missile', 'economic crisis', 'economic collapse', 'interest rate', 'central bank', 'treasury'];
+  const geoKw = ['war ', 'warfare', 'military', 'sanctions', 'geopolit', 'nato', 'conflict',
+    'ukraine', 'russia', 'missile', 'troops', 'attack', 'invasion', 'treaty', 'coup',
+    'airstrike', 'artillery', 'frontline', 'ceasefire', 'hostilities'];
+  if (geoKw.some(k => text.includes(k))) return 'GEOPOLITICS';
+
+  const macroKw = ['inflation', 'recession', 'federal reserve', ' fed ', 'interest rate',
+    ' cpi ', ' gdp ', 'treasury', 'central bank', 'tariff', 'fiscal', 'monetary policy',
+    'rate hike', 'rate cut', 'economic crisis', 'economic collapse', 'labor market'];
   if (macroKw.some(k => text.includes(k))) return 'MACRO';
 
-  const commodityKw = ['crude oil', 'wti ', 'brent', 'gold price', 'silver price', ' oil price', 'per barrel', 'opec', 'commodit', 'natural gas', ' lng ', 'gold hit', 'gold falls', 'oil falls', 'oil surges'];
-  if (commodityKw.some(k => text.includes(k))) return 'COMMODITIES';
+  const commKw = ['crude oil', 'wti ', 'brent', 'gold price', 'silver price', ' oil price',
+    'per barrel', 'opec', 'commodit', 'natural gas', ' lng ', 'gold hit', 'gold falls',
+    'oil falls', 'oil surges', 'copper', 'nickel', 'zinc', 'iron ore', 'precious metal'];
+  if (commKw.some(k => text.includes(k))) return 'COMMODITIES';
 
-  return 'MARKET';
+  const marketKw = ['stock market', 's&p', 'nasdaq', 'dow jones', 'wall street', 'earnings',
+    ' ipo ', 'equity', 'shares', 'dividend', 'hedge fund'];
+  if (marketKw.some(k => text.includes(k))) return 'MARKETS';
+
+  const chainKw = ['on-chain', 'blockchain', 'whale', 'transaction', 'wallet', 'defi',
+    'protocol', 'smart contract', 'gas fee', 'tvl'];
+  if (chainKw.some(k => text.includes(k))) return 'ON-CHAIN';
+
+  if (s.includes('binance') || s.includes('bybit') || s.includes('coinbase') || s.includes('okx'))
+    return 'LISTINGS';
+
+  return 'CRYPTO';
 }
 
-function categoryColor(cat = '') {
-  if (cat === 'WHALE ALERT')  return '#f59e0b';
-  if (cat === 'ON-CHAIN')     return '#06b6d4';
-  if (cat === 'LISTINGS')     return '#8b5cf6';
-  if (cat === 'BREAKING')     return '#ef4444';
-  if (cat === 'MACRO')        return '#dc2626';
-  if (cat === 'COMMODITIES')  return '#d97706';
-  return '#555';
-}
+function toSlug(cat) { return cat.toLowerCase().replace(/\s+/g, '-'); }
 
-function sentimentStyle(sent) {
-  if (sent === 'BULLISH') return { color: '#22c55e', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.2)' };
-  if (sent === 'BEARISH') return { color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.2)' };
-  return { color: '#555', bg: 'transparent', border: 'rgba(255,255,255,0.08)' };
-}
+const CATEGORIES = [
+  { id: 'ALL',         label: 'All' },
+  { id: 'CRYPTO',      label: 'Crypto' },
+  { id: 'MACRO',       label: 'Macro' },
+  { id: 'GEOPOLITICS', label: 'Geopolitics' },
+  { id: 'COMMODITIES', label: 'Commodities' },
+  { id: 'MARKETS',     label: 'Markets' },
+  { id: 'ON-CHAIN',    label: 'On-Chain' },
+  { id: 'LISTINGS',    label: 'Listings' },
+];
 
-function toSlug(cat) {
-  return cat.toLowerCase().replace(/\s+/g, '-');
-}
+// ─── Category label (inline text, no badge box) ───────────────────────────────
 
-const CATEGORIES = ['ALL', 'BREAKING', 'MACRO', 'COMMODITIES', 'WHALE ALERT', 'MARKET', 'ON-CHAIN', 'LISTINGS'];
-
-// ─── Module-level hover handlers – direct DOM mutation, zero React state ──────
-
-const _hFeat = {
-  enter: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; },
-  leave: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.01)'; },
-};
-const _hSec = {
-  enter: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.018)'; },
-  leave: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'transparent'; },
-};
-const _hQuick = {
-  enter: e => { e.currentTarget.style.opacity = '1'; },
-  leave: e => { e.currentTarget.style.opacity = '0.85'; },
-};
-
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function SkeletonCard({ height = 180 }) {
-  return (
-    <div style={{ height, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: 20 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <div style={{ width: 60, height: 12, background: 'rgba(255,255,255,0.06)' }} />
-        <div style={{ width: 40, height: 12, background: 'rgba(255,255,255,0.04)' }} />
-      </div>
-      <div style={{ height: 20, background: 'rgba(255,255,255,0.06)', marginBottom: 10, width: '80%' }} />
-      <div style={{ height: 14, background: 'rgba(255,255,255,0.04)', marginBottom: 6, width: '65%' }} />
-      <div style={{ height: 14, background: 'rgba(255,255,255,0.03)', width: '45%' }} />
-    </div>
-  );
-}
-
-// ─── Category badge (renders as Link or span) ─────────────────────────────────
-
-function CatBadge({ cat, size = 9, style: extra = {} }) {
-  const slug = toSlug(cat);
-  const base = {
-    fontFamily: "'Courier New',monospace", fontSize: size, letterSpacing: '0.15em',
-    textTransform: 'uppercase', color: '#0047FF',
-    border: '1px solid rgba(0,71,255,0.35)', padding: '2px 8px',
-    background: 'rgba(0,71,255,0.08)', textDecoration: 'none', display: 'inline-block',
-    ...extra,
+function CatLabel({ cat, linked = false }) {
+  const style = {
+    fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+    textTransform: 'uppercase', color: '#0047FF', textDecoration: 'none',
   };
-  return (
-    <Link
-      to={`/news/${slug}`}
-      style={base}
-      onClick={e => e.stopPropagation()}
-    >
-      {cat}
-    </Link>
-  );
+  if (!linked) return <span style={style}>{cat}</span>;
+  return <Link to={`/news/${toSlug(cat)}`} style={style} onClick={e => e.stopPropagation()}>{cat}</Link>;
 }
 
-// ─── Cards – React.memo + no useState for hover ───────────────────────────────
+// ─── Lead story ───────────────────────────────────────────────────────────────
 
-const FeaturedCard = React.memo(function FeaturedCard({ item }) {
+const LeadStory = React.memo(function LeadStory({ item }) {
   if (!item) return null;
-  const sentSty = sentimentStyle(item._sentiment);
-  const hasLink = item.link && item.link.startsWith('http');
-
+  const hasLink = item.link?.startsWith('http');
   return (
-    <div
-      onMouseEnter={_hFeat.enter}
-      onMouseLeave={_hFeat.leave}
-      style={{
-        border: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(255,255,255,0.01)',
-        padding: '28px 28px 24px',
-        transition: 'border-color 200ms, background 200ms',
-        cursor: hasLink ? 'pointer' : 'default',
-      }}
+    <article
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
+      style={{ padding: '28px 0 24px', cursor: hasLink ? 'pointer' : 'default' }}
+      onMouseEnter={e => { if (hasLink) e.currentTarget.querySelector('.lead-hl').style.opacity = '0.75'; }}
+      onMouseLeave={e => { if (hasLink) e.currentTarget.querySelector('.lead-hl').style.opacity = '1'; }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
-        <CatBadge cat={item._category} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontFamily: "'Courier New',monospace", fontSize: 9, letterSpacing: '0.12em',
-            padding: '2px 8px', border: `1px solid ${sentSty.border}`,
-            background: sentSty.bg, color: sentSty.color, textTransform: 'uppercase',
-          }}>
-            {item._sentiment}
-          </span>
-          <span style={{ fontFamily: "'Courier New',monospace", fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>
-            {timeAgo(item.published_at)}
-          </span>
-        </div>
+      <div style={{ marginBottom: 12 }}>
+        <CatLabel cat={item._category} linked />
       </div>
-
-      <h2 style={{
-        fontSize: 'clamp(20px,2.2vw,32px)', fontWeight: 700, lineHeight: 1.18,
-        letterSpacing: '-0.035em', color: '#fff', margin: '0 0 14px 0',
-        fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",
+      <h1 className="lead-hl" style={{
+        fontFamily: SANS, fontSize: 'clamp(22px, 2.8vw, 38px)',
+        fontWeight: 700, lineHeight: 1.12, letterSpacing: '-0.04em',
+        color: '#f5f5f5', margin: '0 0 14px 0',
+        transition: 'opacity 180ms',
       }}>
         {item.title}
-        {hasLink && <span style={{ fontSize: 14, color: '#0047FF', marginLeft: 8, fontWeight: 400 }}>↗</span>}
-      </h2>
-
+      </h1>
       {item.description && (
         <p style={{
-          fontSize: 14, color: '#888', lineHeight: 1.65, margin: '0 0 20px 0',
+          fontFamily: SANS, fontSize: 15, color: '#777', lineHeight: 1.65,
+          margin: '0 0 16px 0',
           display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
           {item.description}
         </p>
       )}
-
-      {hasLink && (
-        <div style={{ marginTop: 16 }}>
-          <span style={{
-            fontFamily: "'Courier New',monospace", fontSize: 9, letterSpacing: '0.12em',
-            color: '#0047FF', border: '1px solid rgba(0,71,255,0.3)', padding: '3px 10px', textTransform: 'uppercase',
-          }}>
-            READ ↗
-          </span>
-        </div>
-      )}
-    </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          {item.source}
+        </span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: '#333' }}>·</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>
+          {timeAgo(item.published_at)} ago
+        </span>
+        {hasLink && <span style={{ fontFamily: MONO, fontSize: 9, color: '#0047FF', letterSpacing: '0.1em' }}>READ ↗</span>}
+      </div>
+    </article>
   );
 });
 
-const SecondaryCard = React.memo(function SecondaryCard({ item }) {
-  if (!item) return null;
-  const sentSty = sentimentStyle(item._sentiment);
-  const hasLink = item.link && item.link.startsWith('http');
+// ─── Secondary story (list-style, no card box) ────────────────────────────────
+
+const StoryRow = React.memo(function StoryRow({ item, size = 'md', divider = true }) {
+  const hasLink = item.link?.startsWith('http');
+  const fsMap = { lg: 17, md: 14, sm: 12 };
+  const fs = fsMap[size] || 14;
 
   return (
-    <div
-      onMouseEnter={_hSec.enter}
-      onMouseLeave={_hSec.leave}
-      style={{
-        border: '1px solid rgba(255,255,255,0.05)',
-        background: 'transparent',
-        padding: '18px 20px 16px',
-        transition: 'border-color 200ms, background 200ms',
-        cursor: hasLink ? 'pointer' : 'default',
-        height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
-      }}
+    <article
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
+      style={{
+        padding: '14px 0',
+        borderBottom: divider ? '1px solid rgba(255,255,255,0.055)' : 'none',
+        cursor: hasLink ? 'pointer' : 'default',
+      }}
+      onMouseEnter={e => e.currentTarget.querySelector('.story-hl').style.color = '#fff'}
+      onMouseLeave={e => e.currentTarget.querySelector('.story-hl').style.color = '#ccc'}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 6 }}>
-        <CatBadge cat={item._category} size={8} style={{ padding: '2px 6px' }} />
-        <span style={{
-          fontFamily: "'Courier New',monospace", fontSize: 8,
-          padding: '2px 6px', border: `1px solid ${sentSty.border}`,
-          background: sentSty.bg, color: sentSty.color, textTransform: 'uppercase', flexShrink: 0,
-        }}>
-          {item._sentiment}
-        </span>
+      <div style={{ marginBottom: 6 }}>
+        <CatLabel cat={item._category} linked />
       </div>
-
-      <p style={{
-        fontSize: 13, fontWeight: 600, lineHeight: 1.4, letterSpacing: '-0.02em',
-        color: '#e5e5e5', margin: '0 0 10px 0', flex: 1,
-        display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+      <p className="story-hl" style={{
+        fontFamily: SANS, fontSize: fs, fontWeight: 600, lineHeight: 1.38,
+        letterSpacing: '-0.02em', color: '#ccc', margin: '0 0 7px 0',
+        transition: 'color 150ms',
       }}>
         {item.title}
-        {hasLink && <span style={{ fontSize: 10, color: '#0047FF', marginLeft: 4 }}>↗</span>}
       </p>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 'auto' }}>
-        <div style={{ width: 5, height: 5, borderRadius: '50%', background: categoryColor(item._category), flexShrink: 0 }} />
-        <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#444', letterSpacing: '0.06em', flexShrink: 0 }}>
-          {timeAgo(item.published_at)}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: '#3a3a3a', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          {item.source}
         </span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: '#2a2a2a' }}>·</span>
+        <span style={{ fontFamily: MONO, fontSize: 8, color: '#3a3a3a' }}>{timeAgo(item.published_at)} ago</span>
       </div>
-    </div>
+    </article>
   );
 });
 
-const QuickFeedItem = React.memo(function QuickFeedItem({ item, index }) {
-  const sentSty = sentimentStyle(item._sentiment);
-  const hasLink = item.link && item.link.startsWith('http');
+// ─── Feed item (numbered, compact) ────────────────────────────────────────────
 
+const FeedItem = React.memo(function FeedItem({ item, index }) {
+  const hasLink = item.link?.startsWith('http');
   return (
     <div
-      onMouseEnter={_hQuick.enter}
-      onMouseLeave={_hQuick.leave}
-      style={{
-        padding: '12px 0',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
-        cursor: hasLink ? 'pointer' : 'default',
-        opacity: 0.85,
-        transition: 'opacity 150ms',
-      }}
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
+      style={{
+        display: 'flex', gap: 12, alignItems: 'flex-start',
+        padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)',
+        cursor: hasLink ? 'pointer' : 'default',
+      }}
+      onMouseEnter={e => e.currentTarget.querySelector('.feed-hl').style.color = '#ddd'}
+      onMouseLeave={e => e.currentTarget.querySelector('.feed-hl').style.color = '#888'}
     >
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <span style={{
-          fontFamily: "'Courier New',monospace", fontSize: 9, color: '#333',
-          letterSpacing: '0.05em', flexShrink: 0, paddingTop: 2, width: 16, textAlign: 'right',
+      <span style={{ fontFamily: MONO, fontSize: 8, color: '#2a2a2a', flexShrink: 0, paddingTop: 3, minWidth: 18, textAlign: 'right' }}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p className="feed-hl" style={{
+          fontFamily: SANS, fontSize: 11, fontWeight: 500, lineHeight: 1.4,
+          color: '#888', margin: '0 0 4px 0', transition: 'color 150ms',
+          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
-          {String(index + 1).padStart(2, '0')}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p className="quick-title" style={{
-            fontSize: 11, fontWeight: 500, lineHeight: 1.45,
-            color: '#ccc', margin: '0 0 5px 0',
-            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-            transition: 'color 150ms',
-          }}>
-            {item.title}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: categoryColor(item._category), flexShrink: 0 }} />
-            <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#444', letterSpacing: '0.06em' }}>
-              {timeAgo(item.published_at)}
-            </span>
-            <span style={{
-              fontFamily: "'Courier New',monospace", fontSize: 7,
-              padding: '1px 5px', border: `1px solid ${sentSty.border}`,
-              color: sentSty.color, letterSpacing: '0.1em', textTransform: 'uppercase',
-            }}>
-              {item._sentiment}
-            </span>
-          </div>
+          {item.title}
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <span style={{ fontFamily: MONO, fontSize: 7, color: '#2e2e2e', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            {item._category}
+          </span>
+          <span style={{ fontFamily: MONO, fontSize: 7, color: '#252525' }}>·</span>
+          <span style={{ fontFamily: MONO, fontSize: 7, color: '#2e2e2e' }}>{timeAgo(item.published_at)}</span>
         </div>
       </div>
     </div>
   );
 });
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function SkeletonLine({ width = '100%', height = 14, mb = 8 }) {
+  return <div style={{ width, height, background: 'rgba(255,255,255,0.04)', marginBottom: mb }} />;
+}
+
+// ─── Category section header ──────────────────────────────────────────────────
+
+function SectionHead({ label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '36px 0 0 0', paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#fff', fontWeight: 700 }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.05)' }} />
+    </div>
+  );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function NewsPage() {
   const [items, setItems]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [updatedAt, setUpdatedAt] = useState(null);
   const [filter, setFilter]       = useState('ALL');
-  const [isMock, setIsMock]       = useState(false);
 
   const fetchNews = useCallback(async () => {
     try {
-      const res = await fetch('/api/news/public?limit=50');
+      const res = await fetch('/api/news/public?limit=60');
       if (!res.ok) return;
       const data = await res.json();
       setItems(data.items || []);
-      setIsMock(data.mock || false);
       setUpdatedAt(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
-    } catch {
-      // keep previous
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -325,315 +250,203 @@ export default function NewsPage() {
   const enriched = useMemo(() =>
     items.map(item => ({
       ...item,
-      _sentiment: detectSentiment(item.title, item.description),
-      _category:  getCategory(item.source, item.title, item.description),
+      _category: getCategory(item.source, item.title, item.description),
     })),
   [items]);
 
-  const filtered = useMemo(() => enriched.filter(item => {
-    if (filter === 'ALL') return true;
-    return item._category === filter;
-  }), [enriched, filter]);
+  const filtered = useMemo(() =>
+    filter === 'ALL' ? enriched : enriched.filter(i => i._category === filter),
+  [enriched, filter]);
 
   const display   = filtered.length > 0 ? filtered : enriched;
-  const featured  = display[0] || null;
-  const secondary = display.slice(1, 5);
-  const quickFeed = display.slice(5, 25);
-  const overflow  = display.slice(25);
+  const lead      = display[0] || null;
+  const main      = display.slice(1, 5);   // 4 primary stories
+  const sidebar   = display.slice(5, 30);  // 25 feed items
+  const more      = display.slice(30);
 
-  const signals = useMemo(() =>
-    display.slice(0, 8).filter(i => i._sentiment !== 'NEUTRAL').slice(0, 3),
-  [display]);
+  // Today's date for header
+  const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   return (
-    <div style={{
-      background: '#060606', color: '#fff',
-      fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",
-      minHeight: '100vh',
-    }}>
+    <div style={{ background: '#060606', color: '#f5f5f5', fontFamily: SANS, minHeight: '100vh' }}>
       <LandingHeader />
 
       <style>{`
-        @keyframes marqueeScroll {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .news-grid-secondary {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1px;
-          background: rgba(255,255,255,0.04);
-        }
-        .news-grid-secondary > * { background: #060606; }
-        .news-quick-item:hover .quick-title { color: #fff !important; }
-        @media (max-width: 768px) {
-          .news-main-layout  { flex-direction: column !important; }
-          .news-right-col    { display: none !important; }
-          .news-ticker-strip { display: none !important; }
-          .news-grid-secondary { grid-template-columns: 1fr !important; }
+        @keyframes ticker { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
+        @media (max-width: 900px) {
+          .news-3col { flex-direction: column !important; }
+          .news-sidebar { display: none !important; }
+          .news-ticker { display: none !important; }
         }
       `}</style>
 
-      {/* ── Intelligence Header Bar ─────────────────────────────────────────── */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', borderTop: '1px solid rgba(255,255,255,0.04)', padding: '10px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <span style={{ fontFamily: "'Courier New',monospace", fontSize: 11, letterSpacing: '0.18em', color: '#fff', fontWeight: 700, textTransform: 'uppercase' }}>
+      {/* ── Page header ─────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', padding: '11px 0' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', fontWeight: 700, textTransform: 'uppercase', color: '#fff' }}>
               KADO INTELLIGENCE
             </span>
-            <span style={{ fontFamily: "'Courier New',monospace", fontSize: 9, color: '#444' }}>·</span>
-            <span style={{
-              fontFamily: "'Courier New',monospace", fontSize: 8, letterSpacing: '0.12em',
-              color: '#0047FF', border: '1px solid rgba(0,71,255,0.3)',
-              padding: '2px 7px', background: 'rgba(0,71,255,0.06)', textTransform: 'uppercase',
-            }}>
-              CRYPTO MARKETS
-            </span>
-            {isMock && (
-              <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#444', letterSpacing: '0.1em' }}>
-                · DEMO
-              </span>
-            )}
+            <span style={{ fontFamily: MONO, fontSize: 9, color: '#333' }}>·</span>
+            <span style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.06em' }}>{dateStr}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {updatedAt && (
-              <span style={{ fontFamily: "'Courier New',monospace", fontSize: 9, color: '#444', letterSpacing: '0.1em' }}>
+              <span style={{ fontFamily: MONO, fontSize: 8, color: '#333', letterSpacing: '0.1em' }}>
                 UPDATED {updatedAt}
               </span>
             )}
             <button
               onClick={fetchNews}
-              style={{
-                fontFamily: "'Courier New',monospace", fontSize: 8, letterSpacing: '0.14em',
-                color: '#0047FF', border: '1px solid rgba(0,71,255,0.3)',
-                background: 'transparent', padding: '3px 10px', cursor: 'pointer', textTransform: 'uppercase',
-              }}
+              style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '0.12em', color: '#555', background: 'none', border: 'none', cursor: 'pointer', textTransform: 'uppercase', padding: 0 }}
             >
-              ↺ REFRESH
+              ↺ Refresh
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Ticker Marquee (pure CSS, no JS) ───────────────────────────────── */}
+      {/* ── Ticker ──────────────────────────────────────────────────────────── */}
       {enriched.length > 0 && (
-        <div
-          className="news-ticker-strip"
-          style={{
-            borderBottom: '1px solid rgba(255,255,255,0.04)',
-            padding: '7px 0', overflow: 'hidden', whiteSpace: 'nowrap',
-            background: 'rgba(0,71,255,0.02)',
-          }}
-        >
-          <div style={{ display: 'inline-block', animation: 'marqueeScroll 120s linear infinite' }}>
-            {[...enriched.slice(0, 15), ...enriched.slice(0, 15)].map((item, i) => (
-              <span key={i} style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: '#555', letterSpacing: '0.06em' }}>
-                <span style={{ color: '#333', marginRight: 6 }}>◆</span>
-                <span style={{ color: '#777', marginRight: 6 }}>[{item._category}]</span>
+        <div className="news-ticker" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', padding: '7px 0', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'inline-block', animation: 'ticker 110s linear infinite' }}>
+            {[...enriched.slice(0, 20), ...enriched.slice(0, 20)].map((item, i) => (
+              <span key={i} style={{ fontFamily: MONO, fontSize: 9, color: '#3a3a3a', letterSpacing: '0.04em' }}>
+                <span style={{ color: '#222', margin: '0 12px' }}>◆</span>
+                <span style={{ color: '#3a3a3a', marginRight: 8 }}>{item._category}</span>
                 {item.title}
-                <span style={{ color: '#222', margin: '0 28px' }}>·</span>
               </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── Category Filter Bar ─────────────────────────────────────────────── */}
-      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', padding: '12px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          {CATEGORIES.map((cat, i) => (
-            <React.Fragment key={cat}>
+      {/* ── Category nav ─────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px', display: 'flex', alignItems: 'stretch', gap: 0 }}>
+          {CATEGORIES.map(cat => {
+            const active = filter === cat.id;
+            return (
               <button
-                onClick={() => setFilter(cat)}
+                key={cat.id}
+                onClick={() => setFilter(cat.id)}
                 style={{
-                  fontFamily: "'Courier New',monospace", fontSize: 9, letterSpacing: '0.14em',
-                  padding: '5px 14px', border: 'none',
-                  background: filter === cat ? '#0047FF' : 'transparent',
-                  color: filter === cat ? '#fff' : '#555',
-                  cursor: 'pointer', textTransform: 'uppercase',
-                  transition: 'background 140ms, color 140ms',
+                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
+                  padding: '13px 18px', background: 'none', border: 'none',
+                  borderBottom: active ? '2px solid #fff' : '2px solid transparent',
+                  color: active ? '#fff' : '#444',
+                  cursor: 'pointer', transition: 'color 140ms, border-color 140ms',
+                  whiteSpace: 'nowrap',
                 }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#888'; }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#444'; }}
               >
-                {cat}
+                {cat.label}
               </button>
-              {i < CATEGORIES.length - 1 && (
-                <span style={{ color: '#222', fontFamily: 'monospace', fontSize: 10, padding: '0 2px' }}>|</span>
-              )}
-            </React.Fragment>
-          ))}
-          <span style={{ fontFamily: "'Courier New',monospace", fontSize: 9, color: '#333', letterSpacing: '0.1em', marginLeft: 'auto' }}>
-            {display.length} ITEMS
+            );
+          })}
+          <span style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: 8, color: '#2a2a2a', alignSelf: 'center', letterSpacing: '0.1em' }}>
+            {display.length} STORIES
           </span>
         </div>
       </div>
 
-      {/* ── Main Content ────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px 80px' }}>
+      {/* ── Main content ─────────────────────────────────────────────────────── */}
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px 80px' }}>
 
         {loading ? (
-          <div style={{ display: 'flex', gap: 1, background: 'rgba(255,255,255,0.04)' }}>
-            <div style={{ flex: 2, background: '#060606', padding: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <SkeletonCard height={300} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'rgba(255,255,255,0.04)' }}>
-                {[0,1,2,3].map(i => <div key={i} style={{ background: '#060606' }}><SkeletonCard height={180} /></div>)}
-              </div>
-            </div>
-            <div style={{ flex: 1, background: '#060606', display: 'flex', flexDirection: 'column', gap: 12, padding: 20 }}>
-              {[0,1,2,3,4,5,6,7].map(i => <SkeletonCard key={i} height={60} />)}
-            </div>
+          <div style={{ paddingTop: 40 }}>
+            <SkeletonLine width="60px" height={10} mb={16} />
+            <SkeletonLine width="80%" height={38} mb={12} />
+            <SkeletonLine width="65%" height={38} mb={20} />
+            <SkeletonLine height={14} mb={8} />
+            <SkeletonLine width="75%" height={14} mb={8} />
+            <SkeletonLine width="55%" height={14} />
           </div>
         ) : display.length === 0 ? (
-          <div style={{ padding: '80px 0', textAlign: 'center', fontFamily: "'Courier New',monospace", fontSize: 11, color: '#333', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-            NO ITEMS FOR THIS FILTER
+          <div style={{ padding: '80px 0', textAlign: 'center', fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.18em' }}>
+            NO STORIES FOR THIS FILTER
           </div>
         ) : (
-          <div className="news-main-layout" style={{ display: 'flex', gap: 1, background: 'rgba(255,255,255,0.04)' }}>
+          <div className="news-3col" style={{ display: 'flex', gap: 0, paddingTop: 0 }}>
 
-            {/* Left: featured + secondary (2/3) */}
-            <div style={{ flex: 2, background: '#060606', display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-              <div style={{ padding: '8px 28px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#0047FF', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                  TOP STORY
-                </span>
-                <div style={{ flex: 1, height: 1, background: 'rgba(0,71,255,0.12)' }} />
-              </div>
+            {/* ── Left: lead + main stories ─────────────────────────────────── */}
+            <div style={{ flex: '0 0 54%', minWidth: 0, paddingRight: 40, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+              <LeadStory item={lead} />
 
-              <FeaturedCard item={featured} />
-
-              <div style={{ padding: '8px 28px', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#555', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                  LATEST INTELLIGENCE
-                </span>
-                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.05)' }} />
-              </div>
-
-              <div className="news-grid-secondary" style={{ flex: 1 }}>
-                {secondary.length > 0
-                  ? secondary.map(item => (
-                      <div key={item.id} style={{ background: '#060606' }}>
-                        <SecondaryCard item={item} />
-                      </div>
-                    ))
-                  : [0,1,2,3].map(i => <div key={i} style={{ background: '#060606' }}><SkeletonCard height={160} /></div>)
-                }
-              </div>
+              {main.length > 0 && (
+                <>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0 0 0' }} />
+                  {main.map((item, i) => (
+                    <StoryRow key={item.id} item={item} size="md" divider={i < main.length - 1} />
+                  ))}
+                </>
+              )}
             </div>
 
-            {/* Right: quick feed + signals (1/3) */}
-            <div className="news-right-col" style={{ flex: 1, background: '#060606', display: 'flex', flexDirection: 'column', minWidth: 0, borderLeft: '1px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ padding: '8px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#fff', letterSpacing: '0.2em', textTransform: 'uppercase' }}>QUICK FEED</span>
-                <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#333', letterSpacing: '0.1em' }}>{quickFeed.length} ITEMS</span>
+            {/* ── Center: more stories ──────────────────────────────────────── */}
+            <div style={{ flex: '0 0 28%', minWidth: 0, padding: '28px 28px 0', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '0.2em', color: '#333', marginBottom: 16, textTransform: 'uppercase' }}>
+                More Stories
               </div>
-
-              <div style={{ flex: 1, padding: '4px 18px', overflowY: 'auto', maxHeight: 520 }}>
-                {quickFeed.map((item, i) => (
-                  <QuickFeedItem key={item.id} item={item} index={i} />
-                ))}
-              </div>
-
-              {/* Market Signals */}
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ padding: '8px 18px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#fff', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                    MARKET SIGNALS
-                  </span>
-                </div>
-                <div style={{ padding: '10px 18px 18px' }}>
-                  {signals.length > 0 ? signals.map((item, i) => {
-                    const sentSty = sentimentStyle(item._sentiment);
-                    return (
-                      <div key={item.id} style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '8px 0', borderBottom: i < signals.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-                      }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{
-                            fontSize: 10, color: '#aaa', margin: '0 0 3px 0',
-                            display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden', letterSpacing: '-0.01em',
-                          }}>
-                            {item.title.slice(0, 44)}{item.title.length > 44 ? '…' : ''}
-                          </p>
-                          <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#444', letterSpacing: '0.06em' }}>
-                            {timeAgo(item.published_at)}
-                          </span>
-                        </div>
-                        <span style={{
-                          fontFamily: "'Courier New',monospace", fontSize: 8, letterSpacing: '0.14em',
-                          color: sentSty.color, border: `1px solid ${sentSty.border}`,
-                          background: sentSty.bg, padding: '2px 7px',
-                          flexShrink: 0, marginLeft: 8, textTransform: 'uppercase',
-                        }}>
-                          {item._sentiment === 'BULLISH' ? '▲ BULL' : '▼ BEAR'}
-                        </span>
-                      </div>
-                    );
-                  }) : (
-                    <p style={{ fontFamily: "'Courier New',monospace", fontSize: 9, color: '#333', letterSpacing: '0.1em', textAlign: 'center', padding: '12px 0' }}>
-                      NO SIGNALS
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '10px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#333', letterSpacing: '0.1em' }}>
-                  {enriched.length} ITEMS LOADED
-                </span>
-                <span style={{
-                  fontFamily: "'Courier New',monospace", fontSize: 8, color: '#0047FF',
-                  letterSpacing: '0.1em', border: '1px solid rgba(0,71,255,0.2)',
-                  padding: '2px 7px', background: 'rgba(0,71,255,0.04)',
-                }}>
-                  AI PROCESSED
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Overflow grid */}
-        {!loading && overflow.length > 0 && (
-          <div style={{ marginTop: 1, background: 'rgba(255,255,255,0.04)', padding: 1 }}>
-            <div style={{ background: '#060606', padding: '8px 28px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: "'Courier New',monospace", fontSize: 8, color: '#555', letterSpacing: '0.2em' }}>MORE INTELLIGENCE</span>
-              <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.04)' }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 1, background: 'rgba(255,255,255,0.04)' }}>
-              {overflow.map(item => (
-                <div key={item.id} style={{ background: '#060606' }}>
-                  <SecondaryCard item={item} />
-                </div>
+              {sidebar.slice(0, 12).map((item, i) => (
+                <StoryRow key={item.id} item={item} size="sm" divider={i < 11} />
               ))}
             </div>
+
+            {/* ── Right: numbered feed ──────────────────────────────────────── */}
+            <div className="news-sidebar" style={{ flex: '0 0 18%', minWidth: 0, padding: '28px 0 0 24px' }}>
+              <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '0.2em', color: '#333', marginBottom: 16, textTransform: 'uppercase' }}>
+                Latest
+              </div>
+              {sidebar.slice(12).map((item, i) => (
+                <FeedItem key={item.id} item={item} index={i} />
+              ))}
+            </div>
+
           </div>
         )}
 
-        {/* CTA */}
-        <div style={{ paddingTop: 80, paddingBottom: 40, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', marginTop: 48 }}>
-          <span style={{
-            fontFamily: "'Courier New',monospace", fontSize: 9, color: '#0047FF',
-            letterSpacing: '0.2em', textTransform: 'uppercase', display: 'block', marginBottom: 18,
-          }}>
-            KADO AI ENGINE
-          </span>
-          <p style={{ fontSize: 15, color: '#666', marginBottom: 10, lineHeight: 1.6 }}>
-            Our AI analyzes this feed 24/7 and executes trades in under 100ms.
-          </p>
-          <p style={{ fontFamily: "'Courier New',monospace", fontSize: 10, color: '#444', letterSpacing: '0.08em', marginBottom: 32 }}>
-            Real-time news processed by AI signal engine · {enriched.length} items loaded
-          </p>
+        {/* ── Category sections (ALL view only, below fold) ──────────────────── */}
+        {!loading && filter === 'ALL' && more.length > 0 && (
+          <div style={{ marginTop: 48, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 0 }}>
+            {['GEOPOLITICS', 'MACRO', 'COMMODITIES', 'ON-CHAIN', 'LISTINGS'].map(cat => {
+              const catItems = more.filter(i => i._category === cat).slice(0, 4);
+              if (catItems.length === 0) return null;
+              return (
+                <div key={cat}>
+                  <SectionHead label={CATEGORIES.find(c => c.id === cat)?.label || cat} />
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0 40px' }}>
+                    {catItems.map((item, i) => (
+                      <StoryRow key={item.id} item={item} size="sm" divider={i < catItems.length - 1} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── CTA ─────────────────────────────────────────────────────────────── */}
+        <div style={{ marginTop: 72, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 20 }}>
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', color: '#444', marginBottom: 8, textTransform: 'uppercase' }}>
+              Kado AI Engine
+            </div>
+            <p style={{ fontSize: 14, color: '#555', margin: 0, lineHeight: 1.6, maxWidth: 420 }}>
+              Our AI analyzes this feed in real-time and executes trades in under 100ms across your Bybit account.
+            </p>
+          </div>
           <a
             href="/auth?mode=register"
             style={{
-              display: 'inline-block', padding: '12px 32px', background: '#0047FF',
-              color: '#fff', fontSize: 12, fontWeight: 600, textDecoration: 'none',
-              letterSpacing: '0.1em', textTransform: 'uppercase',
-              fontFamily: "'Courier New',monospace", border: '1px solid rgba(0,71,255,0.6)',
+              fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+              padding: '12px 28px', background: '#0047FF', color: '#fff',
+              textDecoration: 'none', border: '1px solid rgba(0,71,255,0.6)',
+              flexShrink: 0,
             }}
           >
-            GET STARTED ↗
+            Get started ↗
           </a>
         </div>
       </div>
