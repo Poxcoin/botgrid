@@ -8,11 +8,13 @@ import BotTab from '@/components/user/BotTab';
 import SignalsTab from '@/components/user/SignalsTab';
 import LogsTab from '@/components/user/LogsTab';
 import BacktesterTab from '@/components/dashboard/BacktesterTab';
+import AnalyticsTab from '@/components/user/AnalyticsTab';
 
 const TABS = [
   { id: 'overview',   label: 'Overview' },
   { id: 'bot',        label: 'Bot' },
   { id: 'trades',     label: 'Trades' },
+  { id: 'analytics',  label: 'Analytics' },
   { id: 'pnl',        label: 'PnL' },
   { id: 'signals',    label: 'Signals' },
   { id: 'backtester', label: 'Backtester' },
@@ -40,6 +42,7 @@ function TabContent({ tab }) {
   if (tab === 'overview')   return <OverviewTab />;
   if (tab === 'bot')        return <BotTab />;
   if (tab === 'trades')     return <TradesTab />;
+  if (tab === 'analytics')  return <AnalyticsTab />;
   if (tab === 'pnl')        return <PnlTab />;
   if (tab === 'signals')    return <SignalsTab />;
   if (tab === 'backtester') return <BacktesterTab />;

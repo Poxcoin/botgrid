@@ -39,15 +39,17 @@ PENDING_ORDER_TIMEOUT  = 1800   # скасувати незаповнений li
 
 GRID_CONFIGS = [
     {
-        "symbol":        "SOL/USDT:USDT",
-        "levels":        8,        # зменшено з 15: ширші кроки → менше fee-збитків
-        "size_pct":      3.0,
-        "size_usd_min":  15.0,
-        "leverage":      2,
-        "auto_range":    True,
-        "upper_manual":  200.0,
-        "lower_manual":  120.0,
-        "max_positions": 4,
+        "symbol":           "SOL/USDT:USDT",
+        "levels":           5,          # 8→5: fewer levels, bigger steps, less fee drag
+        "size_pct":         5.0,        # 3→5%: bigger positions to overcome fee drag
+        "size_usd_min":     15.0,
+        "leverage":         2,
+        "auto_range":       True,
+        "upper_manual":     200.0,
+        "lower_manual":     120.0,
+        "max_positions":    3,          # 4→3: don't overextend
+        "boundary_sl_pct":  0.05,       # override global 3% → 5% (SOL is volatile)
+        "min_step_fee_mult": 5.0,       # override global 3.0 → 5.0 (wider profitable steps)
     },
     {
         "symbol":        "ETH/USDT:USDT",
@@ -218,12 +220,14 @@ def _min_profitable_step(price: float) -> float:
 
 
 def _adjust_levels_to_profitable(symbol: str, upper: float, lower: float,
-                                  n: int, price: float) -> tuple[list[float], int]:
+                                  n: int, price: float, fee_mult=None) -> tuple[list[float], int]:
     """Зменшує кількість рівнів доки крок не стане прибутковим.
 
     Повертає (levels, actual_n).
+    fee_mult: override MIN_STEP_FEE_MULT for per-symbol configuration.
     """
-    min_step = _min_profitable_step(price)
+    _fee_mult = fee_mult if fee_mult is not None else MIN_STEP_FEE_MULT
+    min_step = price * BYBIT_TAKER_FEE * 2 * _fee_mult
     step = (upper - lower) / n
     if step >= min_step:
         return _calc_levels(upper, lower, n), n
@@ -233,7 +237,7 @@ def _adjust_levels_to_profitable(symbol: str, upper: float, lower: float,
     adjusted_step = (upper - lower) / adjusted_n
     print(
         f"[GRID:{symbol}] ⚠️ Крок ${step:.4f} < мін ${min_step:.4f} "
-        f"(fee {BYBIT_TAKER_FEE*2*100:.3f}% × {MIN_STEP_FEE_MULT}x) "
+        f"(fee {BYBIT_TAKER_FEE*2*100:.3f}% × {_fee_mult}x) "
         f"→ рівні {n} → {adjusted_n}, новий крок ${adjusted_step:.4f}"
     )
     return _calc_levels(upper, lower, adjusted_n), adjusted_n
@@ -708,6 +712,10 @@ def _run_single(cfg: dict) -> None:
     _api_key   = cfg.get("api_key")
     _api_secret = cfg.get("api_secret")
 
+    # Per-symbol overrides
+    boundary_sl_pct       = cfg.get("boundary_sl_pct", BOUNDARY_SL_PCT)
+    min_step_fee_mult_cfg = cfg.get("min_step_fee_mult", MIN_STEP_FEE_MULT)
+
     # ─── Перевірка stop_until перед підключенням до біржі ───────────────────────
     _pre_state = _load_state(symbol, user_id)
     _stop_until = _pre_state.get("stop_until", 0)
@@ -738,7 +746,7 @@ def _run_single(cfg: dict) -> None:
     else:
         upper, lower = cfg["upper_manual"], cfg["lower_manual"]
 
-    levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price)
+    levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price, min_step_fee_mult_cfg)
     step   = levels[1] - levels[0]
     print(f"[GRID:{symbol}] {grid_levels} рівнів | крок ${step:.2f} | режим {direction.upper()}")
 
@@ -927,9 +935,9 @@ def _run_single(cfg: dict) -> None:
 
             # ─── Boundary SL: ціна на 3%+ нижче нижньої межі → жорсткий стоп ───
             _lower_bound = state.get("lower", levels[0])
-            if direction == "long" and price < _lower_bound * (1 - BOUNDARY_SL_PCT):
-                _sl_threshold = _lower_bound * (1 - BOUNDARY_SL_PCT)
-                print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: ${price:.2f} < ${_sl_threshold:.2f} (3% нижче межі) — закриваємо")
+            if direction == "long" and price < _lower_bound * (1 - boundary_sl_pct):
+                _sl_threshold = _lower_bound * (1 - boundary_sl_pct)
+                print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: ${price:.2f} < ${_sl_threshold:.2f} ({boundary_sl_pct*100:.0f}% нижче межі) — закриваємо")
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
                 realized = _sync_close_all(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
@@ -1030,7 +1038,7 @@ def _run_single(cfg: dict) -> None:
                 state["total_pnl"] += realized
                 state["positions"] = {}
                 upper, lower = _detect_range(exchange, symbol)
-                levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price)
+                levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price, min_step_fee_mult_cfg)
                 step = levels[1] - levels[0]
                 rebuilds_today += 1
                 state.update({

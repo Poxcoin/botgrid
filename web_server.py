@@ -1430,6 +1430,94 @@ async def get_stats(token: str = Depends(require_any_auth)):
     }
 
 
+@app.get("/api/analytics/breakdown")
+async def analytics_breakdown(token: str = Depends(require_any_auth)):
+    """Per-bot and per-coin PnL analytics from all_trades."""
+    try:
+        from modules.unified_pnl import _conn
+        conn = _conn()
+        c = conn.cursor()
+
+        # Overall summary
+        c.execute("""
+            SELECT COUNT(*),
+                   SUM(pnl_usdt),
+                   SUM(CASE WHEN pnl_usdt > 0 THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN pnl_usdt < 0 THEN 1 ELSE 0 END),
+                   MIN(timestamp_open),
+                   MAX(timestamp_close)
+            FROM all_trades
+        """)
+        row = c.fetchone()
+        summary = {
+            "total_trades": row[0] or 0,
+            "total_pnl": round(row[1] or 0, 2),
+            "wins": row[2] or 0,
+            "losses": row[3] or 0,
+            "first_trade": row[4],
+            "last_trade": row[5],
+        }
+
+        # By bot source
+        c.execute("""
+            SELECT bot_source, COUNT(*),
+                   SUM(pnl_usdt),
+                   SUM(CASE WHEN pnl_usdt > 0 THEN 1 ELSE 0 END),
+                   AVG(CASE WHEN pnl_usdt > 0 THEN pnl_usdt END),
+                   AVG(CASE WHEN pnl_usdt < 0 THEN pnl_usdt END)
+            FROM all_trades GROUP BY bot_source ORDER BY SUM(pnl_usdt) DESC
+        """)
+        by_bot = [{"source": r[0], "trades": r[1], "pnl": round(r[2] or 0, 2),
+                   "wins": r[3] or 0, "avg_win": round(r[4] or 0, 2),
+                   "avg_loss": round(r[5] or 0, 2)} for r in c.fetchall()]
+
+        # By coin
+        c.execute("""
+            SELECT coin, COUNT(*),
+                   SUM(pnl_usdt),
+                   SUM(CASE WHEN pnl_usdt > 0 THEN 1 ELSE 0 END),
+                   AVG(CASE WHEN pnl_usdt > 0 THEN pnl_usdt END),
+                   AVG(CASE WHEN pnl_usdt < 0 THEN pnl_usdt END)
+            FROM all_trades GROUP BY coin ORDER BY SUM(pnl_usdt) DESC
+        """)
+        by_coin = [{"coin": r[0], "trades": r[1], "pnl": round(r[2] or 0, 2),
+                    "wins": r[3] or 0, "avg_win": round(r[4] or 0, 2),
+                    "avg_loss": round(r[5] or 0, 2)} for r in c.fetchall()]
+
+        # Daily PnL (last 30 days)
+        c.execute("""
+            SELECT DATE(timestamp_open) as d, SUM(pnl_usdt), COUNT(*)
+            FROM all_trades
+            WHERE timestamp_open >= datetime('now', '-30 days')
+            GROUP BY d ORDER BY d ASC
+        """)
+        daily = [{"date": r[0], "pnl": round(r[1] or 0, 2), "trades": r[2]} for r in c.fetchall()]
+
+        # Recent best trades
+        c.execute("""
+            SELECT bot_source, coin, action, pnl_usdt, result, timestamp_open
+            FROM all_trades WHERE pnl_usdt IS NOT NULL
+            ORDER BY pnl_usdt DESC LIMIT 5
+        """)
+        best = [{"source": r[0], "coin": r[1], "action": r[2], "pnl": round(r[3], 2),
+                 "result": r[4], "ts": r[5]} for r in c.fetchall()]
+
+        # Recent worst trades
+        c.execute("""
+            SELECT bot_source, coin, action, pnl_usdt, result, timestamp_open
+            FROM all_trades WHERE pnl_usdt IS NOT NULL
+            ORDER BY pnl_usdt ASC LIMIT 5
+        """)
+        worst = [{"source": r[0], "coin": r[1], "action": r[2], "pnl": round(r[3], 2),
+                  "result": r[4], "ts": r[5]} for r in c.fetchall()]
+
+        conn.close()
+        return {"summary": summary, "by_bot": by_bot, "by_coin": by_coin,
+                "daily": daily, "best": best, "worst": worst}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/intel")
 async def get_intel(token: str = Depends(require_any_auth)):
     """Live данные: источники, ликвидации, on-chain."""

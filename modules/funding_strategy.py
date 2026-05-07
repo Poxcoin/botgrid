@@ -51,7 +51,7 @@ WATCHLIST = [
     "INJ",  "SUI",  "APT",  "OP",   "ARB",
     "NEAR", "FET",  "TON",  "TRX",  "ATOM",
     "AAVE", "UNI",  "LDO",  "CRV",  "RUNE",
-    "STX",  "WLD",  "JUP",  "PENDLE", "ONDO",
+    "WLD",  "JUP",  "PENDLE", "ONDO",
 ]
 
 _cooldowns:  dict[str, float]  = {}
