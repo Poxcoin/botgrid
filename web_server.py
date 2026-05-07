@@ -25,7 +25,7 @@ from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, Subscription
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email
@@ -919,11 +919,30 @@ async def invoice_performance(request: Request):
     return {"ok": True, "message": "Cron started"}
 
 
+@app.post("/api/billing/invoice-weekly")
+async def invoice_weekly(request: Request):
+    """Weekly billing cron endpoint — called every Monday by systemd timer."""
+    secret = request.headers.get("X-Cron-Secret", "")
+    if not PERF_CRON_SECRET or secret != PERF_CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    import subprocess
+    subprocess.Popen(["python3", "billing_cron_weekly.py"])
+    return {"ok": True, "message": "Weekly cron started"}
+
+
 # ─── Manual USDT invoice endpoints ───────────────────────────────────────────
 
 class InvoiceNotifyRequest(BaseModel):
     invoice_id: int
     tx_hash: Optional[str] = None
+    invoice_type: str = "weekly"   # "weekly" | "monthly"
+
+
+def _week_label(year: int, week: int) -> str:
+    from datetime import timedelta
+    monday = datetime.fromisocalendar(year, week, 1).replace(tzinfo=timezone.utc)
+    sunday = monday + timedelta(days=6)
+    return f"Week {week} ({monday.strftime('%b %-d')}–{sunday.strftime('%-d')})"
 
 
 @app.get("/api/billing/invoice/current")
@@ -931,48 +950,52 @@ async def get_current_invoice(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    """Return active unpaid invoice + current month running PnL for performance users."""
-    from sqlalchemy import func, desc
+    """Return oldest unpaid weekly invoice + this-week running PnL."""
+    from sqlalchemy import func
     user = _get_user_from_token(credentials.credentials, db)
     if user.plan != "performance":
         raise HTTPException(status_code=403, detail="Performance plan required")
 
     now = datetime.now(timezone.utc)
+    iso = now.isocalendar()
+    week_start = datetime.fromisocalendar(iso.year, iso.week, 1).replace(tzinfo=timezone.utc)
 
-    # Oldest unpaid invoice with a fee > 0
+    # Current week running PnL
+    current_pnl = db.query(func.sum(UserTrade.pnl_usdt)).filter(
+        UserTrade.user_id == user.id,
+        UserTrade.status  == "closed",
+        UserTrade.closed_at >= week_start,
+    ).scalar() or 0.0
+
+    # Oldest unpaid weekly invoice
     invoice = (
-        db.query(MonthlyPnl)
-        .filter(MonthlyPnl.user_id == user.id, MonthlyPnl.performance_fee > 0, MonthlyPnl.fee_paid == False)
-        .order_by(MonthlyPnl.year, MonthlyPnl.month)
+        db.query(WeeklyPnl)
+        .filter(WeeklyPnl.user_id == user.id, WeeklyPnl.performance_fee > 0, WeeklyPnl.fee_paid == False)
+        .order_by(WeeklyPnl.year, WeeklyPnl.week)
         .first()
     )
 
-    # Running total for the current calendar month
-    month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
-    current_pnl = db.query(func.sum(UserTrade.pnl_usdt)).filter(
-        UserTrade.user_id == user.id,
-        UserTrade.status == "closed",
-        UserTrade.closed_at >= month_start,
-    ).scalar() or 0.0
-
     result: dict = {
-        "wallet_trc20": USDT_WALLET_TRC20,
-        "current_month_pnl": round(float(current_pnl), 2),
-        "projected_fee": round(max(0.0, float(current_pnl) * 0.20), 2),
+        "wallet_trc20":      USDT_WALLET_TRC20,
+        "current_week_pnl":  round(float(current_pnl), 2),
+        "projected_fee":     round(max(0.0, float(current_pnl) * 0.20), 2),
+        "week_label":        _week_label(iso.year, iso.week),
         "invoice": None,
     }
 
     if invoice:
         result["invoice"] = {
-            "id":           invoice.id,
-            "year":         invoice.year,
-            "month":        invoice.month,
-            "gross_pnl":    invoice.gross_pnl,
-            "fee":          invoice.performance_fee,
-            "fee_paid":     invoice.fee_paid,
-            "notified":     invoice.payment_notified_at is not None,
-            "notified_at":  invoice.payment_notified_at.isoformat() if invoice.payment_notified_at else None,
-            "tx_hash":      invoice.tx_hash,
+            "id":        invoice.id,
+            "type":      "weekly",
+            "year":      invoice.year,
+            "week":      invoice.week,
+            "label":     _week_label(invoice.year, invoice.week),
+            "gross_pnl": invoice.gross_pnl,
+            "fee":       invoice.performance_fee,
+            "fee_paid":  invoice.fee_paid,
+            "notified":  invoice.payment_notified_at is not None,
+            "notified_at": invoice.payment_notified_at.isoformat() if invoice.payment_notified_at else None,
+            "tx_hash":   invoice.tx_hash,
         }
 
     return result
@@ -986,10 +1009,17 @@ async def notify_invoice_payment(
 ):
     """User notifies that USDT payment was sent."""
     user = _get_user_from_token(credentials.credentials, db)
-    invoice = db.query(MonthlyPnl).filter(
-        MonthlyPnl.id == body.invoice_id,
-        MonthlyPnl.user_id == user.id,
-    ).first()
+
+    # Support both weekly (default) and legacy monthly invoices
+    if body.invoice_type == "monthly":
+        invoice = db.query(MonthlyPnl).filter(
+            MonthlyPnl.id == body.invoice_id, MonthlyPnl.user_id == user.id,
+        ).first()
+    else:
+        invoice = db.query(WeeklyPnl).filter(
+            WeeklyPnl.id == body.invoice_id, WeeklyPnl.user_id == user.id,
+        ).first()
+
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     if invoice.fee_paid:

@@ -60,6 +60,7 @@ class User(Base):
     api_keys     = relationship("UserApiKey",      back_populates="user", cascade="all, delete-orphan")
     trades       = relationship("UserTrade",        back_populates="user", cascade="all, delete-orphan")
     monthly_pnls = relationship("MonthlyPnl",       back_populates="user", cascade="all, delete-orphan")
+    weekly_pnls  = relationship("WeeklyPnl",        back_populates="user", cascade="all, delete-orphan")
     subscription = relationship("Subscription",     back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     @property
@@ -174,6 +175,27 @@ class MonthlyPnl(Base):
     __table_args__ = (UniqueConstraint("user_id", "year", "month", name="uq_user_month"),)
 
     user = relationship("User", back_populates="monthly_pnls")
+
+
+# ── Weekly PnL & Performance Fee ──────────────────────────────────────────────
+class WeeklyPnl(Base):
+    __tablename__ = "weekly_pnl"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    year            = Column(Integer, nullable=False)
+    week            = Column(Integer, nullable=False)   # ISO week 1–53
+    gross_pnl       = Column(Float, default=0.0)
+    performance_fee = Column(Float, default=0.0)        # gross_pnl * 20%
+    net_pnl         = Column(Float, default=0.0)
+    fee_paid             = Column(Boolean, default=False)
+    settled_at           = Column(DateTime, nullable=True)
+    payment_notified_at  = Column(DateTime, nullable=True)
+    tx_hash              = Column(String,   nullable=True)
+
+    __table_args__ = (UniqueConstraint("user_id", "year", "week", name="uq_user_week"),)
+
+    user = relationship("User", back_populates="weekly_pnls")
 
 
 # ── Audit Log (immutable) ─────────────────────────────────────────────────────

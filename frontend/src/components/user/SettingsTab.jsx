@@ -34,83 +34,83 @@ function InvoicePanel() {
     try {
       await API('/api/billing/invoice/notify', {
         method: 'POST',
-        body: JSON.stringify({ invoice_id: data.invoice.id, tx_hash: txInput || undefined }),
+        body: JSON.stringify({ invoice_id: data.invoice.id, tx_hash: txInput || undefined, invoice_type: 'weekly' }),
       });
       setNotified(true);
       setData(d => ({ ...d, invoice: { ...d.invoice, notified: true } }));
     } catch (e) {
-      alert(typeof e === 'string' ? e : 'Ошибка — попробуйте снова');
+      alert(typeof e === 'string' ? e : 'Error — please try again');
     } finally {
       setNotifying(false);
     }
   }
 
-  if (!data) return <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Загрузка…</div>;
+  if (!data) return <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>Loading…</div>;
 
   const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' };
-  const row = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 };
-  const label = { fontSize: 11, color: 'var(--muted-fg)' };
-  const value = { fontSize: 13, color: 'var(--fg)' };
-  const btn = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
+  const row  = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 };
+  const lbl  = { fontSize: 11, color: 'var(--muted-fg)' };
+  const val  = { fontSize: 13, color: 'var(--fg)' };
+  const btn  = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
   const txInp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '8px 12px', fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', marginTop: 8 };
 
-  const { invoice, current_month_pnl, projected_fee, wallet_trc20 } = data;
+  const { invoice, current_week_pnl, projected_fee, wallet_trc20, week_label } = data;
 
   return (
     <div>
-      {/* Текущий месяц */}
+      {/* This week */}
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 10 }}>
-          Этот месяц
+          This week — {week_label}
         </div>
         <div style={row}>
-          <span style={label}>Прибыль</span>
-          <span style={{ ...value, color: current_month_pnl >= 0 ? '#5a5' : '#c55' }}>
-            {current_month_pnl >= 0 ? '+' : ''}{current_month_pnl.toFixed(2)} USDT
+          <span style={lbl}>Profit</span>
+          <span style={{ ...val, color: current_week_pnl >= 0 ? '#4ade80' : '#e55' }}>
+            {current_week_pnl >= 0 ? '+' : ''}{current_week_pnl.toFixed(2)} USDT
           </span>
         </div>
         <div style={row}>
-          <span style={label}>Прогноз комиссии (20%)</span>
-          <span style={value}>{projected_fee.toFixed(2)} USDT</span>
+          <span style={lbl}>Projected fee (20%)</span>
+          <span style={val}>{projected_fee.toFixed(2)} USDT</span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 4 }}>
-          Выставляется 1-го числа. Защита по отметке максимума.
+          Billed every Monday. High-water mark protection applies.
         </div>
       </div>
 
-      {/* Неоплаченный счёт */}
+      {/* Unpaid invoice */}
       {invoice && !invoice.fee_paid && (
         <div style={{ border: '1px solid rgba(200,150,0,0.3)', background: 'rgba(200,150,0,0.05)', padding: '14px 16px' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c96', marginBottom: 10 }}>
-            Счёт к оплате — {MONTHS[invoice.month - 1]} {invoice.year}
+            Invoice due — {invoice.label}
           </div>
           <div style={row}>
-            <span style={label}>Прибыль</span>
-            <span style={value}>+{invoice.gross_pnl.toFixed(2)} USDT</span>
+            <span style={lbl}>Week profit</span>
+            <span style={val}>+{invoice.gross_pnl.toFixed(2)} USDT</span>
           </div>
           <div style={row}>
-            <span style={label}>Комиссия (20%)</span>
-            <span style={{ ...value, fontWeight: 600 }}>{invoice.fee.toFixed(2)} USDT</span>
+            <span style={lbl}>Fee (20%)</span>
+            <span style={{ ...val, fontWeight: 600 }}>{invoice.fee.toFixed(2)} USDT</span>
           </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--muted-fg)' }}>Отправьте USDT (TRC-20) на адрес:</div>
+          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--muted-fg)' }}>Send USDT (TRC-20) to:</div>
           <div style={{ ...mono, color: 'var(--fg)', marginTop: 4, padding: '6px 10px', background: 'var(--bg2)', border: '1px solid var(--border)' }}>
             {wallet_trc20 || '—'}
           </div>
 
           {invoice.notified || notified ? (
-            <div style={{ fontSize: 12, color: '#5a5', marginTop: 12 }}>
-              ✓ Уведомление отправлено — администратор подтвердит в течение 24ч
+            <div style={{ fontSize: 12, color: '#4ade80', marginTop: 12 }}>
+              ✓ Payment notification sent — we'll confirm within 24h
             </div>
           ) : (
             <>
               <input
                 style={txInp}
-                placeholder="TX хэш (необязательно, напр. a1b2c3...)"
+                placeholder="TX hash (optional, e.g. a1b2c3...)"
                 value={txInput}
                 onChange={e => setTxInput(e.target.value)}
               />
               <button disabled={notifying} onClick={handleNotify} style={btn}>
-                {notifying ? 'Отправка…' : 'Я оплатил →'}
+                {notifying ? 'Sending…' : "I've paid →"}
               </button>
             </>
           )}
@@ -118,7 +118,7 @@ function InvoicePanel() {
       )}
 
       {invoice && invoice.fee_paid && (
-        <div style={{ fontSize: 12, color: '#5a5' }}>✓ Последний счёт оплачен</div>
+        <div style={{ fontSize: 12, color: '#4ade80' }}>✓ Last invoice paid</div>
       )}
     </div>
   );
@@ -165,8 +165,8 @@ function BillingSection({ plan, trialDaysLeft }) {
     return (
       <div>
         <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 12 }}>
-          Performance — 20% от месячной прибыли
-          <span style={{ fontSize: 11, color: '#5a5', marginLeft: 8 }}>Активен</span>
+          Performance — 20% of weekly profit
+          <span style={{ fontSize: 11, color: '#4ade80', marginLeft: 8 }}>Active</span>
         </div>
         <InvoicePanel />
       </div>
