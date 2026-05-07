@@ -125,9 +125,9 @@ function HomeHero() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         textAlign: 'center',
-        padding: '40px 32px 40px',
+        padding: '0 32px',
         position: 'relative',
         overflow: 'hidden',
         background: 'transparent',
@@ -188,15 +188,6 @@ function HomeHero() {
         </div>
       </div>
 
-      {/* Bottom: stats row */}
-      <div style={fade(2400, { zIndex: 1, display: 'flex', gap: 40, flexWrap: 'wrap', justifyContent: 'center' })}>
-        {[['8', 'bots'], ['24/7', 'runtime'], ['<10s', 'latency'], ['9', 'signal factors']].map(([v, l]) => (
-          <div key={l} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', letterSpacing: '-0.04em', fontFamily: MONO }}>{v}</div>
-            <div style={{ fontSize: 9, color: '#333', marginTop: 4, letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: FONT }}>{l}</div>
-          </div>
-        ))}
-      </div>
     </section>
   );
 }
