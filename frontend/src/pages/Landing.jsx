@@ -7,6 +7,81 @@ import SpiralText from '@/components/shared/SpiralText';
 const FONT = "'Inter','SF Pro Display',system-ui,sans-serif";
 const MONO = "'JetBrains Mono','SF Mono',monospace";
 
+/* ── BACKGROUND CHARTS ── */
+function generateCandles(count, startPrice, volatility, seed) {
+  let price = startPrice;
+  let rng = seed;
+  const next = () => { rng = (rng * 1664525 + 1013904223) & 0xffffffff; return (rng >>> 0) / 0xffffffff; };
+  return Array.from({ length: count }, () => {
+    const open = price;
+    const move = (next() - 0.48) * volatility;
+    const close = Math.max(10, open + move);
+    const high = Math.max(open, close) + next() * volatility * 0.6;
+    const low  = Math.min(open, close) - next() * volatility * 0.4;
+    price = close;
+    return { open, close, high, low };
+  });
+}
+
+function CandleChart({ x, y, width, height, count = 40, seed = 42, opacity = 0.07 }) {
+  const candles = generateCandles(count, 100, 8, seed);
+  const prices = candles.flatMap(c => [c.high, c.low]);
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  const scaleY = p => y + height - ((p - minP) / (maxP - minP)) * height;
+  const cw = width / count;
+  const bodyW = Math.max(1.5, cw * 0.55);
+  const closePts = candles.map((c, i) => `${x + i * cw + cw / 2},${scaleY(c.close)}`).join(' ');
+
+  return (
+    <g opacity={opacity}>
+      {/* Grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map(t => (
+        <line key={t} x1={x} x2={x + width} y1={y + height * t} y2={y + height * t}
+          stroke="white" strokeWidth="0.4" strokeDasharray="4 8" opacity="0.4" />
+      ))}
+      {/* Candles */}
+      {candles.map((c, i) => {
+        const cx = x + i * cw + cw / 2;
+        const bull = c.close >= c.open;
+        const bodyTop = scaleY(Math.max(c.open, c.close));
+        const bodyH = Math.max(1, Math.abs(scaleY(c.open) - scaleY(c.close)));
+        return (
+          <g key={i} stroke="white" fill={bull ? 'white' : 'none'}>
+            <line x1={cx} x2={cx} y1={scaleY(c.high)} y2={scaleY(c.low)} strokeWidth="0.6" />
+            <rect x={cx - bodyW / 2} y={bodyTop} width={bodyW} height={bodyH}
+              fill={bull ? 'white' : 'none'} stroke="white" strokeWidth="0.6" />
+          </g>
+        );
+      })}
+      {/* Price line */}
+      <polyline points={closePts} fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
+    </g>
+  );
+}
+
+function BackgroundCharts() {
+  return (
+    <svg
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
+      preserveAspectRatio="xMidYMid slice"
+      viewBox="0 0 1400 900"
+    >
+      {/* Main chart — right side */}
+      <CandleChart x={640} y={60} width={720} height={340} count={48} seed={77} opacity={0.07} />
+      {/* Secondary chart — bottom left */}
+      <CandleChart x={20} y={520} width={420} height={220} count={32} seed={133} opacity={0.05} />
+      {/* Micro chart — top left corner */}
+      <CandleChart x={20} y={40} width={260} height={140} count={26} seed={211} opacity={0.04} />
+      {/* Volume bars — right bottom */}
+      {generateCandles(48, 60, 20, 99).map((c, i) => (
+        <rect key={i}
+          x={640 + i * 15 + 1} y={820 - c.high * 1.2} width={10} height={c.high * 1.2}
+          fill="white" opacity={0.03 + (c.close > c.open ? 0.02 : 0)} />
+      ))}
+    </svg>
+  );
+}
+
 /* ── LOCAL NEURAL CANVAS (hero-only, 80 nodes, mouse-reactive) ── */
 function HeroLocalCanvas({ mouseRef }) {
   const canvasRef = useRef(null);
@@ -133,6 +208,7 @@ function HomeHero() {
         background: 'transparent',
       }}
     >
+      <BackgroundCharts />
       <HeroLocalCanvas mouseRef={mouseRef} />
 
       {/* Center: KADO + label + CTA */}
