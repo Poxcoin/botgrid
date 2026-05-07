@@ -145,15 +145,27 @@ def check_panic_news(title: str, source_url: str = "") -> bool:
 
 # Темы, которые никогда не попадут в ленту (спорт, шоу-бизнес, быт)
 _JUNK_TOPICS: frozenset[str] = frozenset({
+    # Спорт — виды
     "football", "soccer", "basketball", "tennis", "baseball", "hockey", "rugby",
     "cricket", "golf", "world cup", "premier league", "nfl", "nba", "nhl", "mlb",
-    "champions league", "serie a", "bundesliga", "la liga", "ligue 1",
+    "champions league", "serie a", "bundesliga", "la liga", "ligue 1", "el clasico",
     "formula 1", " f1 ", "motogp", "cycling race", "marathon", "athletics",
-    "olympic games", "paralympic", "world athletics",
+    "olympic games", "paralympic", "world athletics", "super bowl", "wimbledon",
+    # Футбольные клубы и игроки
+    "real madrid", "barcelona", "atletico madrid", "manchester", "liverpool",
+    "arsenal ", "chelsea ", "juventus", "ac milan", "inter milan", "ajax",
+    "psg", "paris saint-germain", "bayern munich", "dortmund",
+    "mbappe", "mbapp", "messi", "ronaldo", "neymar", "haaland", "valverde",
+    "tchouameni", "vinicius", "bellingham", "salah", "lewandowski",
+    # Другой спорт — команды/имена
+    "lakers", "celtics", "warriors", "knicks",
+    "formula e", "tour de france",
+    # Шоу-бизнес
     "oscar", "grammy", "emmy", "golden globe", "bafta",
     "music video", "album release", "tour dates", "singer", "rapper",
     "movie premiere", "film review", "box office", "streaming series",
     "reality tv", "celebrity", "actor ", "actress ",
+    # Быт
     "recipe", "cooking", "fashion week", "beauty tips", "diet plan",
     "horoscope", "astrology",
 })
