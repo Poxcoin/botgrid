@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import SpiralText from '@/components/shared/SpiralText';
+import PageCharts from '@/components/global/GlobalCharts';
 
 const FONT = "'Inter','SF Pro Display',system-ui,sans-serif";
 const MONO = "'JetBrains Mono','SF Mono',monospace";
@@ -466,7 +467,8 @@ function SectionHeader({ label, title, sub }) {
 /* ── EXPORT ── */
 export default function Landing() {
   return (
-    <div style={{ color: '#fff', minHeight: '100vh' }}>
+    <div style={{ color: '#fff', minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+      <PageCharts variant="landing" />
       <LandingHeader />
       <HomeHero />
       <HowItWorks />

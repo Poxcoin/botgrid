@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import PageCharts from '@/components/global/GlobalCharts';
 
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
@@ -137,7 +138,8 @@ export default function StrategiesPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
   return (
-    <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
+    <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff', position: 'relative', overflow: 'hidden' }}>
+      <PageCharts variant="strategies" />
       <LandingHeader />
 
       {/* Hero */}

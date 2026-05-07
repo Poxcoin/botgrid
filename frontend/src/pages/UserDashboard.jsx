@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PageCharts from '@/components/global/GlobalCharts';
 import OverviewTab from '@/components/user/OverviewTab';
 import TradesTab from '@/components/user/TradesTab';
 import PnlTab from '@/components/user/PnlTab';
@@ -149,7 +150,8 @@ export default function UserDashboard() {
       </aside>
 
       {/* ── Main ── */}
-      <div className="kado-main" style={{ marginLeft: 200, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="kado-main" style={{ marginLeft: 200, flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+        <PageCharts variant="dashboard" />
 
         {/* Top bar */}
         <header style={{
