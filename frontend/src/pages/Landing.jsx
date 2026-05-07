@@ -199,8 +199,10 @@ function HomeHero() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
-        padding: '80px 48px 48px',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '0 32px',
         position: 'relative',
         overflow: 'hidden',
         background: 'transparent',
@@ -209,22 +211,10 @@ function HomeHero() {
       <BackgroundCharts />
       <HeroLocalCanvas mouseRef={mouseRef} />
 
-      {/* Top row: label left — status right */}
-      <div style={{ zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <span style={fade(80, { fontSize: 10, color: '#333', letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: MONO })}>
-          AI-DRIVEN SIGNAL INTELLIGENCE
-        </span>
-        <span style={fade(80, { fontSize: 10, color: '#2a2a2a', letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: MONO, display: 'flex', alignItems: 'center', gap: 8 })}>
-          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#2a2a2a', display: 'inline-block' }} />
-          BYBIT · PERP · LIVE
-        </span>
-      </div>
-
-      {/* Middle: KADO */}
-      <div style={{ zIndex: 1 }}>
+      <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <h1 style={fade(0, {
           fontFamily: FONT,
-          fontSize: 'clamp(100px, 18vw, 240px)',
+          fontSize: 'clamp(80px, 16vw, 200px)',
           fontWeight: 900,
           letterSpacing: '-0.06em',
           lineHeight: 0.87,
@@ -233,41 +223,30 @@ function HomeHero() {
         })}>
           <SpiralText text="KADO" style={{ width: '100%' }} />
         </h1>
-      </div>
 
-      {/* Bottom row: tagline left — CTA right */}
-      <div style={{ zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 32 }}>
-        <div>
-          <div style={fade(2000, { width: 2, height: 36, background: '#1a1a1a', marginBottom: 14 })} />
-          <p style={fade(2100, {
-            fontFamily: FONT, fontSize: 'clamp(14px, 1.3vw, 17px)', fontWeight: 300,
-            color: '#4a4a4a', lineHeight: 1.7, letterSpacing: '-0.01em', maxWidth: 380, margin: 0,
-          })}>
-            Eight autonomous strategies running in parallel —<br />
-            news, grid, cascades, funding, on-chain. While you sleep.
-          </p>
+        <div style={fade(2000, { fontSize: 10, color: '#383838', letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: MONO, marginTop: 20 })}>
+          AI-DRIVEN SIGNAL INTELLIGENCE
         </div>
 
-        <div style={fade(2200, { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 })}>
-          <Link
-            to="/auth?mode=register"
-            style={{
-              background: '#fff', color: '#000', padding: '13px 38px',
-              borderRadius: 100, fontSize: 13, fontWeight: 600, fontFamily: FONT,
-              textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
-              gap: 8, transition: 'opacity 150ms', letterSpacing: '-0.01em',
-            }}
+        <p style={fade(2100, {
+          fontFamily: FONT, fontSize: 'clamp(14px, 1.3vw, 17px)', fontWeight: 300,
+          color: '#4a4a4a', marginTop: 22, lineHeight: 1.7, letterSpacing: '-0.01em', maxWidth: 420,
+        })}>
+          Eight autonomous strategies running in parallel —<br />
+          news, grid, cascades, funding, on-chain. While you sleep.
+        </p>
+
+        <div style={fade(2200, { display: 'flex', alignItems: 'center', gap: 20, marginTop: 36, flexWrap: 'wrap', justifyContent: 'center' })}>
+          <Link to="/auth?mode=register"
+            style={{ background: '#fff', color: '#000', padding: '12px 36px', borderRadius: 100, fontSize: 13, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'opacity 150ms', letterSpacing: '-0.01em' }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-          >
-            Get started →
-          </Link>
-          <a href="#how-it-works" style={{ color: '#333', fontSize: 11, fontFamily: MONO, textDecoration: 'none', letterSpacing: '0.12em', textTransform: 'uppercase', transition: 'color 150ms' }}
+          >Get started →</Link>
+          <a href="#how-it-works"
+            style={{ color: '#444', fontSize: 13, fontFamily: FONT, textDecoration: 'none', transition: 'color 150ms', letterSpacing: '-0.01em' }}
             onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = '#333'}
-          >
-            Scroll to explore ↓
-          </a>
+            onMouseLeave={e => e.currentTarget.style.color = '#444'}
+          >How it works ↓</a>
         </div>
       </div>
     </section>
