@@ -1,21 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 const API = (path, opts) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
   ...opts,
 }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail || 'Error')));
 
+const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box' };
+const monoSm = { fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em' };
+
 export default function ApiKeysTab() {
-  const [me, setMe] = useState(null);
-  const [apiKey, setApiKey] = useState('');
-  const [secret, setSecret] = useState('');
-  const [testnet, setTestnet] = useState(false);
-  const [showKey, setShowKey] = useState(false);
-  const [showSecret, setShowSecret] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [me, setMe]             = useState(null);
+  const [apiKey, setApiKey]     = useState('');
+  const [secret, setSecret]     = useState('');
+  const [testnet, setTestnet]   = useState(false);
+  const [showKey, setShowKey]   = useState(false);
+  const [showSec, setShowSec]   = useState(false);
+  const [saving, setSaving]     = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState('');
+
+  // Reveal state
+  const [revealMode, setRevealMode]     = useState(false);  // show password form
+  const [revealPwd, setRevealPwd]       = useState('');
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [revealed, setRevealed]         = useState(null);   // { api_key, masked_secret }
 
   useEffect(() => {
     API('/api/users/me').then(setMe).catch(console.error);
@@ -28,45 +37,134 @@ export default function ApiKeysTab() {
     setSaving(true);
     try {
       await API('/api/users/keys', { method: 'POST', body: JSON.stringify({ api_key: apiKey, secret, is_testnet: testnet }) });
-      setSuccess('Keys saved successfully');
+      setSuccess('Keys saved. Bot will begin trading on your account.');
       setMe(m => ({ ...m, has_api_keys: true, api_key_testnet: testnet }));
       setApiKey(''); setSecret('');
+      setRevealed(null);
     } catch (e) { setError(e); }
     finally { setSaving(false); }
   }
 
   async function del() {
-    if (!confirm('Remove API keys?')) return;
+    if (!confirm('Remove API keys? The bot will stop trading on your account.')) return;
     setError(''); setSuccess('');
     setDeleting(true);
     try {
       await API('/api/users/keys', { method: 'DELETE' });
-      setSuccess('Keys removed');
+      setSuccess('Keys removed. Trading stopped.');
       setMe(m => ({ ...m, has_api_keys: false }));
+      setRevealed(null);
+      setRevealMode(false);
     } catch (e) { setError(e); }
     finally { setDeleting(false); }
   }
 
-  const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box' };
+  async function reveal(e) {
+    e.preventDefault();
+    if (!revealPwd) return;
+    setRevealLoading(true);
+    setError('');
+    try {
+      const data = await API('/api/users/keys/reveal', { method: 'POST', body: JSON.stringify({ password: revealPwd }) });
+      setRevealed(data);
+      setRevealPwd('');
+      setRevealMode(false);
+    } catch (e) { setError(typeof e === 'string' ? e : 'Wrong password'); }
+    finally { setRevealLoading(false); }
+  }
+
+  const copyText = useCallback((text, label) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setSuccess(`${label} copied`);
+      setTimeout(() => setSuccess(''), 1500);
+    });
+  }, []);
 
   return (
     <div style={{ maxWidth: 480 }}>
-      {/* Status */}
+
+      {/* Status row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28, padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: me?.has_api_keys ? 'var(--fg)' : 'var(--muted-fg)', opacity: me?.has_api_keys ? 1 : 0.4 }} />
         <span style={{ fontSize: 13 }}>Bybit API — {me?.has_api_keys ? 'Connected' : 'Not connected'}</span>
         {me?.has_api_keys && me?.api_key_testnet && (
           <span style={{ fontSize: 11, color: 'var(--muted-fg)', letterSpacing: '0.08em' }}>TESTNET</span>
         )}
+        {me?.has_api_keys && (
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: '#22c55e', letterSpacing: '0.06em' }}>
+            ● BOT ACTIVE
+          </span>
+        )}
       </div>
 
-      {/* Warning */}
+      {/* How trading works */}
+      {me?.has_api_keys && (
+        <div style={{ border: '1px solid rgba(34,197,94,0.15)', background: 'rgba(34,197,94,0.04)', padding: '12px 16px', marginBottom: 20, fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.7 }}>
+          <strong style={{ color: 'var(--fg)', display: 'block', marginBottom: 4 }}>How it works</strong>
+          The bot uses your API key to execute trades automatically on your Bybit account.
+          Signals are generated by KADO AI and dispatched based on your plan.
+          You keep full control — remove keys at any time to stop trading.
+        </div>
+      )}
+
+      {/* Revealed key display */}
+      {revealed && (
+        <div style={{ border: '1px solid var(--border)', padding: '16px', marginBottom: 20, background: 'var(--bg2)' }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--muted-fg)', marginBottom: 10, textTransform: 'uppercase' }}>Connected key</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, color: 'var(--muted-fg)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>API Key</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <code style={{ ...monoSm, flex: 1, wordBreak: 'break-all', color: 'var(--fg)' }}>{revealed.api_key}</code>
+              <button onClick={() => copyText(revealed.api_key, 'API key')} style={{ ...monoSm, background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}>
+                COPY
+              </button>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--muted-fg)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Secret (masked)</div>
+            <code style={{ ...monoSm, color: 'var(--fg)' }}>{revealed.masked_secret}</code>
+          </div>
+          <button onClick={() => setRevealed(null)} style={{ marginTop: 12, fontSize: 10, background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', letterSpacing: '0.06em' }}>
+            HIDE
+          </button>
+        </div>
+      )}
+
+      {/* Reveal key form (password confirmation) */}
+      {me?.has_api_keys && revealMode && !revealed && (
+        <form onSubmit={reveal} style={{ border: '1px solid var(--border)', padding: '16px', marginBottom: 20, background: 'var(--bg2)' }}>
+          <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+            Enter your account password to reveal the connected API key.
+          </div>
+          <div style={{ position: 'relative', marginBottom: 10 }}>
+            <input
+              type="password"
+              value={revealPwd}
+              onChange={e => setRevealPwd(e.target.value)}
+              placeholder="Account password"
+              style={inp}
+              autoComplete="current-password"
+              autoFocus
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={revealLoading || !revealPwd} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 18px', fontSize: 12, fontFamily: 'var(--font-mono)', cursor: 'pointer', opacity: (revealLoading || !revealPwd) ? 0.5 : 1 }}>
+              {revealLoading ? 'Checking…' : 'Confirm'}
+            </button>
+            <button type="button" onClick={() => { setRevealMode(false); setRevealPwd(''); }} style={{ background: 'none', border: 'none', color: 'var(--muted-fg)', fontSize: 12, cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Security warning */}
       <div style={{ border: '1px solid var(--border)', padding: '12px 16px', marginBottom: 24, fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.6 }}>
         Grant <strong style={{ color: 'var(--fg)' }}>Trade + Position</strong> permissions only.<br />
         <strong style={{ color: 'var(--fg)' }}>Never</strong> enable Withdrawal permission.
       </div>
 
-      {/* Form */}
+      {/* Save form */}
       <form onSubmit={save} autoComplete="off">
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>API Key</div>
@@ -81,9 +179,9 @@ export default function ApiKeysTab() {
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>Secret</div>
           <div style={{ position: 'relative' }}>
-            <input type={showSecret ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inp} name="bybit-api-secret" autoComplete="new-password" />
-            <button type="button" onClick={() => setShowSecret(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 11 }}>
-              {showSecret ? 'HIDE' : 'SHOW'}
+            <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inp} name="bybit-api-secret" autoComplete="new-password" />
+            <button type="button" onClick={() => setShowSec(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 11 }}>
+              {showSec ? 'HIDE' : 'SHOW'}
             </button>
           </div>
         </div>
@@ -96,10 +194,15 @@ export default function ApiKeysTab() {
         {error && <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12, borderLeft: '2px solid var(--border-hi)', paddingLeft: 10 }}>{error}</div>}
         {success && <div style={{ fontSize: 12, color: 'var(--fg)', marginBottom: 12 }}>{success}</div>}
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="submit" disabled={saving} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Saving…' : 'Save keys'}
+            {saving ? 'Saving…' : (me?.has_api_keys ? 'Update keys' : 'Save keys')}
           </button>
+          {me?.has_api_keys && !revealMode && !revealed && (
+            <button type="button" onClick={() => setRevealMode(true)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', fontSize: 12, padding: '9px 16px', cursor: 'pointer', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
+              VIEW KEY
+            </button>
+          )}
           {me?.has_api_keys && (
             <button type="button" onClick={del} disabled={deleting} style={{ background: 'none', border: 'none', color: 'var(--muted-fg)', fontSize: 13, cursor: 'pointer', opacity: deleting ? 0.4 : 1 }}>
               {deleting ? 'Removing…' : 'Delete'}
@@ -107,6 +210,19 @@ export default function ApiKeysTab() {
           )}
         </div>
       </form>
+
+      {/* Security info */}
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 10 }}>Security</div>
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.7 }}>
+          Your keys are stored encrypted (AES-256/Fernet) and never logged in plaintext.<br />
+          {me?.totp_enabled
+            ? <span style={{ color: '#22c55e' }}>✓ Two-factor authentication enabled</span>
+            : <span>Two-factor authentication is <strong style={{ color: 'var(--fg)' }}>not enabled</strong> — enable it in Security settings.</span>
+          }
+        </div>
+      </div>
+
     </div>
   );
 }

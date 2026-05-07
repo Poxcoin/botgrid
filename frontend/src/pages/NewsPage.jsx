@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 
@@ -26,20 +27,33 @@ function detectSentiment(title, desc) {
   return 'NEUTRAL';
 }
 
-function getCategory(source = '') {
+function getCategory(source = '', title = '', description = '') {
   const s = source.toLowerCase();
+  const text = (title + ' ' + (description || '')).toLowerCase();
+
+  // Source-based first
   if (s.includes('whale_alert') || s.includes('whale alert')) return 'WHALE ALERT';
   if (s.includes('lookonchain')) return 'ON-CHAIN';
   if (s.includes('announcement') || s.includes('listing') || s.includes('binance') || s.includes('coinbase') || s.includes('okx')) return 'LISTINGS';
   if (s.includes('breaking') || s.includes('urgent')) return 'BREAKING';
+
+  // Content-based detection
+  const macroKw = ['war', 'military', 'sanctions', 'geopolit', 'inflation', 'recession', 'federal reserve', ' cpi ', ' gdp ', 'tariff', 'nato', 'conflict', 'ukraine', 'russia', 'missile', 'economic crisis', 'economic collapse', 'interest rate', 'central bank', 'treasury'];
+  if (macroKw.some(k => text.includes(k))) return 'MACRO';
+
+  const commodityKw = ['crude oil', 'wti ', 'brent', 'gold price', 'silver price', ' oil price', 'per barrel', 'opec', 'commodit', 'natural gas', ' lng ', 'gold hit', 'gold falls', 'oil falls', 'oil surges'];
+  if (commodityKw.some(k => text.includes(k))) return 'COMMODITIES';
+
   return 'MARKET';
 }
 
 function categoryColor(cat = '') {
-  if (cat === 'WHALE ALERT') return '#f59e0b';
-  if (cat === 'ON-CHAIN')    return '#06b6d4';
-  if (cat === 'LISTINGS')    return '#8b5cf6';
-  if (cat === 'BREAKING')    return '#ef4444';
+  if (cat === 'WHALE ALERT')  return '#f59e0b';
+  if (cat === 'ON-CHAIN')     return '#06b6d4';
+  if (cat === 'LISTINGS')     return '#8b5cf6';
+  if (cat === 'BREAKING')     return '#ef4444';
+  if (cat === 'MACRO')        return '#dc2626';
+  if (cat === 'COMMODITIES')  return '#d97706';
   return '#555';
 }
 
@@ -49,7 +63,26 @@ function sentimentStyle(sent) {
   return { color: '#555', bg: 'transparent', border: 'rgba(255,255,255,0.08)' };
 }
 
-const CATEGORIES = ['ALL', 'BREAKING', 'WHALE ALERT', 'MARKET', 'ON-CHAIN', 'LISTINGS', 'OTHER'];
+function toSlug(cat) {
+  return cat.toLowerCase().replace(/\s+/g, '-');
+}
+
+const CATEGORIES = ['ALL', 'BREAKING', 'MACRO', 'COMMODITIES', 'WHALE ALERT', 'MARKET', 'ON-CHAIN', 'LISTINGS'];
+
+// ─── Module-level hover handlers – direct DOM mutation, zero React state ──────
+
+const _hFeat = {
+  enter: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; },
+  leave: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.background = 'rgba(255,255,255,0.01)'; },
+};
+const _hSec = {
+  enter: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.background = 'rgba(255,255,255,0.018)'; },
+  leave: e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.background = 'transparent'; },
+};
+const _hQuick = {
+  enter: e => { e.currentTarget.style.opacity = '1'; },
+  leave: e => { e.currentTarget.style.opacity = '0.85'; },
+};
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -67,37 +100,50 @@ function SkeletonCard({ height = 180 }) {
   );
 }
 
-// ─── Cards (all receive pre-computed sentiment/category as props) ─────────────
+// ─── Category badge (renders as Link or span) ─────────────────────────────────
 
-function FeaturedCard({ item }) {
-  const [hovered, setHovered] = useState(false);
+function CatBadge({ cat, size = 9, style: extra = {} }) {
+  const slug = toSlug(cat);
+  const base = {
+    fontFamily: "'Courier New',monospace", fontSize: size, letterSpacing: '0.15em',
+    textTransform: 'uppercase', color: '#0047FF',
+    border: '1px solid rgba(0,71,255,0.35)', padding: '2px 8px',
+    background: 'rgba(0,71,255,0.08)', textDecoration: 'none', display: 'inline-block',
+    ...extra,
+  };
+  return (
+    <Link
+      to={`/news/${slug}`}
+      style={base}
+      onClick={e => e.stopPropagation()}
+    >
+      {cat}
+    </Link>
+  );
+}
+
+// ─── Cards – React.memo + no useState for hover ───────────────────────────────
+
+const FeaturedCard = React.memo(function FeaturedCard({ item }) {
   if (!item) return null;
   const sentSty = sentimentStyle(item._sentiment);
   const hasLink = item.link && item.link.startsWith('http');
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={_hFeat.enter}
+      onMouseLeave={_hFeat.leave}
       style={{
-        border: `1px solid ${hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)'}`,
-        background: hovered ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.01)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(255,255,255,0.01)',
         padding: '28px 28px 24px',
-        transition: 'border-color 180ms, background 180ms',
+        transition: 'border-color 200ms, background 200ms',
         cursor: hasLink ? 'pointer' : 'default',
       }}
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontFamily: "'Courier New',monospace", fontSize: 9, letterSpacing: '0.15em',
-            textTransform: 'uppercase', color: '#0047FF',
-            border: '1px solid rgba(0,71,255,0.35)', padding: '2px 8px', background: 'rgba(0,71,255,0.08)',
-          }}>
-            {item._category}
-          </span>
-        </div>
+        <CatBadge cat={item._category} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
             fontFamily: "'Courier New',monospace", fontSize: 9, letterSpacing: '0.12em',
@@ -142,36 +188,29 @@ function FeaturedCard({ item }) {
       )}
     </div>
   );
-}
+});
 
-function SecondaryCard({ item }) {
-  const [hovered, setHovered] = useState(false);
+const SecondaryCard = React.memo(function SecondaryCard({ item }) {
   if (!item) return null;
   const sentSty = sentimentStyle(item._sentiment);
   const hasLink = item.link && item.link.startsWith('http');
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={_hSec.enter}
+      onMouseLeave={_hSec.leave}
       style={{
-        border: `1px solid ${hovered ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)'}`,
-        background: hovered ? 'rgba(255,255,255,0.018)' : 'transparent',
+        border: '1px solid rgba(255,255,255,0.05)',
+        background: 'transparent',
         padding: '18px 20px 16px',
-        transition: 'border-color 180ms, background 180ms',
+        transition: 'border-color 200ms, background 200ms',
         cursor: hasLink ? 'pointer' : 'default',
         height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column',
       }}
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 6 }}>
-        <span style={{
-          fontFamily: "'Courier New',monospace", fontSize: 8, letterSpacing: '0.12em',
-          color: '#0047FF', border: '1px solid rgba(0,71,255,0.25)',
-          padding: '2px 6px', background: 'rgba(0,71,255,0.06)', textTransform: 'uppercase', flexShrink: 0,
-        }}>
-          {item._category}
-        </span>
+        <CatBadge cat={item._category} size={8} style={{ padding: '2px 6px' }} />
         <span style={{
           fontFamily: "'Courier New',monospace", fontSize: 8,
           padding: '2px 6px', border: `1px solid ${sentSty.border}`,
@@ -198,22 +237,21 @@ function SecondaryCard({ item }) {
       </div>
     </div>
   );
-}
+});
 
-function QuickFeedItem({ item, index }) {
-  const [hovered, setHovered] = useState(false);
+const QuickFeedItem = React.memo(function QuickFeedItem({ item, index }) {
   const sentSty = sentimentStyle(item._sentiment);
   const hasLink = item.link && item.link.startsWith('http');
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={_hQuick.enter}
+      onMouseLeave={_hQuick.leave}
       style={{
         padding: '12px 0',
         borderBottom: '1px solid rgba(255,255,255,0.04)',
         cursor: hasLink ? 'pointer' : 'default',
-        opacity: hovered ? 1 : 0.85,
+        opacity: 0.85,
         transition: 'opacity 150ms',
       }}
       onClick={() => hasLink && window.open(item.link, '_blank', 'noopener')}
@@ -226,9 +264,9 @@ function QuickFeedItem({ item, index }) {
           {String(index + 1).padStart(2, '0')}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{
+          <p className="quick-title" style={{
             fontSize: 11, fontWeight: 500, lineHeight: 1.45,
-            color: hovered ? '#fff' : '#ccc', margin: '0 0 5px 0',
+            color: '#ccc', margin: '0 0 5px 0',
             display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
             transition: 'color 150ms',
           }}>
@@ -251,18 +289,17 @@ function QuickFeedItem({ item, index }) {
       </div>
     </div>
   );
-}
+});
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function NewsPage() {
-  const [items, setItems]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [updatedAt, setUpdatedAt] = useState(null);   // static string, no interval
-  const [filter, setFilter]     = useState('ALL');
-  const [isMock, setIsMock]     = useState(false);
+  const [items, setItems]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [filter, setFilter]       = useState('ALL');
+  const [isMock, setIsMock]       = useState(false);
 
-  // ── Data fetching ─────────────────────────────────────────────────────────
   const fetchNews = useCallback(async () => {
     try {
       const res = await fetch('/api/news/public?limit=50');
@@ -270,7 +307,6 @@ export default function NewsPage() {
       const data = await res.json();
       setItems(data.items || []);
       setIsMock(data.mock || false);
-      // Static timestamp — no interval needed
       setUpdatedAt(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
     } catch {
       // keep previous
@@ -286,19 +322,16 @@ export default function NewsPage() {
     return () => clearInterval(iv);
   }, [fetchNews]);
 
-  // ── Pre-compute sentiment+category once per items change ──────────────────
   const enriched = useMemo(() =>
     items.map(item => ({
       ...item,
       _sentiment: detectSentiment(item.title, item.description),
-      _category:  getCategory(item.source),
+      _category:  getCategory(item.source, item.title, item.description),
     })),
   [items]);
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
   const filtered = useMemo(() => enriched.filter(item => {
     if (filter === 'ALL') return true;
-    if (filter === 'OTHER') return item._category === 'MARKET' && !['WHALE ALERT', 'ON-CHAIN', 'LISTINGS', 'BREAKING'].includes(item._category);
     return item._category === filter;
   }), [enriched, filter]);
 
@@ -332,6 +365,7 @@ export default function NewsPage() {
           background: rgba(255,255,255,0.04);
         }
         .news-grid-secondary > * { background: #060606; }
+        .news-quick-item:hover .quick-title { color: #fff !important; }
         @media (max-width: 768px) {
           .news-main-layout  { flex-direction: column !important; }
           .news-right-col    { display: none !important; }
@@ -343,7 +377,6 @@ export default function NewsPage() {
       {/* ── Intelligence Header Bar ─────────────────────────────────────────── */}
       <div style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', borderTop: '1px solid rgba(255,255,255,0.04)', padding: '10px 0' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ fontFamily: "'Courier New',monospace", fontSize: 11, letterSpacing: '0.18em', color: '#fff', fontWeight: 700, textTransform: 'uppercase' }}>
               KADO INTELLIGENCE
@@ -362,7 +395,6 @@ export default function NewsPage() {
               </span>
             )}
           </div>
-          {/* Right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             {updatedAt && (
               <span style={{ fontFamily: "'Courier New',monospace", fontSize: 9, color: '#444', letterSpacing: '0.1em' }}>

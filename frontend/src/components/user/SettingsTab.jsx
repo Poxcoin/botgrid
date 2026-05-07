@@ -366,7 +366,6 @@ export default function SettingsTab() {
   const [tgId, setTgId] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
-  const [modal2fa, setModal2fa] = useState(null); // 'setup' | 'disable' | null
 
   useEffect(() => {
     API('/api/users/me').then(d => { setMe(d); setTgId(d.tg_chat_id || ''); }).catch(console.error);
@@ -382,20 +381,8 @@ export default function SettingsTab() {
     finally { setSaving(false); }
   }
 
-  function on2faDone(enabled) {
-    setMe(m => ({ ...m, totp_enabled: enabled }));
-    setModal2fa(null);
-  }
-
   return (
     <div style={{ maxWidth: 420 }}>
-      {modal2fa && (
-        <TwoFAModal
-          mode={modal2fa}
-          onClose={() => setModal2fa(null)}
-          onDone={on2faDone}
-        />
-      )}
 
       <form onSubmit={saveProfile}>
         <Field label="Email">
@@ -424,42 +411,6 @@ export default function SettingsTab() {
           {saving ? 'Сохранение…' : 'Сохранить'}
         </button>
       </form>
-
-      {/* 2FA */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
-          Двухфакторная авторизация
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 14, lineHeight: 1.5 }}>
-          {me?.totp_enabled
-            ? 'Google Authenticator подключён. Код запрашивается при каждом входе.'
-            : 'Защитите аккаунт с помощью Google Authenticator или Authy.'}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{
-            fontSize: 11, padding: '3px 8px',
-            border: `1px solid ${me?.totp_enabled ? 'rgba(90,170,90,0.4)' : 'var(--border)'}`,
-            color: me?.totp_enabled ? '#5a5' : 'var(--muted-fg)',
-          }}>
-            {me?.totp_enabled ? 'Включена' : 'Отключена'}
-          </span>
-          {me?.totp_enabled ? (
-            <button
-              onClick={() => setModal2fa('disable')}
-              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
-            >
-              Отключить
-            </button>
-          ) : (
-            <button
-              onClick={() => setModal2fa('setup')}
-              style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer' }}
-            >
-              Подключить →
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Подписка */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 24, marginTop: 24 }}>

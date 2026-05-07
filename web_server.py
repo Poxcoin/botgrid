@@ -643,6 +643,34 @@ async def delete_api_keys(credentials: HTTPAuthorizationCredentials = Depends(se
     return {"ok": True}
 
 
+class RevealKeyRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/users/keys/reveal")
+async def reveal_api_keys(body: RevealKeyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Return masked api_key + partial secret after password re-verification.
+    Secret is never returned in full — only first 6 and last 4 chars.
+    """
+    user = _get_user_from_token(credentials.credentials, db)
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Wrong password")
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys saved")
+    api_key = decrypt_field(key_row.api_key_enc)
+    secret  = decrypt_field(key_row.secret_enc)
+    # Mask secret: show first 6 + ••••• + last 4
+    masked_secret = (secret[:6] + "•" * max(0, len(secret) - 10) + secret[-4:]) if len(secret) > 10 else "•" * len(secret)
+    # Audit log
+    try:
+        db.add(AuditLog(user_id=user.id, action="api_key_revealed", detail_enc=None))
+        db.commit()
+    except Exception:
+        db.rollback()
+    return {"api_key": api_key, "masked_secret": masked_secret}
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 #  2FA endpoints
 # ──────────────────────────────────────────────────────────────────────────────

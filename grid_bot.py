@@ -38,19 +38,8 @@ PENDING_ORDER_TIMEOUT  = 1800   # скасувати незаповнений li
 # ─── Конфігурація сіток ───────────────────────────────────────────────────────
 
 GRID_CONFIGS = [
-    {
-        "symbol":           "SOL/USDT:USDT",
-        "levels":           5,          # 8→5: fewer levels, bigger steps, less fee drag
-        "size_pct":         5.0,        # 3→5%: bigger positions to overcome fee drag
-        "size_usd_min":     15.0,
-        "leverage":         2,
-        "auto_range":       True,
-        "upper_manual":     200.0,
-        "lower_manual":     120.0,
-        "max_positions":    3,          # 4→3: don't overextend
-        "boundary_sl_pct":  0.05,       # override global 3% → 5% (SOL is volatile)
-        "min_step_fee_mult": 5.0,       # override global 3.0 → 5.0 (wider profitable steps)
-    },
+    # SOL removed: 88/91 trades were instant-close (LONG↔SHORT oscillation around EMA50).
+    # Re-enable only after adding flip-hysteresis to trend detection.
     {
         "symbol":        "ETH/USDT:USDT",
         "levels":        8,        # зменшено з 15
@@ -933,11 +922,19 @@ def _run_single(cfg: dict) -> None:
                         TG_CHAT_ID,
                     )
 
-            # ─── Boundary SL: ціна на 3%+ нижче нижньої межі → жорсткий стоп ───
+            # ─── Boundary SL: ціна виходить за межі сітки на boundary_sl_pct ────
             _lower_bound = state.get("lower", levels[0])
-            if direction == "long" and price < _lower_bound * (1 - boundary_sl_pct):
-                _sl_threshold = _lower_bound * (1 - boundary_sl_pct)
-                print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: ${price:.2f} < ${_sl_threshold:.2f} ({boundary_sl_pct*100:.0f}% нижче межі) — закриваємо")
+            _upper_bound = state.get("upper", levels[-1])
+            _hit_long_sl  = direction == "long"  and price < _lower_bound * (1 - boundary_sl_pct)
+            _hit_short_sl = direction == "short" and price > _upper_bound * (1 + boundary_sl_pct)
+            if _hit_long_sl or _hit_short_sl:
+                if _hit_long_sl:
+                    _sl_threshold = _lower_bound * (1 - boundary_sl_pct)
+                    _sl_msg = f"Ціна ${price:.2f} нижче межі ${_lower_bound:.2f} на {boundary_sl_pct*100:.0f}%+"
+                else:
+                    _sl_threshold = _upper_bound * (1 + boundary_sl_pct)
+                    _sl_msg = f"Ціна ${price:.2f} вище межі ${_upper_bound:.2f} на {boundary_sl_pct*100:.0f}%+ (SHORT pump)"
+                print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: {_sl_msg} — закриваємо")
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
                 realized = _sync_close_all(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
@@ -947,7 +944,7 @@ def _run_single(cfg: dict) -> None:
                 _save_state(symbol, state, user_id)
                 send_telegram_message(
                     f"🛑 <b>Grid BOUNDARY SL</b> {symbol}\n"
-                    f"Ціна ${price:.2f} нижче межі ${_lower_bound:.2f} на 3%+\n"
+                    f"{_sl_msg}\n"
                     f"Реалізований PnL: ${realized:.2f} | Пауза 1h",
                     TG_CHAT_ID,
                 )

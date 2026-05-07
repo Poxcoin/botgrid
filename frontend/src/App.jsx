@@ -11,6 +11,7 @@ import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
 import Waitlist from '@/pages/Waitlist';
 import NewsPage from '@/pages/NewsPage';
+import NewsCategoryPage from '@/pages/NewsCategoryPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 import UserDashboard from '@/pages/UserDashboard';
 
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/news" element={<NewsPage />} />
+          <Route path="/news/:category" element={<NewsCategoryPage />} />
           <Route path="/waitlist" element={<Waitlist />} />
           <Route path="/dashboard" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
