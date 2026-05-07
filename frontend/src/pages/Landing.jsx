@@ -127,7 +127,7 @@ function HomeHero() {
         alignItems: 'center',
         justifyContent: 'space-between',
         textAlign: 'center',
-        padding: '72px 32px 56px',
+        padding: '40px 32px 40px',
         position: 'relative',
         overflow: 'hidden',
         background: 'transparent',
@@ -135,12 +135,7 @@ function HomeHero() {
     >
       <HeroLocalCanvas mouseRef={mouseRef} />
 
-      {/* Top label */}
-      <div style={{ zIndex: 1, fontSize: 10, color: '#2a2a2a', letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: MONO }}>
-        AI-DRIVEN SIGNAL INTELLIGENCE
-      </div>
-
-      {/* Center: KADO + tagline + CTA */}
+      {/* Center: KADO + label + CTA */}
       <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <h1 style={fade(0, {
           fontFamily: FONT,
@@ -154,20 +149,12 @@ function HomeHero() {
           <SpiralText text="KADO" style={{ width: '100%' }} />
         </h1>
 
-        <p style={fade(2000, {
-          fontFamily: FONT,
-          fontSize: 'clamp(14px, 1.5vw, 17px)',
-          fontWeight: 400,
-          color: '#555',
-          marginTop: 36,
-          marginBottom: 0,
-          lineHeight: 1.75,
-          maxWidth: 400,
-          letterSpacing: '-0.01em',
+        <div style={fade(2000, {
+          fontSize: 10, color: '#383838', letterSpacing: '0.22em',
+          textTransform: 'uppercase', fontFamily: MONO, marginTop: 20,
         })}>
-          Six AI-powered bots trading crypto futures<br />
-          around the clock — while you do anything else.
-        </p>
+          AI-DRIVEN SIGNAL INTELLIGENCE
+        </div>
 
         <div style={fade(2200, {
           display: 'flex',
