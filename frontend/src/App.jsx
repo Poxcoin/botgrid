@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
+import { LangProvider } from '@/lib/LangContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
 import CursorTracker from '@/components/global/CursorTracker';
 import Landing from '@/pages/Landing';
@@ -24,7 +25,8 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <Router>
+      <LangProvider>
+        <Router>
         <GlobalNeural />
         <CursorTracker />
         <Routes>
@@ -55,7 +57,8 @@ export default function App() {
             }
           />
         </Routes>
-      </Router>
+        </Router>
+      </LangProvider>
     </ThemeProvider>
   );
 }
