@@ -208,7 +208,6 @@ function HomeHero() {
         background: 'transparent',
       }}
     >
-      <BackgroundCharts />
       <HeroLocalCanvas mouseRef={mouseRef} />
 
       {/* Center: KADO + label + CTA */}

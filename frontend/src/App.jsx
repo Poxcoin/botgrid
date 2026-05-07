@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
+import GlobalCharts from '@/components/global/GlobalCharts';
 import CursorTracker from '@/components/global/CursorTracker';
 import Landing from '@/pages/Landing';
 import BotsPage from '@/pages/BotsPage';
@@ -24,6 +25,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <Router>
+        <GlobalCharts />
         <GlobalNeural />
         <CursorTracker />
         <Routes>
