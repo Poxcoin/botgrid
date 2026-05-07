@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import { useLang } from '@/lib/LangContext';
 
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
@@ -9,59 +10,75 @@ const FONT_MONO = "'Courier New','SF Mono',monospace";
 const BOTS = [
   {
     num: '01',
-    tag: 'AI-SCORED',
+    tag: 'ALT COINS ONLY',
     name: 'News Intelligence',
     tagline: 'Reads the market before you can.',
-    desc: 'Monitors 6 crypto Telegram channels with <5s latency. Groq LLaMA evaluates every event across 8 market factors — sentiment, whale activity, RSI, funding rate, OI, liquidations, volume, Fear & Greed. Only enters when confidence score reaches 8.0+.',
-    pills: ['Score ≥ 8.0', 'Dynamic 2–5× leverage', '8 factors'],
+    desc: 'Monitors crypto Telegram channels with real-time latency. Groq LLaMA evaluates every event across 9 market factors — sentiment, whale activity, RSI, funding rate, open interest, liquidations, volume, Fear & Greed, on-chain macro. Only alt coins — BTC/ETH/SOL are priced by institutions in microseconds, edge is zero.',
+    pills: ['Score ≥ 11.0', '9 score factors', 'Alt coins only'],
   },
   {
     num: '02',
-    tag: 'BTC · ETH · SOL · DOGE · XRP',
+    tag: 'BTC · ETH · SOL',
     name: 'Grid Trading',
     tagline: 'Earns whether price goes up or down.',
-    desc: 'ATR-adaptive grids running 24/7 on 5 major coins. Places layered buy and sell orders at mathematically optimal levels, capturing profit from every oscillation. BTC correlation filter auto-pauses during broad market dumps.',
-    pills: ['5 coins', 'ATR spacing', 'Auto-pause on dumps'],
+    desc: 'Adaptive grids running 24/7 on BTC, ETH, and SOL. Places layered limit orders at mathematically optimal levels, capturing profit from every oscillation. Trend confirmed via EMA50 + RSI(4h) before entry. Maker-only orders minimize fees.',
+    pills: ['EMA50 filter', 'Maker-only', 'BTC correlation guard'],
   },
   {
     num: '03',
-    tag: 'BINANCE · BYBIT · 30s',
+    tag: 'BINANCE · BYBIT · 10s',
     name: 'Listing Sniper',
     tagline: 'In before the crowd finishes reading.',
-    desc: 'Checks Binance and Bybit listing APIs every 30 seconds. The moment a new listing goes live, it enters automatically. DEX filter skips coins already pumped >$100K. Partial take-profit at +10%, trailing stop on the remainder.',
-    pills: ['TP1 +10%', 'DEX filter', '5× leverage'],
+    desc: 'Polls Binance and Bybit listing APIs every 10 seconds. The moment a new listing appears, it enters automatically. DEX filter skips coins already pumped on-chain. Two-stage exit: 50% at +10%, remainder rides to +20%.',
+    pills: ['TP1 +10% · TP2 +20%', 'DEX staleness filter', '5× leverage'],
   },
   {
     num: '04',
     tag: '30 PERPS · 15-MIN CYCLE',
     name: 'Funding Rate Arb',
     tagline: 'Profits when perpetuals diverge from spot.',
-    desc: 'Scans 30 perpetual markets every 15 minutes. Elevated funding + overbought RSI → SHORT. Negative funding + oversold RSI → LONG. Three-tier position sizing amplifies on the most extreme setups.',
-    pills: ['30 markets', 'FR >0.04%', '3-tier sizing'],
+    desc: 'Scans 30 perpetual markets every 15 minutes. Elevated funding rate combined with overbought RSI signals a SHORT. Negative funding with oversold RSI signals a LONG. Three-tier position sizing amplifies on extreme setups.',
+    pills: ['30 markets', 'FR > 0.04%', '3-tier sizing'],
   },
   {
     num: '05',
-    tag: '10 WALLETS · WEBSOCKET',
-    name: 'Whale Tracker',
-    tagline: 'Follow the wallets that move markets.',
-    desc: 'Tracks 10 high-conviction on-chain wallets via real-time Alchemy WebSocket feeds. When a whale makes a significant move, the confidence threshold drops from 8.0 to 5.0 and the bot enters immediately. Real smart money data.',
-    pills: ['10 wallets', 'Real-time', 'Threshold 5.0'],
+    tag: 'BINANCE WEBSOCKET',
+    name: 'Liquidation Cascade',
+    tagline: 'Trades the momentum that lasts minutes, not milliseconds.',
+    desc: 'Connected to Binance liquidation feed 24/7. When $300K+ of shorts are liquidated in 5 minutes with 2.5:1 directional dominance — the bot enters the cascade direction. Cascades unfold over minutes, not microseconds. Real edge.',
+    pills: ['22 alt coins', '$300K threshold', 'TP 6% · SL 2.5%'],
   },
   {
     num: '06',
+    tag: 'ALCHEMY WEBSOCKET · ETH',
+    name: 'On-chain Macro',
+    tagline: 'Follow where the real money flows.',
+    desc: 'Tracks ETH whale movements to and from exchange wallets in real time. When 500+ ETH is withdrawn from Binance or Bybit — a macro bullish signal activates for AAVE, UNI, LDO, LINK, CRV and other ETH-ecosystem alts for 45 minutes.',
+    pills: ['ETH ecosystem alts', '45-min window', 'Alchemy WebSocket'],
+  },
+  {
+    num: '07',
+    tag: '10 WALLETS · WEBSOCKET',
+    name: 'Whale Tracker',
+    tagline: 'Follow the wallets that move markets.',
+    desc: 'Tracks 10 identified smart money wallets — Paradigm, Jump Trading, Wintermute and others — via real-time Alchemy WebSocket feeds. When a whale makes a significant on-chain move, the confidence threshold drops and the bot enters immediately.',
+    pills: ['10 smart wallets', 'Real-time', 'Lower score threshold'],
+  },
+  {
+    num: '08',
     tag: 'BSC · PANCAKESWAP V2',
     name: 'DEX Sniper',
     tagline: 'New launches, safety-checked in real time.',
-    desc: 'Listens for PancakeSwap V2 PairCreated events on BSC. Every new token verified by GoPlus: honeypot detection, buy/sell tax check, owner renounced. Clean contracts only. Target +100%, hard stop at −50%.',
-    pills: ['GoPlus safety', 'TP +100%', 'SL −50%'],
+    desc: 'Listens for new PairCreated events on PancakeSwap V2. Every token verified by GoPlus: honeypot detection, buy/sell tax check, locked LP, and deployer history. Clean contracts only. Trailing stop activates after +30%.',
+    pills: ['Honeypot check', 'TP +100% · SL −50%', 'Trailing stop at +30%'],
   },
 ];
 
 const STATS = [
-  { value: '6',      label: 'Active Bots' },
+  { value: '8',      label: 'Active Bots' },
   { value: '24/7',   label: 'Uptime' },
   { value: '<5s',    label: 'Signal Latency' },
-  { value: '8',      label: 'Score Factors' },
+  { value: '9',      label: 'Score Factors' },
   { value: '<100ms', label: 'AI Eval' },
   { value: '4',      label: 'Pipeline Stages' },
 ];
@@ -182,6 +199,7 @@ function PipelineCard({ step }) {
 
 export default function BotsPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
+  const { t } = useLang();
 
   return (
     <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
@@ -189,7 +207,7 @@ export default function BotsPage() {
 
       {/* Hero */}
       <section style={{ paddingTop: 100, paddingBottom: 80, textAlign: 'center' }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-5 md:px-14" style={{ width: "100%" }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -205,7 +223,7 @@ export default function BotsPage() {
             textTransform: 'uppercase',
             marginBottom: 32,
           }}>
-            6 Bots · Multi-Exchange · 24/7
+            {t.bots.badge}
           </div>
 
           <h1 style={{
@@ -215,17 +233,17 @@ export default function BotsPage() {
             lineHeight: 1.0,
             margin: '0 0 24px',
           }}>
-            THE ARSENAL.
+            {t.bots.h1}
           </h1>
 
           <p style={{ fontSize: 16, color: '#666', lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>
-            Six specialized bots. Every market opportunity covered — from AI news alpha to on-chain whale signals.
+            {t.bots.sub}
           </p>
         </div>
       </section>
 
       {/* Stats bar */}
-      <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 80 }}>
+      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 80 }}>
         <div
           className="grid grid-cols-3 md:grid-cols-6"
           style={{
@@ -249,7 +267,7 @@ export default function BotsPage() {
       </div>
 
       {/* Bots grid */}
-      <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 100 }}>
+      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 100 }}>
         <div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
           style={{
@@ -267,7 +285,7 @@ export default function BotsPage() {
 
       {/* Pipeline section */}
       <section style={{ paddingTop: 100, paddingBottom: 100, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-5 md:px-14" style={{ width: "100%" }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{
               fontSize: 11,
@@ -311,7 +329,7 @@ export default function BotsPage() {
 
       {/* CTA strip */}
       <section style={{ paddingTop: 100, paddingBottom: 100, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-5 md:px-14" style={{ width: "100%" }}>
           <div style={{
             fontSize: 11,
             color: '#666',
@@ -329,7 +347,7 @@ export default function BotsPage() {
             lineHeight: 1.0,
             margin: '0 0 40px',
           }}>
-            Start trading with all six bots.
+            Start trading with all eight bots.
           </h2>
           <Link
             to="/auth?mode=register"

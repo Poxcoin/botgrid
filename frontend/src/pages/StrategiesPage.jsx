@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import { useLang } from '@/lib/LangContext';
 
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
@@ -26,8 +27,8 @@ const STRATEGIES = [
   {
     num: '03',
     name: 'Full Suite',
-    summary: 'All six bots active simultaneously. Maximum signal coverage across every market opportunity.',
-    bots: ['All 6 bots active'],
+    summary: 'All eight bots active simultaneously. Maximum signal coverage across every market opportunity.',
+    bots: ['All 8 bots active'],
     returns: '25%+',
     note: 'For experienced traders who want complete automation.',
   },
@@ -38,17 +39,21 @@ const BOTS_LIST = [
   'Grid Trading',
   'Listing Sniper',
   'Funding Rate Arb',
+  'Liquidation Cascade',
+  'On-chain Macro',
   'Whale Tracker',
   'DEX Sniper',
 ];
 
 const COMPARISON = {
-  'News Intelligence':  [false, true,  true],
-  'Grid Trading':       [true,  true,  true],
-  'Listing Sniper':     [false, false, true],
-  'Funding Rate Arb':   [false, true,  true],
-  'Whale Tracker':      [false, false, true],
-  'DEX Sniper':         [false, false, true],
+  'News Intelligence':    [false, true,  true],
+  'Grid Trading':         [true,  true,  true],
+  'Listing Sniper':       [false, false, true],
+  'Funding Rate Arb':     [false, true,  true],
+  'Liquidation Cascade':  [false, false, true],
+  'On-chain Macro':       [false, false, true],
+  'Whale Tracker':        [false, false, true],
+  'DEX Sniper':           [false, false, true],
 };
 
 function PillTag({ label }) {
@@ -135,6 +140,7 @@ function StrategyCard({ strategy }) {
 
 export default function StrategiesPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
+  const { t } = useLang();
 
   return (
     <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
@@ -142,7 +148,7 @@ export default function StrategiesPage() {
 
       {/* Hero */}
       <section style={{ paddingTop: 100, paddingBottom: 80, textAlign: 'center' }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-5 md:px-14" style={{ width: "100%" }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -158,7 +164,7 @@ export default function StrategiesPage() {
             textTransform: 'uppercase',
             marginBottom: 32,
           }}>
-            3 Strategies · Multi-Exchange
+            {t.strategies.badge}
           </div>
 
           <h1 style={{
@@ -168,17 +174,17 @@ export default function StrategiesPage() {
             lineHeight: 1.0,
             margin: '0 0 24px',
           }}>
-            FIND YOUR MATCH.
+            {t.strategies.h1}
           </h1>
 
           <p style={{ fontSize: 16, color: '#666', lineHeight: 1.7, maxWidth: 520, margin: '0 auto' }}>
-            Three pre-configured strategies. Pick the risk profile that fits your goals and let the system run.
+            {t.strategies.sub}
           </p>
         </div>
       </section>
 
       {/* Strategy cards */}
-      <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 100 }}>
+      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 100 }}>
         <div
           className="grid grid-cols-1 md:grid-cols-3"
           style={{ gap: 16 }}
@@ -191,7 +197,7 @@ export default function StrategiesPage() {
 
       {/* Comparison table */}
       <section style={{ paddingTop: 100, paddingBottom: 100, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-5 md:px-14" style={{ width: "100%" }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{
               fontSize: 11,
@@ -201,7 +207,7 @@ export default function StrategiesPage() {
               marginBottom: 16,
               fontFamily: FONT_MONO,
             }}>
-              Compare
+              {t.strategies.compare}
             </div>
             <h2 style={{
               fontSize: 'clamp(36px,4.5vw,52px)',
@@ -210,7 +216,7 @@ export default function StrategiesPage() {
               lineHeight: 1.0,
               margin: 0,
             }}>
-              What's included.
+              {t.strategies.whats}
             </h2>
           </div>
 
@@ -284,7 +290,7 @@ export default function StrategiesPage() {
       </section>
 
       {/* Risk disclaimer */}
-      <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 80, textAlign: 'center' }}>
+      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 80, textAlign: 'center' }}>
         <p style={{
           fontFamily: FONT_MONO,
           fontSize: 11,
@@ -299,7 +305,7 @@ export default function StrategiesPage() {
 
       {/* CTA strip */}
       <section style={{ paddingTop: 100, paddingBottom: 100, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div className="px-5 md:px-14" style={{ width: "100%" }}>
           <div style={{
             fontSize: 11,
             color: '#666',

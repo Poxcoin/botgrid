@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import { useLang } from '@/lib/LangContext';
 
 const S = {
   page: {
@@ -10,8 +11,7 @@ const S = {
     minHeight: '100vh',
   },
   wrap: {
-    maxWidth: '1100px',
-    margin: '0 auto',
+    width: '100%',
   },
   hero: {
     textAlign: 'center',
@@ -250,6 +250,7 @@ function FeatureRow({ on, text }) {
 export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const [loading, setLoading] = useState(null);
+  const { t } = useLang();
 
   async function startCheckout(plan) {
     const token = localStorage.getItem('kado_token');
@@ -282,10 +283,10 @@ export default function PricingPage() {
       {/* Hero */}
       <div style={S.wrap} className="px-5 md:px-14">
         <div style={S.hero}>
-          <div style={S.badge}>2 Plans · No Lock-in</div>
-          <h1 style={S.h1}>SIMPLE PRICING.</h1>
+          <div style={S.badge}>{t.pricing.badge}</div>
+          <h1 style={S.h1}>{t.pricing.h1.toUpperCase()}</h1>
           <p style={S.subtitle}>
-            Start for free. Pay only when you profit — 20% of monthly gains, nothing else.
+            {t.pricing.sub}
           </p>
         </div>
       </div>
@@ -310,7 +311,7 @@ export default function PricingPage() {
                 {FREE_OFF.map((f) => <FeatureRow key={f} on={false} text={f} />)}
               </ul>
               <div style={S.ctaWrap}>
-                <a href="/register" style={S.btnGhost}>Start free →</a>
+                <a href="/register" style={S.btnGhost}>{t.pricing.starterCta}</a>
               </div>
             </div>
 
@@ -334,7 +335,7 @@ export default function PricingPage() {
                   disabled={!!loading}
                   style={{ ...S.btnPrimary, opacity: loading === 'performance' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
                 >
-                  {loading === 'performance' ? 'Redirecting…' : 'Start Performance →'}
+                  {loading === 'performance' ? 'Redirecting…' : t.pricing.perfCta}
                 </button>
               </div>
             </div>

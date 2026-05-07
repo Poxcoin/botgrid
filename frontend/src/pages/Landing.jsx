@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import SpiralText from '@/components/shared/SpiralText';
+import { useLang } from '@/lib/LangContext';
 
 const FONT = "'Inter','SF Pro Display',system-ui,sans-serif";
 const MONO = "'JetBrains Mono','SF Mono',monospace";
@@ -174,7 +175,8 @@ function HomeHero() {
   const [in_, setIn] = useState(false);
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const sectionRef = useRef(null);
-  useEffect(() => { const t = setTimeout(() => setIn(true), 60); return () => clearTimeout(t); }, []);
+  const { t } = useLang();
+  useEffect(() => { const timer = setTimeout(() => setIn(true), 60); return () => clearTimeout(timer); }, []);
 
   const onMouseMove = useCallback((e) => {
     const rect = sectionRef.current?.getBoundingClientRect();
@@ -225,15 +227,14 @@ function HomeHero() {
         </h1>
 
         <div style={fade(2000, { fontSize: 10, color: '#383838', letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: MONO, marginTop: 20 })}>
-          AI-DRIVEN SIGNAL INTELLIGENCE
+          {t.landing.tagline}
         </div>
 
         <p style={fade(2100, {
           fontFamily: FONT, fontSize: 'clamp(14px, 1.3vw, 17px)', fontWeight: 300,
           color: '#4a4a4a', marginTop: 22, lineHeight: 1.7, letterSpacing: '-0.01em', maxWidth: 420,
         })}>
-          Eight autonomous strategies running in parallel —<br />
-          news, grid, cascades, funding, on-chain. While you sleep.
+          {t.landing.heroSub}
         </p>
 
         <div style={fade(2200, { display: 'flex', alignItems: 'center', gap: 20, marginTop: 36, flexWrap: 'wrap', justifyContent: 'center' })}>
@@ -241,12 +242,12 @@ function HomeHero() {
             style={{ background: '#fff', color: '#000', padding: '12px 36px', borderRadius: 100, fontSize: 13, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'opacity 150ms', letterSpacing: '-0.01em' }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-          >Get started →</Link>
+          >{t.landing.cta1}</Link>
           <a href="#how-it-works"
             style={{ color: '#444', fontSize: 13, fontFamily: FONT, textDecoration: 'none', transition: 'color 150ms', letterSpacing: '-0.01em' }}
             onMouseEnter={e => e.currentTarget.style.color = '#fff'}
             onMouseLeave={e => e.currentTarget.style.color = '#444'}
-          >How it works ↓</a>
+          >{t.landing.cta2}</a>
         </div>
       </div>
     </section>
@@ -254,17 +255,23 @@ function HomeHero() {
 }
 
 /* ── HOW IT WORKS ── */
-const STEPS = [
-  { n: '01', title: 'Connect your exchange', body: 'Generate an API key on Bybit with trade permissions only. Paste it into your dashboard. Your funds stay on your exchange at all times — KADO only sends orders.' },
-  { n: '02', title: 'Choose your strategy', body: 'Run one bot or all eight. Conservative grid for passive income. AI news signals for directional alpha. Full suite for maximum coverage. Switch any time.' },
-  { n: '03', title: 'Let the bots trade', body: 'Everything activates in under 60 seconds. Monitor live signals, open positions, and real PnL from your dashboard. No code. No manual work.' },
+const STEP_BODIES = [
+  'Generate an API key on Bybit with trade permissions only. Paste it into your dashboard. Your funds stay on your exchange at all times — KADO only sends orders.',
+  'Run one bot or all eight. Conservative grid for passive income. AI news signals for directional alpha. Full suite for maximum coverage. Switch any time.',
+  'Everything activates in under 60 seconds. Monitor live signals, open positions, and real PnL from your dashboard. No code. No manual work.',
 ];
 
 function HowItWorks() {
+  const { t } = useLang();
+  const STEPS = [
+    { n: '01', title: t.landing.step1Title, body: STEP_BODIES[0] },
+    { n: '02', title: t.landing.step2Title, body: STEP_BODIES[1] },
+    { n: '03', title: t.landing.step3Title, body: STEP_BODIES[2] },
+  ];
   return (
     <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
-        <SectionHeader label="Setup in 60 seconds" title="Three steps. Then step back." sub="No code. No constant monitoring. Connect once, choose your strategy, and let the bots handle everything else." />
+        <SectionHeader label={t.landing.stepsLabel} title={t.landing.stepsTitle} sub={t.landing.stepsSub} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {STEPS.map(s => (
             <div key={s.n} style={{ background: 'rgba(5,5,5,0.92)', padding: '48px 40px' }}>
@@ -292,10 +299,11 @@ const BOTS = [
 ];
 
 function BotsSection() {
+  const { t } = useLang();
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
-        <SectionHeader label="The Arsenal" title="Eight strategies. One platform." sub="Each bot is independent, specialized, and running 24/7. Together they cover every major market opportunity." />
+        <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -334,10 +342,11 @@ const RISK = [
 ];
 
 function RiskSection() {
+  const { t } = useLang();
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
-        <SectionHeader label="Risk Management" title="Your capital is protected." sub="Multiple independent safeguards run on every trade. No single bet can wipe an account." />
+        <SectionHeader label={t.landing.riskLabel} title={t.landing.riskTitle} sub={t.landing.riskSub} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {RISK.map(r => (
             <div key={r.title} style={{ background: 'rgba(5,5,5,0.92)', padding: '40px 32px' }}>
@@ -359,10 +368,11 @@ const STRATS = [
 ];
 
 function Strategies() {
+  const { t } = useLang();
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
-        <SectionHeader label="Strategies" title="Find your match." sub="Start with one bot. Scale to all eight. Switch any time from your dashboard." />
+        <SectionHeader label={t.landing.stratLabel} title={t.landing.stratTitle} sub={t.landing.stratSub} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           {STRATS.map(s => (
             <Link key={s.n} to="/strategies" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -395,31 +405,39 @@ function Strategies() {
 }
 
 /* ── CTA ── */
+function CtaInner() {
+  const { t } = useLang();
+  const badges = [t.landing.ctaBadge1, t.landing.ctaBadge2, t.landing.ctaBadge3];
+  return (
+    <div style={{ padding: '140px 64px', textAlign: 'center' }}>
+      <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,180px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', margin: '0 0 40px' }}>
+        KADO
+      </h2>
+      <p style={{ fontSize: 15, color: '#555', letterSpacing: '-0.01em', marginBottom: 10, fontFamily: FONT }}>{t.landing.ctaTagline}</p>
+      <p style={{ fontSize: 13, color: '#444', lineHeight: 1.8, maxWidth: 380, margin: '0 auto 40px', fontFamily: FONT }}>
+        {t.landing.ctaText}
+      </p>
+      <Link
+        to="/auth?mode=register"
+        style={{ background: '#fff', color: '#000', padding: '13px 38px', borderRadius: 100, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'opacity 150ms', fontFamily: FONT, letterSpacing: '-0.01em' }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        {t.landing.ctaBtn}
+      </Link>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+        {badges.map(b => (
+          <span key={b} style={{ fontSize: 10, color: '#444', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 100, padding: '4px 14px', fontFamily: FONT }}>{b}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CTA() {
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
-      <div style={{ padding: '140px 64px', textAlign: 'center' }}>
-        <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,180px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', margin: '0 0 40px' }}>
-          KADO
-        </h2>
-        <p style={{ fontSize: 15, color: '#555', letterSpacing: '-0.01em', marginBottom: 10, fontFamily: FONT }}>Your edge, automated.</p>
-        <p style={{ fontSize: 13, color: '#444', lineHeight: 1.8, maxWidth: 380, margin: '0 auto 40px', fontFamily: FONT }}>
-          Private beta is open. Connect your exchange API key, choose a strategy, and let eight bots trade for you. Your funds never leave your exchange.
-        </p>
-        <Link
-          to="/auth?mode=register"
-          style={{ background: '#fff', color: '#000', padding: '13px 38px', borderRadius: 100, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'opacity 150ms', fontFamily: FONT, letterSpacing: '-0.01em' }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          Get started →
-        </Link>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
-          {['No credit card required', 'Funds stay on your exchange', 'Cancel any time'].map(t => (
-            <span key={t} style={{ fontSize: 10, color: '#444', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 100, padding: '4px 14px', fontFamily: FONT }}>{t}</span>
-          ))}
-        </div>
-      </div>
+      <CtaInner />
     </section>
   );
 }

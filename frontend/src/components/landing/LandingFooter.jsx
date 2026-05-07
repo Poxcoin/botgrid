@@ -1,14 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useLang } from '@/lib/LangContext';
 
 const MONO = "'Courier New','SF Mono',monospace";
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
-
-const COLS = [
-  { title: 'Product', links: [{ label: 'Bots', to: '/bots' }, { label: 'Strategies', to: '/strategies' }, { label: 'Pricing', to: '/pricing' }, { label: 'News', to: '/news' }] },
-  { title: 'Access', links: [{ label: 'Register', to: '/auth?mode=register' }, { label: 'Login', to: '/auth?mode=login' }] },
-  { title: 'Legal', links: [{ label: 'Risk Disclosure', href: '#' }, { label: 'Terms of Service', href: '#' }] },
-];
 
 function FootLink({ label, href, to }) {
   const s = { fontFamily: FONT, fontSize: 13, color: '#555', textDecoration: 'none', transition: 'color 150ms' };
@@ -19,18 +14,26 @@ function FootLink({ label, href, to }) {
 }
 
 export default function LandingFooter() {
+  const { t } = useLang();
+
+  const COLS = [
+    { title: t.footer.colProduct, links: [{ label: t.nav.bots, to: '/bots' }, { label: t.nav.strategies, to: '/strategies' }, { label: t.nav.pricing, to: '/pricing' }, { label: t.nav.news, to: '/news' }] },
+    { title: t.footer.colAccess, links: [{ label: t.auth.signup.replace(' →', ''), to: '/auth?mode=register' }, { label: t.auth.login, to: '/auth?mode=login' }] },
+    { title: t.footer.colLegal, links: [{ label: 'Risk Disclosure', href: '#' }, { label: 'Terms of Service', href: '#' }] },
+  ];
+
   return (
     <footer style={{ background: '#060606', borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
-      <div className="px-5 md:px-14 grid grid-cols-2 md:grid-cols-4" style={{ maxWidth: 1100, margin: '0 auto', padding: '48px 56px', gap: 40 }}>
+      <div className="px-5 md:px-14 grid grid-cols-2 md:grid-cols-4" style={{ maxWidth: 1440, margin: '0 auto', padding: '48px 56px', gap: 40 }}>
         {/* Brand */}
         <div>
           <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-0.04em', fontFamily: MONO, marginBottom: 12 }}>KADO</div>
           <p style={{ fontFamily: FONT, fontSize: 12, lineHeight: 1.7, color: '#444' }}>
-            AI-driven crypto signal intelligence. Six bots. One platform.
+            {t.footer.tagline}
           </p>
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontSize: 11, color: '#444' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#333', display: 'inline-block' }} />
-            Systems operational
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px rgba(34,197,94,0.5)' }} />
+            {t.footer.status}
           </div>
         </div>
 
@@ -46,9 +49,9 @@ export default function LandingFooter() {
         ))}
       </div>
 
-      <div className="px-5 md:px-14" style={{ maxWidth: 1100, margin: '0 auto', height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+      <div className="px-5 md:px-14" style={{ maxWidth: 1440, margin: '0 auto', height: 44, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
         <span style={{ fontFamily: FONT, fontSize: 11, color: '#3a3a3a' }}>© 2026 KADO</span>
-        <span style={{ fontFamily: FONT, fontSize: 11, color: '#3a3a3a' }}>Not financial advice. Trade at your own risk.</span>
+        <span style={{ fontFamily: FONT, fontSize: 11, color: '#3a3a3a' }}>{t.footer.disclaimer}</span>
       </div>
     </footer>
   );
