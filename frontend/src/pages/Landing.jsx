@@ -185,8 +185,8 @@ function HomeHero() {
 
   const fade = (d, extra = {}) => ({
     opacity: in_ ? 1 : 0,
-    transform: in_ ? 'none' : 'translateY(18px)',
-    transition: `opacity 800ms ${d}ms ease, transform 800ms ${d}ms ease`,
+    transform: in_ ? 'none' : 'translateY(14px)',
+    transition: `opacity 700ms ${d}ms ease, transform 700ms ${d}ms ease`,
     ...extra,
   });
 
@@ -199,22 +199,32 @@ function HomeHero() {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        padding: '0 32px',
+        justifyContent: 'space-between',
+        padding: '80px 48px 48px',
         position: 'relative',
         overflow: 'hidden',
         background: 'transparent',
       }}
     >
+      <BackgroundCharts />
       <HeroLocalCanvas mouseRef={mouseRef} />
 
-      {/* Center: KADO + label + CTA */}
-      <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {/* Top row: label left — status right */}
+      <div style={{ zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <span style={fade(80, { fontSize: 10, color: '#333', letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: MONO })}>
+          AI-DRIVEN SIGNAL INTELLIGENCE
+        </span>
+        <span style={fade(80, { fontSize: 10, color: '#2a2a2a', letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: MONO, display: 'flex', alignItems: 'center', gap: 8 })}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#2a2a2a', display: 'inline-block' }} />
+          BYBIT · PERP · LIVE
+        </span>
+      </div>
+
+      {/* Middle: KADO */}
+      <div style={{ zIndex: 1 }}>
         <h1 style={fade(0, {
           fontFamily: FONT,
-          fontSize: 'clamp(80px, 16vw, 200px)',
+          fontSize: 'clamp(100px, 18vw, 240px)',
           fontWeight: 900,
           letterSpacing: '-0.06em',
           lineHeight: 0.87,
@@ -223,40 +233,26 @@ function HomeHero() {
         })}>
           <SpiralText text="KADO" style={{ width: '100%' }} />
         </h1>
+      </div>
 
-        <div style={fade(2000, {
-          fontSize: 10, color: '#383838', letterSpacing: '0.22em',
-          textTransform: 'uppercase', fontFamily: MONO, marginTop: 20,
-        })}>
-          AI-DRIVEN SIGNAL INTELLIGENCE
+      {/* Bottom row: tagline left — CTA right */}
+      <div style={{ zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 32 }}>
+        <div>
+          <div style={fade(2000, { width: 2, height: 36, background: '#1a1a1a', marginBottom: 14 })} />
+          <p style={fade(2100, {
+            fontFamily: FONT, fontSize: 'clamp(14px, 1.3vw, 17px)', fontWeight: 300,
+            color: '#4a4a4a', lineHeight: 1.7, letterSpacing: '-0.01em', maxWidth: 380, margin: 0,
+          })}>
+            Eight autonomous strategies running in parallel —<br />
+            news, grid, cascades, funding, on-chain. While you sleep.
+          </p>
         </div>
 
-        <p style={fade(2100, {
-          fontFamily: FONT,
-          fontSize: 'clamp(15px, 1.4vw, 18px)',
-          fontWeight: 300,
-          color: '#4a4a4a',
-          marginTop: 24,
-          lineHeight: 1.7,
-          letterSpacing: '-0.01em',
-          maxWidth: 460,
-        })}>
-          Eight autonomous strategies running in parallel —<br />
-          news, grid, cascades, funding, on-chain. While you sleep.
-        </p>
-
-        <div style={fade(2200, {
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-          marginTop: 40,
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        })}>
+        <div style={fade(2200, { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 })}>
           <Link
             to="/auth?mode=register"
             style={{
-              background: '#fff', color: '#000', padding: '12px 36px',
+              background: '#fff', color: '#000', padding: '13px 38px',
               borderRadius: 100, fontSize: 13, fontWeight: 600, fontFamily: FONT,
               textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
               gap: 8, transition: 'opacity 150ms', letterSpacing: '-0.01em',
@@ -266,17 +262,14 @@ function HomeHero() {
           >
             Get started →
           </Link>
-          <a
-            href="#how-it-works"
-            style={{ color: '#444', fontSize: 13, fontFamily: FONT, textDecoration: 'none', transition: 'color 150ms', letterSpacing: '-0.01em' }}
+          <a href="#how-it-works" style={{ color: '#333', fontSize: 11, fontFamily: MONO, textDecoration: 'none', letterSpacing: '0.12em', textTransform: 'uppercase', transition: 'color 150ms' }}
             onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = '#444'}
+            onMouseLeave={e => e.currentTarget.style.color = '#333'}
           >
-            How it works ↓
+            Scroll to explore ↓
           </a>
         </div>
       </div>
-
     </section>
   );
 }
