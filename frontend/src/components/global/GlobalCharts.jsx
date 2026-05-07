@@ -5,12 +5,12 @@ function mkRng(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0xffffffff; };
 }
 
-function initCandles(count, seed) {
+function makeCandles(count, seed) {
   const r = mkRng(seed);
-  let p = 60 + r() * 40;
+  let p = 55 + r() * 50;
   return Array.from({ length: count }, () => {
     const o = p;
-    const c = Math.max(5, o + (r() - 0.48) * 8);
+    const c = Math.max(5, o + (r() - 0.48) * 9);
     const h = Math.max(o, c) + r() * 4;
     const l = Math.min(o, c) - r() * 3;
     p = c;
@@ -18,13 +18,62 @@ function initCandles(count, seed) {
   });
 }
 
-/* Chart descriptor — coords in 0..1 relative to canvas */
-const CHARTS = [
-  { rx: 0.54, ry: 0.04, rw: 0.44, rh: 0.37, count: 48, seed: 77,  op: 0.065, candleMs: 1800 },
-  { rx: 0.01, ry: 0.55, rw: 0.28, rh: 0.25, count: 32, seed: 133, op: 0.048, candleMs: 2200 },
-  { rx: 0.01, ry: 0.03, rw: 0.17, rh: 0.15, count: 22, seed: 211, op: 0.036, candleMs: 2600 },
-  { rx: 0.73, ry: 0.67, rw: 0.26, rh: 0.22, count: 28, seed: 317, op: 0.042, candleMs: 2000 },
-];
+/* Multiple sets of candles — one per scroll "scene" */
+const SETS = [77, 133, 211, 317, 401, 503].map((seed, i) => makeCandles(52, seed + i));
+
+function drawChart(ctx, candles, cx, cy, cw, ch, op) {
+  if (op <= 0.005) return;
+  const allP = candles.flatMap(c => [c.h, c.l]);
+  const mn = Math.min(...allP), mx = Math.max(...allP);
+  const sy = p => cy + ch - ((p - mn) / ((mx - mn) || 1)) * ch;
+  const barW = cw / candles.length;
+  const bw = Math.max(1.2, barW * 0.52);
+
+  ctx.save();
+  ctx.globalAlpha = op;
+
+  /* Grid */
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 0.3;
+  ctx.setLineDash([3, 10]);
+  [0.2, 0.5, 0.8].forEach(t => {
+    ctx.beginPath(); ctx.moveTo(cx, cy + ch * t); ctx.lineTo(cx + cw, cy + ch * t); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  /* Candles + price line */
+  let lineX = null, lineY = null;
+  candles.forEach((c, i) => {
+    const x = cx + i * barW + barW / 2;
+    const bull = c.c >= c.o;
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, sy(c.h)); ctx.lineTo(x, sy(c.l)); ctx.stroke();
+    const bt = sy(Math.max(c.o, c.c)), bh = Math.max(1, Math.abs(sy(c.o) - sy(c.c)));
+    if (bull) { ctx.fillStyle = 'white'; ctx.fillRect(x - bw / 2, bt, bw, bh); }
+    else { ctx.strokeRect(x - bw / 2, bt, bw, bh); }
+    if (lineX === null) { lineX = x; lineY = sy(c.c); }
+  });
+
+  /* Price line */
+  ctx.beginPath();
+  candles.forEach((c, i) => {
+    const x = cx + i * barW + barW / 2;
+    i === 0 ? ctx.moveTo(x, sy(c.c)) : ctx.lineTo(x, sy(c.c));
+  });
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+  /* Volume bars */
+  const span = mx - mn || 1;
+  const volH = ch * 0.1, volY = cy + ch + 3;
+  candles.forEach((c, i) => {
+    const x = cx + i * barW;
+    const v = Math.abs(c.c - c.o) / span;
+    ctx.fillStyle = 'rgba(255,255,255,1)';
+    ctx.fillRect(x + 1, volY + volH * (1 - v), Math.max(1, barW - 2), volH * v);
+  });
+
+  ctx.restore();
+}
 
 export default function GlobalCharts() {
   const canvasRef = useRef(null);
@@ -34,183 +83,65 @@ export default function GlobalCharts() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let W, H, raf;
+    let scrollY = window.scrollY;
+    let targetScroll = scrollY;
 
-    /* Initialise live state per chart */
-    const states = CHARTS.map(cfg => {
-      const r = mkRng(cfg.seed + 9999);
-      return {
-        cfg,
-        r,
-        candles: initCandles(cfg.count, cfg.seed),
-        liveOpen: 0,
-        livePrice: 0,
-        elapsed: 0,
-        init: false,
-      };
-    });
+    const onScroll = () => { targetScroll = window.scrollY; };
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     function resize() {
       W = canvas.width = window.innerWidth;
       H = canvas.height = window.innerHeight;
-      /* seed livePrice from last candle */
-      states.forEach(st => {
-        const last = st.candles[st.candles.length - 1];
-        st.liveOpen = last.c;
-        st.livePrice = last.c;
-        st.init = true;
-      });
     }
-
-    function drawChart(st, dt) {
-      const { cfg, candles, r } = st;
-      const cx = cfg.rx * W, cy = cfg.ry * H;
-      const cw = cfg.rw * W, ch = cfg.rh * H;
-
-      /* Advance live candle */
-      st.elapsed += dt;
-      /* Tiny random walk — slow and smooth */
-      st.livePrice += (r() - 0.495) * 0.5;
-
-      if (st.elapsed >= cfg.candleMs) {
-        st.elapsed = 0;
-        const nc = {
-          o: st.liveOpen,
-          c: st.livePrice,
-          h: Math.max(st.liveOpen, st.livePrice) + r() * 3,
-          l: Math.min(st.liveOpen, st.livePrice) - r() * 2,
-        };
-        candles.push(nc);
-        if (candles.length > cfg.count + 2) candles.shift();
-        st.liveOpen = st.livePrice;
-      }
-
-      const progress = st.elapsed / cfg.candleMs; // 0..1 within current candle
-
-      /* Price range */
-      const allPrices = candles.flatMap(c => [c.h, c.l]).concat([st.livePrice]);
-      const mn = Math.min(...allPrices), mx = Math.max(...allPrices);
-      const span = mx - mn || 1;
-      const sy = p => cy + ch - ((p - mn) / span) * ch;
-
-      const barW = cw / cfg.count;
-      const bw   = Math.max(1.2, barW * 0.52);
-
-      /* offset so newest candle is always at right edge */
-      const offset = (candles.length - cfg.count - 1 + progress) * barW;
-
-      ctx.save();
-      ctx.globalAlpha = cfg.op;
-
-      /* Grid */
-      ctx.strokeStyle = 'rgba(255,255,255,1)';
-      ctx.lineWidth = 0.3;
-      ctx.setLineDash([3, 10]);
-      [0.2, 0.5, 0.8].forEach(t => {
-        ctx.beginPath();
-        ctx.moveTo(cx, cy + ch * t);
-        ctx.lineTo(cx + cw, cy + ch * t);
-        ctx.stroke();
-      });
-      ctx.setLineDash([]);
-
-      /* Past candles */
-      let lineStarted = false;
-      ctx.beginPath(); /* price line path */
-
-      candles.forEach((c, i) => {
-        const x = cx + i * barW - offset + barW / 2;
-        if (x < cx - barW || x > cx + cw + barW) return;
-
-        const bull = c.c >= c.o;
-        ctx.strokeStyle = 'rgba(255,255,255,1)';
-        ctx.lineWidth = 0.5;
-
-        /* wick */
-        ctx.beginPath();
-        ctx.moveTo(x, sy(c.h));
-        ctx.lineTo(x, sy(c.l));
-        ctx.stroke();
-
-        /* body */
-        const bt = sy(Math.max(c.o, c.c));
-        const bh = Math.max(1, Math.abs(sy(c.o) - sy(c.c)));
-        if (bull) {
-          ctx.fillStyle = 'rgba(255,255,255,1)';
-          ctx.fillRect(x - bw / 2, bt, bw, bh);
-        } else {
-          ctx.strokeStyle = 'rgba(255,255,255,1)';
-          ctx.lineWidth = 0.5;
-          ctx.strokeRect(x - bw / 2, bt, bw, bh);
-        }
-
-        /* price line point */
-        if (!lineStarted) {
-          ctx.beginPath();
-          ctx.moveTo(x, sy(c.c));
-          lineStarted = true;
-        } else {
-          ctx.lineTo(x, sy(c.c));
-        }
-      });
-
-      /* Live candle */
-      const lx = cx + candles.length * barW - offset + barW / 2;
-      if (lx >= cx && lx <= cx + cw) {
-        const lBull = st.livePrice >= st.liveOpen;
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = 0.5;
-        ctx.beginPath();
-        ctx.moveTo(lx, sy(Math.max(st.liveOpen, st.livePrice) + 1));
-        ctx.lineTo(lx, sy(Math.min(st.liveOpen, st.livePrice) - 1));
-        ctx.stroke();
-
-        const lbt = sy(Math.max(st.liveOpen, st.livePrice));
-        const lbh = Math.max(2, Math.abs(sy(st.liveOpen) - sy(st.livePrice)));
-        if (lBull) {
-          ctx.fillStyle = 'rgba(255,255,255,0.55)';
-          ctx.fillRect(lx - bw / 2, lbt, bw, lbh);
-        } else {
-          ctx.strokeRect(lx - bw / 2, lbt, bw, lbh);
-        }
-
-        if (lineStarted) ctx.lineTo(lx, sy(st.livePrice));
-      }
-
-      /* Draw price line */
-      ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-      ctx.lineWidth = 0.7;
-      ctx.stroke();
-
-      /* Volume bars */
-      const volH = ch * 0.12;
-      const volY = cy + ch + 4;
-      candles.forEach((c, i) => {
-        const x = cx + i * barW - offset;
-        if (x < cx - barW || x > cx + cw) return;
-        const v = Math.abs(c.c - c.o) / span;
-        ctx.fillStyle = 'rgba(255,255,255,1)';
-        ctx.fillRect(x + 1, volY + volH - v * volH, Math.max(1, barW - 2), v * volH);
-      });
-
-      ctx.restore();
-    }
-
     resize();
     window.addEventListener('resize', resize);
 
-    let last = null;
-    function frame(ts) {
+    function frame() {
       raf = requestAnimationFrame(frame);
-      if (last === null) { last = ts; return; }
-      const dt = Math.min(ts - last, 80);
-      last = ts;
+
+      /* Smooth scroll value */
+      scrollY += (targetScroll - scrollY) * 0.06;
+      const sy = scrollY;
+
+      /* Normalized scroll: 0 = top, cycles every 600px */
+      const cycle = 600;
+      const t = (sy % cycle) / cycle;           // 0..1 within cycle
+      const cycleIdx = Math.floor(sy / cycle);  // which cycle
+
       ctx.clearRect(0, 0, W, H);
-      states.forEach(st => { if (st.init) drawChart(st, dt); });
+
+      /* Layout: 4 chart slots. Scroll drives which set is shown and where. */
+
+      /* Chart A — right large */
+      const aX = W * 0.54 + Math.sin(t * Math.PI * 2) * W * 0.04;
+      const aY = H * 0.04 + t * H * 0.06;
+      const aOp = 0.065 * (1 - Math.abs(Math.sin(t * Math.PI)));
+      const aSet = SETS[cycleIdx % SETS.length];
+      drawChart(ctx, aSet.slice(0, 48), aX, aY, W * 0.43, H * 0.36, aOp + 0.04);
+
+      /* Chart B — bottom left, fades in as you scroll */
+      const bOp = 0.048 * (0.4 + 0.6 * Math.pow(Math.sin(t * Math.PI), 0.5));
+      const bX = W * 0.01 - (1 - t) * W * 0.05;
+      const bY = H * 0.55 + (1 - t) * H * 0.04;
+      drawChart(ctx, SETS[(cycleIdx + 1) % SETS.length].slice(4, 36), bX, bY, W * 0.27, H * 0.24, bOp);
+
+      /* Chart C — top left mini, drifts */
+      const cOp = 0.036 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2));
+      const cX = W * 0.01 + t * W * 0.03;
+      const cY = H * 0.04 + Math.sin(t * Math.PI) * H * 0.04;
+      drawChart(ctx, SETS[(cycleIdx + 2) % SETS.length].slice(0, 22), cX, cY, W * 0.17, H * 0.15, cOp + 0.02);
+
+      /* Chart D — bottom right, slides in */
+      const dOp = 0.042 * (0.3 + 0.7 * t);
+      const dX = W * 0.73 + (1 - t) * W * 0.06;
+      const dY = H * 0.67;
+      drawChart(ctx, SETS[(cycleIdx + 3) % SETS.length].slice(8, 36), dX, dY, W * 0.25, H * 0.22, dOp);
     }
 
     raf = requestAnimationFrame(frame);
     return () => {
       cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', resize);
     };
   }, []);
