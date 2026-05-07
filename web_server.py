@@ -25,7 +25,7 @@ from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email
@@ -580,6 +580,8 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
         "trial_days_left": trial_days_left,
         "tg_chat_id": user.tg_chat_id,
+        "tg_username": user.tg_username or "",
+        "tg_connected": bool(user.tg_chat_id),
         "has_api_keys": key_row is not None,
         "api_key_testnet": key_row.is_testnet if key_row else False,
         "created_at": user.created_at.isoformat() if user.created_at else None,
@@ -592,6 +594,45 @@ async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCr
     user = _get_user_from_token(credentials.credentials, db)
     if body.tg_chat_id:
         user.tg_chat_id = body.tg_chat_id
+    db.commit()
+    return {"ok": True}
+
+
+# ─── Telegram bot linking (deep-link one-click flow) ─────────────────────────
+@app.post("/api/tg/link-token")
+async def create_tg_link_token(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """
+    Generate a one-time token to link the user's Telegram account via deep-link.
+    Returns: { url: "https://t.me/<bot>?start=<token>", expires_at: iso }
+    """
+    from config.settings import USERBOT_USERNAME, USERBOT_TOKEN
+    if not USERBOT_TOKEN:
+        raise HTTPException(status_code=503, detail="Telegram bot is not configured")
+
+    user = _get_user_from_token(credentials.credentials, db)
+    # Invalidate any prior unused tokens for this user
+    db.query(TgLinkToken).filter(
+        TgLinkToken.user_id == user.id,
+        TgLinkToken.used_at.is_(None),
+    ).update({"used_at": datetime.utcnow()}, synchronize_session=False)
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    db.add(TgLinkToken(user_id=user.id, token=token, expires_at=expires_at))
+    db.commit()
+
+    return {
+        "url": f"https://t.me/{USERBOT_USERNAME}?start={token}",
+        "expires_at": expires_at.replace(tzinfo=timezone.utc).isoformat(),
+    }
+
+
+@app.post("/api/tg/disconnect")
+async def disconnect_tg(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    """Detach Telegram from this user account."""
+    user = _get_user_from_token(credentials.credentials, db)
+    user.tg_chat_id = ""
+    user.tg_username = ""
     db.commit()
     return {"ok": True}
 

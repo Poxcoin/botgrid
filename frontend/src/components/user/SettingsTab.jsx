@@ -135,13 +135,13 @@ function BillingSection({ plan, trialDaysLeft }) {
     return (
       <div>
         <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
-          Пробный период — <span style={{ color: '#aaa' }}>осталось {trialDaysLeft} {trialDaysLeft === 1 ? 'день' : trialDaysLeft < 5 ? 'дня' : 'дней'}</span>
+          Trial — <span style={{ color: '#aaa' }}>{trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left</span>
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
-          Торговля на демо-счёте активна. Подключите API-ключ и напишите нам для активации Performance.
+          Demo trading is active. Connect your API key and contact us to upgrade to Performance.
         </div>
         <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
-          Перейти на Performance — 20% от прибыли
+          Upgrade to Performance — 20% of profit
         </a>
       </div>
     );
@@ -150,12 +150,12 @@ function BillingSection({ plan, trialDaysLeft }) {
   if (plan === 'free') {
     return (
       <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>Бесплатный — демо-торговля</div>
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>Free — demo trading</div>
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
-          Перейдите на Performance для реальной торговли. Платите только когда в плюсе.
+          Switch to Performance for real trading. Pay only when in profit.
         </div>
         <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
-          Начать торговлю — Performance 20%
+          Start trading — Performance 20%
         </a>
       </div>
     );
@@ -360,26 +360,88 @@ function TwoFAModal({ mode, onClose, onDone }) {
   );
 }
 
+// ── Telegram link section ──────────────────────────────────────────────────────
+function TelegramLinkSection({ me, onChange }) {
+  const [linking, setLinking] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function connect() {
+    setErr(''); setLinking(true);
+    try {
+      const data = await API('/api/tg/link-token', { method: 'POST' });
+      window.open(data.url, '_blank', 'noopener');
+    } catch (e) {
+      setErr(typeof e === 'string' ? e : 'Failed to create link');
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  async function disconnect() {
+    if (!confirm('Disconnect Telegram from your account?')) return;
+    setErr(''); setDisconnecting(true);
+    try {
+      await API('/api/tg/disconnect', { method: 'POST' });
+      onChange();
+    } catch (e) {
+      setErr(typeof e === 'string' ? e : 'Error');
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  const btnPrimary = {
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    padding: '10px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    opacity: linking ? 0.6 : 1,
+  };
+  const btnSecondary = {
+    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)',
+    padding: '8px 16px', fontSize: 11, cursor: 'pointer',
+  };
+
+  if (me?.tg_connected) {
+    return (
+      <div>
+        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 4 }}>
+          <span style={{ color: '#4ade80', marginRight: 6 }}>✓</span>
+          Connected{me.tg_username ? <> as <span style={{ fontFamily: 'var(--font-mono)' }}>@{me.tg_username}</span></> : ''}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 12 }}>
+          Trade, profit and invoice notifications will arrive in Telegram.
+        </div>
+        <button onClick={disconnect} disabled={disconnecting} style={btnSecondary}>
+          {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+        </button>
+        {err && <div style={{ fontSize: 12, color: '#e55', marginTop: 8 }}>{err}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
+        Get notifications about trades, profit and invoices in Telegram. One click — no chat IDs to copy.
+      </div>
+      <button onClick={connect} disabled={linking} style={btnPrimary}>
+        {linking ? 'Opening…' : 'Connect Telegram →'}
+      </button>
+      {err && <div style={{ fontSize: 12, color: '#e55', marginTop: 8 }}>{err}</div>}
+    </div>
+  );
+}
+
+
 // ── Main SettingsTab ───────────────────────────────────────────────────────────
 export default function SettingsTab() {
   const [me, setMe] = useState(null);
-  const [tgId, setTgId] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
 
-  useEffect(() => {
-    API('/api/users/me').then(d => { setMe(d); setTgId(d.tg_chat_id || ''); }).catch(console.error);
-  }, []);
-
-  async function saveProfile(e) {
-    e.preventDefault();
-    setMsg(''); setSaving(true);
-    try {
-      await API('/api/users/me', { method: 'PUT', body: JSON.stringify({ tg_chat_id: tgId }) });
-      setMsg('Сохранено');
-    } catch (e) { setMsg(e); }
-    finally { setSaving(false); }
+  function reload() {
+    API('/api/users/me').then(setMe).catch(console.error);
   }
+
+  useEffect(() => { reload(); }, []);
 
   return (
     <div style={{ width: '100%' }}>
@@ -392,33 +454,25 @@ export default function SettingsTab() {
         {/* Left: profile */}
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>Profile</div>
-          <form onSubmit={saveProfile}>
-            <Field label="Email">
-              <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
-            </Field>
 
-            <Field label="Plan">
-              <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
-                {me?.plan?.toUpperCase() || '—'}
+          <Field label="Email">
+            <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
+          </Field>
+
+          <Field label="Plan">
+            <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
+              {me?.plan?.toUpperCase() || '—'}
+            </span>
+            {me?.subscription_expires && (
+              <span style={{ fontSize: 12, color: 'var(--muted-fg)', marginLeft: 10 }}>
+                expires {new Date(me.subscription_expires).toLocaleDateString('en-US')}
               </span>
-              {me?.subscription_expires && (
-                <span style={{ fontSize: 12, color: 'var(--muted-fg)', marginLeft: 10 }}>
-                  expires {new Date(me.subscription_expires).toLocaleDateString('en-US')}
-                </span>
-              )}
-            </Field>
+            )}
+          </Field>
 
-            <Field label="Telegram Chat ID">
-              <input type="text" value={tgId} onChange={e => setTgId(e.target.value)} placeholder="e.g. 123456789" style={inp} />
-              <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 4 }}>Get it from @userinfobot on Telegram</div>
-            </Field>
-
-            {msg && <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>{msg}</div>}
-
-            <button type="submit" disabled={saving} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          </form>
+          <Field label="Telegram">
+            <TelegramLinkSection me={me} onChange={reload} />
+          </Field>
         </div>
 
         {/* Right: billing */}

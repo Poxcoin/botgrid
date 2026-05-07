@@ -37,8 +37,9 @@ class User(Base):
     trial_ends_at = Column(DateTime, nullable=True)   # set on register; None = not a trial
     is_active     = Column(Boolean, default=True)
 
-    # Telegram notifications
+    # Telegram notifications — set automatically via deep-link /start (see userbot/)
     tg_chat_id    = Column(String, default="")
+    tg_username   = Column(String, default="")
 
     # Email verification
     email_verified     = Column(Boolean, default=False)
@@ -198,6 +199,18 @@ class WeeklyPnl(Base):
     user = relationship("User", back_populates="weekly_pnls")
 
 
+# ── Telegram link tokens (one-time deep-link) ────────────────────────────────
+class TgLinkToken(Base):
+    __tablename__ = "tg_link_tokens"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token      = Column(String, unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=False)
+    used_at    = Column(DateTime, nullable=True)
+
+
 # ── Audit Log (immutable) ─────────────────────────────────────────────────────
 class AuditLog(Base):
     __tablename__ = "audit_log"
@@ -228,6 +241,8 @@ def _migrate_columns():
             conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_token VARCHAR"))
         if "password_reset_expires" not in user_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_expires DATETIME"))
+        if "tg_username" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN tg_username VARCHAR DEFAULT ''"))
 
 
 _migrate_columns()

@@ -6,6 +6,7 @@ ccxt==4.5.47               # Exchange connectivity (Bybit, Binance)
 feedparser==6.0.12         # RSS news parsing
 requests==2.32.5           # HTTP calls
 httpx==0.28.1              # Async HTTP client (market data, NewsAPI)
+aiogram==3.13.1            # Modern async Telegram Bot API — used by userbot/
 python-dotenv==1.2.1       # .env config loader
 beautifulsoup4==4.14.3     # HTML parsing in news descriptions
 lxml==6.0.2                # HTML/XML parser backend for bs4

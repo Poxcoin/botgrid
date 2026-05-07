@@ -1,0 +1,21 @@
+[Unit]
+Description=KADO Userbot — public Telegram bot for SaaS clients (@KADO_c_BOT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/botgrid
+Environment=PATH=/opt/botgrid/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/botgrid
+EnvironmentFile=/opt/botgrid/.env
+ExecStart=/opt/botgrid/venv/bin/python -u -m userbot.main
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/opt/botgrid/userbot.log
+StandardError=append:/opt/botgrid/userbot.log
+
+[Install]
+WantedBy=multi-user.target

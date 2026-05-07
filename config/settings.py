@@ -10,6 +10,11 @@ BYBIT_SECRET = os.getenv("BYBIT_SECRET")
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 
+# Userbot — публічний бот для клієнтів SaaS (@KADO_c_BOT)
+# Окремий токен від адмінського TG_BOT_TOKEN
+USERBOT_TOKEN = os.getenv("USERBOT_TOKEN", "")
+USERBOT_USERNAME = os.getenv("USERBOT_USERNAME", "KADO_c_BOT")
+
 # Telegram Userbot (Telethon) — для чтения крипто-каналов в реальном времени
 # Получить: my.telegram.org → API development tools
 TELEGRAM_API_ID = os.getenv("TELEGRAM_API_ID", "")

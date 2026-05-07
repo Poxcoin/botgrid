@@ -1,34 +1,40 @@
+"""
+Telegram notification helpers.
+
+Notifications (send_telegram_message) → @KADO_c_BOT (USERBOT_TOKEN)
+   Used for client-facing alerts (trades, billing, system) AND admin alerts.
+   Recipients must have /start-ed @KADO_c_BOT at least once.
+
+Admin command polling (get_telegram_updates) → admin bot (TG_BOT_TOKEN)
+   Used by main.py to poll for legacy /balance /pnl /trades commands.
+"""
 import requests
-from config.settings import TG_BOT_TOKEN
+from config.settings import TG_BOT_TOKEN, USERBOT_TOKEN
+
 
 def send_telegram_message(text, chat_id):
-    """
-    Отправляет текстовое сообщение в указанный Telegram чат через Bot API.
-    """
-    if not TG_BOT_TOKEN or "7XXXXXX" in TG_BOT_TOKEN:
-        print("⚠️ Токен Telegram не настроен.")
+    """Send a message via @KADO_c_BOT to any chat_id."""
+    if not USERBOT_TOKEN:
+        print("⚠️ USERBOT_TOKEN не настроен — уведомление пропущено.")
         return False
-        
+
     if not chat_id:
-        print("⚠️ У юзера не настроен Chat ID. Уведомление пропущено.")
+        print("⚠️ chat_id отсутствует — уведомление пропущено.")
         return False
-        
-    url = f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage"
+
+    url = f"https://api.telegram.org/bot{USERBOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "HTML"
+        "parse_mode": "HTML",
     }
-    
+
     try:
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
-            print("📨 Уведомление успешно отправлено в Telegram.")
             return True
-        else:
-            print(f"❌ Ошибка отправки в TG: {response.text}")
-            return False
-            
+        print(f"❌ Ошибка отправки в TG: {response.text}")
+        return False
     except requests.exceptions.RequestException as e:
         # Не логируем e напрямую — requests может включить URL (с токеном) в строку ошибки
         print(f"❌ Ошибка сети при отправке в TG: {type(e).__name__}")
@@ -37,8 +43,8 @@ def send_telegram_message(text, chat_id):
 
 def get_telegram_updates(offset: int = None):
     """
-    Получает последние сообщения от пользователя для обработки команд.
-    offset — ID последнего обработанного update + 1 (Telegram удалит старые).
+    Poll for updates from the admin bot (TG_BOT_TOKEN) — legacy command handling in main.py.
+    Userbot uses aiogram polling separately, not this function.
     """
     if not TG_BOT_TOKEN:
         return []
