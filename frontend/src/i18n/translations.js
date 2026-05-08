@@ -563,6 +563,14 @@ export const translations = {
       reject:     'Reject',
       learnMore:  'Learn more',
     },
+    errors: {
+      pageNotFoundTitle: 'Page not found',
+      pageNotFoundBody:  'The link is broken or the page has moved.',
+      goHome:            'Back to home',
+      crashTitle:        'Something broke',
+      crashBody:         'A page error stopped this view from rendering. Try reloading — your data is safe on the exchange.',
+      reload:            'Reload page',
+    },
     news: {
       masthead:    'TERMINAL',
       brand:       'KADO·INTELLIGENCE',
@@ -1169,6 +1177,14 @@ export const translations = {
       accept:     'Aceptar todo',
       reject:     'Rechazar',
       learnMore:  'Más información',
+    },
+    errors: {
+      pageNotFoundTitle: 'Página no encontrada',
+      pageNotFoundBody:  'El enlace está roto o la página ha cambiado.',
+      goHome:            'Volver al inicio',
+      crashTitle:        'Algo se ha roto',
+      crashBody:         'Un error impidió mostrar esta vista. Recarga — tus datos están seguros en el exchange.',
+      reload:            'Recargar página',
     },
     news: {
       masthead:    'TERMINAL',
@@ -1777,6 +1793,14 @@ export const translations = {
       reject:     'Відхилити',
       learnMore:  'Дізнатися більше',
     },
+    errors: {
+      pageNotFoundTitle: 'Сторінку не знайдено',
+      pageNotFoundBody:  'Посилання неробоче або сторінку перенесено.',
+      goHome:            'На головну',
+      crashTitle:        'Щось зламалось',
+      crashBody:         'Помилка перешкодила відображенню. Перезавантажте — ваші дані в безпеці на біржі.',
+      reload:            'Перезавантажити',
+    },
     news: {
       masthead:    'ТЕРМІНАЛ',
       brand:       'KADO·РОЗВІДКА',
@@ -2383,6 +2407,14 @@ export const translations = {
       accept:     'Принять все',
       reject:     'Отклонить',
       learnMore:  'Подробнее',
+    },
+    errors: {
+      pageNotFoundTitle: 'Страница не найдена',
+      pageNotFoundBody:  'Ссылка нерабочая или страница перемещена.',
+      goHome:            'На главную',
+      crashTitle:        'Что-то сломалось',
+      crashBody:         'Ошибка помешала отобразить страницу. Перезагрузите — ваши данные в безопасности на бирже.',
+      reload:            'Перезагрузить',
     },
     news: {
       masthead:    'ТЕРМИНАЛ',
@@ -2991,6 +3023,14 @@ export const translations = {
       reject:     'Ablehnen',
       learnMore:  'Mehr erfahren',
     },
+    errors: {
+      pageNotFoundTitle: 'Seite nicht gefunden',
+      pageNotFoundBody:  'Der Link ist defekt oder die Seite wurde verschoben.',
+      goHome:            'Zur Startseite',
+      crashTitle:        'Etwas ist abgestürzt',
+      crashBody:         'Ein Fehler hat das Rendern verhindert. Lade neu — deine Daten liegen sicher auf der Börse.',
+      reload:            'Seite neu laden',
+    },
     news: {
       masthead:    'TERMINAL',
       brand:       'KADO·INTELLIGENCE',
@@ -3597,6 +3637,14 @@ export const translations = {
       accept:     '全部接受',
       reject:     '拒绝',
       learnMore:  '了解更多',
+    },
+    errors: {
+      pageNotFoundTitle: '页面未找到',
+      pageNotFoundBody:  '链接已失效或页面已迁移。',
+      goHome:            '返回首页',
+      crashTitle:        '出了点问题',
+      crashBody:         '错误阻止了渲染。请刷新 — 您的数据在交易所是安全的。',
+      reload:            '刷新页面',
     },
     news: {
       masthead:    '终端',

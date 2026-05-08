@@ -5,6 +5,7 @@ import { LangProvider } from '@/lib/LangContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
 import CursorTracker from '@/components/global/CursorTracker';
 import CookieBanner from '@/components/global/CookieBanner';
+import ErrorBoundary from '@/components/global/ErrorBoundary';
 import Landing from '@/pages/Landing';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 import { trackPageView } from '@/lib/metaPixel';
@@ -17,6 +18,7 @@ const Waitlist          = lazy(() => import('@/pages/Waitlist'));
 const NewsPage          = lazy(() => import('@/pages/NewsPage'));
 const NewsCategoryPage  = lazy(() => import('@/pages/NewsCategoryPage'));
 const UserDashboard     = lazy(() => import('@/pages/UserDashboard'));
+const NotFoundPage      = lazy(() => import('@/pages/NotFoundPage'));
 const RiskDisclosurePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.RiskDisclosurePage })));
 const TermsOfServicePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.TermsOfServicePage })));
 
@@ -41,6 +43,7 @@ export default function App() {
         <GlobalNeural />
         <CursorTracker />
         <CookieBanner />
+        <ErrorBoundary>
         <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -55,24 +58,10 @@ export default function App() {
           <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route path="/legal/risk-disclosure" element={<RiskDisclosurePage />} />
           <Route path="/legal/terms" element={<TermsOfServicePage />} />
-          <Route
-            path="*"
-            element={
-              <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--site-bg)' }}>
-                <div className="text-center" style={{ color: 'var(--site-fg)' }}>
-                  <div className="font-black text-8xl mb-4" style={{ opacity: 0.1 }}>404</div>
-                  <div className="font-mono text-sm tracking-widest uppercase mb-6" style={{ color: 'var(--hero-muted)' }}>Page not found</div>
-                  <a href="/" className="font-mono text-xs tracking-widest uppercase px-6 py-3 transition-colors"
-                    style={{ border: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--site-fg)'; e.currentTarget.style.color = 'var(--site-bg)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--site-fg)'; }}
-                  >Go Home</a>
-                </div>
-              </div>
-            }
-          />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </Suspense>
+        </ErrorBoundary>
         </Router>
       </LangProvider>
     </ThemeProvider>
