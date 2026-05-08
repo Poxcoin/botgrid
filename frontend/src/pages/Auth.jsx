@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import KadoButton from '@/components/shared/KadoButton';
 import { useLang } from '@/lib/LangContext';
 import { trackCompleteRegistration } from '@/lib/metaPixel';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 // ── Password strength ────────────────────────────────────────────────────────
 function checkStrength(pw) {
@@ -408,6 +409,7 @@ export default function Auth() {
   const [otpToken, setOtpToken] = useState(null);
   const [forgotMode, setForgotMode] = useState(false);
   const [pendingRegistration, setPendingRegistration] = useState(false);
+  usePageTitle(mode === 'register' ? t.auth.signupHeading : t.auth.loginHeading);
 
   useEffect(() => {
     setMode(params.get('mode') === 'register' ? 'register' : 'login');

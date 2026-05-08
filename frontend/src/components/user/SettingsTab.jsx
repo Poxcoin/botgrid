@@ -14,6 +14,8 @@ function Section({ title, sub, defaultOpen = false, children }) {
     <div style={{ borderBottom: '1px solid var(--border)' }}>
       <button
         onClick={() => setOpen(o => !o)}
+        aria-label={`${title} settings`}
+        aria-expanded={open}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           width: '100%', padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',

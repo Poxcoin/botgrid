@@ -11,6 +11,7 @@ import BacktesterTab  from '@/components/dashboard/BacktesterTab';
 import AnalyticsTab   from '@/components/user/AnalyticsTab';
 import SecurityTab    from '@/components/user/SecurityTab';
 import { useLang }    from '@/lib/LangContext';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
@@ -135,6 +136,7 @@ function UserDropdown({ user, activeTab, setActiveTab, onClose }) {
 export default function UserDashboard() {
   const { t } = useLang();
   const [activeTab, setActiveTab]   = useState('overview');
+  usePageTitle(t.dashboard[TAB_LABEL_KEY[activeTab]]);
   const [menuOpen,  setMenuOpen]    = useState(false);
   const [userDrop,  setUserDrop]    = useState(false);
   const userDropRef = useRef(null);
@@ -182,6 +184,9 @@ export default function UserDashboard() {
         {/* Mobile burger */}
         <button className="kado-burger"
           onClick={() => setMenuOpen(v => !v)}
+          aria-label="Open menu"
+          aria-expanded={menuOpen}
+          title="Open menu"
           style={{
             display: 'none', alignItems: 'center',
             background: 'none', border: 'none', color: '#fff',

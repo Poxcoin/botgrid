@@ -13,6 +13,8 @@ function Section({ title, sub, defaultOpen = false, children }) {
     <div style={{ borderBottom: '1px solid var(--border)' }}>
       <button
         onClick={() => setOpen(o => !o)}
+        aria-label={`${title} section`}
+        aria-expanded={open}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           width: '100%', padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
@@ -341,7 +343,15 @@ export default function AccountTab() {
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
             {t.dashboard.settings.email}
           </div>
-          <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
+          <input
+            type="text"
+            id="account-email"
+            aria-label="Email address"
+            value={me?.email || ''}
+            disabled
+            readOnly
+            style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }}
+          />
         </div>
 
         <div style={{ marginBottom: 18 }}>

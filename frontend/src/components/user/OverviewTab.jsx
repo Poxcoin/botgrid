@@ -73,7 +73,7 @@ export default function OverviewTab() {
           </span>
           {!me.has_api_keys && (
             <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>
-              {t.dashboard.overview.noApiKeysPrefix} <a href="#" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api' })); }} style={{ color: 'var(--fg)', textDecoration: 'underline' }}>{t.dashboard.overview.connectBybit}</a> {t.dashboard.overview.toStartTrading}
+              {t.dashboard.overview.noApiKeysPrefix} <a href="#security" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'security' })); }} style={{ color: 'var(--fg)', textDecoration: 'underline' }}>{t.dashboard.overview.connectBybit}</a> {t.dashboard.overview.toStartTrading}
             </span>
           )}
         </div>

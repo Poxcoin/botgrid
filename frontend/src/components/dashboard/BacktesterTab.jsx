@@ -355,8 +355,8 @@ export default function BacktesterTab() {
               </div>
             )}
             {!error && runs !== null && runs.length === 0 && (
-              <div className="px-5 py-10 text-center font-mono text-[11px] tracking-widest uppercase text-kado-gray">
-                {t.dashboard.backtester.noRunsYet} <code className="bg-kado-black/5 px-1">python tools/replay_backtest.py</code>
+              <div className="px-5 py-10 text-center font-mono text-[12px] text-kado-gray normal-case tracking-normal">
+                {t.dashboard.backtester.noRunsYet} <code className="bg-white/5 border border-white/10 rounded px-2 py-0.5 ml-1">python tools/replay_backtest.py</code>
               </div>
             )}
             {!error && runs && runs.length > 0 && (

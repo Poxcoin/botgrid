@@ -79,8 +79,8 @@ export default function BotTab() {
           color={error ? 'var(--accent-red)' : 'var(--accent-green)'}
           live={!error}
           sub={intel
-            ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
-            : '...'}
+            ? ([intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ') || t.dashboard.bot.feedActive)
+            : t.dashboard.bot.feedActive}
         />
       </div>
 

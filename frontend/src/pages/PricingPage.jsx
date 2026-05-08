@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const S = {
   page: {
@@ -244,6 +245,7 @@ export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const [loading, setLoading] = useState(null);
   const { t } = useLang();
+  usePageTitle(t.nav.pricing);
 
   const FAQS = [
     { q: t.pricing.faq.q1, a: t.pricing.faq.a1 },

@@ -391,6 +391,7 @@ export default function LandingHeader() {
 
             {/* Mobile burger */}
             <button className="md:hidden" onClick={() => setMobileOpen(v => !v)}
+              aria-label="Open menu" aria-expanded={mobileOpen} title="Open menu"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 4 }}>
               <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
                 <rect width="20" height="1.5" fill="currentColor"/>

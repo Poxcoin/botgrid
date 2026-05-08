@@ -164,12 +164,14 @@ export default function SignalsTab() {
             {t.dashboard.signals.page} {page} / {data.pages} · {data.total} {t.dashboard.signals.rowsSuffix}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
-            {[['←', -1], ['→', 1]].map(([label, dir]) => (
+            {[['←', -1, 'Previous page'], ['→', 1, 'Next page']].map(([label, dir, ariaLabel]) => (
               <button
                 key={label}
                 onClick={() => setPage(p => Math.max(1, Math.min(data.pages, p + dir)))}
                 disabled={(dir === -1 && page === 1) || (dir === 1 && page >= data.pages)}
-                style={{ width: 32, height: 32, border: `1px solid ${B}`, background: 'none', color: '#fff', cursor: 'pointer', fontFamily: MONO, fontSize: 14, opacity: ((dir === -1 && page === 1) || (dir === 1 && page >= data.pages)) ? 0.3 : 1 }}
+                aria-label={ariaLabel}
+                title={ariaLabel}
+                style={{ width: 32, height: 32, border: `1px solid ${B}`, background: 'none', color: '#fff', cursor: 'pointer', fontFamily: MONO, fontSize: 14, borderRadius: 4, opacity: ((dir === -1 && page === 1) || (dir === 1 && page >= data.pages)) ? 0.3 : 1 }}
               >{label}</button>
             ))}
           </div>
