@@ -44,45 +44,56 @@ export default function TradesTab() {
         </select>
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            {headers.map(h => (
-              <th key={h} style={{ padding: '8px 0', textAlign: 'left', fontSize: 11, letterSpacing: '0.08em', color: 'var(--muted-fg)', fontWeight: 400, textTransform: 'uppercase' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading ? (
-            [1,2,3,4,5].map(i => (
-              <tr key={i}>
-                {[1,2,3,4,5,6,7,8].map(j => (
-                  <td key={j} style={{ padding: '12px 0' }}>
-                    <div style={{ height: 11, background: 'var(--bg3)', width: '70%', animation: 'pulse 1.5s ease-in-out infinite' }} />
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : filtered.length === 0 ? (
-            <tr><td colSpan={8} style={{ padding: '40px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>{t.dashboard.trades.noTrades}</td></tr>
-          ) : filtered.map(tr => (
-            <tr key={tr.id} style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '12px 0', color: 'var(--muted-fg)', fontSize: 11 }}>
-                {tr.opened_at ? new Date(tr.opened_at).toLocaleDateString() : '—'}
-              </td>
-              <td style={{ padding: '12px 0' }}>{tr.symbol.replace('/USDT:USDT', '')}</td>
-              <td style={{ padding: '12px 0', fontWeight: 600, color: tr.side === 'LONG' ? 'var(--fg)' : 'var(--muted-fg)' }}>{tr.side}</td>
-              <td style={{ padding: '12px 0', color: 'var(--muted-fg)', textTransform: 'uppercase', fontSize: 11 }}>{tr.source}</td>
-              <td style={{ padding: '12px 0' }}>{tr.entry_price?.toFixed(4) ?? '—'}</td>
-              <td style={{ padding: '12px 0' }}>{tr.exit_price?.toFixed(4) ?? '—'}</td>
-              <td style={{ padding: '12px 0', opacity: tr.pnl_usdt == null ? 0.4 : 1 }}>
-                {tr.pnl_usdt != null ? `${tr.pnl_usdt >= 0 ? '+' : ''}${tr.pnl_usdt.toFixed(2)}` : '—'}
-              </td>
-              <td style={{ padding: '12px 0', color: 'var(--muted-fg)', fontSize: 11, textTransform: 'uppercase' }}>{tr.status}</td>
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
+              {headers.map(h => (
+                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {loading ? (
+              [1,2,3,4,5].map(i => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  {[1,2,3,4,5,6,7,8].map(j => (
+                    <td key={j} style={{ padding: '14px 16px' }}>
+                      <div className="shimmer" style={{ height: 11, width: '70%', borderRadius: 3 }} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : filtered.length === 0 ? (
+              <tr><td colSpan={8} style={{ padding: '48px 20px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: 0.4 }}>
+                  <path d="M3 3v18h18M7 14l4-4 4 4 5-5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{t.dashboard.trades.noTrades}</div>
+              </td></tr>
+            ) : filtered.map(tr => (
+              <tr key={tr.id}
+                style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>
+                  {tr.opened_at ? new Date(tr.opened_at).toLocaleDateString() : '—'}
+                </td>
+                <td style={{ padding: '14px 16px', color: 'var(--text-primary)' }}>{tr.symbol.replace('/USDT:USDT', '')}</td>
+                <td style={{ padding: '14px 16px', fontWeight: 600, color: tr.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{tr.side}</td>
+                <td style={{ padding: '14px 16px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 11 }}>{tr.source}</td>
+                <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.entry_price?.toFixed(4) ?? '—'}</td>
+                <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.exit_price?.toFixed(4) ?? '—'}</td>
+                <td style={{ padding: '14px 16px', fontWeight: 600, color: tr.pnl_usdt == null ? 'var(--text-muted)' : tr.pnl_usdt >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  {tr.pnl_usdt != null ? `${tr.pnl_usdt >= 0 ? '+' : ''}${tr.pnl_usdt.toFixed(2)}` : '—'}
+                </td>
+                <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>{tr.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Pagination */}
       <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>

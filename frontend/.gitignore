@@ -1,2 +1,5 @@
 node_modules/
 dist/
+screenshots/
+.env.local
+.env.production

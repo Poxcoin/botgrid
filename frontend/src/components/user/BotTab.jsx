@@ -7,12 +7,30 @@ const B = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
 const MONO = "'Courier New','SF Mono',monospace";
 
-function StatBox({ label, value, sub, color }) {
+function StatBox({ label, value, sub, color, accent, live }) {
+  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
+                  : accent === 'red'   ? '2px solid var(--accent-red)'
+                  : '1px solid var(--border-subtle)';
   return (
-    <div style={{ border: `1px solid ${B}`, padding: '16px 20px', flex: 1 }}>
-      <div style={{ fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED, fontFamily: MONO, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: color || '#fff', fontFamily: MONO }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, marginTop: 4, fontFamily: MONO }}>{sub}</div>}
+    <div
+      style={{
+        flex: 1,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderTop: topBorder,
+        borderRadius: 12,
+        padding: '20px 22px',
+        transition: 'border-color 200ms ease',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+    >
+      <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 10 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {live && <span className="pulse-dot" />}
+        <div style={{ fontSize: 26, fontWeight: 700, color: color || 'var(--text-primary)', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{value}</div>
+      </div>
+      {sub && <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginTop: 8, fontFamily: MONO }}>{sub}</div>}
     </div>
   );
 }
@@ -56,13 +74,15 @@ export default function BotTab() {
   return (
     <div>
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <StatBox label={t.dashboard.bot.balance} value={`$${balance.total.toFixed(2)}`} sub={`${t.dashboard.bot.free} $${balance.free.toFixed(2)}`} color="#4ade80" />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <StatBox label={t.dashboard.bot.balance} value={`$${balance.total.toFixed(2)}`} sub={`${t.dashboard.bot.free} $${balance.free.toFixed(2)}`} color="var(--accent-green)" accent="green" />
         <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
         <StatBox
           label={t.dashboard.bot.feedStatus}
           value={error ? t.dashboard.bot.offline : t.dashboard.bot.live}
-          color={error ? '#f87171' : '#4ade80'}
+          color={error ? 'var(--accent-red)' : 'var(--accent-green)'}
+          accent={error ? 'red' : 'green'}
+          live={!error}
           sub={intel
             ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
             : '...'}

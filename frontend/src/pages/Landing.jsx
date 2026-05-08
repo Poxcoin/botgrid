@@ -239,14 +239,14 @@ function HomeHero() {
 
         <div style={fade(2200, { display: 'flex', alignItems: 'center', gap: 20, marginTop: 36, flexWrap: 'wrap', justifyContent: 'center' })}>
           <Link to="/auth?mode=register"
-            style={{ background: '#fff', color: '#000', padding: '12px 36px', borderRadius: 100, fontSize: 13, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'opacity 150ms', letterSpacing: '-0.01em' }}
-            onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            style={{ background: '#fff', color: '#000', padding: '14px 32px', borderRadius: 100, fontSize: 13, fontWeight: 700, fontFamily: FONT, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'background 200ms, color 200ms, box-shadow 200ms', letterSpacing: '0.02em' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#00d4aa'; e.currentTarget.style.color = '#080a0e'; e.currentTarget.style.boxShadow = '0 0 24px rgba(0,212,170,0.35)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; e.currentTarget.style.boxShadow = 'none'; }}
           >{t.landing.cta1}</Link>
           <a href="#how-it-works"
-            style={{ color: '#444', fontSize: 13, fontFamily: FONT, textDecoration: 'none', transition: 'color 150ms', letterSpacing: '-0.01em' }}
+            style={{ color: '#8b95a8', fontSize: 13, fontFamily: FONT, textDecoration: 'none', transition: 'color 150ms', letterSpacing: '-0.01em' }}
             onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-            onMouseLeave={e => e.currentTarget.style.color = '#444'}
+            onMouseLeave={e => e.currentTarget.style.color = '#8b95a8'}
           >{t.landing.cta2}</a>
         </div>
       </div>
@@ -295,9 +295,26 @@ function BotsSection() {
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
-                style={{ background: 'rgba(5,5,5,0.92)', padding: '40px 32px', textAlign: 'left', transition: 'background 200ms', height: '100%', boxSizing: 'border-box' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(12,12,12,0.97)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(5,5,5,0.92)'}
+                style={{
+                  background: 'rgba(13,17,23,0.85)',
+                  padding: '32px 28px',
+                  textAlign: 'left',
+                  height: '100%',
+                  boxSizing: 'border-box',
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  transition: 'border-color 200ms, transform 200ms, background 200ms',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(0,212,170,0.35)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.background = 'rgba(22,27,39,0.92)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.background = 'rgba(13,17,23,0.85)';
+                }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                   <span style={{ fontSize: 10, color: '#333', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>

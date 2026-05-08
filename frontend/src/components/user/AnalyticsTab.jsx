@@ -40,22 +40,33 @@ function Skeleton({ w = '100%', h = 18, style = {} }) {
   );
 }
 
-function SummaryCard({ label, value, sub, color }) {
+function SummaryCard({ label, value, sub, color, accent }) {
+  // accent: 'green' | 'red' | undefined → top border color
+  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
+                  : accent === 'red'   ? '2px solid var(--accent-red)'
+                  : '1px solid var(--border-subtle)';
   return (
-    <div style={{
-      flex: 1, minWidth: 140,
-      border: `1px solid ${S.border}`,
-      padding: '18px 20px',
-      background: S.card,
-    }}>
-      <div style={{ fontFamily: S.mono, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: S.muted, marginBottom: 10 }}>
+    <div
+      style={{
+        flex: 1, minWidth: 160,
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderTop: topBorder,
+        borderRadius: 12,
+        padding: 24,
+        transition: 'border-color 200ms ease',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
+    >
+      <div style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
         {label}
       </div>
-      <div style={{ fontFamily: S.mono, fontSize: 22, fontWeight: 700, color: color || S.fg, letterSpacing: '-0.01em' }}>
+      <div style={{ fontFamily: S.mono, fontSize: 30, fontWeight: 700, color: color || 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontFamily: S.mono, fontSize: 10, color: S.muted, marginTop: 6 }}>{sub}</div>
+        <div style={{ fontFamily: S.mono, fontSize: 11, color: 'var(--text-secondary)', marginTop: 8 }}>{sub}</div>
       )}
     </div>
   );
@@ -200,64 +211,77 @@ function CoinTable({ rows, t }) {
 }
 
 function DailyChart({ daily, t }) {
+  const [hover, setHover] = React.useState(null);
+
   if (!daily || !daily.length) {
-    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>{t.dashboard.analytics.noData30}</div>;
+    return <div style={{ fontFamily: S.mono, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>{t.dashboard.analytics.noData30}</div>;
   }
 
-  const W = 640;
-  const H = 120;
-  const PAD_L = 52;
-  const PAD_R = 12;
-  const PAD_T = 12;
-  const PAD_B = 28;
+  const W = 720;
+  const H = 220;
+  const PAD_L = 56;
+  const PAD_R = 16;
+  const PAD_T = 20;
+  const PAD_B = 36;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
 
   const pnls = daily.map(d => d.pnl);
   const maxAbs = Math.max(...pnls.map(Math.abs), 0.01);
 
-  const barW = Math.max(2, Math.floor(chartW / daily.length) - 2);
+  const barW = Math.max(3, Math.floor(chartW / daily.length) - 3);
   const step = chartW / daily.length;
-
   const yZero = PAD_T + chartH / 2;
-
   const yAxisVals = [-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs];
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ position: 'relative', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
-        style={{ width: '100%', maxWidth: W, display: 'block', fontFamily: S.mono }}
+        style={{ width: '100%', display: 'block', fontFamily: S.mono }}
         preserveAspectRatio="xMidYMid meet"
+        onMouseLeave={() => setHover(null)}
       >
+        {/* Grid lines (dashed) */}
         {yAxisVals.map((v, i) => {
           const y = PAD_T + chartH / 2 - (v / maxAbs) * (chartH / 2);
+          const isZero = v === 0;
           return (
             <g key={i}>
-              <line x1={PAD_L} x2={W - PAD_R} y1={y} y2={y}
-                stroke={v === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}
-                strokeWidth={v === 0 ? 1 : 0.5} />
-              <text x={PAD_L - 6} y={y + 4} textAnchor="end"
-                fontSize={8} fill={S.muted}>
-                {v === 0 ? '0' : (v > 0 ? '+' : '') + v.toFixed(0)}
+              <line
+                x1={PAD_L} x2={W - PAD_R} y1={y} y2={y}
+                stroke={isZero ? 'var(--border-default)' : 'var(--border-subtle)'}
+                strokeWidth={isZero ? 1 : 0.6}
+                strokeDasharray={isZero ? '0' : '3 4'}
+              />
+              <text x={PAD_L - 8} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)">
+                {isZero ? '0' : (v > 0 ? '+' : '') + v.toFixed(0)}
               </text>
             </g>
           );
         })}
 
+        {/* Bars */}
         {daily.map((d, i) => {
           const x = PAD_L + i * step + (step - barW) / 2;
           const norm = d.pnl / maxAbs;
           const barH = Math.abs(norm) * (chartH / 2);
-          const y = d.pnl >= 0 ? yZero - barH : yZero;
-          const color = d.pnl >= 0 ? S.green : S.red;
+          const positive = d.pnl >= 0;
+          const y = positive ? yZero - barH : yZero;
+          const color = positive ? 'var(--accent-green)' : 'var(--accent-red)';
+          const isHovered = hover === i;
           return (
-            <g key={i}>
-              <rect x={x} y={y} width={barW} height={Math.max(barH, 1)}
-                fill={color} opacity={0.85} rx={1} />
+            <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: 'pointer' }}>
+              {/* Hit-area transparent rect for easier hover */}
+              <rect x={x - 2} y={PAD_T} width={barW + 4} height={chartH} fill="transparent" />
+              <rect
+                x={x} y={y} width={barW} height={Math.max(barH, 1)}
+                fill={color}
+                opacity={isHovered ? 1 : 0.78}
+                rx={2}
+              />
               {i % Math.max(1, Math.floor(daily.length / 6)) === 0 && (
-                <text x={x + barW / 2} y={H - 4} textAnchor="middle"
-                  fontSize={7} fill={S.muted}>
+                <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize={9} fill="var(--text-muted)">
                   {d.date ? d.date.slice(5) : ''}
                 </text>
               )}
@@ -265,6 +289,32 @@ function DailyChart({ daily, t }) {
           );
         })}
       </svg>
+
+      {/* Tooltip */}
+      {hover != null && daily[hover] && (
+        <div style={{
+          position: 'absolute',
+          left: `${((PAD_L + hover * step + step / 2) / W) * 100}%`,
+          top: 8,
+          transform: 'translateX(-50%)',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 8,
+          padding: '8px 12px',
+          fontSize: 11,
+          fontFamily: S.mono,
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+            {daily[hover].date}
+          </div>
+          <div style={{ color: daily[hover].pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
+            {daily[hover].pnl >= 0 ? '+' : ''}{daily[hover].pnl.toFixed(2)} USDT
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -377,28 +427,36 @@ export default function AnalyticsTab() {
     <div style={{ color: S.fg }}>
       <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
         <SummaryCard
           label={t.dashboard.analytics.totalTrades}
           value={summary?.total_trades ?? 0}
-          sub={`${summary?.wins ?? 0}W / ${summary?.losses ?? 0}L`}
+          sub={
+            <span>
+              <span style={{ color: 'var(--accent-green)' }}>{summary?.wins ?? 0}W</span>
+              <span style={{ color: 'var(--text-muted)' }}> / </span>
+              <span style={{ color: 'var(--accent-red)' }}>{summary?.losses ?? 0}L</span>
+            </span>
+          }
         />
         <SummaryCard
           label={t.dashboard.analytics.totalPnl}
           value={`${(summary?.total_pnl ?? 0) >= 0 ? '+' : ''}${summary?.total_pnl ?? 0} USDT`}
-          color={pnlColor}
+          color={(summary?.total_pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+          accent={(summary?.total_pnl ?? 0) >= 0 ? 'green' : 'red'}
           sub={`${t.dashboard.analytics.since} ${fmtDate(summary?.first_trade)}`}
         />
         <SummaryCard
           label={t.dashboard.analytics.winRate}
           value={winRate}
-          color={S.fg}
+          accent={parseFloat(winRate) >= 50 ? 'green' : undefined}
           sub={`${summary?.wins ?? 0} ${t.dashboard.analytics.wins}`}
         />
         <SummaryCard
           label={t.dashboard.analytics.bestDay}
           value={bestDay ? `+${bestDay.pnl}` : '—'}
-          color={S.green}
+          color="var(--accent-green)"
+          accent="green"
           sub={bestDay?.date ?? ''}
         />
       </div>

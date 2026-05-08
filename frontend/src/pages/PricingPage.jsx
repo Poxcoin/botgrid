@@ -50,33 +50,36 @@ const S = {
     paddingBottom: '100px',
   },
   card: {
-    background: '#0a0a0a',
-    border: '1px solid rgba(255,255,255,0.07)',
+    background: '#0d1117',
+    border: '1px solid rgba(255,255,255,0.06)',
     borderRadius: '16px',
     padding: '44px 36px',
     display: 'flex',
     flexDirection: 'column',
+    transition: 'border-color 200ms, transform 200ms',
   },
   cardHL: {
-    background: '#0a0a0a',
-    border: '1px solid rgba(255,255,255,0.2)',
+    background: '#0d1117',
+    border: '1px solid #00d4aa',
     borderRadius: '16px',
     padding: '44px 36px',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
+    boxShadow: '0 0 40px rgba(0,212,170,0.12), 0 0 0 1px rgba(0,212,170,0.18)',
   },
   popularPill: {
     position: 'absolute',
     top: '20px',
     right: '20px',
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: '#00d4aa',
+    border: 'none',
     borderRadius: '100px',
-    padding: '3px 10px',
+    padding: '4px 12px',
     fontSize: '9px',
-    color: '#999',
-    letterSpacing: '0.08em',
+    color: '#080a0e',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
     textTransform: 'uppercase',
   },
   cardLabel: {
@@ -94,11 +97,22 @@ const S = {
   },
   priceBig: {
     fontFamily: "'Courier New','SF Mono',monospace",
-    fontSize: '52px',
-    fontWeight: 700,
+    fontSize: '64px',
+    fontWeight: 800,
     color: '#fff',
     lineHeight: 1,
-    letterSpacing: '-0.03em',
+    letterSpacing: '-0.04em',
+  },
+  priceBigGradient: {
+    fontFamily: "'Courier New','SF Mono',monospace",
+    fontSize: '64px',
+    fontWeight: 800,
+    lineHeight: 1,
+    letterSpacing: '-0.04em',
+    background: 'linear-gradient(135deg, #00d4aa, #4299e1)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    color: 'transparent',
   },
   pricePer: {
     fontSize: '14px',
@@ -221,7 +235,7 @@ const PERF_ON_KEYS  = ['allBots', 'liveTrading', 'apiKey', 'noUpfront', 'hwm', '
 function FeatureRow({ on, text }) {
   return (
     <li style={on ? S.featureOn : S.featureOff}>
-      <span style={{ ...S.featureIcon, color: on ? '#aaa' : '#333' }}>{on ? '✓' : '✗'}</span>
+      <span style={{ ...S.featureIcon, color: on ? '#00d4aa' : '#4a5568', fontWeight: 700 }}>{on ? '✓' : '✗'}</span>
       {text}
     </li>
   );
@@ -307,7 +321,7 @@ export default function PricingPage() {
               <span style={S.popularPill}>{t.pricing.recommendedPill}</span>
               <div style={S.cardLabel}>{t.pricing.perfLabel}</div>
               <div style={S.priceRow}>
-                <span style={S.priceBig}>20%</span>
+                <span style={S.priceBigGradient}>20%</span>
                 <span style={S.pricePer}>{t.pricing.perfUnit}</span>
               </div>
               <p style={S.cardDesc}>

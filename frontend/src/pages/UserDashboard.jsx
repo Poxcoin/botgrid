@@ -161,8 +161,8 @@ export default function UserDashboard() {
       {/* ── Top navigation bar ──────────────────────────────────────────────── */}
       <header style={{
         height: 58,
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
-        background: 'rgba(6,6,6,0.96)',
+        borderBottom: '1px solid var(--border-subtle)',
+        background: 'var(--site-bg-glass)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         position: 'sticky', top: 0, zIndex: 50,
@@ -172,8 +172,8 @@ export default function UserDashboard() {
         {/* Logo */}
         <a href="/" style={{
           display: 'flex', alignItems: 'center',
-          fontFamily: MONO, fontSize: 14, fontWeight: 900,
-          letterSpacing: '-0.03em', color: '#fff',
+          fontFamily: MONO, fontSize: 14, fontWeight: 800,
+          letterSpacing: '0.15em', color: 'var(--text-primary)',
           textDecoration: 'none', marginRight: 32, flexShrink: 0,
         }}>
           KADO
@@ -205,19 +205,29 @@ export default function UserDashboard() {
               <button key={id}
                 onClick={() => setActiveTab(id)}
                 style={{
-                  height: '100%', padding: '0 15px',
+                  height: '100%', padding: '0 16px',
                   background: 'none', border: 'none',
-                  borderBottom: active ? '2px solid #fff' : '2px solid transparent',
+                  borderBottom: active ? '2px solid var(--accent-green)' : '2px solid transparent',
                   marginBottom: -1,
                   fontFamily: FONT, fontSize: 13,
-                  fontWeight: active ? 500 : 400,
-                  color: active ? '#fff' : '#4a4a4a',
+                  fontWeight: active ? 600 : 400,
+                  color: active ? 'var(--text-primary)' : 'var(--text-muted)',
                   cursor: 'pointer', flexShrink: 0,
-                  transition: 'color 150ms, border-color 150ms',
+                  transition: 'color 200ms, border-color 200ms',
                   letterSpacing: '0.01em',
                 }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#999'; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#4a4a4a'; }}
+                onMouseEnter={e => {
+                  if (!active) {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderBottomColor = 'var(--border-default)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!active) {
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                    e.currentTarget.style.borderBottomColor = 'transparent';
+                  }
+                }}
               >
                 {t.dashboard[TAB_LABEL_KEY[id]]}
               </button>
@@ -239,13 +249,22 @@ export default function UserDashboard() {
               onClick={() => setUserDrop(v => !v)}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                background: userDrop ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.09)',
+                background: userDrop ? 'var(--bg-elevated)' : 'var(--bg-surface)',
+                border: '1px solid var(--border-default)',
                 borderRadius: 100, padding: '5px 12px 5px 6px',
-                cursor: 'pointer', transition: 'background 150ms',
+                cursor: 'pointer', transition: 'border-color 200ms, box-shadow 200ms, background 200ms',
+                boxShadow: userDrop ? '0 0 12px var(--brand-glow)' : 'none',
               }}
-              onMouseEnter={e => { if (!userDrop) e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
-              onMouseLeave={e => { if (!userDrop) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'var(--accent-green)';
+                e.currentTarget.style.boxShadow = '0 0 12px var(--brand-glow)';
+              }}
+              onMouseLeave={e => {
+                if (!userDrop) {
+                  e.currentTarget.style.borderColor = 'var(--border-default)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
             >
               {/* Avatar */}
               <span style={{

@@ -10,22 +10,45 @@
     --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
     /* ── Light theme (default) ── */
-    --bg:        #FFFFFF;
-    --bg2:       #F7F7F7;
-    --bg3:       #EFEFEF;
-    --fg:        #0A0A0A;
-    --muted:     rgba(10,10,10,0.38);
-    --muted-fg:  rgba(10,10,10,0.62);
-    --border:    rgba(10,10,10,0.1);
-    --border-hi: rgba(10,10,10,0.22);
-    --accent:    #0A0A0A;
+    --bg-base:     #FFFFFF;
+    --bg-surface:  #FAFAFA;
+    --bg-elevated: #F2F2F2;
+    --bg-overlay:  #ECECEC;
 
-    /* legacy compat */
-    --neon-green:    #0A0A0A;
-    --neon-cyan:     #0A0A0A;
-    --neon-pink:     #0A0A0A;
-    --neon-gold:     #0A0A0A;
-    --neon-blue:     #0A0A0A;
+    --text-primary:   #0A0A0A;
+    --text-secondary: rgba(10,10,10,0.62);
+    --text-muted:     rgba(10,10,10,0.38);
+
+    --border-subtle:  rgba(10,10,10,0.06);
+    --border-default: rgba(10,10,10,0.10);
+    --border-strong:  rgba(10,10,10,0.18);
+
+    --accent-green:     #00b894;
+    --accent-green-dim: rgba(0,184,148,0.12);
+    --accent-red:       #d63043;
+    --accent-red-dim:   rgba(214,48,67,0.12);
+    --accent-blue:      #4299e1;
+    --accent-amber:     #f59e0b;
+    --accent-amber-dim: rgba(245,158,11,0.12);
+
+    --brand-glow: rgba(0,184,148,0.18);
+
+    /* ── Legacy aliases (existing components keep working) ── */
+    --bg:        var(--bg-base);
+    --bg2:       var(--bg-surface);
+    --bg3:       var(--bg-elevated);
+    --fg:        var(--text-primary);
+    --muted:     var(--text-muted);
+    --muted-fg:  var(--text-secondary);
+    --border:    var(--border-subtle);
+    --border-hi: var(--border-default);
+    --accent:    var(--text-primary);
+
+    --neon-green:    var(--accent-green);
+    --neon-cyan:     var(--accent-blue);
+    --neon-pink:     var(--accent-red);
+    --neon-gold:     var(--accent-amber);
+    --neon-blue:     var(--accent-blue);
     --hero-bg:       var(--bg);
     --hero-fg:       var(--fg);
     --hero-border:   var(--border);
@@ -38,35 +61,35 @@
 
   /* ── Dark theme ── */
   .dark {
-    --bg:        #0A0A0A;
-    --bg2:       #111111;
-    --bg3:       #1A1A1A;
-    --fg:        #F0F0F0;
-    --muted:     rgba(240,240,240,0.38);
-    --muted-fg:  rgba(240,240,240,0.62);
-    --border:    rgba(255,255,255,0.1);
-    --border-hi: rgba(255,255,255,0.22);
-    --accent:    #F0F0F0;
-    --neon-green:    #F0F0F0;
-    --neon-cyan:     #F0F0F0;
-    --neon-pink:     #F0F0F0;
-    --neon-gold:     #F0F0F0;
-    --neon-blue:     #F0F0F0;
-    --hero-bg:       var(--bg);
-    --hero-fg:       var(--fg);
-    --hero-border:   var(--border);
-    --hero-muted:    var(--muted);
-    --hero-muted-fg: var(--muted-fg);
-    --site-bg:       var(--bg);
-    --site-fg:       var(--fg);
-    --site-bg-glass: rgba(10,10,10,0.92);
+    --bg-base:     #080a0e;
+    --bg-surface:  #0d1117;
+    --bg-elevated: #161b27;
+    --bg-overlay:  #1e2533;
+
+    --text-primary:   #f0f2f5;
+    --text-secondary: #8b95a8;
+    --text-muted:     #4a5568;
+
+    --border-subtle:  rgba(255,255,255,0.06);
+    --border-default: rgba(255,255,255,0.10);
+    --border-strong:  rgba(255,255,255,0.18);
+
+    --accent-green:     #00d4aa;
+    --accent-green-dim: rgba(0,212,170,0.12);
+    --accent-red:       #ff4d6d;
+    --accent-red-dim:   rgba(255,77,109,0.12);
+    --accent-blue:      #4299e1;
+    --accent-amber:     #f59e0b;
+    --accent-amber-dim: rgba(245,158,11,0.15);
+
+    --brand-glow: rgba(0,212,170,0.22);
+
+    --site-bg-glass: rgba(8,10,14,0.85);
   }
 
-  * { border-radius: 0 !important; }
-
   html, body {
-    background: var(--bg);
-    color: var(--fg);
+    background: var(--bg-base);
+    color: var(--text-primary);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
@@ -75,17 +98,53 @@
     font-family: var(--font-mono);
     font-feature-settings: "tnum", "zero";
   }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar         { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track   { background: transparent; }
+  ::-webkit-scrollbar-thumb   { background: var(--border-default); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+  /* ── Selection ── */
+  ::selection { background: var(--accent-green-dim); color: var(--text-primary); }
+
+  /* ── Focus ring ── */
+  :focus-visible {
+    outline: 2px solid var(--accent-green);
+    outline-offset: 2px;
+  }
+  button:focus, a:focus, input:focus, select:focus, textarea:focus { outline: none; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent-green);
+    outline-offset: 2px;
+  }
 }
 
 @layer utilities {
   .cyber-grid {
     background-image:
-      linear-gradient(to right, var(--border) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+      linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
     background-size: 40px 40px;
   }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Skeleton shimmer */
+  .shimmer {
+    background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Pulse dot for LIVE / STREAMING status */
+  .pulse-dot {
+    display: inline-block;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 0 0 var(--accent-green);
+    animation: pulse-dot 1.6s ease-in-out infinite;
+  }
 }
 
 /* ── Animations ── */
@@ -101,4 +160,13 @@
   93%{transform:translateX(2px)}
   95%{transform:translateX(-1px) skewX(-1deg)}
   97%{transform:translateX(1px)}
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes pulse-dot {
+  0%   { box-shadow: 0 0 0 0 var(--accent-green); opacity: 1; }
+  70%  { box-shadow: 0 0 0 8px rgba(0,212,170,0); opacity: 0.7; }
+  100% { box-shadow: 0 0 0 0 rgba(0,212,170,0); opacity: 1; }
 }

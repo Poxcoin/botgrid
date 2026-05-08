@@ -45,30 +45,53 @@ export default function LogsTab() {
   }, [lines]);
 
   return (
-    <div style={{ border: `1px solid ${B}` }}>
-      <div style={{ height: 48, padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-        <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.logs.systemLogs}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} />
+    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', background: 'var(--bg-surface)' }}>
+      <div style={{ height: 52, padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
+        <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500 }}>{t.dashboard.logs.systemLogs}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-green)', fontWeight: 600 }}>
+            <span className="pulse-dot" />
             {t.dashboard.logs.streaming}
           </span>
           <span>{t.dashboard.logs.refreshSec}</span>
-          <button onClick={load} style={{ background: 'none', border: `1px solid ${B}`, color: MUTED, padding: '3px 10px', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em', cursor: 'pointer' }}>
+          <button
+            onClick={load}
+            style={{
+              background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)',
+              padding: '6px 12px', fontSize: 10, fontFamily: MONO, letterSpacing: '0.12em', cursor: 'pointer',
+              borderRadius: 6, transition: 'all 150ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-green)'; e.currentTarget.style.color = 'var(--accent-green)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
             {t.dashboard.refresh}
           </button>
         </div>
       </div>
       <div
         ref={ref}
-        style={{ background: '#050505', fontFamily: MONO, fontSize: 12, lineHeight: 1.7, padding: '16px 20px', height: '70vh', overflowY: 'auto' }}
+        style={{ background: '#050709', fontFamily: MONO, fontSize: 12, lineHeight: 1.75, padding: '18px 20px', height: '70vh', overflowY: 'auto' }}
       >
-        {lines.map((line, i) => (
-          <div key={i} style={{ whiteSpace: 'pre-wrap', color: LINE_COLOR[classify(line)] || '#555' }}>
-            {line}
-          </div>
-        ))}
-        <div style={{ color: '#4ade80' }}>▌</div>
+        {lines.map((line, i) => {
+          const isSmart = line.includes('[SMART]');
+          const cls = classify(line);
+          return (
+            <div
+              key={i}
+              style={{
+                whiteSpace: 'pre-wrap',
+                color: LINE_COLOR[cls] || 'var(--text-muted)',
+                background: isSmart ? 'var(--accent-green-dim)' : 'transparent',
+                borderLeft: isSmart ? '3px solid var(--accent-green)' : '3px solid transparent',
+                paddingLeft: isSmart ? 10 : 0,
+                marginLeft: isSmart ? -10 : 0,
+              }}
+            >
+              {line}
+            </div>
+          );
+        })}
+        <div style={{ color: 'var(--accent-green)' }}>▌</div>
       </div>
     </div>
   );
