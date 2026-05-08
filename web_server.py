@@ -25,7 +25,7 @@ from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email
@@ -53,15 +53,22 @@ async def _startup():
     _threading.Thread(target=_cascade_reader_loop, daemon=True, name="CascadeReader").start()
 
 # ─── CORS: только явно разрешённые origins ────────────────────────────────────
+_PROD_ORIGINS = [
+    "https://kadoclub.net",
+    "https://www.kadoclub.net",
+]
+_DEV_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+# Localhost origins are only included in development (ENVIRONMENT != production)
+_ENV = os.environ.get("ENVIRONMENT", "production")
+_CORS_ORIGINS = _PROD_ORIGINS + (_DEV_ORIGINS if _ENV != "production" else [])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://kadoclub.net",
-        "https://www.kadoclub.net",
-        "http://localhost:5173",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
@@ -347,14 +354,14 @@ async def logout(token: str = Depends(require_any_auth)):
 # ─── SaaS User Auth ──────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
-    email: str
+    email: EmailStr
     username: str
     password: str
     referral_source: str = ""
     ref_code: str = ""
 
 class UserLoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class UpdateProfileRequest(BaseModel):
@@ -381,6 +388,13 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     ip = _real_ip(request)
     if not _check_rate_limit(ip, window=3600, max_hits=5):
         raise HTTPException(status_code=429, detail="Too many registrations. Wait 1h.")
+    # Username: 3-32 chars, alphanumeric + underscore only
+    if not re.match(r'^[A-Za-z0-9_]{3,32}$', body.username):
+        raise HTTPException(status_code=400, detail="Username must be 3-32 characters (letters, digits, underscore only)")
+    # ref_code: if provided must match KADO-XXXXXX format exactly
+    incoming_code_raw = (body.ref_code or "").strip().upper()
+    if incoming_code_raw and not re.match(r'^KADO-[A-Z0-9]{6}$', incoming_code_raw):
+        raise HTTPException(status_code=400, detail="Invalid referral code format")
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     if db.query(User).filter(User.username == body.username).first():
@@ -406,9 +420,8 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         return 'KADO-' + secrets.token_hex(3).upper()
 
     referred_by_id = None
-    incoming_code = (body.ref_code or "").strip().upper()
-    if incoming_code:
-        referrer = db.query(User).filter(User.ref_code == incoming_code).first()
+    if incoming_code_raw:
+        referrer = db.query(User).filter(User.ref_code == incoming_code_raw).first()
         if referrer:
             referred_by_id = referrer.id
     user = User(
@@ -465,7 +478,7 @@ async def resend_verification(credentials: HTTPAuthorizationCredentials = Depend
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
     token: str
@@ -612,7 +625,10 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
 async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
     if body.tg_chat_id:
-        user.tg_chat_id = body.tg_chat_id
+        # Telegram chat IDs are numeric strings (possibly negative for groups)
+        if not re.match(r'^-?\d{1,20}$', body.tg_chat_id.strip()):
+            raise HTTPException(status_code=400, detail="Invalid tg_chat_id format")
+        user.tg_chat_id = body.tg_chat_id.strip()
     db.commit()
     return {"ok": True}
 
@@ -708,10 +724,13 @@ class RevealKeyRequest(BaseModel):
 
 
 @app.post("/api/users/keys/reveal")
-async def reveal_api_keys(body: RevealKeyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def reveal_api_keys(body: RevealKeyRequest, request: Request, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     """Return masked api_key + partial secret after password re-verification.
     Secret is never returned in full — only first 6 and last 4 chars.
     """
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"reveal:{ip}", window=300, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 5 minutes.")
     user = _get_user_from_token(credentials.credentials, db)
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Wrong password")
@@ -743,7 +762,7 @@ class TotpLoginRequest(BaseModel):
     code: str
 
 class TotpRecoverRequest(BaseModel):
-    email: str
+    email: EmailStr
     recovery_code: str
 
 
@@ -1113,6 +1132,8 @@ async def notify_invoice_payment(
     db: Session = Depends(get_db),
 ):
     """User notifies that USDT payment was sent."""
+    if body.invoice_type not in ("weekly", "monthly"):
+        raise HTTPException(status_code=400, detail="invoice_type must be 'weekly' or 'monthly'")
     user = _get_user_from_token(credentials.credentials, db)
 
     # Support both weekly (default) and legacy monthly invoices
@@ -1390,7 +1411,7 @@ async def admin_list_users(
 # ══════════════════════════════════════════════════════════════════════════════
 
 class WaitlistRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 @app.post("/api/waitlist")
 async def join_waitlist(body: WaitlistRequest, request: Request, db: Session = Depends(get_db)):
