@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLang } from '@/lib/LangContext';
 
 const API = (path) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
@@ -7,6 +8,7 @@ const API = (path) => fetch(path, {
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 export default function PnlTab() {
+  const { t } = useLang();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,14 +22,16 @@ export default function PnlTab() {
 
   const maxAbs = Math.max(...rows.map(r => Math.abs(r.gross_pnl)), 1);
 
+  const headers = [t.dashboard.hMonth, t.dashboard.pnl.hGrossPnl, t.dashboard.pnl.hFee, t.dashboard.pnl.hNetPnl, t.dashboard.pnl.hPaid];
+
   return (
     <div>
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0 40px', marginBottom: 40 }}>
         {[
-          { label: 'Total gross PnL', val: totalGross },
-          { label: 'Total performance fee', val: totalFee },
-          { label: 'Total net PnL', val: totalNet },
+          { label: t.dashboard.pnl.totalGross, val: totalGross },
+          { label: t.dashboard.pnl.totalFee,   val: totalFee },
+          { label: t.dashboard.pnl.totalNet,   val: totalNet },
         ].map(({ label, val }) => (
           <div key={label} style={{ borderBottom: '1px solid var(--border)', padding: '20px 0' }}>
             <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 8 }}>{label}</div>
@@ -41,7 +45,7 @@ export default function PnlTab() {
       {/* Bar chart */}
       {!loading && rows.length > 0 && (
         <div style={{ marginBottom: 40 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>Monthly gross PnL</div>
+          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>{t.dashboard.pnl.monthlyGrossPnl}</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
             {[...rows].reverse().map(r => {
               const h = Math.abs(r.gross_pnl) / maxAbs * 72;
@@ -65,7 +69,7 @@ export default function PnlTab() {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            {['Month', 'Gross PnL', 'Fee (20%)', 'Net PnL', 'Paid'].map(h => (
+            {headers.map(h => (
               <th key={h} style={{ padding: '8px 0', textAlign: 'left', fontSize: 11, letterSpacing: '0.08em', color: 'var(--muted-fg)', fontWeight: 400, textTransform: 'uppercase' }}>{h}</th>
             ))}
           </tr>
@@ -80,7 +84,7 @@ export default function PnlTab() {
               ))}
             </tr>
           )) : rows.length === 0 ? (
-            <tr><td colSpan={5} style={{ padding: '40px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>No PnL data yet</td></tr>
+            <tr><td colSpan={5} style={{ padding: '40px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>{t.dashboard.pnl.noPnlData}</td></tr>
           ) : rows.map(r => (
             <tr key={`${r.year}-${r.month}`} style={{ borderBottom: '1px solid var(--border)' }}>
               <td style={{ padding: '12px 0' }}>{MONTHS[r.month - 1]} {r.year}</td>

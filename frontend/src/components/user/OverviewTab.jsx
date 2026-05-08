@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLang } from '@/lib/LangContext';
 
 const API = (path) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
@@ -27,6 +28,7 @@ function SkeletonRow() {
 }
 
 export default function OverviewTab() {
+  const { t } = useLang();
   const [me, setMe] = useState(null);
   const [trades, setTrades] = useState([]);
   const [pnl, setPnl] = useState([]);
@@ -49,6 +51,8 @@ export default function OverviewTab() {
   const winRate = closedTrades.length ? Math.round(wins / closedTrades.length * 100) : 0;
   const planLabel = me?.plan === 'pro' ? 'PRO' : 'FREE';
 
+  const headers = [t.dashboard.hSymbol, t.dashboard.hSide, t.dashboard.hSource, t.dashboard.hEntry, t.dashboard.hPnL, t.dashboard.hStatus];
+
   return (
     <div>
       {/* Plan badge */}
@@ -59,7 +63,7 @@ export default function OverviewTab() {
           </span>
           {!me.has_api_keys && (
             <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>
-              No API keys — <a href="#" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api' })); }} style={{ color: 'var(--fg)', textDecoration: 'underline' }}>connect Bybit</a> to start trading
+              {t.dashboard.overview.noApiKeysPrefix} <a href="#" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api' })); }} style={{ color: 'var(--fg)', textDecoration: 'underline' }}>{t.dashboard.overview.connectBybit}</a> {t.dashboard.overview.toStartTrading}
             </span>
           )}
         </div>
@@ -67,18 +71,18 @@ export default function OverviewTab() {
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0 40px', marginBottom: 40 }}>
-        <StatCard label="Monthly PnL" value={loading ? '—' : `${currentMonth.net_pnl >= 0 ? '+' : ''}${(currentMonth.net_pnl || 0).toFixed(2)} USDT`} sub={currentMonth.performance_fee ? `Fee: ${currentMonth.performance_fee.toFixed(2)} USDT` : null} />
-        <StatCard label="Open positions" value={loading ? '—' : openTrades.length} />
-        <StatCard label="Win rate" value={loading ? '—' : `${winRate}%`} sub={`${closedTrades.length} closed trades`} />
-        <StatCard label="Performance fee" value={loading ? '—' : `${(currentMonth.performance_fee || 0).toFixed(2)} USDT`} sub="20% of profit" />
+        <StatCard label={t.dashboard.overview.monthlyPnl} value={loading ? '—' : `${currentMonth.net_pnl >= 0 ? '+' : ''}${(currentMonth.net_pnl || 0).toFixed(2)} USDT`} sub={currentMonth.performance_fee ? `${t.dashboard.overview.fee}: ${currentMonth.performance_fee.toFixed(2)} USDT` : null} />
+        <StatCard label={t.dashboard.overview.openPositions} value={loading ? '—' : openTrades.length} />
+        <StatCard label={t.dashboard.overview.winRate} value={loading ? '—' : `${winRate}%`} sub={`${closedTrades.length} ${t.dashboard.overview.closedTrades}`} />
+        <StatCard label={t.dashboard.overview.performanceFee} value={loading ? '—' : `${(currentMonth.performance_fee || 0).toFixed(2)} USDT`} sub={t.dashboard.overview.feeOf20} />
       </div>
 
       {/* Active signals table */}
-      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 12 }}>Active signals</div>
+      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 12 }}>{t.dashboard.overview.activeSignals}</div>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            {['Symbol', 'Side', 'Source', 'Entry', 'P&L', 'Status'].map(h => (
+            {headers.map(h => (
               <th key={h} style={{ padding: '8px 0', textAlign: 'left', fontSize: 11, letterSpacing: '0.08em', color: 'var(--muted-fg)', fontWeight: 400, textTransform: 'uppercase' }}>{h}</th>
             ))}
           </tr>
@@ -86,17 +90,17 @@ export default function OverviewTab() {
         <tbody>
           {loading ? [1,2,3].map(i => <SkeletonRow key={i} />) : (
             trades.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: '32px 0', color: 'var(--muted-fg)', fontSize: 13, textAlign: 'center' }}>No trades yet</td></tr>
-            ) : trades.slice(0, 10).map(t => (
-              <tr key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '12px 0' }}>{t.symbol.replace('/USDT:USDT', '')}</td>
-                <td style={{ padding: '12px 0', color: t.side === 'LONG' ? 'var(--fg)' : 'var(--muted-fg)', fontWeight: 600 }}>{t.side}</td>
-                <td style={{ padding: '12px 0', color: 'var(--muted-fg)', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.08em' }}>{t.source}</td>
-                <td style={{ padding: '12px 0' }}>{t.entry_price ? t.entry_price.toFixed(4) : '—'}</td>
-                <td style={{ padding: '12px 0', color: t.pnl_usdt > 0 ? 'var(--fg)' : t.pnl_usdt < 0 ? 'var(--muted-fg)' : 'var(--muted-fg)' }}>
-                  {t.pnl_usdt != null ? `${t.pnl_usdt >= 0 ? '+' : ''}${t.pnl_usdt.toFixed(2)}` : '—'}
+              <tr><td colSpan={6} style={{ padding: '32px 0', color: 'var(--muted-fg)', fontSize: 13, textAlign: 'center' }}>{t.dashboard.overview.noTrades}</td></tr>
+            ) : trades.slice(0, 10).map(tr => (
+              <tr key={tr.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '12px 0' }}>{tr.symbol.replace('/USDT:USDT', '')}</td>
+                <td style={{ padding: '12px 0', color: tr.side === 'LONG' ? 'var(--fg)' : 'var(--muted-fg)', fontWeight: 600 }}>{tr.side}</td>
+                <td style={{ padding: '12px 0', color: 'var(--muted-fg)', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.08em' }}>{tr.source}</td>
+                <td style={{ padding: '12px 0' }}>{tr.entry_price ? tr.entry_price.toFixed(4) : '—'}</td>
+                <td style={{ padding: '12px 0', color: tr.pnl_usdt > 0 ? 'var(--fg)' : tr.pnl_usdt < 0 ? 'var(--muted-fg)' : 'var(--muted-fg)' }}>
+                  {tr.pnl_usdt != null ? `${tr.pnl_usdt >= 0 ? '+' : ''}${tr.pnl_usdt.toFixed(2)}` : '—'}
                 </td>
-                <td style={{ padding: '12px 0', color: 'var(--muted-fg)', fontSize: 11, textTransform: 'uppercase' }}>{t.status}</td>
+                <td style={{ padding: '12px 0', color: 'var(--muted-fg)', fontSize: 11, textTransform: 'uppercase' }}>{tr.status}</td>
               </tr>
             ))
           )}

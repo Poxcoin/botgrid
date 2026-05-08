@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authFetch } from '@/lib/api';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { useLang } from '@/lib/LangContext';
 
 const B = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
@@ -17,6 +18,7 @@ function StatBox({ label, value, sub, color }) {
 }
 
 export default function BotTab() {
+  const { t } = useLang();
   const [data,  setData]  = useState(null);
   const [intel, setIntel] = useState(null);
   const [error, setError] = useState(false);
@@ -49,15 +51,17 @@ export default function BotTab() {
     new Date(s.timestamp).toDateString() === new Date().toDateString()
   ).length;
 
+  const headers = [t.dashboard.hTime, t.dashboard.hAsset, t.dashboard.hAction, t.dashboard.hScore, t.dashboard.hNews];
+
   return (
     <div>
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <StatBox label="Balance" value={`$${balance.total.toFixed(2)}`} sub={`Free $${balance.free.toFixed(2)}`} color="#4ade80" />
-        <StatBox label="Signals Today" value={signalsToday} sub="Last 24h" />
+        <StatBox label={t.dashboard.bot.balance} value={`$${balance.total.toFixed(2)}`} sub={`${t.dashboard.bot.free} $${balance.free.toFixed(2)}`} color="#4ade80" />
+        <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
         <StatBox
-          label="Feed Status"
-          value={error ? 'OFFLINE' : 'LIVE'}
+          label={t.dashboard.bot.feedStatus}
+          value={error ? t.dashboard.bot.offline : t.dashboard.bot.live}
           color={error ? '#f87171' : '#4ade80'}
           sub={intel
             ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
@@ -69,10 +73,10 @@ export default function BotTab() {
       {intel && (
         <div style={{ border: `1px solid ${B}`, marginTop: 24 }}>
           <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${B}` }}>
-            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Live Intel</span>
+            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.liveIntel}</span>
             {intel.updated_at && (
               <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>
-                {formatDistanceToNowStrict(new Date(intel.updated_at))} ago
+                {formatDistanceToNowStrict(new Date(intel.updated_at))} {t.dashboard.bot.ago}
               </span>
             )}
           </div>
@@ -95,12 +99,12 @@ export default function BotTab() {
           </div>
           {intel.onchain && (
             <div style={{ borderTop: `1px solid ${B}`, padding: '10px 20px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.2em' }}>On-chain ETH</span>
+              <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.2em' }}>{t.dashboard.bot.onchainEth}</span>
               <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: intel.onchain.signal === 'BEARISH' ? '#f87171' : intel.onchain.signal === 'BULLISH' ? '#4ade80' : MUTED }}>
                 {intel.onchain.signal}
               </span>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>→ Exchange: {intel.onchain.to_exchange_eth} ETH</span>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>← From Exchange: {intel.onchain.from_exchange_eth} ETH</span>
+              <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>{t.dashboard.bot.toExchange} {intel.onchain.to_exchange_eth} ETH</span>
+              <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>{t.dashboard.bot.fromExchange} {intel.onchain.from_exchange_eth} ETH</span>
             </div>
           )}
         </div>
@@ -109,14 +113,14 @@ export default function BotTab() {
       {/* Live Feed */}
       <div style={{ border: `1px solid ${B}`, marginTop: 24 }}>
         <div style={{ padding: '0 20px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>Intelligence Feed</span>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>auto 30s</span>
+          <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.intelligenceFeed}</span>
+          <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>{t.dashboard.bot.auto30s}</span>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${B}` }}>
-                {['Time','Asset','Action','Score','News'].map(h => (
+                {headers.map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 20px', fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: MUTED, fontFamily: MONO, fontWeight: 400 }}>{h}</th>
                 ))}
               </tr>
@@ -124,12 +128,12 @@ export default function BotTab() {
             <tbody>
               {feed.length === 0 ? (
                 <tr><td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>
-                  {data === null ? 'Loading...' : 'No signals yet'}
+                  {data === null ? t.dashboard.loading : t.dashboard.bot.noSignalsYet}
                 </td></tr>
               ) : feed.map((s, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}>
                   <td style={{ padding: '12px 20px', fontFamily: MONO, fontSize: 11, color: MUTED }}>
-                    {formatDistanceToNowStrict(new Date(s.timestamp))} ago
+                    {formatDistanceToNowStrict(new Date(s.timestamp))} {t.dashboard.bot.ago}
                   </td>
                   <td style={{ padding: '12px 20px', fontFamily: MONO, fontWeight: 700 }}>{s.coin}</td>
                   <td style={{ padding: '12px 20px' }}>

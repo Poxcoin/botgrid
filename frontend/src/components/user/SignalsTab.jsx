@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { authFetch } from '@/lib/api';
 import { format } from 'date-fns';
+import { useLang } from '@/lib/LangContext';
 
 const B = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
@@ -23,6 +24,7 @@ function StatBox({ label, value, color }) {
 }
 
 export default function SignalsTab() {
+  const { t } = useLang();
   const [coin,   setCoin]   = useState('');
   const [action, setAction] = useState('');
   const [page,   setPage]   = useState(1);
@@ -48,28 +50,34 @@ export default function SignalsTab() {
 
   const pnlColor = stats?.total_pnl >= 0 ? '#4ade80' : '#f87171';
 
+  const headers = [
+    t.dashboard.hTime, t.dashboard.hAsset, t.dashboard.hAction, t.dashboard.hScore,
+    t.dashboard.signals.hGroq, t.dashboard.hSource, t.dashboard.signals.hAge,
+    t.dashboard.signals.hResult, t.dashboard.hPnL, t.dashboard.hNews,
+  ];
+
   return (
     <div>
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)' }}>
-        <StatBox label="Total Signals" value={stats?.total_trades ?? '—'} />
-        <StatBox label="Win Rate" value={stats?.win_rate != null ? `${stats.win_rate.toFixed(1)}%` : '—'} color="#4ade80" />
-        <StatBox label="Long" value={stats?.long_count ?? '—'} />
-        <StatBox label="Short" value={stats?.short_count ?? '—'} />
-        <StatBox label="Total PnL" value={stats?.total_pnl != null ? `${stats.total_pnl >= 0 ? '+' : ''}$${stats.total_pnl.toFixed(2)}` : '—'} color={pnlColor} />
+        <StatBox label={t.dashboard.signals.totalSignals} value={stats?.total_trades ?? '—'} />
+        <StatBox label={t.dashboard.signals.winRate} value={stats?.win_rate != null ? `${stats.win_rate.toFixed(1)}%` : '—'} color="#4ade80" />
+        <StatBox label={t.dashboard.signals.longCount} value={stats?.long_count ?? '—'} />
+        <StatBox label={t.dashboard.signals.shortCount} value={stats?.short_count ?? '—'} />
+        <StatBox label={t.dashboard.signals.totalPnl} value={stats?.total_pnl != null ? `${stats.total_pnl >= 0 ? '+' : ''}$${stats.total_pnl.toFixed(2)}` : '—'} color={pnlColor} />
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', border: `1px solid ${B}`, marginTop: 24 }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Filters</span>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.signals.filters}</span>
         <select value={coin} onChange={e => { setCoin(e.target.value); setPage(1); }} style={sel}>
-          <option value="">All Assets</option>
+          <option value="">{t.dashboard.signals.allAssets}</option>
           {['BTC','ETH','SOL','XRP','ADA','DOT','LINK','UNI','AAVE','SUI','APT','OP','NEAR','INJ','FET'].map(c => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
         <select value={action} onChange={e => { setAction(e.target.value); setPage(1); }} style={sel}>
-          <option value="">All Actions</option>
+          <option value="">{t.dashboard.signals.allActions}</option>
           <option value="LONG">LONG</option>
           <option value="SHORT">SHORT</option>
         </select>
@@ -81,14 +89,14 @@ export default function SignalsTab() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${B}` }}>
-                {['Time','Asset','Action','Score','Groq','Source','Age','Result','PnL','News'].map(h => (
+                {headers.map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, fontFamily: MONO, fontWeight: 400, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {data.signals.length === 0 ? (
-                <tr><td colSpan={10} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>No signals found</td></tr>
+                <tr><td colSpan={10} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>{t.dashboard.signals.noSignalsFound}</td></tr>
               ) : data.signals.map((s, i) => {
                 const pnl = s.pnl_usdt;
                 return (
@@ -146,7 +154,7 @@ export default function SignalsTab() {
         {/* Pagination */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', height: 48, borderTop: `1px solid ${B}` }}>
           <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>
-            Page {page} / {data.pages} · {data.total} rows
+            {t.dashboard.signals.page} {page} / {data.pages} · {data.total} {t.dashboard.signals.rowsSuffix}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
             {[['←', -1], ['→', 1]].map(([label, dir]) => (
