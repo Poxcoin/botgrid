@@ -2008,6 +2008,24 @@ _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "
 async def favicon_svg():
     return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
+# Root-level static files that crawlers, social platforms, and search engines
+# expect at exact paths (NOT under /static/...). Served before the SPA catch-all.
+_ROOT_STATIC_FILES = {
+    "robots.txt":   "text/plain; charset=utf-8",
+    "sitemap.xml":  "application/xml; charset=utf-8",
+    "og-image.png": "image/png",
+}
+
+for _name, _mime in _ROOT_STATIC_FILES.items():
+    def _make_handler(filename: str, mime: str):
+        async def _handler():
+            path = f"static/{filename}"
+            if not os.path.exists(path):
+                raise HTTPException(status_code=404)
+            return FileResponse(path, media_type=mime)
+        return _handler
+    app.get(f"/{_name}")(_make_handler(_name, _mime))
+
 @app.get("/")
 async def read_index():
     return FileResponse("static/index.html", headers=_NO_CACHE)
