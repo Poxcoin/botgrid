@@ -513,6 +513,8 @@ export const translations = {
       colProduct: 'Product',
       colAccess:  'Access',
       colLegal:   'Legal',
+      legalRisk:  'Risk Disclosure',
+      legalTerms: 'Terms of Service',
     },
     news: {
       masthead:    'TERMINAL',
@@ -1071,6 +1073,8 @@ export const translations = {
       colProduct: 'Producto',
       colAccess:  'Acceso',
       colLegal:   'Legal',
+      legalRisk:  'Aviso de riesgo',
+      legalTerms: 'Términos de servicio',
     },
     news: {
       masthead:    'TERMINAL',
@@ -1629,6 +1633,8 @@ export const translations = {
       colProduct: 'Продукт',
       colAccess:  'Доступ',
       colLegal:   'Правове',
+      legalRisk:  'Розкриття ризиків',
+      legalTerms: 'Умови використання',
     },
     news: {
       masthead:    'ТЕРМІНАЛ',
@@ -2187,6 +2193,8 @@ export const translations = {
       colProduct: 'Продукт',
       colAccess:  'Доступ',
       colLegal:   'Правовое',
+      legalRisk:  'Раскрытие рисков',
+      legalTerms: 'Условия использования',
     },
     news: {
       masthead:    'ТЕРМИНАЛ',
@@ -2745,6 +2753,8 @@ export const translations = {
       colProduct: 'Produkt',
       colAccess:  'Zugang',
       colLegal:   'Rechtliches',
+      legalRisk:  'Risikohinweis',
+      legalTerms: 'Nutzungsbedingungen',
     },
     news: {
       masthead:    'TERMINAL',
@@ -3303,6 +3313,8 @@ export const translations = {
       colProduct: '产品',
       colAccess:  '访问',
       colLegal:   '法律',
+      legalRisk:  '风险披露',
+      legalTerms: '服务条款',
     },
     news: {
       masthead:    '终端',

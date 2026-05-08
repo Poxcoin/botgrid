@@ -19,7 +19,7 @@ export default function LandingFooter() {
   const COLS = [
     { title: t.footer.colProduct, links: [{ label: t.nav.bots, to: '/bots' }, { label: t.nav.strategies, to: '/strategies' }, { label: t.nav.pricing, to: '/pricing' }, { label: t.nav.news, to: '/news' }] },
     { title: t.footer.colAccess, links: [{ label: t.auth.signup.replace(' →', ''), to: '/auth?mode=register' }, { label: t.auth.login, to: '/auth?mode=login' }] },
-    { title: t.footer.colLegal, links: [{ label: 'Risk Disclosure', href: '#' }, { label: 'Terms of Service', href: '#' }] },
+    { title: t.footer.colLegal, links: [{ label: t.footer.legalRisk, href: '#' }, { label: t.footer.legalTerms, href: '#' }] },
   ];
 
   return (

@@ -6,7 +6,7 @@ import { useLang } from '@/lib/LangContext';
 const MONO = "'Courier New','SF Mono',monospace";
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 
-const LANG_LABELS = { ru: 'Русский', uk: 'Українська', en: 'English', de: 'Deutsch' };
+const LANG_LABELS = { en: 'English', es: 'Español', uk: 'Українська', ru: 'Русский', de: 'Deutsch', zh: '中文' };
 
 function NavLink({ to, label }) {
   const { pathname } = useLocation();
