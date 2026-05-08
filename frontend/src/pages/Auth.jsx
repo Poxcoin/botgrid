@@ -409,7 +409,7 @@ export default function Auth() {
   const [otpToken, setOtpToken] = useState(null);
   const [forgotMode, setForgotMode] = useState(false);
   const [pendingRegistration, setPendingRegistration] = useState(false);
-  usePageTitle(mode === 'register' ? t.auth.signupHeading : t.auth.loginHeading);
+  usePageTitle(mode === 'register' ? t.auth.signupTab : t.auth.loginTab);
 
   useEffect(() => {
     setMode(params.get('mode') === 'register' ? 'register' : 'login');
