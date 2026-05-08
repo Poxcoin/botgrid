@@ -417,6 +417,16 @@ export default function Auth() {
     setOtpToken(null);
   }, [params]);
 
+  // Capture ?ref=KADO-XXXXXX from URL into localStorage on first visit, even if the user
+  // browses around before signing up. Sticky for 30 days. Cleared after successful register.
+  useEffect(() => {
+    const ref = params.get('ref');
+    if (ref && /^KADO-[A-Za-z0-9]{6}$/.test(ref)) {
+      localStorage.setItem('kado_ref', ref.toUpperCase());
+      localStorage.setItem('kado_ref_at', String(Date.now()));
+    }
+  }, [params]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleSubmit = async (e) => {
@@ -434,9 +444,12 @@ export default function Auth() {
     setLoading(true);
     try {
       const endpoint = mode === 'login' ? '/api/users/login' : '/api/users/register';
+      const refStored = localStorage.getItem('kado_ref') || '';
+      const refAt = parseInt(localStorage.getItem('kado_ref_at') || '0', 10);
+      const refFresh = refStored && (Date.now() - refAt) < 30 * 24 * 60 * 60 * 1000;
       const body = mode === 'login'
         ? { email: form.email, password: form.password }
-        : { email: form.email, username: form.username, password: form.password, referral_source: 'direct' };
+        : { email: form.email, username: form.username, password: form.password, referral_source: 'direct', ref_code: refFresh ? refStored : '' };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -460,7 +473,11 @@ export default function Auth() {
 
       localStorage.setItem('kado_token', data.token);
       localStorage.setItem('kado_user', JSON.stringify(data.user));
-      if (mode === 'register') trackCompleteRegistration();
+      if (mode === 'register') {
+        trackCompleteRegistration();
+        localStorage.removeItem('kado_ref');
+        localStorage.removeItem('kado_ref_at');
+      }
       navigate('/account');
     } catch {
       setError(t.auth.errConnection);

@@ -397,7 +397,9 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         raise HTTPException(status_code=400, detail="Invalid referral code format")
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    if db.query(User).filter(User.username == body.username).first():
+    # Case-insensitive uniqueness — block 'John' colliding with 'john' for impersonation safety
+    from sqlalchemy import func
+    if db.query(User).filter(func.lower(User.username) == body.username.lower()).first():
         raise HTTPException(status_code=400, detail="Username already taken")
     pw = body.password
     if len(pw) < 8:
@@ -427,7 +429,7 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     user = User(
         email=body.email,
         username=body.username,
-        password_hash=hash_password(body.password),
+        password_hash=hash_password(body.password[:72]),  # bcrypt 72-byte limit — match reset-password
         email_verified=False,
         email_verify_token=verify_token_hash,
         plan="trial",
@@ -488,7 +490,7 @@ class ResetPasswordRequest(BaseModel):
 async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     ip = _real_ip(request)
     if not _check_rate_limit(f"reset:{ip}", window=3600, max_hits=5):
-        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите 1 час.")
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait 1 hour.")
     user = db.query(User).filter(User.email == body.email).first()
     if user:
         token = secrets.token_urlsafe(32)
@@ -498,30 +500,30 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ses
         db.commit()
         from utils.email import send_password_reset_email
         asyncio.get_running_loop().run_in_executor(None, send_password_reset_email, user.email, token)
-    return {"ok": True, "message": "Если email зарегистрирован — письмо отправлено"}
+    return {"ok": True, "message": "If this email is registered, a reset link has been sent."}
 
 
 @app.post("/api/users/reset-password")
 async def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     if len(body.password) < 8:
-        raise HTTPException(status_code=400, detail="Пароль слишком короткий")
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if not re.search(r'[A-Z]', body.password):
-        raise HTTPException(status_code=400, detail="Нужна хотя бы одна заглавная буква")
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
     if not re.search(r'[0-9]', body.password):
-        raise HTTPException(status_code=400, detail="Нужна хотя бы одна цифра")
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
     if not re.search(r'[^A-Za-z0-9]', body.password):
-        raise HTTPException(status_code=400, detail="Нужен хотя бы один спецсимвол")
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
     token_hash = hashlib.sha256(body.token.encode()).hexdigest()
     user = db.query(User).filter(User.password_reset_token == token_hash).first()
     if not user or not user.password_reset_expires:
-        raise HTTPException(status_code=400, detail="Неверная или устаревшая ссылка")
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
     if datetime.now(timezone.utc) > user.password_reset_expires.replace(tzinfo=timezone.utc):
-        raise HTTPException(status_code=400, detail="Ссылка истекла — запросите новую")
+        raise HTTPException(status_code=400, detail="Reset link expired — please request a new one")
     user.password_hash           = hash_password(body.password[:72])
     user.password_reset_token    = None
     user.password_reset_expires  = None
     db.commit()
-    return {"ok": True, "message": "Пароль успешно изменён"}
+    return {"ok": True, "message": "Password changed successfully"}
 
 
 @app.post("/api/users/login")
@@ -534,8 +536,8 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
-    if not user.email_verified:
-        raise HTTPException(status_code=403, detail="Please verify your email before logging in.")
+    # Note: email_verified is NOT required to login — UserDashboard shows a "Verify email"
+    # banner for unverified users, and sensitive actions can require verification separately.
     user.last_login = datetime.now(timezone.utc)
     db.commit()
     if user.totp_enabled:
