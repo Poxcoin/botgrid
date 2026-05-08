@@ -1,305 +1,194 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useLang } from '@/lib/LangContext';
+import { useTheme } from '@/lib/ThemeContext';
+import { LANGS } from '@/i18n/translations';
 
-const API = (path, opts) => fetch(path, {
-  headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
-  ...opts,
-}).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail || 'Error')));
+const LANG_FULL = {
+  en: 'English', es: 'Español', uk: 'Українська', ru: 'Русский', de: 'Deutsch', zh: '中文',
+};
 
-function Field({ label, children }) {
+// ── Accordion section ────────────────────────────────────────────────────────
+function Section({ title, sub, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
-const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
-
-// ── Invoice panel (Performance plan only) ─────────────────────────────────────
-function InvoicePanel() {
-  const { t } = useLang();
-  const [data, setData] = useState(null);
-  const [notifying, setNotifying] = useState(false);
-  const [txInput, setTxInput] = useState('');
-  const [notified, setNotified] = useState(false);
-
-  useEffect(() => {
-    API('/api/billing/invoice/current').then(setData).catch(() => {});
-  }, []);
-
-  async function handleNotify() {
-    if (!data?.invoice) return;
-    setNotifying(true);
-    try {
-      await API('/api/billing/invoice/notify', {
-        method: 'POST',
-        body: JSON.stringify({ invoice_id: data.invoice.id, tx_hash: txInput || undefined, invoice_type: 'weekly' }),
-      });
-      setNotified(true);
-      setData(d => ({ ...d, invoice: { ...d.invoice, notified: true } }));
-    } catch (e) {
-      alert(typeof e === 'string' ? e : t.dashboard.settings.errorTryAgain);
-    } finally {
-      setNotifying(false);
-    }
-  }
-
-  if (!data) return <div style={{ fontSize: 12, color: 'var(--muted-fg)' }}>{t.dashboard.settings.loading}</div>;
-
-  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, wordBreak: 'break-all' };
-  const row  = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 };
-  const lbl  = { fontSize: 11, color: 'var(--muted-fg)' };
-  const val  = { fontSize: 13, color: 'var(--fg)' };
-  const btn  = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
-  const txInp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '8px 12px', fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', marginTop: 8 };
-
-  const { invoice, current_week_pnl, projected_fee, wallet_trc20, week_label } = data;
-
-  return (
-    <div>
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 10 }}>
-          {t.dashboard.settings.thisWeek} {week_label}
+    <div style={{ borderBottom: '1px solid var(--border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          width: '100%', padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--fg)', textAlign: 'left',
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>{title}</div>
+          {sub && <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 3 }}>{sub}</div>}
         </div>
-        <div style={row}>
-          <span style={lbl}>{t.dashboard.settings.profit}</span>
-          <span style={{ ...val, color: current_week_pnl >= 0 ? '#4ade80' : '#e55' }}>
-            {current_week_pnl >= 0 ? '+' : ''}{current_week_pnl.toFixed(2)} USDT
-          </span>
-        </div>
-        <div style={row}>
-          <span style={lbl}>{t.dashboard.settings.projectedFee}</span>
-          <span style={val}>{projected_fee.toFixed(2)} USDT</span>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 4 }}>
-          {t.dashboard.settings.billedMonday}
-        </div>
-      </div>
-
-      {invoice && !invoice.fee_paid && (
-        <div style={{ border: '1px solid rgba(200,150,0,0.3)', background: 'rgba(200,150,0,0.05)', padding: '14px 16px' }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c96', marginBottom: 10 }}>
-            {t.dashboard.settings.invoiceDue} {invoice.label}
-          </div>
-          <div style={row}>
-            <span style={lbl}>{t.dashboard.settings.weekProfit}</span>
-            <span style={val}>+{invoice.gross_pnl.toFixed(2)} USDT</span>
-          </div>
-          <div style={row}>
-            <span style={lbl}>{t.dashboard.settings.feeShort}</span>
-            <span style={{ ...val, fontWeight: 600 }}>{invoice.fee.toFixed(2)} USDT</span>
-          </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: 'var(--muted-fg)' }}>{t.dashboard.settings.sendUsdtTo}</div>
-          <div style={{ ...mono, color: 'var(--fg)', marginTop: 4, padding: '6px 10px', background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-            {wallet_trc20 || '—'}
-          </div>
-
-          {invoice.notified || notified ? (
-            <div style={{ fontSize: 12, color: '#4ade80', marginTop: 12 }}>
-              ✓ {t.dashboard.settings.paymentSent}
-            </div>
-          ) : (
-            <>
-              <input
-                style={txInp}
-                placeholder={t.dashboard.settings.txHashPlaceholder}
-                value={txInput}
-                onChange={e => setTxInput(e.target.value)}
-              />
-              <button disabled={notifying} onClick={handleNotify} style={btn}>
-                {notifying ? t.dashboard.settings.sending : t.dashboard.settings.iPaid}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {invoice && invoice.fee_paid && (
-        <div style={{ fontSize: 12, color: '#4ade80' }}>{t.dashboard.settings.lastPaid}</div>
-      )}
-    </div>
-  );
-}
-
-// ── Billing section ───────────────────────────────────────────────────────────
-function BillingSection({ plan, trialDaysLeft }) {
-  const { t } = useLang();
-  const btn = {
-    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
-    padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-    marginTop: 12, marginRight: 8,
-  };
-
-  if (plan === 'trial') {
-    return (
-      <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
-          {t.dashboard.settings.trial} — <span style={{ color: '#aaa' }}>{trialDaysLeft} {trialDaysLeft === 1 ? t.dashboard.settings.day : t.dashboard.settings.days} {t.dashboard.settings.leftSuffix}</span>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
-          {t.dashboard.settings.trialDesc}
-        </div>
-        <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
-          {t.dashboard.settings.upgradeBtn}
-        </a>
-      </div>
-    );
-  }
-
-  if (plan === 'free') {
-    return (
-      <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>{t.dashboard.settings.freeDemo}</div>
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
-          {t.dashboard.settings.freeDesc}
-        </div>
-        <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
-          {t.dashboard.settings.startTradingBtn}
-        </a>
-      </div>
-    );
-  }
-
-  if (plan === 'performance') {
-    return (
-      <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 12 }}>
-          {t.dashboard.settings.performanceWeekly}
-          <span style={{ fontSize: 11, color: '#4ade80', marginLeft: 8 }}>{t.dashboard.settings.active}</span>
-        </div>
-        <InvoicePanel />
-      </div>
-    );
-  }
-
-  return null;
-}
-
-// ── Telegram link section ─────────────────────────────────────────────────────
-function TelegramLinkSection({ me, onChange }) {
-  const { t } = useLang();
-  const [linking, setLinking] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const [err, setErr] = useState('');
-
-  async function connect() {
-    setErr(''); setLinking(true);
-    try {
-      const data = await API('/api/tg/link-token', { method: 'POST' });
-      window.open(data.url, '_blank', 'noopener');
-    } catch (e) {
-      setErr(typeof e === 'string' ? e : t.dashboard.settings.failedLink);
-    } finally {
-      setLinking(false);
-    }
-  }
-
-  async function disconnect() {
-    if (!confirm(t.dashboard.settings.disconnectConfirm)) return;
-    setErr(''); setDisconnecting(true);
-    try {
-      await API('/api/tg/disconnect', { method: 'POST' });
-      onChange();
-    } catch (e) {
-      setErr(typeof e === 'string' ? e : t.dashboard.settings.errorGeneric);
-    } finally {
-      setDisconnecting(false);
-    }
-  }
-
-  const btnPrimary = {
-    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
-    padding: '10px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-    opacity: linking ? 0.6 : 1,
-  };
-  const btnSecondary = {
-    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)',
-    padding: '8px 16px', fontSize: 11, cursor: 'pointer',
-  };
-
-  if (me?.tg_connected) {
-    return (
-      <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 4 }}>
-          <span style={{ color: '#4ade80', marginRight: 6 }}>✓</span>
-          {me.tg_username
-            ? <>{t.dashboard.settings.connectedAs} <span style={{ fontFamily: 'var(--font-mono)' }}>@{me.tg_username}</span></>
-            : t.dashboard.settings.connectedShort}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 12 }}>
-          {t.dashboard.settings.notifsArrive}
-        </div>
-        <button onClick={disconnect} disabled={disconnecting} style={btnSecondary}>
-          {disconnecting ? t.dashboard.settings.disconnecting : t.dashboard.settings.disconnect}
-        </button>
-        {err && <div style={{ fontSize: 12, color: '#e55', marginTop: 8 }}>{err}</div>}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
-        {t.dashboard.settings.notifsSetup}
-      </div>
-      <button onClick={connect} disabled={linking} style={btnPrimary}>
-        {linking ? t.dashboard.settings.opening : t.dashboard.settings.connectTelegram}
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 180ms', opacity: 0.5 }}>
+          <path d="M2 4l3.5 3L9 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
-      {err && <div style={{ fontSize: 12, color: '#e55', marginTop: 8 }}>{err}</div>}
+      {open && <div style={{ paddingBottom: 24 }}>{children}</div>}
     </div>
   );
 }
 
-// ── Main SettingsTab ──────────────────────────────────────────────────────────
-export default function SettingsTab() {
-  const { t } = useLang();
-  const [me, setMe] = useState(null);
+const selectStyle = {
+  width: '100%', maxWidth: 320,
+  background: 'var(--bg2)', border: '1px solid var(--border)',
+  color: 'var(--fg)', padding: '10px 14px', fontSize: 13,
+  fontFamily: 'var(--font-sans)', outline: 'none', cursor: 'pointer',
+  appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
+  backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'11\' height=\'11\' viewBox=\'0 0 11 11\' fill=\'none\'><path d=\'M2 4l3.5 3L9 4\' stroke=\'%23999\' stroke-width=\'1.4\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/></svg>")',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 12px center',
+  paddingRight: 36,
+};
 
-  function reload() {
-    API('/api/users/me').then(setMe).catch(console.error);
+const TZ_OPTIONS = [
+  'auto',
+  'UTC',
+  'Europe/Kyiv',
+  'Europe/Warsaw',
+  'Europe/Berlin',
+  'Europe/London',
+  'America/New_York',
+  'America/Los_Angeles',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Shanghai',
+  'Asia/Tokyo',
+];
+
+// ── Notifications block ──────────────────────────────────────────────────────
+function NotificationsBlock() {
+  const { t } = useLang();
+  const [prefs, setPrefs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kado_notifs') || '{}'); }
+    catch { return {}; }
+  });
+  const channels = [
+    { key: 'telegram', label: t.dashboard.settingsPrefs.notifTelegram, desc: t.dashboard.settingsPrefs.notifTelegramDesc },
+    { key: 'email',    label: t.dashboard.settingsPrefs.notifEmail,    desc: t.dashboard.settingsPrefs.notifEmailDesc },
+    { key: 'browser',  label: t.dashboard.settingsPrefs.notifBrowser,  desc: t.dashboard.settingsPrefs.notifBrowserDesc },
+  ];
+
+  function toggle(key) {
+    setPrefs(p => {
+      const next = { ...p, [key]: !p[key] };
+      localStorage.setItem('kado_notifs', JSON.stringify(next));
+      return next;
+    });
   }
 
-  useEffect(() => { reload(); }, []);
+  return (
+    <div>
+      {channels.map(c => (
+        <label key={c.key} style={{
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer',
+          gap: 16,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 3 }}>{c.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted-fg)', lineHeight: 1.5 }}>{c.desc}</div>
+          </div>
+          <span style={{
+            position: 'relative', width: 36, height: 20, flexShrink: 0,
+            background: prefs[c.key] ? 'var(--fg)' : 'var(--border)',
+            borderRadius: 100, transition: 'background 150ms',
+            display: 'inline-block', marginTop: 2,
+          }}>
+            <span style={{
+              position: 'absolute', top: 2, left: prefs[c.key] ? 18 : 2,
+              width: 16, height: 16, borderRadius: '50%',
+              background: prefs[c.key] ? 'var(--bg)' : 'var(--fg)',
+              transition: 'left 150ms', opacity: 0.95,
+            }} />
+            <input
+              type="checkbox"
+              checked={!!prefs[c.key]}
+              onChange={() => toggle(c.key)}
+              style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+            />
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// ── Main SettingsTab (preferences) ───────────────────────────────────────────
+export default function SettingsTab() {
+  const { t, lang, setLang } = useLang();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const [tz, setTz] = useState(() => localStorage.getItem('kado_tz') || 'auto');
+
+  function changeTz(v) {
+    setTz(v);
+    localStorage.setItem('kado_tz', v);
+  }
+
+  function changeTheme(v) {
+    if (v !== theme) toggleTheme();
+  }
 
   return (
-    <div style={{ width: '100%' }}>
-      <style>{`
-        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 48px; }
-        @media (max-width: 900px) { .settings-grid { grid-template-columns: 1fr !important; } }
-      `}</style>
-      <div className="settings-grid">
+    <div style={{ width: '100%', maxWidth: 720 }}>
 
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.settings.profile}</div>
-
-          <Field label={t.dashboard.settings.email}>
-            <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
-          </Field>
-
-          <Field label={t.dashboard.settings.plan}>
-            <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
-              {me?.plan?.toUpperCase() || '—'}
-            </span>
-            {me?.subscription_expires && (
-              <span style={{ fontSize: 12, color: 'var(--muted-fg)', marginLeft: 10 }}>
-                {t.dashboard.settings.expires} {new Date(me.subscription_expires).toLocaleDateString()}
-              </span>
-            )}
-          </Field>
-
-          <Field label={t.dashboard.settings.telegram}>
-            <TelegramLinkSection me={me} onChange={reload} />
-          </Field>
+      {/* Language */}
+      <Section
+        title={t.dashboard.settingsPrefs.languageTitle}
+        sub={LANG_FULL[lang]}
+        defaultOpen
+      >
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+          {t.dashboard.settingsPrefs.languageDesc}
         </div>
+        <select value={lang} onChange={e => setLang(e.target.value)} style={selectStyle}>
+          {LANGS.map(l => (
+            <option key={l.code} value={l.code}>{LANG_FULL[l.code]}</option>
+          ))}
+        </select>
+      </Section>
 
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.settings.billing}</div>
-          <BillingSection plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
+      {/* Theme */}
+      <Section
+        title={t.dashboard.settingsPrefs.themeTitle}
+        sub={theme === 'dark' ? t.dashboard.settingsPrefs.themeDark : t.dashboard.settingsPrefs.themeLight}
+      >
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+          {t.dashboard.settingsPrefs.themeDesc}
         </div>
+        <select value={theme} onChange={e => changeTheme(e.target.value)} style={selectStyle}>
+          <option value="dark">{t.dashboard.settingsPrefs.themeDark}</option>
+          <option value="light">{t.dashboard.settingsPrefs.themeLight}</option>
+        </select>
+      </Section>
 
-      </div>
+      {/* Timezone */}
+      <Section
+        title={t.dashboard.settingsPrefs.timezoneTitle}
+        sub={tz === 'auto' ? t.dashboard.settingsPrefs.tzAuto : tz}
+      >
+        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+          {t.dashboard.settingsPrefs.timezoneDesc}
+        </div>
+        <select value={tz} onChange={e => changeTz(e.target.value)} style={selectStyle}>
+          {TZ_OPTIONS.map(z => (
+            <option key={z} value={z}>{z === 'auto' ? t.dashboard.settingsPrefs.tzAuto : z}</option>
+          ))}
+        </select>
+      </Section>
+
+      {/* Notifications */}
+      <Section
+        title={t.dashboard.settingsPrefs.notifsTitle}
+        sub={t.dashboard.settingsPrefs.notifsSub}
+      >
+        <NotificationsBlock />
+      </Section>
+
     </div>
   );
 }

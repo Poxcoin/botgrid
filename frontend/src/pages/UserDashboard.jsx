@@ -3,6 +3,7 @@ import OverviewTab    from '@/components/user/OverviewTab';
 import TradesTab      from '@/components/user/TradesTab';
 import PnlTab         from '@/components/user/PnlTab';
 import SettingsTab    from '@/components/user/SettingsTab';
+import AccountTab     from '@/components/user/AccountTab';
 import BotTab         from '@/components/user/BotTab';
 import SignalsTab     from '@/components/user/SignalsTab';
 import LogsTab        from '@/components/user/LogsTab';
@@ -15,7 +16,7 @@ const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-
 const MONO = "'Courier New','SF Mono',monospace";
 
 const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'pnl', 'trades', 'signals', 'logs', 'backtester'];
-const SECONDARY_TAB_IDS = ['security', 'settings'];
+const SECONDARY_TAB_IDS = ['account', 'security', 'settings'];
 const TAB_LABEL_KEY = {
   overview:   'tabOverview',
   bot:        'tabBot',
@@ -25,6 +26,7 @@ const TAB_LABEL_KEY = {
   signals:    'tabSignals',
   logs:       'tabLogs',
   backtester: 'tabBacktester',
+  account:    'tabAccount',
   security:   'tabSecurity',
   settings:   'tabSettings',
 };
@@ -39,6 +41,7 @@ function TabContent({ tab }) {
     case 'signals':    return <SignalsTab />;
     case 'logs':       return <LogsTab />;
     case 'backtester': return <BacktesterTab />;
+    case 'account':    return <AccountTab />;
     case 'security':   return <SecurityTab />;
     case 'settings':   return <SettingsTab />;
     default:           return null;
