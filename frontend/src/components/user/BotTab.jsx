@@ -7,22 +7,18 @@ const B = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
 const MONO = "'Courier New','SF Mono',monospace";
 
-function StatBox({ label, value, sub, color, accent, live }) {
-  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
-                  : accent === 'red'   ? '2px solid var(--accent-red)'
-                  : '1px solid var(--border-subtle)';
+function StatBox({ label, value, sub, color, live }) {
   return (
     <div
       style={{
         flex: 1,
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderTop: topBorder,
-        borderRadius: 12,
+        borderRadius: 8,
         padding: '20px 22px',
         transition: 'border-color 200ms ease',
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
     >
       <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 10 }}>{label}</div>
@@ -75,13 +71,12 @@ export default function BotTab() {
     <div>
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatBox label={t.dashboard.bot.balance} value={`$${balance.total.toFixed(2)}`} sub={`${t.dashboard.bot.free} $${balance.free.toFixed(2)}`} color="var(--accent-green)" accent="green" />
+        <StatBox label={t.dashboard.bot.balance} value={`$${balance.total.toFixed(2)}`} sub={`${t.dashboard.bot.free} $${balance.free.toFixed(2)}`} color="var(--accent-green)" />
         <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
         <StatBox
           label={t.dashboard.bot.feedStatus}
           value={error ? t.dashboard.bot.offline : t.dashboard.bot.live}
           color={error ? 'var(--accent-red)' : 'var(--accent-green)'}
-          accent={error ? 'red' : 'green'}
           live={!error}
           sub={intel
             ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
@@ -159,9 +154,16 @@ export default function BotTab() {
                   <td style={{ padding: '12px 20px' }}>
                     <span style={{
                       display: 'inline-block', fontFamily: MONO, fontSize: 11, fontWeight: 700,
-                      letterSpacing: '0.15em', padding: '2px 8px',
-                      background: s.action === 'LONG' ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)',
-                      color: s.action === 'LONG' ? '#4ade80' : '#f87171',
+                      letterSpacing: '0.15em', padding: '3px 10px', borderRadius: 4,
+                      background: s.action === 'LONG'  ? 'rgba(0,212,170,0.12)'
+                                : s.action === 'SHORT' ? 'rgba(255,77,109,0.12)'
+                                : 'rgba(255,255,255,0.06)',
+                      border:     s.action === 'LONG'  ? '1px solid rgba(0,212,170,0.25)'
+                                : s.action === 'SHORT' ? '1px solid rgba(255,77,109,0.25)'
+                                : '1px solid rgba(255,255,255,0.12)',
+                      color:      s.action === 'LONG'  ? '#00d4aa'
+                                : s.action === 'SHORT' ? '#ff4d6d'
+                                : '#888',
                     }}>{s.action}</span>
                   </td>
                   <td style={{ padding: '12px 20px', fontFamily: MONO, fontWeight: 700 }}>

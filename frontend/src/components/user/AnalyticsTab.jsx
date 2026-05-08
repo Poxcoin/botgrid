@@ -40,23 +40,18 @@ function Skeleton({ w = '100%', h = 18, style = {} }) {
   );
 }
 
-function SummaryCard({ label, value, sub, color, accent }) {
-  // accent: 'green' | 'red' | undefined → top border color
-  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
-                  : accent === 'red'   ? '2px solid var(--accent-red)'
-                  : '1px solid var(--border-subtle)';
+function SummaryCard({ label, value, sub, color }) {
   return (
     <div
       style={{
         flex: 1, minWidth: 160,
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderTop: topBorder,
-        borderRadius: 12,
+        borderRadius: 8,
         padding: 24,
         transition: 'border-color 200ms ease',
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
     >
       <div style={{ fontFamily: S.mono, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
@@ -235,7 +230,7 @@ function DailyChart({ daily, t }) {
   const yAxisVals = [-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs];
 
   return (
-    <div style={{ position: 'relative', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+    <div style={{ position: 'relative', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: 16 }}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ width: '100%', display: 'block', fontFamily: S.mono }}
@@ -443,20 +438,17 @@ export default function AnalyticsTab() {
           label={t.dashboard.analytics.totalPnl}
           value={`${(summary?.total_pnl ?? 0) >= 0 ? '+' : ''}${summary?.total_pnl ?? 0} USDT`}
           color={(summary?.total_pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
-          accent={(summary?.total_pnl ?? 0) >= 0 ? 'green' : 'red'}
           sub={`${t.dashboard.analytics.since} ${fmtDate(summary?.first_trade)}`}
         />
         <SummaryCard
           label={t.dashboard.analytics.winRate}
           value={winRate}
-          accent={parseFloat(winRate) >= 50 ? 'green' : undefined}
           sub={`${summary?.wins ?? 0} ${t.dashboard.analytics.wins}`}
         />
         <SummaryCard
           label={t.dashboard.analytics.bestDay}
           value={bestDay ? `+${bestDay.pnl}` : '—'}
           color="var(--accent-green)"
-          accent="green"
           sub={bestDay?.date ?? ''}
         />
       </div>

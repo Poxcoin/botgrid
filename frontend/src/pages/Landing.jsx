@@ -296,24 +296,24 @@ function BotsSection() {
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
                 style={{
-                  background: 'rgba(13,17,23,0.85)',
+                  background: 'rgba(10,10,10,0.85)',
                   padding: '32px 28px',
                   textAlign: 'left',
                   height: '100%',
                   boxSizing: 'border-box',
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.08)',
                   transition: 'border-color 200ms, transform 200ms, background 200ms',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'rgba(0,212,170,0.35)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.background = 'rgba(22,27,39,0.92)';
+                  e.currentTarget.style.background = 'rgba(17,17,17,0.92)';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
                   e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.background = 'rgba(13,17,23,0.85)';
+                  e.currentTarget.style.background = 'rgba(10,10,10,0.85)';
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>

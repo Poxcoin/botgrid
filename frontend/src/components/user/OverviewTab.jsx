@@ -5,22 +5,17 @@ const API = (path) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
 }).then(r => r.ok ? r.json() : Promise.reject(r.status));
 
-function StatCard({ label, value, sub, accent }) {
-  // accent: 'green' | 'red' | undefined
-  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
-                  : accent === 'red'   ? '2px solid var(--accent-red)'
-                  : '1px solid var(--border-subtle)';
+function StatCard({ label, value, sub }) {
   return (
     <div
       style={{
         background: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
-        borderTop: topBorder,
-        borderRadius: 12,
+        borderRadius: 8,
         padding: 24,
-        transition: 'border-color 200ms ease, transform 200ms ease',
+        transition: 'border-color 200ms ease',
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
     >
       <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{label}</div>
@@ -90,21 +85,19 @@ export default function OverviewTab() {
           label={t.dashboard.overview.monthlyPnl}
           value={loading ? '—' : `${currentMonth.net_pnl >= 0 ? '+' : ''}${(currentMonth.net_pnl || 0).toFixed(2)} USDT`}
           sub={currentMonth.performance_fee ? `${t.dashboard.overview.fee}: ${currentMonth.performance_fee.toFixed(2)} USDT` : null}
-          accent={currentMonth.net_pnl > 0 ? 'green' : currentMonth.net_pnl < 0 ? 'red' : undefined}
         />
         <StatCard label={t.dashboard.overview.openPositions} value={loading ? '—' : openTrades.length} />
         <StatCard
           label={t.dashboard.overview.winRate}
           value={loading ? '—' : `${winRate}%`}
           sub={`${closedTrades.length} ${t.dashboard.overview.closedTrades}`}
-          accent={winRate >= 50 ? 'green' : undefined}
         />
         <StatCard label={t.dashboard.overview.performanceFee} value={loading ? '—' : `${(currentMonth.performance_fee || 0).toFixed(2)} USDT`} sub={t.dashboard.overview.feeOf20} />
       </div>
 
       {/* Active signals table */}
       <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>{t.dashboard.overview.activeSignals}</div>
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>

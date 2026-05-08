@@ -250,21 +250,12 @@ export default function UserDashboard() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: userDrop ? 'var(--bg-elevated)' : 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 100, padding: '5px 12px 5px 6px',
-                cursor: 'pointer', transition: 'border-color 200ms, box-shadow 200ms, background 200ms',
-                boxShadow: userDrop ? '0 0 12px var(--brand-glow)' : 'none',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 6, padding: '6px 12px 6px 6px',
+                cursor: 'pointer', transition: 'border-color 200ms, background 200ms',
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--accent-green)';
-                e.currentTarget.style.boxShadow = '0 0 12px var(--brand-glow)';
-              }}
-              onMouseLeave={e => {
-                if (!userDrop) {
-                  e.currentTarget.style.borderColor = 'var(--border-default)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; }}
+              onMouseLeave={e => { if (!userDrop) e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
             >
               {/* Avatar */}
               <span style={{

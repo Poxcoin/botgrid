@@ -139,5 +139,36 @@ await page.waitForTimeout(400);
 await page.screenshot({ path: `${OUT_DIR}/settings-all-open.png`, fullPage: true });
 console.log('✓ settings-all-open.png');
 
+// ── Tour additional tabs in dashboard ────────────────────────────────────
+const tabs = ['overview', 'bot', 'analytics', 'pnl', 'trades', 'logs'];
+for (const tab of tabs) {
+  await page.evaluate((id) => window.dispatchEvent(new CustomEvent('switch-tab', { detail: id })), tab);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${OUT_DIR}/dash-${tab}.png`, fullPage: false });
+  console.log(`✓ dash-${tab}.png`);
+}
+
+// ── Landing page (no auth needed) ────────────────────────────────────────
+console.log('Visiting landing...');
+await page.goto(`${URL_BASE}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2500);
+await page.screenshot({ path: `${OUT_DIR}/landing-hero.png`, fullPage: false });
+console.log('✓ landing-hero.png');
+await page.evaluate(() => window.scrollTo(0, 1200));
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${OUT_DIR}/landing-bots.png`, fullPage: false });
+console.log('✓ landing-bots.png');
+
+// ── Pricing page ─────────────────────────────────────────────────────────
+console.log('Visiting pricing...');
+await page.goto(`${URL_BASE}/pricing`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2000);
+await page.screenshot({ path: `${OUT_DIR}/pricing-hero.png`, fullPage: false });
+console.log('✓ pricing-hero.png');
+await page.evaluate(() => window.scrollTo(0, 400));
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${OUT_DIR}/pricing-cards.png`, fullPage: false });
+console.log('✓ pricing-cards.png');
+
 await browser.close();
 console.log('Done.');
