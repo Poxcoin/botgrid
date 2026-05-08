@@ -557,6 +557,12 @@ export const translations = {
       legalRisk:  'Risk Disclosure',
       legalTerms: 'Terms of Service',
     },
+    cookies: {
+      body:       'We use cookies and analytics to improve KADO and measure ad performance. See our Terms for details.',
+      accept:     'Accept all',
+      reject:     'Reject',
+      learnMore:  'Learn more',
+    },
     news: {
       masthead:    'TERMINAL',
       brand:       'KADO·INTELLIGENCE',
@@ -1157,6 +1163,12 @@ export const translations = {
       colLegal:   'Legal',
       legalRisk:  'Aviso de riesgo',
       legalTerms: 'Términos de servicio',
+    },
+    cookies: {
+      body:       'Usamos cookies y analíticas para mejorar KADO y medir anuncios. Detalles en los Términos.',
+      accept:     'Aceptar todo',
+      reject:     'Rechazar',
+      learnMore:  'Más información',
     },
     news: {
       masthead:    'TERMINAL',
@@ -1759,6 +1771,12 @@ export const translations = {
       legalRisk:  'Розкриття ризиків',
       legalTerms: 'Умови використання',
     },
+    cookies: {
+      body:       'Ми використовуємо cookies та аналітику, щоб покращувати KADO і вимірювати рекламу. Деталі — в Умовах.',
+      accept:     'Прийняти все',
+      reject:     'Відхилити',
+      learnMore:  'Дізнатися більше',
+    },
     news: {
       masthead:    'ТЕРМІНАЛ',
       brand:       'KADO·РОЗВІДКА',
@@ -2359,6 +2377,12 @@ export const translations = {
       colLegal:   'Правовое',
       legalRisk:  'Раскрытие рисков',
       legalTerms: 'Условия использования',
+    },
+    cookies: {
+      body:       'Мы используем cookies и аналитику, чтобы улучшать KADO и измерять рекламу. Подробнее — в Условиях.',
+      accept:     'Принять все',
+      reject:     'Отклонить',
+      learnMore:  'Подробнее',
     },
     news: {
       masthead:    'ТЕРМИНАЛ',
@@ -2961,6 +2985,12 @@ export const translations = {
       legalRisk:  'Risikohinweis',
       legalTerms: 'Nutzungsbedingungen',
     },
+    cookies: {
+      body:       'Wir verwenden Cookies und Analytics, um KADO zu verbessern und Werbung zu messen. Details in den Nutzungsbedingungen.',
+      accept:     'Alle akzeptieren',
+      reject:     'Ablehnen',
+      learnMore:  'Mehr erfahren',
+    },
     news: {
       masthead:    'TERMINAL',
       brand:       'KADO·INTELLIGENCE',
@@ -3561,6 +3591,12 @@ export const translations = {
       colLegal:   '法律',
       legalRisk:  '风险披露',
       legalTerms: '服务条款',
+    },
+    cookies: {
+      body:       '我们使用 Cookie 和分析工具来改进 KADO 并衡量广告效果。详情见服务条款。',
+      accept:     '全部接受',
+      reject:     '拒绝',
+      learnMore:  '了解更多',
     },
     news: {
       masthead:    '终端',

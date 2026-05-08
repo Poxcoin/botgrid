@@ -1,22 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import { LangProvider } from '@/lib/LangContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
 import CursorTracker from '@/components/global/CursorTracker';
+import CookieBanner from '@/components/global/CookieBanner';
 import Landing from '@/pages/Landing';
-import BotsPage from '@/pages/BotsPage';
-import StrategiesPage from '@/pages/StrategiesPage';
-import PricingPage from '@/pages/PricingPage';
-import Auth from '@/pages/Auth';
-import Dashboard from '@/pages/Dashboard';
-import Waitlist from '@/pages/Waitlist';
-import NewsPage from '@/pages/NewsPage';
-import NewsCategoryPage from '@/pages/NewsCategoryPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
-import UserDashboard from '@/pages/UserDashboard';
-import { RiskDisclosurePage, TermsOfServicePage } from '@/pages/LegalPage';
 import { trackPageView } from '@/lib/metaPixel';
+
+const BotsPage          = lazy(() => import('@/pages/BotsPage'));
+const StrategiesPage    = lazy(() => import('@/pages/StrategiesPage'));
+const PricingPage       = lazy(() => import('@/pages/PricingPage'));
+const Auth              = lazy(() => import('@/pages/Auth'));
+const Waitlist          = lazy(() => import('@/pages/Waitlist'));
+const NewsPage          = lazy(() => import('@/pages/NewsPage'));
+const NewsCategoryPage  = lazy(() => import('@/pages/NewsCategoryPage'));
+const UserDashboard     = lazy(() => import('@/pages/UserDashboard'));
+const RiskDisclosurePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.RiskDisclosurePage })));
+const TermsOfServicePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.TermsOfServicePage })));
 
 function PixelRouteTracker() {
   const location = useLocation();
@@ -38,6 +40,8 @@ export default function App() {
         <PixelRouteTracker />
         <GlobalNeural />
         <CursorTracker />
+        <CookieBanner />
+        <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/bots" element={<BotsPage />} />
@@ -68,8 +72,21 @@ export default function App() {
             }
           />
         </Routes>
+        </Suspense>
         </Router>
       </LangProvider>
     </ThemeProvider>
+  );
+}
+
+function RouteLoading() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg-base, #050505)',
+    }}>
+      <div className="shimmer" style={{ width: 120, height: 4, borderRadius: 2 }} />
+    </div>
   );
 }
