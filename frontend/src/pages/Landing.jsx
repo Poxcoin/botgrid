@@ -281,19 +281,12 @@ function HowItWorks() {
 }
 
 /* ── BOTS ── */
-const BOTS = [
-  { num: '01', tag: 'ALT COINS ONLY', name: 'News Intelligence', hook: 'Reads the market before you can.', desc: 'Monitors crypto Telegram channels with real-time latency. Groq LLaMA evaluates every event across 9 factors — sentiment, whale activity, RSI, funding rate, open interest, liquidations, volume, Fear & Greed, on-chain macro. Only alts — BTC/ETH/SOL are priced in microseconds by institutions, edge is zero.', pills: ['Score ≥ 11.0', '9 score factors', 'Alt coins only'] },
-  { num: '02', tag: 'BTC · ETH · SOL', name: 'Grid Trading', hook: 'Earns whether price goes up or down.', desc: 'Adaptive grids running 24/7 on BTC, ETH, and SOL. Places layered limit orders at optimal levels, capturing profit from every oscillation. Trend confirmed via EMA50 + RSI(4h) before entry. Maker-only orders minimize fees.', pills: ['EMA50 filter', 'Maker-only', 'BTC correlation guard'] },
-  { num: '03', tag: 'BINANCE · BYBIT · 10s', name: 'Listing Sniper', hook: 'In before the crowd finishes reading.', desc: 'Polls exchange listing APIs every 10 seconds. The moment a new listing appears, it enters immediately. DEX filter skips coins already pumped on-chain. Two-stage exit: 50% at +10%, remainder rides to +20%.', pills: ['TP1 +10% · TP2 +20%', 'DEX staleness filter', '5× leverage'] },
-  { num: '04', tag: '30 PERPS · 15-MIN CYCLE', name: 'Funding Rate Arb', hook: 'Profits when perpetuals diverge from spot.', desc: 'Scans 30 perpetual markets every 15 minutes. Elevated funding rate combined with overbought RSI signals a SHORT. Negative funding with oversold RSI signals a LONG. Three-tier position sizing amplifies on extreme setups.', pills: ['30 markets', 'FR > 0.04%', '3-tier sizing'] },
-  { num: '05', tag: 'BINANCE WEBSOCKET', name: 'Liquidation Cascade', hook: 'Trades the momentum that lasts minutes, not milliseconds.', desc: 'Connected to Binance liquidation feed 24/7. When $300K+ of shorts are liquidated in 5 minutes with 2.5:1 directional dominance — the bot enters the cascade direction. Cascades unfold over minutes, not microseconds. Real edge.', pills: ['22 alt coins', '$300K threshold', 'TP 6% · SL 2.5%'] },
-  { num: '06', tag: 'ALCHEMY WEBSOCKET · ETH', name: 'On-chain Macro', hook: 'Follow where the real money flows.', desc: 'Tracks ETH whale movements to and from exchange wallets in real time. When 500+ ETH is withdrawn from Binance or Bybit — macro bullish signal activates for AAVE, UNI, LDO, LINK, CRV and other ETH-ecosystem alts for 45 minutes.', pills: ['ETH ecosystem alts', '45-min window', 'Alchemy WebSocket'] },
-  { num: '07', tag: '10 WALLETS · WEBSOCKET', name: 'Whale Tracker', hook: 'Follow the wallets that move markets.', desc: 'Tracks 10 identified smart money wallets — Paradigm, Jump Trading, Wintermute and others — via real-time Alchemy WebSocket feeds. When a whale makes a significant on-chain move, it generates a directional signal for the related assets.', pills: ['10 smart wallets', 'Real-time', 'Lower score threshold'] },
-  { num: '08', tag: 'BSC · PANCAKESWAP V2', name: 'DEX Sniper', hook: 'New launches, safety-checked in real time.', desc: 'Listens for new PairCreated events on PancakeSwap V2. Every token checked for honeypots, buy/sell tax, locked LP, and deployer history. Clean contracts only. Trailing stop activates after +30%.', pills: ['Honeypot check', 'TP +100% · SL −50%', 'Trailing stop at +30%'] },
-];
-
 function BotsSection() {
   const { t } = useLang();
+  const BOTS = ['b1','b2','b3','b4','b5','b6','b7','b8'].map((k, i) => ({
+    num: String(i + 1).padStart(2, '0'),
+    ...t.landing.arsenalBots[k],
+  }));
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
@@ -328,15 +321,9 @@ function BotsSection() {
 }
 
 /* ── RISK ── */
-const RISK = [
-  { title: 'Hard loss cap', body: 'Every open position is monitored every 5 minutes. If unrealized loss exceeds $20 — position is force-closed instantly. Prevents single-trade disasters.' },
-  { title: 'Coin cooldown', body: 'The same coin cannot be traded more than once every 2 hours. Prevents over-exposure to a single asset after a losing trade.' },
-  { title: 'Max exposure', body: 'No more than 15% of balance in simultaneously open positions. Calculated in real time before every entry.' },
-  { title: 'Adaptive pause', body: 'Post-trade analyzer tracks each coin independently. After a losing streak, the bot temporarily skips that coin until performance recovers.' },
-];
-
 function RiskSection() {
   const { t } = useLang();
+  const RISK = ['r1','r2','r3','r4'].map(k => t.landing.risks[k]);
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
@@ -355,14 +342,12 @@ function RiskSection() {
 }
 
 /* ── STRATEGIES ── */
-const STRATS = [
-  { n: '01', name: 'Steady', summary: 'Consistent passive income from price oscillation. No directional bets, no speculation.', tags: ['Grid Trading'], ret: '3–8%', note: 'Best for first-time users or conservative allocations.' },
-  { n: '02', name: 'Balanced', summary: 'Grid income plus AI-driven news alpha, liquidation cascade, and funding rate arbitrage.', tags: ['Grid', 'News Intelligence', 'Liq Cascade', 'Funding Rate'], ret: '10–25%', note: 'Multiple uncorrelated income streams working simultaneously.' },
-  { n: '03', name: 'Full Suite', summary: 'All eight bots active simultaneously. Maximum signal coverage across every market structure.', tags: ['All 8 bots active'], ret: '25%+', note: 'For experienced traders who want complete automation.' },
-];
-
 function Strategies() {
   const { t } = useLang();
+  const STRATS = ['s1','s2','s3'].map((k, i) => ({
+    n: String(i + 1).padStart(2, '0'),
+    ...t.landing.strats[k],
+  }));
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
@@ -384,14 +369,14 @@ function Strategies() {
                   ))}
                 </div>
                 <div style={{ fontSize: 'clamp(36px,4vw,52px)', fontWeight: 700, letterSpacing: '-0.04em', color: '#fff', lineHeight: 1, fontFamily: MONO, marginBottom: 6 }}>{s.ret}</div>
-                <div style={{ fontSize: 9, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16, fontFamily: FONT }}>Est. monthly</div>
+                <div style={{ fontSize: 9, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16, fontFamily: FONT }}>{t.landing.estMonthly}</div>
                 <div style={{ fontSize: 12, color: '#444', lineHeight: 1.7, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.05)', fontFamily: FONT }}>{s.note}</div>
               </div>
             </Link>
           ))}
         </div>
         <div style={{ marginTop: 24, fontSize: 11, color: '#2a2a2a', lineHeight: 1.7, textAlign: 'center', fontFamily: FONT }}>
-          Estimated returns are not guaranteed. Crypto trading carries inherent risk.
+          {t.landing.returnsDisclaimer}
         </div>
       </div>
     </section>
