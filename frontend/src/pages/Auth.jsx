@@ -433,13 +433,14 @@ export default function Auth() {
     e.preventDefault();
     setError('');
 
+    if (!form.email || !form.password) { setError(t.auth.errAllFields); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError(t.auth.errEmail); return; }
     if (mode === 'register') {
       if (!form.username) { setError(t.auth.errUsername); return; }
       const { score } = checkStrength(form.password);
       if (score < 4) { setError(t.auth.errPwWeak); return; }
       if (form.password !== form.confirm) { setError(t.auth.errPwMismatch); return; }
     }
-    if (!form.email || !form.password) { setError(t.auth.errAllFields); return; }
 
     setLoading(true);
     try {

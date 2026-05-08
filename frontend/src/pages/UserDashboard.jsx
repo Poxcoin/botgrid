@@ -53,6 +53,83 @@ function getUser() {
   try { return JSON.parse(localStorage.getItem('kado_user') || '{}'); } catch { return {}; }
 }
 
+function VerifyEmailBanner() {
+  const { t } = useLang();
+  const [hidden, setHidden] = useState(() => sessionStorage.getItem('kado_verify_dismissed') === '1');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState('');
+
+  if (hidden) return null;
+
+  async function resend() {
+    setSending(true); setErr('');
+    try {
+      const r = await fetch('/api/users/resend-verification', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        setErr(d.detail || t.auth.errSomethingWrong);
+      } else {
+        setSent(true);
+      }
+    } catch {
+      setErr(t.auth.errConnectionShort);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function dismiss() {
+    sessionStorage.setItem('kado_verify_dismissed', '1');
+    setHidden(true);
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
+      padding: '10px 16px', margin: '0 32px',
+      marginTop: 16, marginBottom: -16,
+      background: 'rgba(245,158,11,0.08)',
+      border: '1px solid rgba(245,158,11,0.25)',
+      borderRadius: 6,
+      fontFamily: FONT, fontSize: 13, color: 'var(--text-primary)',
+    }}>
+      <span style={{ color: '#f59e0b', fontSize: 14, lineHeight: 1 }}>⚠</span>
+      <span style={{ flex: 1, minWidth: 200 }}>
+        {sent ? t.dashboard.verifyBannerSent : err || t.dashboard.verifyBannerBody}
+      </span>
+      {!sent && (
+        <button
+          onClick={resend}
+          disabled={sending}
+          style={{
+            background: 'none', border: '1px solid rgba(245,158,11,0.5)',
+            color: '#f59e0b', fontFamily: MONO, fontSize: 11, letterSpacing: '0.08em',
+            padding: '6px 12px', borderRadius: 4, cursor: sending ? 'default' : 'pointer',
+            opacity: sending ? 0.5 : 1, textTransform: 'uppercase',
+          }}
+        >
+          {sending ? t.dashboard.verifyBannerSending : t.dashboard.verifyBannerResend}
+        </button>
+      )}
+      <button
+        onClick={dismiss}
+        aria-label={t.dashboard.verifyBannerDismiss}
+        title={t.dashboard.verifyBannerDismiss}
+        style={{
+          background: 'none', border: 'none', color: 'var(--text-muted)',
+          cursor: 'pointer', padding: 4, fontSize: 16, lineHeight: 1,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function UserDropdown({ user, activeTab, setActiveTab, onClose }) {
   const { t } = useLang();
   function logout() {
@@ -242,12 +319,6 @@ export default function UserDashboard() {
 
         {/* Right side */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, marginLeft: 16 }}>
-          {user.email_verified === false && (
-            <div style={{ fontFamily: MONO, fontSize: 9, color: '#f59e0b', letterSpacing: '0.08em', flexShrink: 0 }}>
-              {t.dashboard.verifyEmail}
-            </div>
-          )}
-
           {/* User pill */}
           <div ref={userDropRef} style={{ position: 'relative' }}>
             <button
@@ -292,6 +363,9 @@ export default function UserDashboard() {
           </div>
         </div>
       </header>
+
+      {/* ── Verify-email banner (dismissable per session) ──────────────────── */}
+      {user.email_verified === false && <VerifyEmailBanner />}
 
       {/* ── Content ─────────────────────────────────────────────────────────── */}
       <main className="kado-content" style={{ padding: '36px 32px 72px', minWidth: 0 }}>
