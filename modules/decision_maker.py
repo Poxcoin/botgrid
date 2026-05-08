@@ -14,6 +14,15 @@ _STABLECOINS = frozenset({"USDC", "USDT", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD
 # Для них є окремі стратегії: Grid (SOL/BTC/ETH) та Funding Rate (всі).
 _NEWS_BLOCKED = frozenset({"BTC", "ETH", "SOL", "BNB", "BITCOIN", "ETHEREUM", "SOLANA", "BINANCE COIN"})
 
+# Монети з підтвердженим негативним PnL — заблоковані від news-signal торгівлі.
+# Дані (all-time analytics.db): STX -$73.67 33%WR, ZETA -$35.68 0%WR,
+# ATOM -$12.02 0%WR, OP -$7.69 0%WR, TRX -$5.36 0%WR, LTC -$3.43 0%WR, AAVE -$2.14 0%WR
+_COIN_BLACKLIST = frozenset({"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE"})
+
+# Монети з підтвердженим позитивним PnL і високим WR — розмір позиції x1.5.
+# Дані: WLD +$90.93 71%WR (7 угод), ARB +$19.68 100%WR (2 угоди), JUP +$19.65 100%WR (1 угода)
+_HIGH_WR_COINS = frozenset({"WLD", "ARB", "JUP"})
+
 import re as _re
 
 _TICKER_RE = _re.compile(r'\(([A-Z]{2,10})\)')  # "Binance Will List Chip (CHIP)" → CHIP
@@ -86,6 +95,9 @@ def generate_whale_signal(news_item: dict) -> dict | None:
     # BTC/ETH whale alerts are too noisy — score too low to pass 13.0 threshold, skip
     _btc_eth = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
     if coin.upper() in _btc_eth:
+        return None
+    # Blacklisted coins — confirmed losers, skip whale alerts too
+    if coin.upper() in _COIN_BLACKLIST:
         return None
     score = 8.0 if action == "LONG" else -8.0
     return {
@@ -246,6 +258,11 @@ def generate_signal(news_item: dict) -> dict | None:
         return None
 
     if coin_upper in _NEWS_BLOCKED:
+        return None
+
+    # Монета в чорному списку (підтверджені збитки за даними analytics.db)
+    if coin_upper in _COIN_BLACKLIST:
+        print(f"   ⛔ {coin} в чорному списку (confirmed loser) — пропускаємо")
         return None
 
     # Слабая новость — не рискуем
@@ -450,12 +467,13 @@ def generate_signal(news_item: dict) -> dict | None:
     action = "HOLD"
 
     btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
-    if is_smart_wallet:
-        min_score = 10.0  # smart money: підняли з 8.0 (занадто багато шумних угод)
-    elif coin_upper in btc_eth_coins:
-        min_score = 13.0  # BTC/ETH: підняли з 11.0 (12% winrate = поріг був занадто низький)
+    if coin_upper in btc_eth_coins:
+        # BTC/ETH: 12% WR (-$53.35 combined) — smart wallet or not, high threshold required
+        min_score = 15.0  # підняли з 13.0: навіть smart wallet ETH/BTC дають <20% WR
+    elif is_smart_wallet:
+        min_score = 10.0  # smart money для алтів: підняли з 8.0 (занадто багато шумних угод)
     else:
-        min_score = 11.0  # алти: підняли з 10.0 (загальний winrate 21% = недостатньо)
+        min_score = 13.0  # алти: підняли з 11.0; дані: score 11-12.9 давали <30% WR
 
     if total_score >= min_score and confidence >= 60:
         action = "LONG"
@@ -478,6 +496,13 @@ def generate_signal(news_item: dict) -> dict | None:
     else:
         tier_mult = 0.6
     size_multiplier = max(0.4, min(2.0, tier_mult * conf_factor)) * time_coeff
+
+    # High-WR бонус: монети з підтвердженим >70% winrate — розмір позиції x1.5
+    # Дані: WLD 71%WR +$90.93, ARB 100%WR +$19.68, JUP 100%WR +$19.65
+    if coin_upper in _HIGH_WR_COINS:
+        size_multiplier = min(2.0, size_multiplier * 1.5)
+        print(f"   ⭐ High-WR boost: {coin} → size×1.5 ({size_multiplier:.2f})")
+
     size_multiplier = round(size_multiplier, 2)
 
     # ==========================================

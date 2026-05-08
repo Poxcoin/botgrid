@@ -659,11 +659,24 @@ def run_signal_engine():
                                         continue
 
                                 # Safety: explicit min-score guard (синхронізовано з decision_maker)
+                                # Дані: BTC 12%WR, ETH 19%WR → підвищено до 15.0
+                                # Алти 30d: score 11-12.9 <30%WR → підвищено до 13.0
                                 _btc_eth_guard = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
-                                _min_safe = 10.0 if _is_sm_guard else (13.0 if coin.upper() in _btc_eth_guard else 11.0)
+                                if coin.upper() in _btc_eth_guard:
+                                    _min_safe = 15.0  # BTC/ETH: high threshold regardless of source
+                                elif _is_sm_guard:
+                                    _min_safe = 10.0  # smart wallet alts: lower threshold OK
+                                else:
+                                    _min_safe = 13.0  # regular alt signals
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
+                                    continue
+
+                                # Blacklist guard (синхронізовано з decision_maker._COIN_BLACKLIST)
+                                _TRADE_BLACKLIST = {"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE"}
+                                if coin.upper() in _TRADE_BLACKLIST:
+                                    print(f"⛔ {coin}: в чорному списку (confirmed loser) — safety guard")
                                     continue
 
                                 # Денний ліміт угод на монету
