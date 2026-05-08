@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import KadoButton from '@/components/shared/KadoButton';
 import { useLang } from '@/lib/LangContext';
+import { trackCompleteRegistration } from '@/lib/metaPixel';
 
 // ── Password strength ────────────────────────────────────────────────────────
 function checkStrength(pw) {
@@ -406,6 +407,7 @@ export default function Auth() {
   const [partialToken, setPartialToken] = useState(null);
   const [otpToken, setOtpToken] = useState(null);
   const [forgotMode, setForgotMode] = useState(false);
+  const [pendingRegistration, setPendingRegistration] = useState(false);
 
   useEffect(() => {
     setMode(params.get('mode') === 'register' ? 'register' : 'login');
@@ -443,17 +445,20 @@ export default function Auth() {
       if (!res.ok) { setError(data.detail || t.auth.errSomethingWrong); return; }
 
       if (data.requires_2fa) {
+        if (mode === 'register') setPendingRegistration(true);
         setPartialToken(data.partial_token);
         return;
       }
 
       if (data.requires_otp) {
+        if (mode === 'register') setPendingRegistration(true);
         setOtpToken(data.otp_token);
         return;
       }
 
       localStorage.setItem('kado_token', data.token);
       localStorage.setItem('kado_user', JSON.stringify(data.user));
+      if (mode === 'register') trackCompleteRegistration();
       navigate('/account');
     } catch {
       setError(t.auth.errConnection);
@@ -465,6 +470,10 @@ export default function Auth() {
   function onAuthSuccess(data) {
     localStorage.setItem('kado_token', data.token);
     localStorage.setItem('kado_user', JSON.stringify(data.user));
+    if (pendingRegistration) {
+      trackCompleteRegistration();
+      setPendingRegistration(false);
+    }
     navigate('/account');
   }
 

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import { LangProvider } from '@/lib/LangContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
@@ -15,6 +15,13 @@ import NewsPage from '@/pages/NewsPage';
 import NewsCategoryPage from '@/pages/NewsCategoryPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 import UserDashboard from '@/pages/UserDashboard';
+import { trackPageView } from '@/lib/metaPixel';
+
+function PixelRouteTracker() {
+  const location = useLocation();
+  useEffect(() => { trackPageView(); }, [location.pathname]);
+  return null;
+}
 
 export default function App() {
   useEffect(() => {
@@ -27,6 +34,7 @@ export default function App() {
     <ThemeProvider>
       <LangProvider>
         <Router>
+        <PixelRouteTracker />
         <GlobalNeural />
         <CursorTracker />
         <Routes>
