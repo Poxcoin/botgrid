@@ -349,7 +349,7 @@ export default function UserDashboard() {
                 fontFamily: FONT, fontSize: 12, color: '#888',
                 maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-                {user.email || t.dashboard.account}
+                {user.email || t.dashboard.tabAccount}
               </span>
               <svg width="9" height="5" viewBox="0 0 9 5" fill="none" style={{ opacity: 0.35, flexShrink: 0 }}>
                 <path d="M1 1l3.5 3L8 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
