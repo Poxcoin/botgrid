@@ -241,7 +241,7 @@ export default function PricingPage() {
 
   async function startCheckout(plan) {
     const token = localStorage.getItem('kado_token');
-    if (!token) { window.location.href = '/register'; return; }
+    if (!token) { window.location.href = '/auth?mode=register'; return; }
     setLoading(plan);
     try {
       const res = await fetch('/api/billing/checkout', {
@@ -251,14 +251,14 @@ export default function PricingPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.detail || 'Checkout failed');
+        alert(err.detail || t.pricing.checkoutFailed);
         setLoading(null);
         return;
       }
       const { url } = await res.json();
       window.location.href = url;
     } catch {
-      alert('Checkout unavailable — try again');
+      alert(t.pricing.checkoutUnavailable);
       setLoading(null);
     }
   }
@@ -298,7 +298,7 @@ export default function PricingPage() {
                 {FREE_OFF_KEYS.map((k) => <FeatureRow key={k} on={false} text={t.pricing.features[k]} />)}
               </ul>
               <div style={S.ctaWrap}>
-                <a href="/register" style={S.btnGhost}>{t.pricing.starterCta}</a>
+                <a href="/auth?mode=register" style={S.btnGhost}>{t.pricing.starterCta}</a>
               </div>
             </div>
 

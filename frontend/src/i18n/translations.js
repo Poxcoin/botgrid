@@ -479,6 +479,8 @@ export const translations = {
       perfDesc:         'No monthly fee. Pay only when you earn. High-water mark protection — fees apply only to new profits above your previous cumulative peak.',
       recommendedPill:  'RECOMMENDED',
       redirecting:      'Redirecting…',
+      checkoutFailed:        'Checkout failed',
+      checkoutUnavailable:   'Checkout unavailable — try again',
       features: {
         dashboard:       'Dashboard access',
         botAnalyzer:     'Bot analyzer & backtester',
@@ -1039,6 +1041,8 @@ export const translations = {
       perfDesc:         'Sin cuota mensual. Paga solo cuando ganas. Protección high-water mark — las comisiones aplican solo a nuevos beneficios por encima de tu pico acumulado anterior.',
       recommendedPill:  'RECOMENDADO',
       redirecting:      'Redirigiendo…',
+      checkoutFailed:        'Error en el pago',
+      checkoutUnavailable:   'Pago no disponible — inténtalo de nuevo',
       features: {
         dashboard:       'Acceso al panel',
         botAnalyzer:     'Analizador & backtester',
@@ -1599,6 +1603,8 @@ export const translations = {
       perfDesc:         'Без щомісячної плати. Платіть лише коли заробляєте. Захист high-water mark — комісія діє лише на новий прибуток понад попередній накопичений максимум.',
       recommendedPill:  'РЕКОМЕНДОВАНО',
       redirecting:      'Перехід…',
+      checkoutFailed:        'Помилка оплати',
+      checkoutUnavailable:   'Оплата недоступна — спробуйте ще раз',
       features: {
         dashboard:       'Доступ до кабінету',
         botAnalyzer:     'Аналізатор & бектестер',
@@ -2159,6 +2165,8 @@ export const translations = {
       perfDesc:         'Без ежемесячной платы. Платите только когда зарабатываете. Защита high-water mark — комиссия действует только на новую прибыль выше предыдущего накопленного пика.',
       recommendedPill:  'РЕКОМЕНДУЕТСЯ',
       redirecting:      'Переход…',
+      checkoutFailed:        'Ошибка оплаты',
+      checkoutUnavailable:   'Оплата недоступна — попробуйте снова',
       features: {
         dashboard:       'Доступ к кабинету',
         botAnalyzer:     'Анализатор & бектестер',
@@ -2719,6 +2727,8 @@ export const translations = {
       perfDesc:         'Keine monatliche Gebühr. Zahlen Sie nur bei Gewinn. High-Water-Mark-Schutz — Gebühren greifen nur bei neuen Gewinnen über Ihrem vorherigen kumulierten Höchststand.',
       recommendedPill:  'EMPFOHLEN',
       redirecting:      'Weiterleitung…',
+      checkoutFailed:        'Bezahlung fehlgeschlagen',
+      checkoutUnavailable:   'Bezahlung nicht verfügbar — bitte erneut versuchen',
       features: {
         dashboard:       'Dashboard-Zugang',
         botAnalyzer:     'Bot-Analyzer & Backtester',
@@ -3279,6 +3289,8 @@ export const translations = {
       perfDesc:         '无月费。仅在盈利时付费。高水位线保护 — 费用仅适用于超过您先前累计高点的新盈利。',
       recommendedPill:  '推荐',
       redirecting:      '跳转中…',
+      checkoutFailed:        '支付失败',
+      checkoutUnavailable:   '支付不可用 — 请重试',
       features: {
         dashboard:       '控制台访问',
         botAnalyzer:     '机器人分析器与回测',
