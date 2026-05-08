@@ -20,7 +20,7 @@ const PUBLIC_ROUTES = [
 
 const DASHBOARD_TABS = [
   'overview', 'bot', 'analytics', 'pnl', 'trades', 'signals', 'logs', 'backtester',
-  'account', 'security', 'settings',
+  'account', 'api-keys', 'security', 'settings',
 ];
 
 const MOCK_USER = {
