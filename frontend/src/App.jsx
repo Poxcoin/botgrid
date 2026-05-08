@@ -15,6 +15,7 @@ import NewsPage from '@/pages/NewsPage';
 import NewsCategoryPage from '@/pages/NewsCategoryPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
 import UserDashboard from '@/pages/UserDashboard';
+import { RiskDisclosurePage, TermsOfServicePage } from '@/pages/LegalPage';
 import { trackPageView } from '@/lib/metaPixel';
 
 function PixelRouteTracker() {
@@ -48,6 +49,8 @@ export default function App() {
           <Route path="/waitlist" element={<Waitlist />} />
           <Route path="/dashboard" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+          <Route path="/legal/risk-disclosure" element={<RiskDisclosurePage />} />
+          <Route path="/legal/terms" element={<TermsOfServicePage />} />
           <Route
             path="*"
             element={

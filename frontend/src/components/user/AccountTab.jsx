@@ -156,10 +156,14 @@ function BillingBlock({ plan, trialDaysLeft }) {
   };
 
   if (plan === 'trial') {
+    const hasDays = typeof trialDaysLeft === 'number' && trialDaysLeft >= 0;
     return (
       <div>
         <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
-          {t.dashboard.settings.trial} — <span style={{ color: '#aaa' }}>{trialDaysLeft} {trialDaysLeft === 1 ? t.dashboard.settings.day : t.dashboard.settings.days} {t.dashboard.settings.leftSuffix}</span>
+          {t.dashboard.settings.trial}
+          {hasDays && (
+            <> — <span style={{ color: '#aaa' }}>{trialDaysLeft} {trialDaysLeft === 1 ? t.dashboard.settings.day : t.dashboard.settings.days} {t.dashboard.settings.leftSuffix}</span></>
+          )}
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
           {t.dashboard.settings.trialDesc}

@@ -7,6 +7,7 @@ const MONO = "'Courier New','SF Mono',monospace";
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 
 const LANG_LABELS = { en: 'English', es: 'Español', uk: 'Українська', ru: 'Русский', de: 'Deutsch', zh: '中文' };
+const TG_BOT_USERNAME = '@KADO_c_BOT';
 
 function NavLink({ to, label }) {
   const { pathname } = useLocation();
@@ -209,7 +210,7 @@ function SettingsDropdown({ onClose }) {
         <MenuItem
           icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.49 8.31-1.97 9.27c-.15.66-.54.82-1.09.51l-3-2.21-1.45 1.39c-.16.16-.3.3-.6.3l.21-3.05 5.56-5.02c.24-.21-.05-.33-.37-.12L6.87 13.8 3.9 12.87c-.64-.2-.65-.64.14-.95l11.57-4.46c.53-.19 1 .13.88.85z"/></svg>}
           label={t.settings.tgBot}
-          sub="@pulseplusebot"
+          sub={TG_BOT_USERNAME}
           to={isLoggedIn ? '/account#telegram' : '/auth?mode=login'}
           onClick={onClose}
         />

@@ -256,7 +256,9 @@ export default function PricingPage() {
 
   async function startCheckout(plan) {
     const token = localStorage.getItem('kado_token');
-    if (!token) { window.location.href = '/auth?mode=register'; return; }
+    if (!token) { window.location.href = `/auth?mode=register&plan=${plan}`; return; }
+    // Performance plan: fee-on-profit settled in USDT, no upfront checkout — send to billing panel.
+    if (plan === 'performance') { window.location.href = '/account#billing'; return; }
     setLoading(plan);
     try {
       const res = await fetch('/api/billing/checkout', {
@@ -265,13 +267,14 @@ export default function PricingPage() {
         body: JSON.stringify({ plan }),
       });
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         alert(err.detail || t.pricing.checkoutFailed);
         setLoading(null);
         return;
       }
       const { url } = await res.json();
-      window.location.href = url;
+      if (url) { window.location.href = url; return; }
+      window.location.href = '/account#billing';
     } catch {
       alert(t.pricing.checkoutUnavailable);
       setLoading(null);

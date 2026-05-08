@@ -47,7 +47,7 @@ export default function OverviewTab() {
   useEffect(() => {
     Promise.all([
       API('/api/users/me'),
-      API('/api/users/trades?limit=10'),
+      API('/api/users/trades?limit=200'),
       API('/api/users/pnl'),
     ]).then(([me, trades, pnl]) => {
       setMe(me); setTrades(trades); setPnl(pnl);
