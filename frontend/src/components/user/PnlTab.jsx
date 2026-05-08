@@ -11,10 +11,17 @@ export default function PnlTab() {
   const { t } = useLang();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    API('/api/users/pnl').then(setRows).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  function load() {
+    setLoading(true); setError(false);
+    API('/api/users/pnl')
+      .then(d => { setRows(Array.isArray(d) ? d : []); })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { load(); }, []);
 
   const totalGross = rows.reduce((s, r) => s + r.gross_pnl, 0);
   const totalFee   = rows.reduce((s, r) => s + r.performance_fee, 0);
@@ -36,7 +43,9 @@ export default function PnlTab() {
           <div key={label} style={{ borderBottom: '1px solid var(--border)', padding: '20px 0' }}>
             <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 8 }}>{label}</div>
             <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-              {loading ? '—' : `${val >= 0 ? '+' : ''}${val.toFixed(2)}`}
+              {loading
+                ? <div className="shimmer" style={{ height: 28, width: 140, borderRadius: 4 }} />
+                : `${val >= 0 ? '+' : ''}${val.toFixed(2)}`}
             </div>
           </div>
         ))}
@@ -79,11 +88,22 @@ export default function PnlTab() {
             <tr key={i}>
               {[1,2,3,4,5].map(j => (
                 <td key={j} style={{ padding: '12px 0' }}>
-                  <div style={{ height: 11, background: 'var(--bg3)', width: '70%', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  <div className="shimmer" style={{ height: 11, width: '70%', borderRadius: 3 }} />
                 </td>
               ))}
             </tr>
-          )) : rows.length === 0 ? (
+          )) : error ? (
+            <tr><td colSpan={5} style={{ padding: '40px 0', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, color: 'var(--accent-red)', marginBottom: 12 }}>{t.dashboard.analytics.errorPrefix} —</div>
+              <button onClick={load} style={{
+                background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)',
+                fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase',
+                padding: '7px 16px', cursor: 'pointer', borderRadius: 4,
+              }}>
+                {t.dashboard.analytics.retry}
+              </button>
+            </td></tr>
+          ) : rows.length === 0 ? (
             <tr><td colSpan={5} style={{ padding: '40px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>{t.dashboard.pnl.noPnlData}</td></tr>
           ) : rows.map(r => (
             <tr key={`${r.year}-${r.month}`} style={{ borderBottom: '1px solid var(--border)' }}>

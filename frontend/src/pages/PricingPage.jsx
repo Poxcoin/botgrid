@@ -244,6 +244,7 @@ function FeatureRow({ on, text }) {
 export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const [loading, setLoading] = useState(null);
+  const [checkoutErr, setCheckoutErr] = useState('');
   const { t } = useLang();
   usePageTitle(t.nav.pricing);
 
@@ -255,6 +256,7 @@ export default function PricingPage() {
   ];
 
   async function startCheckout(plan) {
+    setCheckoutErr('');
     const token = localStorage.getItem('kado_token');
     if (!token) { window.location.href = `/auth?mode=register&plan=${plan}`; return; }
     // Performance plan: fee-on-profit settled in USDT, no upfront checkout — send to billing panel.
@@ -268,7 +270,7 @@ export default function PricingPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(err.detail || t.pricing.checkoutFailed);
+        setCheckoutErr(err.detail || t.pricing.checkoutFailed);
         setLoading(null);
         return;
       }
@@ -276,7 +278,7 @@ export default function PricingPage() {
       if (url) { window.location.href = url; return; }
       window.location.href = '/account#billing';
     } catch {
-      alert(t.pricing.checkoutUnavailable);
+      setCheckoutErr(t.pricing.checkoutUnavailable);
       setLoading(null);
     }
   }
@@ -299,6 +301,20 @@ export default function PricingPage() {
       {/* Cards */}
       <div style={S.wrap} className="px-5 md:px-14">
         <div style={S.cardsSection}>
+          {checkoutErr && (
+            <div role="alert" style={{
+              maxWidth: 880, margin: '0 auto 16px',
+              padding: '10px 14px',
+              border: '1px solid rgba(255,77,109,0.4)',
+              background: 'rgba(255,77,109,0.08)',
+              color: '#ff8a9b',
+              fontFamily: "'Courier New','SF Mono',monospace",
+              fontSize: 12, letterSpacing: '0.04em',
+              borderRadius: 4,
+            }}>
+              ! {checkoutErr}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '16px' }}>
 
             {/* FREE */}

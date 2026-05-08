@@ -47,6 +47,7 @@ function InvoicePanel() {
   const [notifying, setNotifying] = useState(false);
   const [txInput, setTxInput] = useState('');
   const [notified, setNotified] = useState(false);
+  const [notifyErr, setNotifyErr] = useState('');
 
   useEffect(() => {
     API('/api/billing/invoice/current').then(setData).catch(() => {});
@@ -54,7 +55,7 @@ function InvoicePanel() {
 
   async function handleNotify() {
     if (!data?.invoice) return;
-    setNotifying(true);
+    setNotifying(true); setNotifyErr('');
     try {
       await API('/api/billing/invoice/notify', {
         method: 'POST',
@@ -63,7 +64,7 @@ function InvoicePanel() {
       setNotified(true);
       setData(d => ({ ...d, invoice: { ...d.invoice, notified: true } }));
     } catch (e) {
-      alert(typeof e === 'string' ? e : t.dashboard.settings.errorTryAgain);
+      setNotifyErr(typeof e === 'string' ? e : t.dashboard.settings.errorTryAgain);
     } finally {
       setNotifying(false);
     }
@@ -134,6 +135,17 @@ function InvoicePanel() {
               <button disabled={notifying} onClick={handleNotify} style={btn}>
                 {notifying ? t.dashboard.settings.sending : t.dashboard.settings.iPaid}
               </button>
+              {notifyErr && (
+                <div role="alert" style={{
+                  marginTop: 10, padding: '8px 12px',
+                  border: '1px solid rgba(255,77,109,0.35)',
+                  background: 'rgba(255,77,109,0.08)',
+                  color: '#ff8a9b', fontSize: 12, fontFamily: 'var(--font-mono)',
+                  borderRadius: 4,
+                }}>
+                  ! {notifyErr}
+                </div>
+              )}
             </>
           )}
         </div>
