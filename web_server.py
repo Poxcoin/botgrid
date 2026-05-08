@@ -105,11 +105,14 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self'; "
+        # Cloudflare Web Analytics auto-injects beacon.min.js; Meta Pixel loads
+        # fbevents.js (only after the user accepts cookie consent).
+        "script-src 'self' https://static.cloudflareinsights.com https://connect.facebook.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173 "
-        "https://api.bybit.com wss://stream.bybit.com; "
+        "https://api.bybit.com wss://stream.bybit.com "
+        "https://cloudflareinsights.com https://www.facebook.com; "
         "img-src 'self' data: https:; "
         "frame-ancestors 'none'; "
         "upgrade-insecure-requests;"
