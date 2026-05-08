@@ -9,7 +9,14 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 _DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE_URL = f"sqlite:///{_DB_DIR}/saas_database.sqlite"
 
+def _enable_wal(dbapi_conn, _connection_record):
+    dbapi_conn.execute("PRAGMA journal_mode=WAL")
+    dbapi_conn.execute("PRAGMA synchronous=NORMAL")
+
+from sqlalchemy import event as _sa_event
+
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+_sa_event.listen(engine, "connect", _enable_wal)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -46,7 +53,7 @@ class User(Base):
     email_verify_token = Column(String, nullable=True)
 
     # Password reset
-    password_reset_token   = Column(String, nullable=True)
+    password_reset_token   = Column(String, nullable=True, index=True)
     password_reset_expires = Column(DateTime, nullable=True)
 
     # 2FA (TOTP)
@@ -58,8 +65,8 @@ class User(Base):
     last_login   = Column(DateTime, nullable=True)
 
     # Referral
-    ref_code       = Column(String, unique=True, nullable=True)   # e.g. "KADO-X9KM2R"
-    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    ref_code       = Column(String, unique=True, nullable=True, index=True)   # e.g. "KADO-X9KM2R"
+    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     # Relationships
     api_keys     = relationship("UserApiKey",      back_populates="user", cascade="all, delete-orphan")
@@ -175,7 +182,7 @@ class UserTrade(Base):
     exit_price  = Column(Float, nullable=True)
     qty         = Column(Float, nullable=True)
     pnl_usdt    = Column(Float, nullable=True)         # realized PnL in USDT
-    status      = Column(String, default="open")       # open | closed | failed | cancelled
+    status      = Column(String, default="open", index=True)  # open | closed | failed | cancelled
     order_id    = Column(String, nullable=True)        # exchange order ID
     error_msg   = Column(String, nullable=True)        # if status=failed
     opened_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -231,8 +238,8 @@ class ReferralEarning(Base):
     __tablename__ = "referral_earnings"
 
     id          = Column(Integer, primary_key=True)
-    referral_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    referred_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    referral_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    referred_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     week_start  = Column(DateTime, nullable=False)
     fee_paid    = Column(Float, default=0.0)
     earned      = Column(Float, default=0.0)
@@ -298,6 +305,39 @@ def _migrate_columns():
 
 
 _migrate_columns()
+
+
+def _migrate_indexes():
+    """Create indexes on existing columns that were added after initial schema creation."""
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_users_ref_code "
+            "ON users (ref_code)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_users_referred_by_id "
+            "ON users (referred_by_id)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_users_password_reset_token "
+            "ON users (password_reset_token)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_user_trades_status "
+            "ON user_trades (status)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_referral_earnings_referral_id "
+            "ON referral_earnings (referral_id)"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_referral_earnings_referred_id "
+            "ON referral_earnings (referred_id)"
+        ))
+
+
+_migrate_indexes()
 
 
 def get_db():
