@@ -255,18 +255,12 @@ function HomeHero() {
 }
 
 /* ── HOW IT WORKS ── */
-const STEP_BODIES = [
-  'Generate an API key on Bybit with trade permissions only. Paste it into your dashboard. Your funds stay on your exchange at all times — KADO only sends orders.',
-  'Run one bot or all eight. Conservative grid for passive income. AI news signals for directional alpha. Full suite for maximum coverage. Switch any time.',
-  'Everything activates in under 60 seconds. Monitor live signals, open positions, and real PnL from your dashboard. No code. No manual work.',
-];
-
 function HowItWorks() {
   const { t } = useLang();
   const STEPS = [
-    { n: '01', title: t.landing.step1Title, body: STEP_BODIES[0] },
-    { n: '02', title: t.landing.step2Title, body: STEP_BODIES[1] },
-    { n: '03', title: t.landing.step3Title, body: STEP_BODIES[2] },
+    { n: '01', title: t.landing.step1Title, body: t.landing.step1Body },
+    { n: '02', title: t.landing.step2Title, body: t.landing.step2Body },
+    { n: '03', title: t.landing.step3Title, body: t.landing.step3Body },
   ];
   return (
     <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
