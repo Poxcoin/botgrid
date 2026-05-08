@@ -7,53 +7,19 @@ import { useLang } from '@/lib/LangContext';
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
 
-const STRATEGIES = [
-  {
-    num: '01',
-    name: 'Steady',
-    summary: 'Consistent passive income from price oscillation. No directional bets, no speculation.',
-    bots: ['Grid Trading'],
-    returns: '3–8%',
-    note: 'Best for first-time users or conservative allocations.',
-  },
-  {
-    num: '02',
-    name: 'Balanced',
-    summary: 'Grid income plus AI-driven news alpha and funding rate arbitrage. Three independent income streams.',
-    bots: ['Grid Trading', 'News Intelligence', 'Funding Rate Arb'],
-    returns: '10–25%',
-    note: 'For users who want multiple uncorrelated strategies working together.',
-  },
-  {
-    num: '03',
-    name: 'Full Suite',
-    summary: 'All eight bots active simultaneously. Maximum signal coverage across every market opportunity.',
-    bots: ['All 8 bots active'],
-    returns: '25%+',
-    note: 'For experienced traders who want complete automation.',
-  },
-];
+const BOT_KEYS = ['b1','b2','b3','b4','b5','b6','b7','b8'];
 
-const BOTS_LIST = [
-  'News Intelligence',
-  'Grid Trading',
-  'Listing Sniper',
-  'Funding Rate Arb',
-  'Liquidation Cascade',
-  'On-chain Macro',
-  'Whale Tracker',
-  'DEX Sniper',
-];
-
+// s1 = Steady, s2 = Balanced, s3 = Full Suite
+// boolean[] indexed [s1, s2, s3] — which bot is included in each strategy
 const COMPARISON = {
-  'News Intelligence':    [false, true,  true],
-  'Grid Trading':         [true,  true,  true],
-  'Listing Sniper':       [false, false, true],
-  'Funding Rate Arb':     [false, true,  true],
-  'Liquidation Cascade':  [false, false, true],
-  'On-chain Macro':       [false, false, true],
-  'Whale Tracker':        [false, false, true],
-  'DEX Sniper':           [false, false, true],
+  b1: [false, true,  true],  // News Intelligence
+  b2: [true,  true,  true],  // Grid Trading
+  b3: [false, false, true],  // Listing Sniper
+  b4: [false, true,  true],  // Funding Rate Arb
+  b5: [false, true,  true],  // Liquidation Cascade
+  b6: [false, false, true],  // On-chain Macro
+  b7: [false, false, true],  // Whale Tracker
+  b8: [false, false, true],  // DEX Sniper
 };
 
 function PillTag({ label }) {
@@ -73,7 +39,7 @@ function PillTag({ label }) {
   );
 }
 
-function StrategyCard({ strategy }) {
+function StrategyCard({ strategy, estMonthlyLabel }) {
   const [hovered, setHovered] = React.useState(false);
   return (
     <div
@@ -89,29 +55,24 @@ function StrategyCard({ strategy }) {
         transition: 'background 200ms',
       }}
     >
-      {/* Number */}
       <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: '#555', letterSpacing: '0.08em', marginBottom: 20 }}>
         {strategy.num}
       </div>
 
-      {/* Name */}
       <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: '#fff', marginBottom: 12 }}>
         {strategy.name}
       </div>
 
-      {/* Summary */}
       <p style={{ fontSize: 14, color: '#666', lineHeight: 1.7, marginBottom: 24, flexGrow: 1 }}>
         {strategy.summary}
       </p>
 
-      {/* Bot tags */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 36 }}>
-        {strategy.bots.map((b) => (
+        {strategy.tags.map((b) => (
           <PillTag key={b} label={b} />
         ))}
       </div>
 
-      {/* Returns */}
       <div style={{ marginBottom: 8 }}>
         <div style={{
           fontFamily: FONT_MONO,
@@ -121,14 +82,13 @@ function StrategyCard({ strategy }) {
           letterSpacing: '-0.04em',
           lineHeight: 1.0,
         }}>
-          {strategy.returns}
+          {strategy.ret}
         </div>
         <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: '#555', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 6 }}>
-          Est. monthly
+          {estMonthlyLabel}
         </div>
       </div>
 
-      {/* Divider + note */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: 24, paddingTop: 20 }}>
         <p style={{ fontSize: 12, color: '#555', lineHeight: 1.6, margin: 0 }}>
           {strategy.note}
@@ -141,6 +101,11 @@ function StrategyCard({ strategy }) {
 export default function StrategiesPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const { t } = useLang();
+
+  const STRATEGIES = ['s1','s2','s3'].map((k, i) => ({
+    num: String(i + 1).padStart(2, '0'),
+    ...t.landing.strats[k],
+  }));
 
   return (
     <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
@@ -190,7 +155,7 @@ export default function StrategiesPage() {
           style={{ gap: 16 }}
         >
           {STRATEGIES.map((s) => (
-            <StrategyCard key={s.num} strategy={s} />
+            <StrategyCard key={s.num} strategy={s} estMonthlyLabel={t.landing.estMonthly} />
           ))}
         </div>
       </div>
@@ -240,7 +205,7 @@ export default function StrategiesPage() {
                     fontWeight: 400,
                     borderBottom: '1px solid rgba(255,255,255,0.07)',
                   }}>
-                    Bot / Feature
+                    {t.strategies.tableHeader}
                   </th>
                   {STRATEGIES.map((s) => (
                     <th key={s.num} style={{
@@ -259,30 +224,33 @@ export default function StrategiesPage() {
                 </tr>
               </thead>
               <tbody>
-                {BOTS_LIST.map((botName, i) => (
-                  <tr key={botName}>
-                    <td style={{
-                      padding: '16px 20px',
-                      fontSize: 13,
-                      color: '#aaa',
-                      borderBottom: i < BOTS_LIST.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                    }}>
-                      {botName}
-                    </td>
-                    {COMPARISON[botName].map((included, colIdx) => (
-                      <td key={colIdx} style={{
-                        textAlign: 'center',
+                {BOT_KEYS.map((botKey, i) => {
+                  const botName = t.landing.arsenalBots[botKey].name;
+                  return (
+                    <tr key={botKey}>
+                      <td style={{
                         padding: '16px 20px',
-                        borderBottom: i < BOTS_LIST.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                        fontFamily: FONT_MONO,
-                        fontSize: 14,
-                        color: included ? '#fff' : '#333',
+                        fontSize: 13,
+                        color: '#aaa',
+                        borderBottom: i < BOT_KEYS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                       }}>
-                        {included ? '✓' : '✗'}
+                        {botName}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      {COMPARISON[botKey].map((included, colIdx) => (
+                        <td key={colIdx} style={{
+                          textAlign: 'center',
+                          padding: '16px 20px',
+                          borderBottom: i < BOT_KEYS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                          fontFamily: FONT_MONO,
+                          fontSize: 14,
+                          color: included ? '#fff' : '#333',
+                        }}>
+                          {included ? '✓' : '✗'}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -299,7 +267,7 @@ export default function StrategiesPage() {
           maxWidth: 640,
           margin: '0 auto',
         }}>
-          Past performance is not indicative of future results. All return estimates are projections based on strategy backtesting and live data. Cryptocurrency trading involves significant risk of loss. Only trade with capital you can afford to lose.
+          {t.strategies.riskDisclaimer}
         </p>
       </div>
 
@@ -314,7 +282,7 @@ export default function StrategiesPage() {
             marginBottom: 16,
             fontFamily: FONT_MONO,
           }}>
-            Get Started
+            {t.strategies.ctaLabel}
           </div>
           <h2 style={{
             fontSize: 'clamp(36px,4.5vw,52px)',
@@ -323,7 +291,7 @@ export default function StrategiesPage() {
             lineHeight: 1.0,
             margin: '0 0 40px',
           }}>
-            Ready to choose?
+            {t.strategies.ctaTitle}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
             <Link
@@ -343,7 +311,7 @@ export default function StrategiesPage() {
               onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
               onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
             >
-              Get Started →
+              {t.strategies.ctaBtn}
             </Link>
             <Link
               to="/pricing"
@@ -369,7 +337,7 @@ export default function StrategiesPage() {
                 e.currentTarget.style.color = '#aaa';
               }}
             >
-              View Pricing →
+              {t.strategies.viewPricing}
             </Link>
           </div>
         </div>

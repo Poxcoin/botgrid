@@ -214,29 +214,9 @@ const S = {
   },
 };
 
-const FREE_ON  = ['Dashboard access', 'Bot analyzer & backtester', 'Demo trading (paper money)', 'System logs', 'Signal feed (read-only)'];
-const FREE_OFF = ['Live trading', 'API key integration', 'Priority support'];
-
-const PERFORMANCE_ON = ['All 6 bots', 'Live trading', 'API key integration', 'No upfront cost', 'High-water mark protection', 'Monthly invoice on the 1st', 'Priority support'];
-
-const FAQS = [
-  {
-    q: 'Is my money safe?',
-    a: 'Yes. We only use your exchange API key to place orders. Your funds stay on your exchange at all times. We never have custody.',
-  },
-  {
-    q: 'What exchanges do you support?',
-    a: 'Currently Bybit Perpetual Futures. More exchanges are coming — register now and you\'ll be the first to know.',
-  },
-  {
-    q: 'How does the performance fee work?',
-    a: 'We charge 20% of your monthly profit. If you have a losing month, you pay nothing. The high-water mark means you only pay on new profits above your all-time peak — no double-dipping after a drawdown.',
-  },
-  {
-    q: 'What if I have a losing month?',
-    a: 'You pay nothing. The 20% fee applies only to net new profits. Losing months carry forward — you need to recover losses before fees apply again.',
-  },
-];
+const FREE_ON_KEYS  = ['dashboard', 'botAnalyzer', 'demoTrading', 'systemLogs', 'signalFeed'];
+const FREE_OFF_KEYS = ['liveTrading', 'apiKey', 'prioritySupport'];
+const PERF_ON_KEYS  = ['allBots', 'liveTrading', 'apiKey', 'noUpfront', 'hwm', 'monthlyInvoice', 'prioritySupport'];
 
 function FeatureRow({ on, text }) {
   return (
@@ -251,6 +231,13 @@ export default function PricingPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const [loading, setLoading] = useState(null);
   const { t } = useLang();
+
+  const FAQS = [
+    { q: t.pricing.faq.q1, a: t.pricing.faq.a1 },
+    { q: t.pricing.faq.q2, a: t.pricing.faq.a2 },
+    { q: t.pricing.faq.q3, a: t.pricing.faq.a3 },
+    { q: t.pricing.faq.q4, a: t.pricing.faq.a4 },
+  ];
 
   async function startCheckout(plan) {
     const token = localStorage.getItem('kado_token');
@@ -298,17 +285,17 @@ export default function PricingPage() {
 
             {/* FREE */}
             <div style={S.card}>
-              <div style={S.cardLabel}>FREE</div>
+              <div style={S.cardLabel}>{t.pricing.freeLabel}</div>
               <div style={S.priceRow}>
                 <span style={S.priceBig}>$0</span>
-                <span style={S.pricePer}>forever</span>
+                <span style={S.pricePer}>{t.pricing.freeUnit}</span>
               </div>
               <p style={S.cardDesc}>
-                Paper trading with real market data. No card required. Test your strategies risk-free.
+                {t.pricing.freeDesc}
               </p>
               <ul style={S.featureList}>
-                {FREE_ON.map((f)  => <FeatureRow key={f} on={true}  text={f} />)}
-                {FREE_OFF.map((f) => <FeatureRow key={f} on={false} text={f} />)}
+                {FREE_ON_KEYS.map((k)  => <FeatureRow key={k} on={true}  text={t.pricing.features[k]} />)}
+                {FREE_OFF_KEYS.map((k) => <FeatureRow key={k} on={false} text={t.pricing.features[k]} />)}
               </ul>
               <div style={S.ctaWrap}>
                 <a href="/register" style={S.btnGhost}>{t.pricing.starterCta}</a>
@@ -317,17 +304,17 @@ export default function PricingPage() {
 
             {/* PERFORMANCE — highlighted */}
             <div style={S.cardHL}>
-              <span style={S.popularPill}>RECOMMENDED</span>
-              <div style={S.cardLabel}>PERFORMANCE</div>
+              <span style={S.popularPill}>{t.pricing.recommendedPill}</span>
+              <div style={S.cardLabel}>{t.pricing.perfLabel}</div>
               <div style={S.priceRow}>
                 <span style={S.priceBig}>20%</span>
-                <span style={S.pricePer}>of monthly profit</span>
+                <span style={S.pricePer}>{t.pricing.perfUnit}</span>
               </div>
               <p style={S.cardDesc}>
-                No monthly fee. Pay only when you earn. High-water mark protection — fees apply only to <em>new</em> profits above your previous cumulative peak.
+                {t.pricing.perfDesc}
               </p>
               <ul style={S.featureList}>
-                {PERFORMANCE_ON.map((f) => <FeatureRow key={f} on={true} text={f} />)}
+                {PERF_ON_KEYS.map((k) => <FeatureRow key={k} on={true} text={t.pricing.features[k]} />)}
               </ul>
               <div style={S.ctaWrap}>
                 <button
@@ -335,7 +322,7 @@ export default function PricingPage() {
                   disabled={!!loading}
                   style={{ ...S.btnPrimary, opacity: loading === 'performance' ? 0.6 : 1, cursor: loading ? 'default' : 'pointer' }}
                 >
-                  {loading === 'performance' ? 'Redirecting…' : t.pricing.perfCta}
+                  {loading === 'performance' ? t.pricing.redirecting : t.pricing.perfCta}
                 </button>
               </div>
             </div>
@@ -347,7 +334,7 @@ export default function PricingPage() {
       {/* FAQ */}
       <div style={S.wrap} className="px-5 md:px-14">
         <div style={S.faqSection}>
-          <p style={S.faqEyebrow}>FAQ</p>
+          <p style={S.faqEyebrow}>{t.pricing.faqLabel}</p>
           <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: '32px 48px' }}>
             {FAQS.map((item) => (
               <div key={item.q} style={S.faqItem}>
@@ -362,9 +349,7 @@ export default function PricingPage() {
       {/* Disclaimer */}
       <div style={S.wrap} className="px-5 md:px-14">
         <p style={S.disclaimer}>
-          Trading cryptocurrency involves significant risk. Past performance of any strategy or bot
-          does not guarantee future results. You are responsible for your own trading decisions.
-          KADO does not provide financial advice.
+          {t.pricing.disclaimer}
         </p>
       </div>
 

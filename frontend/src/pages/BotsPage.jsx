@@ -7,103 +7,13 @@ import { useLang } from '@/lib/LangContext';
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
 
-const BOTS = [
-  {
-    num: '01',
-    tag: 'ALT COINS ONLY',
-    name: 'News Intelligence',
-    tagline: 'Reads the market before you can.',
-    desc: 'Monitors crypto Telegram channels with real-time latency. Groq LLaMA evaluates every event across 9 market factors — sentiment, whale activity, RSI, funding rate, open interest, liquidations, volume, Fear & Greed, on-chain macro. Only alt coins — BTC/ETH/SOL are priced by institutions in microseconds, edge is zero.',
-    pills: ['Score ≥ 11.0', '9 score factors', 'Alt coins only'],
-  },
-  {
-    num: '02',
-    tag: 'BTC · ETH · SOL',
-    name: 'Grid Trading',
-    tagline: 'Earns whether price goes up or down.',
-    desc: 'Adaptive grids running 24/7 on BTC, ETH, and SOL. Places layered limit orders at mathematically optimal levels, capturing profit from every oscillation. Trend confirmed via EMA50 + RSI(4h) before entry. Maker-only orders minimize fees.',
-    pills: ['EMA50 filter', 'Maker-only', 'BTC correlation guard'],
-  },
-  {
-    num: '03',
-    tag: 'BINANCE · BYBIT · 10s',
-    name: 'Listing Sniper',
-    tagline: 'In before the crowd finishes reading.',
-    desc: 'Polls Binance and Bybit listing APIs every 10 seconds. The moment a new listing appears, it enters automatically. DEX filter skips coins already pumped on-chain. Two-stage exit: 50% at +10%, remainder rides to +20%.',
-    pills: ['TP1 +10% · TP2 +20%', 'DEX staleness filter', '5× leverage'],
-  },
-  {
-    num: '04',
-    tag: '30 PERPS · 15-MIN CYCLE',
-    name: 'Funding Rate Arb',
-    tagline: 'Profits when perpetuals diverge from spot.',
-    desc: 'Scans 30 perpetual markets every 15 minutes. Elevated funding rate combined with overbought RSI signals a SHORT. Negative funding with oversold RSI signals a LONG. Three-tier position sizing amplifies on extreme setups.',
-    pills: ['30 markets', 'FR > 0.04%', '3-tier sizing'],
-  },
-  {
-    num: '05',
-    tag: 'BINANCE WEBSOCKET',
-    name: 'Liquidation Cascade',
-    tagline: 'Trades the momentum that lasts minutes, not milliseconds.',
-    desc: 'Connected to Binance liquidation feed 24/7. When $300K+ of shorts are liquidated in 5 minutes with 2.5:1 directional dominance — the bot enters the cascade direction. Cascades unfold over minutes, not microseconds. Real edge.',
-    pills: ['22 alt coins', '$300K threshold', 'TP 6% · SL 2.5%'],
-  },
-  {
-    num: '06',
-    tag: 'ALCHEMY WEBSOCKET · ETH',
-    name: 'On-chain Macro',
-    tagline: 'Follow where the real money flows.',
-    desc: 'Tracks ETH whale movements to and from exchange wallets in real time. When 500+ ETH is withdrawn from Binance or Bybit — a macro bullish signal activates for AAVE, UNI, LDO, LINK, CRV and other ETH-ecosystem alts for 45 minutes.',
-    pills: ['ETH ecosystem alts', '45-min window', 'Alchemy WebSocket'],
-  },
-  {
-    num: '07',
-    tag: '10 WALLETS · WEBSOCKET',
-    name: 'Whale Tracker',
-    tagline: 'Follow the wallets that move markets.',
-    desc: 'Tracks 10 identified smart money wallets — Paradigm, Jump Trading, Wintermute and others — via real-time Alchemy WebSocket feeds. When a whale makes a significant on-chain move, the confidence threshold drops and the bot enters immediately.',
-    pills: ['10 smart wallets', 'Real-time', 'Lower score threshold'],
-  },
-  {
-    num: '08',
-    tag: 'BSC · PANCAKESWAP V2',
-    name: 'DEX Sniper',
-    tagline: 'New launches, safety-checked in real time.',
-    desc: 'Listens for new PairCreated events on PancakeSwap V2. Every token verified by GoPlus: honeypot detection, buy/sell tax check, locked LP, and deployer history. Clean contracts only. Trailing stop activates after +30%.',
-    pills: ['Honeypot check', 'TP +100% · SL −50%', 'Trailing stop at +30%'],
-  },
-];
-
-const STATS = [
-  { value: '8',      label: 'Active Bots' },
-  { value: '24/7',   label: 'Uptime' },
-  { value: '<5s',    label: 'Signal Latency' },
-  { value: '9',      label: 'Score Factors' },
-  { value: '<100ms', label: 'AI Eval' },
-  { value: '4',      label: 'Pipeline Stages' },
-];
-
-const PIPELINE = [
-  {
-    num: '01',
-    name: 'Ingest',
-    desc: 'Telegram channels, exchange APIs, on-chain feeds, and WebSocket streams feed data continuously into the system.',
-  },
-  {
-    num: '02',
-    name: 'Score',
-    desc: 'Groq LLaMA evaluates each event across 8 market factors and outputs a confidence score in under 100ms.',
-  },
-  {
-    num: '03',
-    name: 'Filter',
-    desc: 'Position limits, BTC correlation gates, DEX pumped-coin exclusions, and RSI guards block low-quality setups.',
-  },
-  {
-    num: '04',
-    name: 'Execute',
-    desc: 'Orders placed via ccxt with dynamic leverage, take-profit tiers, and trailing stops managed automatically.',
-  },
+const STAT_KEYS = [
+  { key: 'activeBots',     value: '8' },
+  { key: 'uptime',         value: '24/7' },
+  { key: 'signalLatency',  value: '<5s' },
+  { key: 'scoreFactors',   value: '9' },
+  { key: 'aiEval',         value: '<100ms' },
+  { key: 'pipelineStages', value: '4' },
 ];
 
 function PillTag({ label }) {
@@ -160,7 +70,7 @@ function BotCard({ bot }) {
       </div>
 
       <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: '#aaa', marginBottom: 20, lineHeight: 1.5 }}>
-        "{bot.tagline}"
+        "{bot.hook}"
       </div>
 
       <p style={{ fontSize: 13, color: '#666', lineHeight: 1.75, marginBottom: 28, flexGrow: 1, margin: '0 0 28px' }}>
@@ -200,6 +110,18 @@ function PipelineCard({ step }) {
 export default function BotsPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const { t } = useLang();
+
+  const BOTS = ['b1','b2','b3','b4','b5','b6','b7','b8'].map((k, i) => ({
+    num: String(i + 1).padStart(2, '0'),
+    ...t.landing.arsenalBots[k],
+  }));
+
+  const STATS = STAT_KEYS.map(s => ({ value: s.value, label: t.bots.stats[s.key] }));
+
+  const PIPELINE = ['p1','p2','p3','p4'].map((k, i) => ({
+    num: String(i + 1).padStart(2, '0'),
+    ...t.bots.pipeline[k],
+  }));
 
   return (
     <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
@@ -295,7 +217,7 @@ export default function BotsPage() {
               marginBottom: 16,
               fontFamily: FONT_MONO,
             }}>
-              Execution Pipeline
+              {t.bots.pipelineLabel}
             </div>
             <h2 style={{
               fontSize: 'clamp(36px,4.5vw,52px)',
@@ -304,10 +226,10 @@ export default function BotsPage() {
               lineHeight: 1.0,
               margin: '0 0 16px',
             }}>
-              Signal in. Order out.
+              {t.bots.pipelineTitle}
             </h2>
             <p style={{ fontSize: 16, color: '#666', lineHeight: 1.7, maxWidth: 480, margin: '0 auto' }}>
-              Every signal travels through four deterministic stages before a single order is placed.
+              {t.bots.pipelineSub}
             </p>
           </div>
 
@@ -338,7 +260,7 @@ export default function BotsPage() {
             marginBottom: 16,
             fontFamily: FONT_MONO,
           }}>
-            Get Started
+            {t.bots.ctaLabel}
           </div>
           <h2 style={{
             fontSize: 'clamp(36px,4.5vw,52px)',
@@ -347,7 +269,7 @@ export default function BotsPage() {
             lineHeight: 1.0,
             margin: '0 0 40px',
           }}>
-            Start trading with all eight bots.
+            {t.bots.ctaTitle}
           </h2>
           <Link
             to="/auth?mode=register"
@@ -366,7 +288,7 @@ export default function BotsPage() {
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
           >
-            Get Started →
+            {t.bots.ctaBtn}
           </Link>
         </div>
       </section>
