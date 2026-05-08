@@ -57,12 +57,25 @@ class User(Base):
     created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login   = Column(DateTime, nullable=True)
 
+    # Referral
+    ref_code       = Column(String, unique=True, nullable=True)   # e.g. "KADO-X9KM2R"
+    referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Relationships
     api_keys     = relationship("UserApiKey",      back_populates="user", cascade="all, delete-orphan")
     trades       = relationship("UserTrade",        back_populates="user", cascade="all, delete-orphan")
     monthly_pnls = relationship("MonthlyPnl",       back_populates="user", cascade="all, delete-orphan")
     weekly_pnls  = relationship("WeeklyPnl",        back_populates="user", cascade="all, delete-orphan")
     subscription = relationship("Subscription",     back_populates="user", uselist=False, cascade="all, delete-orphan")
+    referral_earnings_given    = relationship("ReferralEarning", foreign_keys="ReferralEarning.referral_id", back_populates="referrer")
+    referral_earnings_received = relationship("ReferralEarning", foreign_keys="ReferralEarning.referred_id", back_populates="referred")
+
+    @staticmethod
+    def generate_ref_code():
+        import random
+        chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        suffix = ''.join(random.choices(chars, k=6))
+        return f"KADO-{suffix}"
 
     @property
     def is_pro(self) -> bool:
@@ -213,6 +226,23 @@ class WeeklyPnl(Base):
     user = relationship("User", back_populates="weekly_pnls")
 
 
+# ── Referral Earnings ─────────────────────────────────────────────────────────
+class ReferralEarning(Base):
+    __tablename__ = "referral_earnings"
+
+    id          = Column(Integer, primary_key=True)
+    referral_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    referred_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    week_start  = Column(DateTime, nullable=False)
+    fee_paid    = Column(Float, default=0.0)
+    earned      = Column(Float, default=0.0)
+    paid_out    = Column(Boolean, default=False)
+    created_at  = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    referrer = relationship("User", foreign_keys=[referral_id], back_populates="referral_earnings_given")
+    referred = relationship("User", foreign_keys=[referred_id], back_populates="referral_earnings_received")
+
+
 # ── Telegram link tokens (one-time deep-link) ────────────────────────────────
 class TgLinkToken(Base):
     __tablename__ = "tg_link_tokens"
@@ -257,6 +287,14 @@ def _migrate_columns():
             conn.execute(text("ALTER TABLE users ADD COLUMN password_reset_expires DATETIME"))
         if "tg_username" not in user_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN tg_username VARCHAR DEFAULT ''"))
+        if "plan" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN plan VARCHAR DEFAULT 'trial'"))
+        if "recovery_codes" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN recovery_codes VARCHAR"))
+        if "ref_code" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN ref_code VARCHAR"))
+        if "referred_by_id" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN referred_by_id INTEGER"))
 
 
 _migrate_columns()

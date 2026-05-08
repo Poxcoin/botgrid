@@ -337,6 +337,7 @@ def get_aggregated_news(limit_per_source: int = 15) -> list[dict]:
                 "source_weight": weight,
                 "is_panic":     is_panic,
                 "image_url":    image_url,
+                "category":     source.get("cat", "OTHER"),
             }
             all_news.append(news_item)
 

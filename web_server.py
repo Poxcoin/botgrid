@@ -25,7 +25,7 @@ from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email
@@ -350,6 +350,8 @@ class RegisterRequest(BaseModel):
     email: str
     username: str
     password: str
+    referral_source: str = ""
+    ref_code: str = ""
 
 class UserLoginRequest(BaseModel):
     email: str
@@ -394,6 +396,21 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         raise HTTPException(status_code=400, detail="Password must contain at least one special character")
     verify_token = secrets.token_urlsafe(32)
     verify_token_hash = hashlib.sha256(verify_token.encode()).hexdigest()
+    import random as _random
+    def _make_ref_code(db):
+        chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+        for _ in range(20):
+            code = 'KADO-' + ''.join(_random.choices(chars, k=6))
+            if not db.query(User).filter(User.ref_code == code).first():
+                return code
+        return 'KADO-' + secrets.token_hex(3).upper()
+
+    referred_by_id = None
+    incoming_code = (body.ref_code or "").strip().upper()
+    if incoming_code:
+        referrer = db.query(User).filter(User.ref_code == incoming_code).first()
+        if referrer:
+            referred_by_id = referrer.id
     user = User(
         email=body.email,
         username=body.username,
@@ -402,6 +419,8 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         email_verify_token=verify_token_hash,
         plan="trial",
         trial_ends_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
+        ref_code=_make_ref_code(db),
+        referred_by_id=referred_by_id,
     )
     db.add(user)
     db.commit()
@@ -897,6 +916,51 @@ async def get_user_pnl(
         }
         for r in rows
     ]
+
+
+@app.get("/api/users/referrals")
+async def get_user_referrals(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+
+    referred_users = db.query(User).filter(User.referred_by_id == user.id).all()
+
+    earnings = db.query(ReferralEarning).filter(
+        ReferralEarning.referral_id == user.id
+    ).order_by(ReferralEarning.created_at.desc()).all()
+
+    total_earned = sum(e.earned for e in earnings)
+    pending      = sum(e.earned for e in earnings if not e.paid_out)
+    active_count = sum(1 for u in referred_users if u.is_active)
+
+    by_user = {}
+    for e in earnings:
+        uid = e.referred_id
+        if uid not in by_user:
+            ref_user = next((u for u in referred_users if u.id == uid), None)
+            email = ref_user.email if ref_user else "unknown"
+            parts = email.split("@")
+            masked = (parts[0][0] + "***@" + parts[1]) if len(parts) == 2 else email
+            by_user[uid] = {
+                "email_masked": masked,
+                "joined":       ref_user.created_at.isoformat() if ref_user else None,
+                "is_active":    ref_user.is_active if ref_user else False,
+                "total_earned": 0.0,
+            }
+        by_user[uid]["total_earned"] = round(by_user[uid]["total_earned"] + e.earned, 2)
+
+    site_url = "https://kadoclub.net"
+    return {
+        "ref_code":      user.ref_code or "",
+        "ref_link":      f"{site_url}?ref={user.ref_code}" if user.ref_code else "",
+        "invited_count": len(referred_users),
+        "active_count":  active_count,
+        "total_earned":  round(total_earned, 2),
+        "pending":       round(pending, 2),
+        "referrals":     list(by_user.values()),
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1803,7 +1867,7 @@ async def public_news_feed(
 
         # 1. RSS articles with images — top quality, up to 25
         cur.execute(
-            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url "
+            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url,category "
             "FROM news WHERE image_url IS NOT NULL AND image_url != '' "
             "  AND source NOT LIKE '%Telegram%' "
             "  AND source NOT LIKE '%Smart Wallet%' "
@@ -1814,7 +1878,7 @@ async def public_news_feed(
 
         # 2. RSS articles without images — up to 35
         cur.execute(
-            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url "
+            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url,category "
             "FROM news WHERE (image_url IS NULL OR image_url = '') "
             "  AND source NOT LIKE '%Telegram%' "
             "  AND source NOT LIKE '%Smart Wallet%' "
@@ -1825,7 +1889,7 @@ async def public_news_feed(
 
         # 3. On-chain / Telegram — up to 30 (for ON-CHAIN category)
         cur.execute(
-            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url "
+            "SELECT id,title,source,description,published_at,link,from_newsapi,image_url,category "
             "FROM news WHERE (source LIKE '%Telegram%' OR source LIKE '%Smart Wallet%' "
             "  OR source LIKE '%whale_alert%' OR source LIKE '%lookonchain%') "
             "ORDER BY published_at DESC LIMIT 30"

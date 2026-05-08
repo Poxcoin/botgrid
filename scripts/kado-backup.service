@@ -1,0 +1,11 @@
+[Unit]
+Description=Kado DB Backup
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/botgrid/scripts/backup_db.sh
+User=root
+WorkingDirectory=/opt/botgrid
+StandardOutput=append:/var/log/kado-backup.log
+StandardError=append:/var/log/kado-backup.log

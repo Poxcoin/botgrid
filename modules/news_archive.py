@@ -38,15 +38,19 @@ def init_db() -> None:
                 published_at TEXT,
                 archived_at  TEXT,
                 from_newsapi INTEGER DEFAULT 0,
-                image_url    TEXT
+                image_url    TEXT,
+                category     TEXT DEFAULT 'OTHER'
             )
         """)
         con.execute("CREATE INDEX IF NOT EXISTS idx_published ON news(published_at)")
-        # Migration: add image_url to existing DBs
-        try:
-            con.execute("ALTER TABLE news ADD COLUMN image_url TEXT")
-        except Exception:
-            pass
+        for col, definition in [
+            ("image_url", "TEXT"),
+            ("category",  "TEXT DEFAULT 'OTHER'"),
+        ]:
+            try:
+                con.execute(f"ALTER TABLE news ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
 
 
 def _fetch_og_image(url: str) -> str | None:
@@ -107,8 +111,8 @@ def archive_news(item: dict, from_newsapi: bool = False) -> bool:
         with _conn() as con:
             con.execute("""
                 INSERT OR IGNORE INTO news
-                    (title, link, source, source_weight, description, published_at, archived_at, from_newsapi, image_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (title, link, source, source_weight, description, published_at, archived_at, from_newsapi, image_url, category)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 item.get("title", ""),
                 link,
@@ -119,6 +123,7 @@ def archive_news(item: dict, from_newsapi: bool = False) -> bool:
                 datetime.now(timezone.utc).isoformat(),
                 1 if from_newsapi else 0,
                 image_url,
+                item.get("category", "OTHER"),
             ))
             inserted = con.total_changes > 0
 

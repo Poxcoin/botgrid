@@ -12,7 +12,7 @@ from datetime import datetime, timezone, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from sqlalchemy import func
-from database import SessionLocal, Subscription, WeeklyPnl, UserTrade
+from database import SessionLocal, Subscription, WeeklyPnl, UserTrade, User, ReferralEarning
 from config.settings import USDT_WALLET_TRC20
 from utils.email import _send
 
@@ -159,6 +159,7 @@ def run(year: int = None, week: int = None) -> list[dict]:
                 })
 
         db.commit()
+        _calculate_referral_earnings(db, year, week)
     except Exception as e:
         db.rollback()
         print(f"[BILLING-WEEKLY] Error: {e}")
@@ -167,6 +168,46 @@ def run(year: int = None, week: int = None) -> list[dict]:
         db.close()
 
     return results
+
+
+def _calculate_referral_earnings(db, year: int, week: int):
+    """For each user who paid a performance fee this week, credit their referrer 25%."""
+    monday, _ = _week_range(year, week)
+
+    rows = db.query(WeeklyPnl).filter(
+        WeeklyPnl.year == year,
+        WeeklyPnl.week == week,
+        WeeklyPnl.performance_fee > 0,
+    ).all()
+
+    created = 0
+    for row in rows:
+        referred_user = db.query(User).filter(User.id == row.user_id).first()
+        if not referred_user or not referred_user.referred_by_id:
+            continue
+
+        exists = db.query(ReferralEarning).filter(
+            ReferralEarning.referral_id == referred_user.referred_by_id,
+            ReferralEarning.referred_id == referred_user.id,
+            ReferralEarning.week_start  == monday.replace(tzinfo=None),
+        ).first()
+        if exists:
+            continue
+
+        earned = round(row.performance_fee * 0.25, 4)
+        earning = ReferralEarning(
+            referral_id = referred_user.referred_by_id,
+            referred_id = referred_user.id,
+            week_start  = monday.replace(tzinfo=None),
+            fee_paid    = row.performance_fee,
+            earned      = earned,
+            paid_out    = False,
+        )
+        db.add(earning)
+        created += 1
+
+    db.commit()
+    print(f"Referral earnings: {created} rows created for week {year}-W{week:02d}")
 
 
 if __name__ == "__main__":
