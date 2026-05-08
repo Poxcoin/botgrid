@@ -73,7 +73,7 @@ function InvoicePanel() {
   const row  = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 };
   const lbl  = { fontSize: 11, color: 'var(--muted-fg)' };
   const val  = { fontSize: 13, color: 'var(--fg)' };
-  const btn  = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
+  const btn  = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4, padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
   const txInp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', padding: '8px 12px', fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', marginTop: 8 };
 
   const { invoice, current_week_pnl, projected_fee, wallet_trc20, week_label } = data;
@@ -118,7 +118,7 @@ function InvoicePanel() {
           </div>
 
           {invoice.notified || notified ? (
-            <div style={{ fontSize: 12, color: '#4ade80', marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--accent-green)', marginTop: 12 }}>
               ✓ {t.dashboard.settings.paymentSent}
             </div>
           ) : (
@@ -148,7 +148,7 @@ function InvoicePanel() {
 function BillingBlock({ plan, trialDaysLeft }) {
   const { t } = useLang();
   const btn = {
-    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4,
     padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
     marginTop: 12,
   };
@@ -267,12 +267,12 @@ function TelegramBlock({ me, onChange }) {
   }
 
   const btnPrimary = {
-    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4,
     padding: '10px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
     opacity: linking ? 0.6 : 1,
   };
   const btnSecondary = {
-    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)',
+    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', borderRadius: 4,
     padding: '8px 16px', fontSize: 11, cursor: 'pointer',
   };
 
@@ -368,7 +368,7 @@ export default function AccountTab() {
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'security' }))}
             style={{
-              marginTop: 10, background: 'none', border: '1px solid var(--border)', color: 'var(--fg)',
+              marginTop: 10, background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', borderRadius: 4,
               padding: '7px 14px', fontSize: 11, cursor: 'pointer', letterSpacing: '0.04em',
             }}
           >
