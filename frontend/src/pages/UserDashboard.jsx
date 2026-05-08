@@ -9,26 +9,25 @@ import LogsTab        from '@/components/user/LogsTab';
 import BacktesterTab  from '@/components/dashboard/BacktesterTab';
 import AnalyticsTab   from '@/components/user/AnalyticsTab';
 import SecurityTab    from '@/components/user/SecurityTab';
+import { useLang }    from '@/lib/LangContext';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
 
-const MAIN_TABS = [
-  { id: 'overview',   label: 'Overview'   },
-  { id: 'bot',        label: 'Bot'        },
-  { id: 'analytics',  label: 'Analytics'  },
-  { id: 'pnl',        label: 'PnL'        },
-  { id: 'trades',     label: 'Trades'     },
-  { id: 'signals',    label: 'Signals'    },
-  { id: 'logs',       label: 'Logs'       },
-  { id: 'backtester', label: 'Backtester' },
-];
-
-const ALL_TABS = [
-  ...MAIN_TABS,
-  { id: 'security', label: 'Security' },
-  { id: 'settings', label: 'Settings' },
-];
+const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'pnl', 'trades', 'signals', 'logs', 'backtester'];
+const SECONDARY_TAB_IDS = ['security', 'settings'];
+const TAB_LABEL_KEY = {
+  overview:   'tabOverview',
+  bot:        'tabBot',
+  analytics:  'tabAnalytics',
+  pnl:        'tabPnl',
+  trades:     'tabTrades',
+  signals:    'tabSignals',
+  logs:       'tabLogs',
+  backtester: 'tabBacktester',
+  security:   'tabSecurity',
+  settings:   'tabSettings',
+};
 
 function TabContent({ tab }) {
   switch (tab) {
@@ -51,6 +50,7 @@ function getUser() {
 }
 
 function UserDropdown({ user, activeTab, setActiveTab, onClose }) {
+  const { t } = useLang();
   function logout() {
     localStorage.removeItem('kado_token');
     localStorage.removeItem('kado_user');
@@ -90,22 +90,22 @@ function UserDropdown({ user, activeTab, setActiveTab, onClose }) {
       </div>
 
       {/* Security & Settings */}
-      {[{ id: 'security', label: 'Security' }, { id: 'settings', label: 'Settings' }].map(item => (
-        <button key={item.id}
-          onClick={() => { setActiveTab(item.id); onClose(); }}
+      {SECONDARY_TAB_IDS.map(id => (
+        <button key={id}
+          onClick={() => { setActiveTab(id); onClose(); }}
           style={{
             display: 'flex', alignItems: 'center',
             width: '100%', padding: '10px 16px',
-            background: activeTab === item.id ? 'rgba(255,255,255,0.04)' : 'none',
+            background: activeTab === id ? 'rgba(255,255,255,0.04)' : 'none',
             border: 'none', cursor: 'pointer',
             fontFamily: FONT, fontSize: 13,
-            color: activeTab === item.id ? '#fff' : '#666',
+            color: activeTab === id ? '#fff' : '#666',
             textAlign: 'left', transition: 'background 120ms, color 120ms',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = activeTab === item.id ? 'rgba(255,255,255,0.04)' : 'none'; e.currentTarget.style.color = activeTab === item.id ? '#fff' : '#666'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = activeTab === id ? 'rgba(255,255,255,0.04)' : 'none'; e.currentTarget.style.color = activeTab === id ? '#fff' : '#666'; }}
         >
-          {item.label}
+          {t.dashboard[TAB_LABEL_KEY[id]]}
         </button>
       ))}
 
@@ -123,18 +123,20 @@ function UserDropdown({ user, activeTab, setActiveTab, onClose }) {
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#555'; }}
       >
-        Log out
+        {t.dashboard.logout}
       </button>
     </div>
   );
 }
 
 export default function UserDashboard() {
+  const { t } = useLang();
   const [activeTab, setActiveTab]   = useState('overview');
   const [menuOpen,  setMenuOpen]    = useState(false);
   const [userDrop,  setUserDrop]    = useState(false);
   const userDropRef = useRef(null);
   const user = getUser();
+  const allTabIds = [...MAIN_TAB_IDS, ...SECONDARY_TAB_IDS];
 
   useEffect(() => {
     const h = e => setActiveTab(e.detail);
@@ -194,11 +196,11 @@ export default function UserDashboard() {
           display: 'flex', alignItems: 'stretch', flex: 1, gap: 0,
           overflowX: 'auto', scrollbarWidth: 'none',
         }}>
-          {MAIN_TABS.map(tab => {
-            const active = activeTab === tab.id;
+          {MAIN_TAB_IDS.map(id => {
+            const active = activeTab === id;
             return (
-              <button key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+              <button key={id}
+                onClick={() => setActiveTab(id)}
                 style={{
                   height: '100%', padding: '0 15px',
                   background: 'none', border: 'none',
@@ -214,7 +216,7 @@ export default function UserDashboard() {
                 onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#999'; }}
                 onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#4a4a4a'; }}
               >
-                {tab.label}
+                {t.dashboard[TAB_LABEL_KEY[id]]}
               </button>
             );
           })}
@@ -224,7 +226,7 @@ export default function UserDashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, marginLeft: 16 }}>
           {user.email_verified === false && (
             <div style={{ fontFamily: MONO, fontSize: 9, color: '#f59e0b', letterSpacing: '0.08em', flexShrink: 0 }}>
-              ⚠ Verify email
+              {t.dashboard.verifyEmail}
             </div>
           )}
 
@@ -255,7 +257,7 @@ export default function UserDashboard() {
                 fontFamily: FONT, fontSize: 12, color: '#888',
                 maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
-                {user.email || 'Account'}
+                {user.email || t.dashboard.account}
               </span>
               <svg width="9" height="5" viewBox="0 0 9 5" fill="none" style={{ opacity: 0.35, flexShrink: 0 }}>
                 <path d="M1 1l3.5 3L8 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -297,11 +299,11 @@ export default function UserDashboard() {
               <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18 }}>✕</button>
             </div>
             <nav style={{ flex: 1, padding: '8px 0' }}>
-              {ALL_TABS.map(tab => {
-                const active = activeTab === tab.id;
+              {allTabIds.map(id => {
+                const active = activeTab === id;
                 return (
-                  <button key={tab.id}
-                    onClick={() => { setActiveTab(tab.id); setMenuOpen(false); }}
+                  <button key={id}
+                    onClick={() => { setActiveTab(id); setMenuOpen(false); }}
                     style={{
                       display: 'flex', alignItems: 'center',
                       width: '100%', textAlign: 'left',
@@ -313,7 +315,7 @@ export default function UserDashboard() {
                       transition: 'background 120ms, color 120ms',
                     }}
                   >
-                    {tab.label}
+                    {t.dashboard[TAB_LABEL_KEY[id]]}
                   </button>
                 );
               })}
@@ -332,7 +334,7 @@ export default function UserDashboard() {
                   padding: '9px 0', cursor: 'pointer', width: '100%',
                   borderRadius: 8, transition: 'border-color 150ms, color 150ms',
                 }}>
-                Log out
+                {t.dashboard.logout}
               </button>
             </div>
           </div>

@@ -9,7 +9,7 @@ const SANS = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue'
 const ACC  = '#0047FF';
 const LINE = 'rgba(255,255,255,0.07)';
 
-const LOCALE_MAP = { ru: 'ru-RU', uk: 'uk-UA', en: 'en-US', de: 'de-DE' };
+const LOCALE_MAP = { ru: 'ru-RU', uk: 'uk-UA', en: 'en-US', de: 'de-DE', es: 'es-ES', zh: 'zh-CN' };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
