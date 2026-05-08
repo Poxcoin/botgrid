@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useLang } from '@/lib/LangContext';
 
 const API = (path, opts) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
@@ -8,9 +9,8 @@ const API = (path, opts) => fetch(path, {
 const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box' };
 const monoSm = { fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.06em' };
 
-// ─── 2FA Modal ────────────────────────────────────────────────────────────────
-
 function TwoFAModal({ mode, onClose, onDone }) {
+  const { t } = useLang();
   const [step, setStep]           = useState(mode === 'setup' ? 'password' : 'disable');
   const [password, setPassword]   = useState('');
   const [qr, setQr]               = useState('');
@@ -33,7 +33,7 @@ function TwoFAModal({ mode, onClose, onDone }) {
     try {
       const data = await API('/api/users/2fa/setup', { method: 'POST', body: JSON.stringify({ password }) });
       setQr(data.qr); setSecret(data.secret); setStep('scan');
-    } catch (e) { setErr(typeof e === 'string' ? e : 'Wrong password'); }
+    } catch (e) { setErr(typeof e === 'string' ? e : t.dashboard.security.wrongPassword); }
     finally { setLoading(false); }
   }
 
@@ -42,7 +42,7 @@ function TwoFAModal({ mode, onClose, onDone }) {
     try {
       const data = await API('/api/users/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
       setRecoveryCodes(data.recovery_codes || []); setStep('codes');
-    } catch (e) { setErr(typeof e === 'string' ? e : 'Wrong code'); }
+    } catch (e) { setErr(typeof e === 'string' ? e : t.dashboard.security.wrongCode); }
     finally { setLoading(false); }
   }
 
@@ -51,7 +51,7 @@ function TwoFAModal({ mode, onClose, onDone }) {
     try {
       await API('/api/users/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
       onDone(false);
-    } catch (e) { setErr(typeof e === 'string' ? e : 'Wrong code'); }
+    } catch (e) { setErr(typeof e === 'string' ? e : t.dashboard.security.wrongCode); }
     finally { setLoading(false); }
   }
 
@@ -65,50 +65,50 @@ function TwoFAModal({ mode, onClose, onDone }) {
       <div style={modal}>
         {step === 'password' && (
           <form onSubmit={submitPassword}>
-            <div style={title}>Enable 2FA</div>
-            <div style={sub}>Enter your account password to continue.</div>
-            <input type="password" autoFocus required placeholder="Your password" value={password} onChange={e => setPassword(e.target.value)} style={{ ...inp, marginBottom: 12 }} />
+            <div style={title}>{t.dashboard.security.enable2faTitle}</div>
+            <div style={sub}>{t.dashboard.security.enable2faSub}</div>
+            <input type="password" autoFocus required placeholder={t.dashboard.security.yourPassword} value={password} onChange={e => setPassword(e.target.value)} style={{ ...inp, marginBottom: 12 }} />
             {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
-            <button type="submit" disabled={loading} style={btnPrimary}>{loading ? 'Checking…' : 'Continue →'}</button>
-            <button type="button" onClick={onClose} style={btnSecondary}>Cancel</button>
+            <button type="submit" disabled={loading} style={btnPrimary}>{loading ? t.dashboard.security.checking : t.dashboard.security.continueArrow}</button>
+            <button type="button" onClick={onClose} style={btnSecondary}>{t.dashboard.security.cancel}</button>
           </form>
         )}
 
         {step === 'scan' && (
           <form onSubmit={submitCode}>
-            <div style={title}>Scan QR Code</div>
-            <div style={sub}>Open Google Authenticator, Authy, or any TOTP app and scan the code below.</div>
+            <div style={title}>{t.dashboard.security.scanQrTitle}</div>
+            <div style={sub}>{t.dashboard.security.scanQrSub}</div>
             {qr && <div style={{ textAlign: 'center', marginBottom: 16 }}><img src={qr} alt="2FA QR" style={{ width: 180, height: 180, imageRendering: 'pixelated' }} /></div>}
-            <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 4 }}>Or enter the secret manually:</div>
+            <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 4 }}>{t.dashboard.security.enterSecretManually}</div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', background: 'var(--bg2)', border: '1px solid var(--border)', padding: '8px 10px', wordBreak: 'break-all', marginBottom: 16 }}>{secret}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 6 }}>Enter the 6-digit code from your app:</div>
+            <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 6 }}>{t.dashboard.security.enterAppCode}</div>
             <input type="text" autoFocus required inputMode="numeric" placeholder="000000" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} style={{ ...inp, letterSpacing: '0.2em', textAlign: 'center', fontSize: 18, marginBottom: 12 }} />
             {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
-            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? 'Checking…' : 'Verify →'}</button>
-            <button type="button" onClick={onClose} style={btnSecondary}>Cancel</button>
+            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? t.dashboard.security.checking : t.dashboard.security.verifyArrow}</button>
+            <button type="button" onClick={onClose} style={btnSecondary}>{t.dashboard.security.cancel}</button>
           </form>
         )}
 
         {step === 'codes' && (
           <div>
-            <div style={title}>2FA Enabled</div>
-            <div style={sub}>Save these recovery codes — each is single-use if you lose access to your authenticator app. They won't be shown again after closing this window.</div>
+            <div style={title}>{t.dashboard.security.twofaEnabledTitle}</div>
+            <div style={sub}>{t.dashboard.security.saveRecoveryCodes}</div>
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '12px 14px', marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
               {recoveryCodes.map((c, i) => <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg)' }}>{c}</span>)}
             </div>
-            <button onClick={copyAll} style={{ ...btnSecondary, marginTop: 0, marginBottom: 12, color: copied ? '#5a5' : 'var(--muted-fg)' }}>{copied ? '✓ Copied' : 'Copy all'}</button>
-            <button onClick={() => onDone(true)} style={btnPrimary}>Done</button>
+            <button onClick={copyAll} style={{ ...btnSecondary, marginTop: 0, marginBottom: 12, color: copied ? '#5a5' : 'var(--muted-fg)' }}>{copied ? t.dashboard.security.copied : t.dashboard.security.copyAll}</button>
+            <button onClick={() => onDone(true)} style={btnPrimary}>{t.dashboard.security.done}</button>
           </div>
         )}
 
         {step === 'disable' && (
           <form onSubmit={submitDisable}>
-            <div style={title}>Disable 2FA</div>
-            <div style={sub}>Enter the 6-digit code from your authenticator app to confirm.</div>
+            <div style={title}>{t.dashboard.security.disable2faTitle}</div>
+            <div style={sub}>{t.dashboard.security.disable2faSub}</div>
             <input type="text" autoFocus required inputMode="numeric" placeholder="000000" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} style={{ ...inp, letterSpacing: '0.2em', textAlign: 'center', fontSize: 18, marginBottom: 12 }} />
             {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
-            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, background: '#c55', opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? 'Checking…' : 'Disable 2FA'}</button>
-            <button type="button" onClick={onClose} style={btnSecondary}>Cancel</button>
+            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, background: '#c55', opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? t.dashboard.security.checking : t.dashboard.security.disable2faTitle}</button>
+            <button type="button" onClick={onClose} style={btnSecondary}>{t.dashboard.security.cancel}</button>
           </form>
         )}
       </div>
@@ -116,9 +116,8 @@ function TwoFAModal({ mode, onClose, onDone }) {
   );
 }
 
-// ─── API Keys section (inline, no separate file needed) ───────────────────────
-
 function ApiKeysSection({ me, onUpdate }) {
+  const { t } = useLang();
   const [apiKey, setApiKey]     = useState('');
   const [secret, setSecret]     = useState('');
   const [testnet, setTestnet]   = useState(false);
@@ -135,18 +134,18 @@ function ApiKeysSection({ me, onUpdate }) {
 
   const copyText = useCallback((text, label) => {
     navigator.clipboard.writeText(text).then(() => {
-      setSuccess(`${label} copied`);
+      setSuccess(label);
       setTimeout(() => setSuccess(''), 1500);
     });
   }, []);
 
   async function save(e) {
     e.preventDefault(); setError(''); setSuccess('');
-    if (!apiKey || !secret) { setError('Both fields are required'); return; }
+    if (!apiKey || !secret) { setError(t.dashboard.security.bothFieldsRequired); return; }
     setSaving(true);
     try {
       await API('/api/users/keys', { method: 'POST', body: JSON.stringify({ api_key: apiKey, secret, is_testnet: testnet }) });
-      setSuccess('Keys saved. Bot will begin trading on your account.');
+      setSuccess(t.dashboard.security.keysSaved);
       onUpdate({ has_api_keys: true, api_key_testnet: testnet });
       setApiKey(''); setSecret(''); setRevealed(null);
     } catch (e) { setError(e); }
@@ -154,11 +153,11 @@ function ApiKeysSection({ me, onUpdate }) {
   }
 
   async function del() {
-    if (!confirm('Remove API keys? The bot will stop trading on your account.')) return;
+    if (!confirm(t.dashboard.security.removeKeysConfirm)) return;
     setError(''); setSuccess(''); setDeleting(true);
     try {
       await API('/api/users/keys', { method: 'DELETE' });
-      setSuccess('Keys removed. Trading stopped.');
+      setSuccess(t.dashboard.security.keysRemoved);
       onUpdate({ has_api_keys: false });
       setRevealed(null); setRevealMode(false);
     } catch (e) { setError(e); }
@@ -171,80 +170,74 @@ function ApiKeysSection({ me, onUpdate }) {
     try {
       const data = await API('/api/users/keys/reveal', { method: 'POST', body: JSON.stringify({ password: revealPwd }) });
       setRevealed(data); setRevealPwd(''); setRevealMode(false);
-    } catch (e) { setError(typeof e === 'string' ? e : 'Wrong password'); }
+    } catch (e) { setError(typeof e === 'string' ? e : t.dashboard.security.wrongPassword); }
     finally { setRevealLoading(false); }
   }
 
   return (
     <div>
-      {/* Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ width: 7, height: 7, borderRadius: '50%', background: me?.has_api_keys ? '#22c55e' : 'var(--muted-fg)', opacity: me?.has_api_keys ? 1 : 0.35 }} />
-        <span style={{ fontSize: 13 }}>Bybit API — {me?.has_api_keys ? 'Connected' : 'Not connected'}</span>
-        {me?.has_api_keys && me?.api_key_testnet && <span style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.1em' }}>TESTNET</span>}
-        {me?.has_api_keys && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#22c55e', letterSpacing: '0.08em' }}>● ACTIVE</span>}
+        <span style={{ fontSize: 13 }}>{t.dashboard.security.bybitApiPrefix} {me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}</span>
+        {me?.has_api_keys && me?.api_key_testnet && <span style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.1em' }}>{t.dashboard.security.testnetTag}</span>}
+        {me?.has_api_keys && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#22c55e', letterSpacing: '0.08em' }}>{t.dashboard.security.activeStatus}</span>}
       </div>
 
-      {/* Revealed key */}
       {revealed && (
         <div style={{ border: '1px solid var(--border)', padding: 16, marginBottom: 20, background: 'var(--bg2)' }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--muted-fg)', marginBottom: 10, textTransform: 'uppercase' }}>Connected key</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--muted-fg)', marginBottom: 10, textTransform: 'uppercase' }}>{t.dashboard.security.connectedKey}</div>
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, color: 'var(--muted-fg)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>API Key</div>
+            <div style={{ fontSize: 10, color: 'var(--muted-fg)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t.dashboard.security.apiKeyLabel}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <code style={{ ...monoSm, flex: 1, wordBreak: 'break-all', color: 'var(--fg)' }}>{revealed.api_key}</code>
-              <button onClick={() => copyText(revealed.api_key, 'API key')} style={{ ...monoSm, background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '3px 8px', cursor: 'pointer' }}>COPY</button>
+              <button onClick={() => copyText(revealed.api_key, t.dashboard.security.apiKeyCopied)} style={{ ...monoSm, background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '3px 8px', cursor: 'pointer' }}>{t.dashboard.security.copyBtn}</button>
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: 'var(--muted-fg)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Secret (masked)</div>
+            <div style={{ fontSize: 10, color: 'var(--muted-fg)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t.dashboard.security.secretMasked}</div>
             <code style={{ ...monoSm, color: 'var(--fg)' }}>{revealed.masked_secret}</code>
           </div>
-          <button onClick={() => setRevealed(null)} style={{ marginTop: 12, fontSize: 10, background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', letterSpacing: '0.06em' }}>HIDE</button>
+          <button onClick={() => setRevealed(null)} style={{ marginTop: 12, fontSize: 10, background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', letterSpacing: '0.06em' }}>{t.dashboard.security.hideBtn}</button>
         </div>
       )}
 
-      {/* Reveal password form */}
       {me?.has_api_keys && revealMode && !revealed && (
         <form onSubmit={reveal} style={{ border: '1px solid var(--border)', padding: 16, marginBottom: 20, background: 'var(--bg2)' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>Enter your account password to reveal the connected API key.</div>
-          <input type="password" value={revealPwd} onChange={e => setRevealPwd(e.target.value)} placeholder="Account password" style={{ ...inp, marginBottom: 10 }} autoComplete="current-password" autoFocus />
+          <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>{t.dashboard.security.enterPwToReveal}</div>
+          <input type="password" value={revealPwd} onChange={e => setRevealPwd(e.target.value)} placeholder={t.dashboard.security.accountPassword} style={{ ...inp, marginBottom: 10 }} autoComplete="current-password" autoFocus />
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" disabled={revealLoading || !revealPwd} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 18px', fontSize: 12, fontFamily: 'var(--font-mono)', cursor: 'pointer', opacity: (revealLoading || !revealPwd) ? 0.5 : 1 }}>
-              {revealLoading ? 'Checking…' : 'Confirm'}
+              {revealLoading ? t.dashboard.security.checking : t.dashboard.security.confirm}
             </button>
-            <button type="button" onClick={() => { setRevealMode(false); setRevealPwd(''); }} style={{ background: 'none', border: 'none', color: 'var(--muted-fg)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+            <button type="button" onClick={() => { setRevealMode(false); setRevealPwd(''); }} style={{ background: 'none', border: 'none', color: 'var(--muted-fg)', fontSize: 12, cursor: 'pointer' }}>{t.dashboard.security.cancel}</button>
           </div>
         </form>
       )}
 
-      {/* Permission warning */}
       <div style={{ border: '1px solid var(--border)', padding: '10px 14px', marginBottom: 20, fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.6 }}>
-        Grant <strong style={{ color: 'var(--fg)' }}>Trade + Position</strong> permissions only.{' '}
-        <strong style={{ color: 'var(--fg)' }}>Never</strong> enable Withdrawal.
+        {t.dashboard.security.permGrant}<strong style={{ color: 'var(--fg)' }}>{t.dashboard.security.permTradePos}</strong>{t.dashboard.security.permOnly}<strong style={{ color: 'var(--fg)' }}>{t.dashboard.security.permNever}</strong>{t.dashboard.security.permEnableWith}
       </div>
 
-      {/* Key form */}
       <form onSubmit={save} autoComplete="off">
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 5 }}>API Key</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 5 }}>{t.dashboard.security.apiKeyLabel}</div>
           <div style={{ position: 'relative' }}>
-            <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your Bybit API key" style={inp} name="bybit-api-key" autoComplete="new-password" />
-            <button type="button" onClick={() => setShowKey(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 10 }}>{showKey ? 'HIDE' : 'SHOW'}</button>
+            <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={t.dashboard.security.pasteApiKey} style={inp} name="bybit-api-key" autoComplete="new-password" />
+            <button type="button" onClick={() => setShowKey(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 10 }}>{showKey ? t.dashboard.security.hideBtn : t.dashboard.security.showBtn}</button>
           </div>
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 5 }}>Secret</div>
+          <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 5 }}>{t.dashboard.security.secretLabel}</div>
           <div style={{ position: 'relative' }}>
-            <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inp} name="bybit-api-secret" autoComplete="new-password" />
-            <button type="button" onClick={() => setShowSec(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 10 }}>{showSec ? 'HIDE' : 'SHOW'}</button>
+            <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder={t.dashboard.security.pasteSecret} style={inp} name="bybit-api-secret" autoComplete="new-password" />
+            <button type="button" onClick={() => setShowSec(v => !v)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--muted-fg)', cursor: 'pointer', fontSize: 10 }}>{showSec ? t.dashboard.security.hideBtn : t.dashboard.security.showBtn}</button>
           </div>
         </div>
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', fontSize: 13 }}>
           <input type="checkbox" checked={testnet} onChange={e => setTestnet(e.target.checked)} style={{ accentColor: 'var(--fg)' }} />
-          <span>Testnet mode</span>
+          <span>{t.dashboard.security.testnetMode}</span>
         </label>
 
         {error && <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12, borderLeft: '2px solid var(--border-hi)', paddingLeft: 10 }}>{error}</div>}
@@ -252,16 +245,16 @@ function ApiKeysSection({ me, onUpdate }) {
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="submit" disabled={saving} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Saving…' : (me?.has_api_keys ? 'Update keys' : 'Save keys')}
+            {saving ? t.dashboard.security.saving : (me?.has_api_keys ? t.dashboard.security.updateKeys : t.dashboard.security.saveKeys)}
           </button>
           {me?.has_api_keys && !revealMode && !revealed && (
             <button type="button" onClick={() => setRevealMode(true)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', fontSize: 11, padding: '8px 14px', cursor: 'pointer', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
-              VIEW KEY
+              {t.dashboard.security.viewKey}
             </button>
           )}
           {me?.has_api_keys && (
             <button type="button" onClick={del} disabled={deleting} style={{ background: 'none', border: 'none', color: 'var(--muted-fg)', fontSize: 12, cursor: 'pointer', opacity: deleting ? 0.4 : 1 }}>
-              {deleting ? 'Removing…' : 'Remove'}
+              {deleting ? t.dashboard.security.removing : t.dashboard.security.remove}
             </button>
           )}
         </div>
@@ -269,8 +262,6 @@ function ApiKeysSection({ me, onUpdate }) {
     </div>
   );
 }
-
-// ─── Security row component ───────────────────────────────────────────────────
 
 function SecurityRow({ label, status, statusColor, action, actionLabel, description }) {
   return (
@@ -295,9 +286,8 @@ function SecurityRow({ label, status, statusColor, action, actionLabel, descript
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
 export default function SecurityTab() {
+  const { t } = useLang();
   const [me, setMe]             = useState(null);
   const [modal2fa, setModal2fa] = useState(null);
 
@@ -309,6 +299,7 @@ export default function SecurityTab() {
   function on2faDone(enabled) { updateMe({ totp_enabled: enabled }); setModal2fa(null); }
 
   const secScore = !me ? 0 : (me.totp_enabled ? 50 : 0) + (me.has_api_keys ? 30 : 0) + 20;
+  const scoreLabel = secScore >= 80 ? t.dashboard.security.strong : secScore >= 50 ? t.dashboard.security.medium : t.dashboard.security.weak;
 
   return (
     <div style={{ width: '100%' }}>
@@ -321,10 +312,8 @@ export default function SecurityTab() {
 
       <div className="sec-grid">
 
-        {/* ── Left: Security overview ── */}
         <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>Security</div>
-          {/* Score */}
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28, padding: '16px 20px', border: '1px solid var(--border)', background: 'var(--bg2)' }}>
             <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
               <svg viewBox="0 0 52 52" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
@@ -335,50 +324,48 @@ export default function SecurityTab() {
             </div>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>
-                {secScore >= 80 ? 'Strong' : secScore >= 50 ? 'Medium' : 'Weak'} security
+                {scoreLabel} {t.dashboard.security.securitySuffix}
               </div>
               <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.5 }}>
-                {secScore < 100 && 'Enable 2FA and connect API keys to improve your score.'}
-                {secScore === 100 && 'All security features are active.'}
+                {secScore < 100 && t.dashboard.security.improveScore}
+                {secScore === 100 && t.dashboard.security.allActive}
               </div>
             </div>
           </div>
 
-          {/* Rows */}
           <SecurityRow
-            label="Two-Factor Authentication"
-            description={me?.totp_enabled ? 'Google Authenticator or Authy. Required on every login.' : 'Protect your account with an authenticator app.'}
-            status={me?.totp_enabled ? 'Enabled' : 'Disabled'}
+            label={t.dashboard.security.twoFactorAuth}
+            description={me?.totp_enabled ? t.dashboard.security.totpEnabledDesc : t.dashboard.security.totpDisabledDesc}
+            status={me?.totp_enabled ? t.dashboard.security.enabled : t.dashboard.security.disabled}
             statusColor={me?.totp_enabled ? '#22c55e' : '#ef4444'}
             action={() => setModal2fa(me?.totp_enabled ? 'disable' : 'setup')}
-            actionLabel={me?.totp_enabled ? 'Disable' : 'Enable →'}
+            actionLabel={me?.totp_enabled ? t.dashboard.security.disable : t.dashboard.security.enable}
           />
 
           <SecurityRow
-            label="Bybit API Keys"
+            label={t.dashboard.security.bybitKeysHeader}
             description={me?.has_api_keys
-              ? `Bot is trading on your Bybit ${me.api_key_testnet ? 'testnet' : 'live'} account.`
-              : 'Connect your Bybit API keys to start automated trading.'}
-            status={me?.has_api_keys ? 'Connected' : 'Not connected'}
+              ? (me.api_key_testnet ? t.dashboard.security.apiKeysActiveTestnet : t.dashboard.security.apiKeysActiveLive)
+              : t.dashboard.security.apiKeysInactive}
+            status={me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}
             statusColor={me?.has_api_keys ? '#22c55e' : '#555'}
           />
 
           <SecurityRow
-            label="Encryption"
-            description="API keys stored encrypted AES-256 (Fernet). Never logged in plaintext."
-            status="Active"
+            label={t.dashboard.security.encryption}
+            description={t.dashboard.security.encryptionDesc}
+            status={t.dashboard.security.active}
             statusColor="#22c55e"
           />
 
           <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>Account email</div>
+            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{t.dashboard.security.accountEmail}</div>
             <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{me?.email || '—'}</div>
           </div>
         </div>
 
-        {/* ── Right: API Keys ── */}
         <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>API Keys</div>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.apiKeysHeader}</div>
           <ApiKeysSection me={me} onUpdate={updateMe} />
         </div>
 

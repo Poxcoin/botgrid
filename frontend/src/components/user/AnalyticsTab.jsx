@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLang } from '@/lib/LangContext';
 
 const S = {
   bg:       '#060606',
@@ -28,7 +29,6 @@ function fmtDate(ts) {
   return ts.slice(0, 10);
 }
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
 function Skeleton({ w = '100%', h = 18, style = {} }) {
   return (
     <div style={{
@@ -40,7 +40,6 @@ function Skeleton({ w = '100%', h = 18, style = {} }) {
   );
 }
 
-// ─── Summary card ─────────────────────────────────────────────────────────────
 function SummaryCard({ label, value, sub, color }) {
   return (
     <div style={{
@@ -62,7 +61,6 @@ function SummaryCard({ label, value, sub, color }) {
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
 function SectionHeader({ title, right }) {
   return (
     <div style={{
@@ -77,18 +75,17 @@ function SectionHeader({ title, right }) {
   );
 }
 
-// ─── By-Bot table ─────────────────────────────────────────────────────────────
-function BotTable({ rows }) {
+function BotTable({ rows, t }) {
   if (!rows || !rows.length) {
-    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>No data.</div>;
+    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>{t.dashboard.analytics.noData}</div>;
   }
   const cols = [
-    { key: 'source',   label: 'Source',   align: 'left' },
-    { key: 'trades',   label: 'Trades',   align: 'right' },
-    { key: '_wr',      label: 'Win Rate', align: 'right' },
-    { key: 'pnl',      label: 'PnL (USDT)', align: 'right' },
-    { key: 'avg_win',  label: 'Avg Win',  align: 'right' },
-    { key: 'avg_loss', label: 'Avg Loss', align: 'right' },
+    { key: 'source',   label: t.dashboard.analytics.hSource,  align: 'left' },
+    { key: 'trades',   label: t.dashboard.analytics.hTrades,  align: 'right' },
+    { key: '_wr',      label: t.dashboard.analytics.hWinRate, align: 'right' },
+    { key: 'pnl',      label: t.dashboard.analytics.hPnlUsdt, align: 'right' },
+    { key: 'avg_win',  label: t.dashboard.analytics.hAvgWin,  align: 'right' },
+    { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right' },
   ];
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -130,13 +127,12 @@ function BotTable({ rows }) {
   );
 }
 
-// ─── By-Coin table (sortable) ─────────────────────────────────────────────────
-function CoinTable({ rows }) {
+function CoinTable({ rows, t }) {
   const [sortKey, setSortKey] = useState('pnl');
-  const [sortDir, setSortDir] = useState(-1); // -1 = desc
+  const [sortDir, setSortDir] = useState(-1);
 
   if (!rows || !rows.length) {
-    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>No data.</div>;
+    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>{t.dashboard.analytics.noData}</div>;
   }
 
   function toggleSort(key) {
@@ -152,10 +148,10 @@ function CoinTable({ rows }) {
   });
 
   const cols = [
-    { key: 'coin',  label: 'Coin',       align: 'left' },
-    { key: 'trades', label: 'Trades',    align: 'right' },
-    { key: '_wr',   label: 'Win Rate',   align: 'right', noSort: true },
-    { key: 'pnl',   label: 'PnL (USDT)', align: 'right' },
+    { key: 'coin',  label: t.dashboard.analytics.hCoin,    align: 'left' },
+    { key: 'trades', label: t.dashboard.analytics.hTrades, align: 'right' },
+    { key: '_wr',   label: t.dashboard.analytics.hWinRate, align: 'right', noSort: true },
+    { key: 'pnl',   label: t.dashboard.analytics.hPnlUsdt, align: 'right' },
   ];
 
   return (
@@ -203,10 +199,9 @@ function CoinTable({ rows }) {
   );
 }
 
-// ─── Daily PnL bar chart (inline SVG) ────────────────────────────────────────
-function DailyChart({ daily }) {
+function DailyChart({ daily, t }) {
   if (!daily || !daily.length) {
-    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>No data for the last 30 days.</div>;
+    return <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>{t.dashboard.analytics.noData30}</div>;
   }
 
   const W = 640;
@@ -235,7 +230,6 @@ function DailyChart({ daily }) {
         style={{ width: '100%', maxWidth: W, display: 'block', fontFamily: S.mono }}
         preserveAspectRatio="xMidYMid meet"
       >
-        {/* Grid lines */}
         {yAxisVals.map((v, i) => {
           const y = PAD_T + chartH / 2 - (v / maxAbs) * (chartH / 2);
           return (
@@ -251,7 +245,6 @@ function DailyChart({ daily }) {
           );
         })}
 
-        {/* Bars */}
         {daily.map((d, i) => {
           const x = PAD_L + i * step + (step - barW) / 2;
           const norm = d.pnl / maxAbs;
@@ -262,7 +255,6 @@ function DailyChart({ daily }) {
             <g key={i}>
               <rect x={x} y={y} width={barW} height={Math.max(barH, 1)}
                 fill={color} opacity={0.85} rx={1} />
-              {/* Date label every ~5 bars */}
               {i % Math.max(1, Math.floor(daily.length / 6)) === 0 && (
                 <text x={x + barW / 2} y={H - 4} textAnchor="middle"
                   fontSize={7} fill={S.muted}>
@@ -277,21 +269,15 @@ function DailyChart({ daily }) {
   );
 }
 
-// ─── Best / Worst trades ──────────────────────────────────────────────────────
 function TradesList({ trades, title, color }) {
   if (!trades || !trades.length) {
-    return (
-      <div style={{ flex: 1 }}>
-        <SectionHeader title={title} />
-        <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted }}>No data.</div>
-      </div>
-    );
+    return null;
   }
   return (
     <div style={{ flex: 1, minWidth: 220 }}>
       <SectionHeader title={title} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {trades.map((t, i) => (
+        {trades.map((tr, i) => (
           <div key={i} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '8px 12px',
@@ -299,16 +285,16 @@ function TradesList({ trades, title, color }) {
             background: S.card,
           }}>
             <div>
-              <span style={{ fontFamily: S.mono, fontSize: 11, color: S.fg, fontWeight: 600 }}>{t.coin}</span>
+              <span style={{ fontFamily: S.mono, fontSize: 11, color: S.fg, fontWeight: 600 }}>{tr.coin}</span>
               <span style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {t.action} · {t.source}
+                {tr.action} · {tr.source}
               </span>
               <div style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginTop: 2 }}>
-                {fmtDate(t.ts)}
+                {fmtDate(tr.ts)}
               </div>
             </div>
             <div style={{ fontFamily: S.mono, fontSize: 13, fontWeight: 700, color }}>
-              {t.pnl >= 0 ? '+' : ''}{t.pnl}
+              {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
             </div>
           </div>
         ))}
@@ -317,8 +303,8 @@ function TradesList({ trades, title, color }) {
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
 export default function AnalyticsTab() {
+  const { t } = useLang();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -342,7 +328,6 @@ export default function AnalyticsTab() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div style={{ color: S.fg }}>
@@ -361,17 +346,16 @@ export default function AnalyticsTab() {
     );
   }
 
-  // ── Error state ────────────────────────────────────────────────────────────
   if (error) {
     return (
       <div style={{ fontFamily: S.mono, fontSize: 12, color: S.red, padding: '40px 0' }}>
-        <div style={{ marginBottom: 12, letterSpacing: '0.08em' }}>ERROR — {error}</div>
+        <div style={{ marginBottom: 12, letterSpacing: '0.08em' }}>{t.dashboard.analytics.errorPrefix} {error}</div>
         <button onClick={fetchData} style={{
           background: 'none', border: `1px solid ${S.border}`, color: S.muted,
           fontFamily: S.mono, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
           padding: '7px 16px', cursor: 'pointer',
         }}>
-          Retry
+          {t.dashboard.analytics.retry}
         </button>
       </div>
     );
@@ -393,58 +377,52 @@ export default function AnalyticsTab() {
     <div style={{ color: S.fg }}>
       <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
 
-      {/* ── Summary row ─────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
         <SummaryCard
-          label="Total Trades"
+          label={t.dashboard.analytics.totalTrades}
           value={summary?.total_trades ?? 0}
           sub={`${summary?.wins ?? 0}W / ${summary?.losses ?? 0}L`}
         />
         <SummaryCard
-          label="Total PnL"
+          label={t.dashboard.analytics.totalPnl}
           value={`${(summary?.total_pnl ?? 0) >= 0 ? '+' : ''}${summary?.total_pnl ?? 0} USDT`}
           color={pnlColor}
-          sub={`since ${fmtDate(summary?.first_trade)}`}
+          sub={`${t.dashboard.analytics.since} ${fmtDate(summary?.first_trade)}`}
         />
         <SummaryCard
-          label="Win Rate"
+          label={t.dashboard.analytics.winRate}
           value={winRate}
           color={S.fg}
-          sub={`${summary?.wins ?? 0} wins`}
+          sub={`${summary?.wins ?? 0} ${t.dashboard.analytics.wins}`}
         />
         <SummaryCard
-          label="Best Day"
+          label={t.dashboard.analytics.bestDay}
           value={bestDay ? `+${bestDay.pnl}` : '—'}
           color={S.green}
           sub={bestDay?.date ?? ''}
         />
       </div>
 
-      {/* ── Daily PnL chart ──────────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title="Daily PnL — Last 30 Days" right={`${daily?.length ?? 0} days`} />
-        <DailyChart daily={daily} />
+        <SectionHeader title={t.dashboard.analytics.dailyPnl30} right={`${daily?.length ?? 0} ${t.dashboard.analytics.days}`} />
+        <DailyChart daily={daily} t={t} />
       </div>
 
-      {/* ── By Bot ───────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title="By Bot Source" right={`${by_bot?.length ?? 0} sources`} />
-        <BotTable rows={by_bot} />
+        <SectionHeader title={t.dashboard.analytics.byBotSource} right={`${by_bot?.length ?? 0} ${t.dashboard.analytics.sources}`} />
+        <BotTable rows={by_bot} t={t} />
       </div>
 
-      {/* ── By Coin ──────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title="By Coin" right={`${by_coin?.length ?? 0} coins · click header to sort`} />
-        <CoinTable rows={by_coin} />
+        <SectionHeader title={t.dashboard.analytics.byCoin} right={`${by_coin?.length ?? 0} · ${t.dashboard.analytics.coinsSort}`} />
+        <CoinTable rows={by_coin} t={t} />
       </div>
 
-      {/* ── Best / Worst trades ──────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16 }}>
-        <TradesList trades={best}  title="Top 5 Best Trades"  color={S.green} />
-        <TradesList trades={worst} title="Top 5 Worst Trades" color={S.red} />
+        <TradesList trades={best}  title={t.dashboard.analytics.topBest}  color={S.green} />
+        <TradesList trades={worst} title={t.dashboard.analytics.topWorst} color={S.red} />
       </div>
 
-      {/* ── Refresh ──────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${S.border}` }}>
         <button onClick={fetchData} style={{
           background: 'none', border: `1px solid ${S.border}`, color: S.muted,
@@ -454,7 +432,7 @@ export default function AnalyticsTab() {
           onMouseEnter={e => { e.currentTarget.style.borderColor = S.borderHi; e.currentTarget.style.color = S.fg; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = S.border; e.currentTarget.style.color = S.muted; }}
         >
-          Refresh
+          {t.dashboard.refresh}
         </button>
       </div>
     </div>
