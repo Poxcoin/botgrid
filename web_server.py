@@ -373,7 +373,7 @@ class UpdateProfileRequest(BaseModel):
 class ApiKeyRequest(BaseModel):
     api_key: str
     secret: str
-    is_demo: bool = False
+    is_testnet: bool = False
 
 def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
@@ -620,7 +620,7 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "tg_username": user.tg_username or "",
         "tg_connected": bool(user.tg_chat_id),
         "has_api_keys": key_row is not None,
-        "api_key_demo": key_row.is_demo if key_row else False,
+        "api_key_demo": key_row.is_testnet if key_row else False,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "email_verified": bool(user.email_verified),
         "totp_enabled": bool(user.totp_enabled),
@@ -694,7 +694,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         if key_row:
             key_row.api_key_enc   = encrypt_field(body.api_key)
             key_row.secret_enc    = encrypt_field(body.secret)
-            key_row.is_demo       = body.is_demo
+            key_row.is_testnet       = body.is_testnet
             key_row.last_verified = None
         else:
             key_row = UserApiKey(
@@ -702,7 +702,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
                 exchange    = "bybit",
                 api_key_enc = encrypt_field(body.api_key),
                 secret_enc  = encrypt_field(body.secret),
-                is_demo     = body.is_demo,
+                is_testnet  = body.is_testnet,
             )
             db.add(key_row)
         db.commit()
@@ -956,7 +956,7 @@ def _init_user_exchange(key_row):
             'options': {'defaultType': 'linear', 'recvWindow': 10000},
         })
         ex.has['fetchCurrencies'] = False
-        if key_row.is_demo:
+        if key_row.is_testnet:
             ex.urls['api'] = ex.urls['demotrading']
         # no load_markets() — we use raw V5 calls to avoid 3-4s overhead
         return ex
