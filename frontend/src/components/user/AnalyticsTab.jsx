@@ -565,17 +565,15 @@ export default function AnalyticsTab() {
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
   const [allTrades, setAllTrades] = useState([]);
-  const [breakdown, setBreakdown] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
-      const [analyticsRes, tradesRes, breakdownRes] = await Promise.all([
+      const [analyticsRes, tradesRes] = await Promise.all([
         fetch('/api/users/analytics', { headers }),
         fetch('/api/users/closed-pnl?days=90', { headers }),
-        fetch('/api/analytics/breakdown', { headers }),
       ]);
       if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
       const json = await analyticsRes.json();
@@ -583,9 +581,6 @@ export default function AnalyticsTab() {
       if (tradesRes.ok) {
         const tradesJson = await tradesRes.json();
         setAllTrades(tradesJson.trades || []);
-      }
-      if (breakdownRes.ok) {
-        setBreakdown(await breakdownRes.json());
       }
     } catch (e) {
       setError(e.message);
@@ -729,9 +724,9 @@ export default function AnalyticsTab() {
       <div style={{ marginBottom: 32 }}>
         <SectionHeader
           title={t.dashboard.analytics.byBotSource}
-          right={breakdown?.by_bot?.length ? `${breakdown.by_bot.length} ${t.dashboard.analytics.sources}` : ''}
+          right={data?.by_source?.length ? `${data.by_source.length} ${t.dashboard.analytics.sources}` : ''}
         />
-        <BotTable rows={breakdown?.by_bot ?? []} t={t} />
+        <BotTable rows={data?.by_source ?? []} t={t} />
       </div>
 
       {by_coin && by_coin.length > 0 && (

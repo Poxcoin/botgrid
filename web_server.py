@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from modules import position_closer
 from modules import stripe_billing
 from saas_dispatcher import start_dispatcher, get_status as dispatcher_status, sync_user as dispatcher_sync_user, stop_user as dispatcher_stop_user
+from bybit_sync import sync_user_trades as _bybit_sync_user, sync_all_users as _bybit_sync_all
 
 try:
     from modules.liquidation_monitor import get_liquidation_signal, liquidation_signal_queue as _liq_queue
@@ -46,9 +47,22 @@ except Exception as _liq_import_err:
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
 
+async def _bybit_sync_loop():
+    """Background loop: import closed PnL for all users every 15 minutes."""
+    await asyncio.sleep(120)  # let services start first
+    while True:
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _bybit_sync_all)
+        except Exception as e:
+            print(f"[BYBIT_SYNC] loop error: {e}")
+        await asyncio.sleep(900)
+
+
 @app.on_event("startup")
 async def _startup():
     asyncio.create_task(position_closer.run_loop())
+    asyncio.create_task(_bybit_sync_loop())
     asyncio.get_running_loop().run_in_executor(None, start_dispatcher)
     _threading.Thread(target=_cascade_reader_loop, daemon=True, name="CascadeReader").start()
 
@@ -727,6 +741,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         db.rollback()
         raise HTTPException(status_code=409, detail="Could not save keys, try again")
     asyncio.get_running_loop().run_in_executor(None, dispatcher_sync_user, user.id)
+    asyncio.get_running_loop().run_in_executor(None, _bybit_sync_user, user.id)
     return {"ok": True}
 
 
@@ -1144,48 +1159,44 @@ async def get_user_closed_pnl(
     db: Session = Depends(get_db),
 ):
     user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    if not key_row:
-        return {"trades": [], "total_pnl": 0.0, "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
-    ex = _init_user_exchange(key_row)
-    if not ex:
-        return {"trades": [], "total_pnl": 0.0, "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
-    try:
-        all_items = _fetch_all_closed_pnl(ex)
-        cutoff_ms = int((time.time() - days * 86400) * 1000) if days > 0 else 0
-        items = [it for it in all_items if int(it.get("updatedTime") or 0) >= cutoff_ms]
+    has_key = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first() is not None
+    _EMPTY = {"trades": [], "total_pnl": 0.0, "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
+    if not has_key:
+        return _EMPTY
 
-        trades     = []
-        total_pnl  = 0.0
-        total_wins = 0
-        for it in items:
-            pnl = float(it.get("closedPnl") or 0)
-            total_pnl += pnl
-            if pnl > 0:
-                total_wins += 1
-            trades.append({
-                "symbol":      it.get("symbol", "").replace("USDT", ""),
-                "side":        it.get("side", ""),
-                "qty":         float(it.get("qty") or 0),
-                "entry_price": float(it.get("avgEntryPrice") or 0),
-                "exit_price":  float(it.get("avgExitPrice") or 0),
-                "pnl":         round(pnl, 2),
-                "closed_at":   it.get("updatedTime", ""),
-            })
-        trades.sort(key=lambda x: x["closed_at"], reverse=True)
-        return {
-            "trades":       trades,
-            "total_pnl":    round(total_pnl, 2),
-            "total_trades": len(trades),
-            "wins":         total_wins,
-            "losses":       len(trades) - total_wins,
-            "win_rate":     round(total_wins / len(trades) * 100, 1) if trades else 0,
-        }
-    except Exception as e:
-        return {
-            "trades": [], "total_pnl": 0.0, "total_trades": 0,
-            "wins": 0, "losses": 0, "win_rate": 0.0, "error": str(e),
-        }
+    cutoff = datetime.utcnow() - timedelta(days=days) if days > 0 else None
+    q = db.query(UserTrade).filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
+    if cutoff is not None:
+        q = q.filter(UserTrade.closed_at >= cutoff)
+    rows = q.order_by(UserTrade.closed_at.desc()).all()
+
+    trades     = []
+    total_pnl  = 0.0
+    total_wins = 0
+    for t in rows:
+        pnl = float(t.pnl_usdt or 0)
+        total_pnl += pnl
+        if pnl > 0:
+            total_wins += 1
+        closed_ms = int(t.closed_at.timestamp() * 1000) if t.closed_at else 0
+        from bybit_sync import _normalize_coin
+        trades.append({
+            "symbol":      _normalize_coin(t.symbol or ""),
+            "side":        t.side or "",
+            "qty":         float(t.qty or 0),
+            "entry_price": float(t.entry_price or 0),
+            "exit_price":  float(t.exit_price or 0),
+            "pnl":         round(pnl, 2),
+            "closed_at":   str(closed_ms),
+        })
+    return {
+        "trades":       trades,
+        "total_pnl":    round(total_pnl, 2),
+        "total_trades": len(trades),
+        "wins":         total_wins,
+        "losses":       len(trades) - total_wins,
+        "win_rate":     round(total_wins / len(trades) * 100, 1) if trades else 0,
+    }
 
 
 @app.get("/api/users/analytics")
@@ -1194,89 +1205,106 @@ async def get_user_analytics(
     db: Session = Depends(get_db),
 ):
     user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    _EMPTY = lambda has_key: {"has_key": has_key, "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0}, "daily": [], "by_coin": [], "best": [], "worst": []}
-    if not key_row:
-        return _EMPTY(False)
-    ex = _init_user_exchange(key_row)
-    if not ex:
-        return _EMPTY(True)
-    try:
-        all_items = _fetch_all_closed_pnl(ex)
-        if not all_items:
-            return _EMPTY(True)
+    has_key = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first() is not None
 
-        cutoff_30d  = int(time.time() * 1000) - 30 * 86400 * 1000
-        total_pnl   = 0.0
-        wins        = 0
-        coin_stats  = defaultdict(lambda: {"trades": 0, "pnl": 0.0, "wins": 0, "win_pnls": [], "loss_pnls": []})
-        daily_stats = defaultdict(lambda: {"pnl": 0.0, "trades": 0})
-        trade_list  = []
-
-        for it in all_items:
-            pnl       = float(it.get("closedPnl") or 0)
-            symbol    = it.get("symbol", "").replace("USDT", "")
-            closed_ms = int(it.get("updatedTime") or 0)
-
-            total_pnl += pnl
-            if pnl > 0:
-                wins += 1
-
-            cs = coin_stats[symbol]
-            cs["trades"] += 1
-            cs["pnl"]    += pnl
-            if pnl > 0:
-                cs["wins"] += 1
-                cs["win_pnls"].append(pnl)
-            else:
-                cs["loss_pnls"].append(pnl)
-
-            if closed_ms >= cutoff_30d:
-                date_str = datetime.fromtimestamp(closed_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-                daily_stats[date_str]["pnl"]    += pnl
-                daily_stats[date_str]["trades"] += 1
-
-            trade_list.append({"coin": symbol, "pnl": round(pnl, 2),
-                                "closed_at": it.get("updatedTime", ""), "side": it.get("side", "")})
-
-        n = len(all_items)
-        daily = sorted(
-            [{"date": d, "pnl": round(v["pnl"], 2), "trades": v["trades"]} for d, v in daily_stats.items()],
-            key=lambda x: x["date"],
-        )
-        by_coin = sorted(
-            [{
-                "coin":     coin,
-                "trades":   v["trades"],
-                "pnl":      round(v["pnl"], 2),
-                "wins":     v["wins"],
-                "avg_win":  round(sum(v["win_pnls"]) / len(v["win_pnls"]), 2) if v["win_pnls"] else 0,
-                "avg_loss": round(sum(v["loss_pnls"]) / len(v["loss_pnls"]), 2) if v["loss_pnls"] else 0,
-            } for coin, v in coin_stats.items()],
-            key=lambda x: x["pnl"], reverse=True,
-        )
-        by_date = sorted(trade_list, key=lambda x: x["pnl"], reverse=True)
-
+    def _empty():
         return {
-            "has_key": True,
-            "summary": {
-                "total_trades": n,
-                "total_pnl":    round(total_pnl, 2),
-                "wins":         wins,
-                "losses":       n - wins,
-                "win_rate":     round(wins / n * 100, 1),
-            },
-            "daily":   daily,
-            "by_coin": by_coin,
-            "best":    by_date[:5],
-            "worst":   by_date[-5:][::-1] if len(by_date) >= 5 else by_date[::-1],
+            "has_key":   has_key,
+            "summary":   {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0},
+            "daily":     [], "by_coin": [], "by_source": [], "best": [], "worst": [],
         }
-    except Exception as e:
-        return {
-            "has_key": True,
-            "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0},
-            "daily": [], "by_coin": [], "best": [], "worst": [], "error": str(e),
-        }
+
+    rows = (
+        db.query(UserTrade)
+        .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
+        .all()
+    )
+    if not rows:
+        return _empty()
+
+    from bybit_sync import _normalize_coin
+    cutoff_30d  = datetime.utcnow() - timedelta(days=30)
+    total_pnl   = 0.0
+    wins        = 0
+    coin_stats   = defaultdict(lambda: {"trades": 0, "pnl": 0.0, "wins": 0, "win_pnls": [], "loss_pnls": []})
+    source_stats = defaultdict(lambda: {"trades": 0, "pnl": 0.0, "wins": 0, "win_pnls": [], "loss_pnls": []})
+    daily_stats  = defaultdict(lambda: {"pnl": 0.0, "trades": 0})
+    trade_list   = []
+
+    for t in rows:
+        pnl    = float(t.pnl_usdt or 0)
+        coin   = _normalize_coin(t.symbol or "")
+        src    = t.source or "other"
+        closed = t.closed_at  # naive UTC from SQLite
+
+        total_pnl += pnl
+        if pnl > 0:
+            wins += 1
+
+        cs = coin_stats[coin]
+        cs["trades"] += 1
+        cs["pnl"]    += pnl
+        if pnl > 0:
+            cs["wins"] += 1; cs["win_pnls"].append(pnl)
+        else:
+            cs["loss_pnls"].append(pnl)
+
+        ss = source_stats[src]
+        ss["trades"] += 1
+        ss["pnl"]    += pnl
+        if pnl > 0:
+            ss["wins"] += 1; ss["win_pnls"].append(pnl)
+        else:
+            ss["loss_pnls"].append(pnl)
+
+        if closed and closed >= cutoff_30d:
+            daily_stats[closed.strftime("%Y-%m-%d")]["pnl"]    += pnl
+            daily_stats[closed.strftime("%Y-%m-%d")]["trades"] += 1
+
+        closed_ms = int(closed.timestamp() * 1000) if closed else 0
+        trade_list.append({"coin": coin, "pnl": round(pnl, 2),
+                           "closed_at": str(closed_ms), "side": t.side or ""})
+
+    def _agg(stats_dict):
+        return sorted([{
+            "source":   k,
+            "trades":   v["trades"],
+            "pnl":      round(v["pnl"], 2),
+            "wins":     v["wins"],
+            "avg_win":  round(sum(v["win_pnls"]) / len(v["win_pnls"]), 2) if v["win_pnls"] else 0,
+            "avg_loss": round(sum(v["loss_pnls"]) / len(v["loss_pnls"]), 2) if v["loss_pnls"] else 0,
+        } for k, v in stats_dict.items()], key=lambda x: x["pnl"], reverse=True)
+
+    def _agg_coin(stats_dict):
+        return sorted([{
+            "coin":     k,
+            "trades":   v["trades"],
+            "pnl":      round(v["pnl"], 2),
+            "wins":     v["wins"],
+            "avg_win":  round(sum(v["win_pnls"]) / len(v["win_pnls"]), 2) if v["win_pnls"] else 0,
+            "avg_loss": round(sum(v["loss_pnls"]) / len(v["loss_pnls"]), 2) if v["loss_pnls"] else 0,
+        } for k, v in stats_dict.items()], key=lambda x: x["pnl"], reverse=True)
+
+    n      = len(rows)
+    daily  = sorted([{"date": d, "pnl": round(v["pnl"], 2), "trades": v["trades"]}
+                     for d, v in daily_stats.items()], key=lambda x: x["date"])
+    by_date = sorted(trade_list, key=lambda x: x["pnl"], reverse=True)
+
+    return {
+        "has_key":   True,
+        "summary":   {
+            "total_trades": n,
+            "total_pnl":    round(total_pnl, 2),
+            "wins":         wins,
+            "losses":       n - wins,
+            "win_rate":     round(wins / n * 100, 1),
+        },
+        "daily":     daily,
+        "by_coin":   _agg_coin(coin_stats),
+        "by_source": _agg(source_stats),
+        "best":      by_date[:5],
+        "worst":     by_date[-5:][::-1] if len(by_date) >= 5 else by_date[::-1],
+    }
 
 
 @app.get("/api/users/referrals")
