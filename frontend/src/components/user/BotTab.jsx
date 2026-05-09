@@ -61,6 +61,13 @@ function NoKeyBanner() {
   );
 }
 
+function priceDp(v) {
+  if (!v) return 4;
+  if (v >= 10000) return 1;
+  if (v >= 100) return 2;
+  return 4;
+}
+
 function PositionsTable({ positions }) {
   if (!positions || !positions.length) return null;
   return (
@@ -73,7 +80,7 @@ function PositionsTable({ positions }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${B}` }}>
-              {['Symbol', 'Side', 'Entry', 'Unreal. PnL', 'PnL %'].map((h, i) => (
+              {['Symbol', 'Side', 'Lev', 'Entry', 'Mark', 'Unreal. PnL', 'ROE%', 'SL', 'TP', 'Liq'].map((h, i) => (
                 <th key={h} style={{
                   textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
                   fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
@@ -93,12 +100,23 @@ function PositionsTable({ positions }) {
                 >
                   <td style={{ padding: '11px 20px', color: '#ccc', fontWeight: 700 }}>{p.symbol}</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(4) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#888' }}>{p.leverage ?? '—'}×</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(priceDp(p.entry_price)) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.mark_price?.toFixed(priceDp(p.mark_price)) ?? '—'}</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
                   </td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isProfit ? '+' : ''}{p.pnl_pct ?? '—'}%
+                  </td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? 'var(--accent-red)' : '#333' }}>
+                    {p.stop_loss?.toFixed(priceDp(p.stop_loss)) ?? '—'}
+                  </td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? 'var(--accent-green)' : '#333' }}>
+                    {p.take_profit?.toFixed(priceDp(p.take_profit)) ?? '—'}
+                  </td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? 'rgba(255,77,109,0.5)' : '#333' }}>
+                    {p.liq_price?.toFixed(priceDp(p.liq_price)) ?? '—'}
                   </td>
                 </tr>
               );

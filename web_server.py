@@ -1012,6 +1012,10 @@ def _bybit_positions(ex):
     raw   = ex.private_get_v5_position_list({"category": "linear", "settleCoin": "USDT"})
     items = raw.get("result", {}).get("list", [])
     result = []
+    def _price_or_none(val):
+        v = float(val) if val else 0.0
+        return v if v != 0.0 else None
+
     open_items = [p for p in items if float(p.get("size") or 0) > 0]
     for p in sorted(open_items, key=lambda x: float(x.get("unrealisedPnl") or 0), reverse=True):
         upnl   = float(p.get("unrealisedPnl") or 0)
@@ -1023,6 +1027,11 @@ def _bybit_positions(ex):
             "qty":            float(p.get("size") or 0),
             "unrealized_pnl": upnl,
             "pnl_pct":        round(upnl / margin * 100, 2) if margin else 0,
+            "stop_loss":      _price_or_none(p.get("stopLoss")),
+            "take_profit":    _price_or_none(p.get("takeProfit")),
+            "liq_price":      _price_or_none(p.get("liqPrice")),
+            "mark_price":     _price_or_none(p.get("markPrice")),
+            "leverage":       int(float(p.get("leverage") or 0)),
         })
     return result
 

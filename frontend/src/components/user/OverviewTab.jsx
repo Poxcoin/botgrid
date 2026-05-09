@@ -41,6 +41,13 @@ function SkeletonRow({ cols }) {
   );
 }
 
+function priceDp(v) {
+  if (!v) return 4;
+  if (v >= 10000) return 1;
+  if (v >= 100) return 2;
+  return 4;
+}
+
 export default function OverviewTab() {
   const { t } = useLang();
   const [me,      setMe]      = useState(null);
@@ -124,33 +131,48 @@ export default function OverviewTab() {
           <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
             Open Positions
           </div>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', marginBottom: 32 }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', marginBottom: 32, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
-                  {['Symbol', 'Side', 'Entry', 'Unrealized PnL', 'PnL %'].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
+                  {['Symbol', 'Side', 'Lev', 'Entry', 'Mark', 'Unrealized PnL', 'ROE%', 'SL', 'TP', 'Liq'].map((h, i) => (
+                    <th key={h} style={{ padding: '12px 16px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {positions.map((p, i) => (
-                  <tr key={i}
-                    style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{p.symbol}</td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: p.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{p.entry_price?.toFixed(4)}</td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: p.unrealized_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {p.unrealized_pnl >= 0 ? '+' : ''}{p.unrealized_pnl?.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: p.pnl_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {p.pnl_pct >= 0 ? '+' : ''}{p.pnl_pct}%
-                    </td>
-                  </tr>
-                ))}
+                {positions.map((p, i) => {
+                  const isLong   = p.side === 'LONG';
+                  const isProfit = (p.unrealized_pnl ?? 0) >= 0;
+                  return (
+                    <tr key={i}
+                      style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{p.symbol}</td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: '#888' }}>{p.leverage ?? '—'}×</td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(priceDp(p.entry_price)) ?? '—'}</td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: '#999' }}>{p.mark_price?.toFixed(priceDp(p.mark_price)) ?? '—'}</td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                        {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                        {isProfit ? '+' : ''}{p.pnl_pct ?? '—'}%
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: p.stop_loss ? 'var(--accent-red)' : '#333' }}>
+                        {p.stop_loss?.toFixed(priceDp(p.stop_loss)) ?? '—'}
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: p.take_profit ? 'var(--accent-green)' : '#333' }}>
+                        {p.take_profit?.toFixed(priceDp(p.take_profit)) ?? '—'}
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', color: p.liq_price ? 'rgba(255,77,109,0.5)' : '#333' }}>
+                        {p.liq_price?.toFixed(priceDp(p.liq_price)) ?? '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
