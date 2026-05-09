@@ -37,9 +37,10 @@ function StatBox({ label, value, sub, color, accent, live }) {
 
 export default function BotTab() {
   const { t } = useLang();
-  const [data,  setData]  = useState(null);
-  const [intel, setIntel] = useState(null);
-  const [error, setError] = useState(false);
+  const [data,    setData]    = useState(null);
+  const [intel,   setIntel]   = useState(null);
+  const [error,   setError]   = useState(false);
+  const [summary, setSummary] = useState(null);
 
   const load = async () => {
     try {
@@ -57,13 +58,19 @@ export default function BotTab() {
     } catch {}
   };
 
+  const loadSummary = async () => {
+    try {
+      const res = await authFetch('/api/users/bot-summary');
+      if (res.ok) setSummary(await res.json());
+    } catch {}
+  };
+
   useEffect(() => {
-    load(); loadIntel();
-    const id = setInterval(() => { load(); loadIntel(); }, 30000);
+    load(); loadIntel(); loadSummary();
+    const id = setInterval(() => { load(); loadIntel(); loadSummary(); }, 30000);
     return () => clearInterval(id);
   }, []);
 
-  const balance = data?.balance ?? { total: 0, free: 0 };
   const feed = data?.latest_signals ?? [];
   const signalsToday = feed.filter(s =>
     new Date(s.timestamp).toDateString() === new Date().toDateString()
@@ -75,7 +82,7 @@ export default function BotTab() {
     <div>
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatBox label={t.dashboard.bot.balance} value={`$${balance.total.toFixed(2)}`} sub={`${t.dashboard.bot.free} $${balance.free.toFixed(2)}`} color="var(--accent-green)" accent="green" />
+        <StatBox label={t.dashboard.bot.balance} value={`$${(summary?.balance?.wallet ?? 0).toFixed(2)}`} sub={`Equity $${(summary?.balance?.equity ?? 0).toFixed(2)}`} color="var(--accent-green)" accent="green" />
         <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
         <StatBox
           label={t.dashboard.bot.feedStatus}

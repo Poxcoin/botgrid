@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createChart } from 'lightweight-charts';
 import { useLang } from '@/lib/LangContext';
 
 const S = {
@@ -327,27 +328,232 @@ function TradesList({ trades, title, color }) {
     <div style={{ flex: 1, minWidth: 220 }}>
       <SectionHeader title={title} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {trades.map((tr, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '8px 12px',
-            border: `1px solid ${S.border}`,
-            background: S.card,
-          }}>
-            <div>
-              <span style={{ fontFamily: S.mono, fontSize: 11, color: S.fg, fontWeight: 600 }}>{tr.coin}</span>
-              <span style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {tr.action} · {tr.source}
-              </span>
-              <div style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginTop: 2 }}>
-                {fmtDate(tr.ts)}
+        {trades.map((tr, i) => {
+          const closedMs = parseInt(tr.closed_at);
+          const dateStr  = closedMs ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) : '—';
+          return (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 12px',
+              border: `1px solid ${S.border}`,
+              background: S.card,
+            }}>
+              <div>
+                <span style={{ fontFamily: S.mono, fontSize: 11, color: S.fg, fontWeight: 600 }}>{tr.coin}</span>
+                <span style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {tr.side === 'Buy' ? 'LONG' : 'SHORT'}
+                </span>
+                <div style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginTop: 2 }}>{dateStr}</div>
+              </div>
+              <div style={{ fontFamily: S.mono, fontSize: 13, fontWeight: 700, color }}>
+                {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
               </div>
             </div>
-            <div style={{ fontFamily: S.mono, fontSize: 13, fontWeight: 700, color }}>
-              {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
-            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CoinChart({ coins, allTrades }) {
+  const [selectedCoin, setSelectedCoin] = useState(() => {
+    if (!coins || !coins.length) return null;
+    const hasBtc = coins.find(c => c.coin === 'BTC');
+    return hasBtc ? 'BTC' : coins[0].coin;
+  });
+  const [klines, setKlines] = useState([]);
+  const [klineLoading, setKlineLoading] = useState(false);
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
+
+  useEffect(() => {
+    if (!coins || !coins.length) return;
+    const hasBtc = coins.find(c => c.coin === 'BTC');
+    setSelectedCoin(hasBtc ? 'BTC' : coins[0].coin);
+  }, [coins]);
+
+  useEffect(() => {
+    if (!selectedCoin) return;
+    setKlineLoading(true);
+    setKlines([]);
+    fetch(`https://api.bybit.com/v5/market/kline?symbol=${selectedCoin}USDT&interval=D&limit=90`)
+      .then(r => r.json())
+      .then(json => {
+        const list = json?.result?.list;
+        if (!list) return;
+        const candles = [...list].reverse().map(row => ({
+          time: Math.floor(parseInt(row[0]) / 1000),
+          open:  parseFloat(row[1]),
+          high:  parseFloat(row[2]),
+          low:   parseFloat(row[3]),
+          close: parseFloat(row[4]),
+        }));
+        setKlines(candles);
+      })
+      .catch(() => {})
+      .finally(() => setKlineLoading(false));
+  }, [selectedCoin]);
+
+  useEffect(() => {
+    if (!chartContainerRef.current || klines.length === 0) return;
+
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+    }
+
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      height: 280,
+      layout: {
+        background: { color: '#060606' },
+        textColor: '#555',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      crosshair: {
+        vertLine: { color: 'rgba(255,255,255,0.2)' },
+        horzLine: { color: 'rgba(255,255,255,0.2)' },
+      },
+      rightPriceScale: {
+        borderColor: 'rgba(255,255,255,0.06)',
+      },
+      timeScale: {
+        borderColor: 'rgba(255,255,255,0.06)',
+        timeVisible: true,
+      },
+    });
+
+    const series = chart.addCandlestickSeries({
+      upColor:        '#22c55e',
+      downColor:      '#ef4444',
+      borderUpColor:  '#22c55e',
+      borderDownColor:'#ef4444',
+      wickUpColor:    '#22c55e',
+      wickDownColor:  '#ef4444',
+    });
+
+    series.setData(klines);
+
+    const coinTrades = (allTrades || []).filter(
+      t => (t.symbol || t.coin || '') === selectedCoin
+    );
+
+    const markers = [];
+    coinTrades.forEach(tr => {
+      const dateStr = new Date(parseInt(tr.closed_at)).toISOString().slice(0, 10);
+      const isLong  = tr.side === 'Buy';
+
+      markers.push({
+        time:     dateStr,
+        position: 'belowBar',
+        color:    isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)',
+        shape:    'arrowUp',
+        text:     isLong ? '▲ Entry' : '▼ Entry',
+      });
+
+      markers.push({
+        time:     dateStr,
+        position: 'aboveBar',
+        color:    isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)',
+        shape:    'arrowDown',
+        text:     'Exit',
+      });
+    });
+
+    markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+    if (markers.length) series.setMarkers(markers);
+
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    chartRef.current = chart;
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chart.remove();
+      chartRef.current = null;
+    };
+  }, [klines, allTrades, selectedCoin]);
+
+  if (!coins || !coins.length) return null;
+
+  const visibleCoins = coins.slice(0, 6);
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <SectionHeader title="Coin Charts" right={selectedCoin ? `${selectedCoin}USDT · 90D` : ''} />
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        {visibleCoins.map(c => {
+          const active = c.coin === selectedCoin;
+          return (
+            <button
+              key={c.coin}
+              onClick={() => setSelectedCoin(c.coin)}
+              style={{
+                background:   'none',
+                border:       `1px solid ${active ? 'rgba(255,255,255,0.5)' : S.border}`,
+                color:        active ? S.fg : S.muted,
+                fontFamily:   S.mono,
+                fontSize:     10,
+                letterSpacing:'0.12em',
+                textTransform:'uppercase',
+                padding:      '5px 12px',
+                cursor:       'pointer',
+                borderRadius: 4,
+                transition:   'border-color 150ms, color 150ms',
+              }}
+              onMouseEnter={e => {
+                if (!active) {
+                  e.currentTarget.style.borderColor = S.borderHi;
+                  e.currentTarget.style.color = S.fg;
+                }
+              }}
+              onMouseLeave={e => {
+                if (!active) {
+                  e.currentTarget.style.borderColor = S.border;
+                  e.currentTarget.style.color = S.muted;
+                }
+              }}
+            >
+              {c.coin}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{
+        position:   'relative',
+        background: '#060606',
+        border:     `1px solid ${S.border}`,
+        borderRadius: 8,
+        overflow:   'hidden',
+      }}>
+        {klineLoading && (
+          <div style={{
+            position:   'absolute',
+            inset:       0,
+            display:    'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: S.mono,
+            fontSize:   11,
+            color:      S.muted,
+            zIndex:     10,
+            background: '#060606',
+          }}>
+            Loading chart...
           </div>
-        ))}
+        )}
+        <div ref={chartContainerRef} style={{ width: '100%', height: 280 }} />
       </div>
     </div>
   );
@@ -358,17 +564,24 @@ export default function AnalyticsTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [allTrades, setAllTrades] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/analytics/breakdown', {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const headers = { Authorization: `Bearer ${getToken()}` };
+      const [analyticsRes, tradesRes] = await Promise.all([
+        fetch('/api/users/analytics', { headers }),
+        fetch('/api/users/closed-pnl?days=90', { headers }),
+      ]);
+      if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
+      const json = await analyticsRes.json();
       setData(json);
+      if (tradesRes.ok) {
+        const tradesJson = await tradesRes.json();
+        setAllTrades(tradesJson.trades || []);
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -411,7 +624,7 @@ export default function AnalyticsTab() {
     );
   }
 
-  const { summary, by_bot, by_coin, daily, best, worst } = data || {};
+  const { summary, by_coin, daily, best, worst } = data || {};
 
   const winRate = summary?.total_trades
     ? pct(summary.wins, summary.total_trades)
@@ -444,7 +657,6 @@ export default function AnalyticsTab() {
           value={`${(summary?.total_pnl ?? 0) >= 0 ? '+' : ''}${summary?.total_pnl ?? 0} USDT`}
           color={(summary?.total_pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
           accent={(summary?.total_pnl ?? 0) >= 0 ? 'green' : 'red'}
-          sub={`${t.dashboard.analytics.since} ${fmtDate(summary?.first_trade)}`}
         />
         <SummaryCard
           label={t.dashboard.analytics.winRate}
@@ -466,10 +678,9 @@ export default function AnalyticsTab() {
         <DailyChart daily={daily} t={t} />
       </div>
 
-      <div style={{ marginBottom: 32 }}>
-        <SectionHeader title={t.dashboard.analytics.byBotSource} right={`${by_bot?.length ?? 0} ${t.dashboard.analytics.sources}`} />
-        <BotTable rows={by_bot} t={t} />
-      </div>
+      {by_coin && by_coin.length > 0 && (
+        <CoinChart coins={by_coin} allTrades={allTrades} />
+      )}
 
       <div style={{ marginBottom: 32 }}>
         <SectionHeader title={t.dashboard.analytics.byCoin} right={`${by_coin?.length ?? 0} · ${t.dashboard.analytics.coinsSort}`} />

@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import OverviewTab    from '@/components/user/OverviewTab';
 import TradesTab      from '@/components/user/TradesTab';
-import PnlTab         from '@/components/user/PnlTab';
 import SettingsTab    from '@/components/user/SettingsTab';
 import AccountTab     from '@/components/user/AccountTab';
 import BotTab         from '@/components/user/BotTab';
 import SignalsTab     from '@/components/user/SignalsTab';
-import LogsTab        from '@/components/user/LogsTab';
 import BacktesterTab  from '@/components/dashboard/BacktesterTab';
 import AnalyticsTab   from '@/components/user/AnalyticsTab';
 import SecurityTab    from '@/components/user/SecurityTab';
@@ -15,16 +13,14 @@ import { useLang }    from '@/lib/LangContext';
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
 
-const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'pnl', 'trades', 'signals', 'logs', 'backtester'];
+const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'trades', 'signals', 'backtester'];
 const SECONDARY_TAB_IDS = ['account', 'security', 'settings'];
 const TAB_LABEL_KEY = {
   overview:   'tabOverview',
   bot:        'tabBot',
   analytics:  'tabAnalytics',
-  pnl:        'tabPnl',
   trades:     'tabTrades',
   signals:    'tabSignals',
-  logs:       'tabLogs',
   backtester: 'tabBacktester',
   account:    'tabAccount',
   security:   'tabSecurity',
@@ -36,10 +32,8 @@ function TabContent({ tab }) {
     case 'overview':   return <OverviewTab />;
     case 'bot':        return <BotTab />;
     case 'analytics':  return <AnalyticsTab />;
-    case 'pnl':        return <PnlTab />;
     case 'trades':     return <TradesTab />;
     case 'signals':    return <SignalsTab />;
-    case 'logs':       return <LogsTab />;
     case 'backtester': return <BacktesterTab />;
     case 'account':    return <AccountTab />;
     case 'security':   return <SecurityTab />;

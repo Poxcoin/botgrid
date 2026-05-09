@@ -83,7 +83,7 @@ export const translations = {
       errConnRetry:           'Connection error — please try again.',
     },
     dashboard: {
-      tabOverview:   'Overview',
+      tabOverview:   'Balance',
       tabBot:        'Bot',
       tabAnalytics:  'Analytics',
       tabPnl:        'PnL',
@@ -677,7 +677,7 @@ export const translations = {
       errConnRetry:           'Error de conexión — intenta de nuevo.',
     },
     dashboard: {
-      tabOverview:   'Resumen',
+      tabOverview:   'Balance',
       tabBot:        'Bot',
       tabAnalytics:  'Analítica',
       tabPnl:        'PnL',
@@ -1271,7 +1271,7 @@ export const translations = {
       errConnRetry:           'Помилка з\'єднання — спробуйте ще раз.',
     },
     dashboard: {
-      tabOverview:   'Огляд',
+      tabOverview:   'Баланс',
       tabBot:        'Бот',
       tabAnalytics:  'Аналітика',
       tabPnl:        'PnL',
@@ -1865,7 +1865,7 @@ export const translations = {
       errConnRetry:           'Ошибка соединения — попробуйте ещё раз.',
     },
     dashboard: {
-      tabOverview:   'Обзор',
+      tabOverview:   'Баланс',
       tabBot:        'Бот',
       tabAnalytics:  'Аналитика',
       tabPnl:        'PnL',

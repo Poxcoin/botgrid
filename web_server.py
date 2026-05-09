@@ -105,11 +105,14 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self'; "
+        # Cloudflare Web Analytics auto-injects beacon.min.js; Meta Pixel loads
+        # fbevents.js (only after the user accepts cookie consent).
+        "script-src 'self' https://static.cloudflareinsights.com https://connect.facebook.net; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173 "
-        "https://api.bybit.com wss://stream.bybit.com; "
+        "https://api.bybit.com wss://stream.bybit.com "
+        "https://cloudflareinsights.com https://www.facebook.com; "
         "img-src 'self' data: https:; "
         "frame-ancestors 'none'; "
         "upgrade-insecure-requests;"
@@ -370,7 +373,7 @@ class UpdateProfileRequest(BaseModel):
 class ApiKeyRequest(BaseModel):
     api_key: str
     secret: str
-    is_testnet: bool = False
+    is_demo: bool = False
 
 def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
@@ -397,7 +400,9 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         raise HTTPException(status_code=400, detail="Invalid referral code format")
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    if db.query(User).filter(User.username == body.username).first():
+    # Case-insensitive uniqueness — block 'John' colliding with 'john' for impersonation safety
+    from sqlalchemy import func
+    if db.query(User).filter(func.lower(User.username) == body.username.lower()).first():
         raise HTTPException(status_code=400, detail="Username already taken")
     pw = body.password
     if len(pw) < 8:
@@ -427,7 +432,7 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     user = User(
         email=body.email,
         username=body.username,
-        password_hash=hash_password(body.password),
+        password_hash=hash_password(body.password[:72]),  # bcrypt 72-byte limit — match reset-password
         email_verified=False,
         email_verify_token=verify_token_hash,
         plan="trial",
@@ -488,7 +493,7 @@ class ResetPasswordRequest(BaseModel):
 async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     ip = _real_ip(request)
     if not _check_rate_limit(f"reset:{ip}", window=3600, max_hits=5):
-        raise HTTPException(status_code=429, detail="Слишком много запросов. Подождите 1 час.")
+        raise HTTPException(status_code=429, detail="Too many requests. Please wait 1 hour.")
     user = db.query(User).filter(User.email == body.email).first()
     if user:
         token = secrets.token_urlsafe(32)
@@ -498,30 +503,30 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ses
         db.commit()
         from utils.email import send_password_reset_email
         asyncio.get_running_loop().run_in_executor(None, send_password_reset_email, user.email, token)
-    return {"ok": True, "message": "Если email зарегистрирован — письмо отправлено"}
+    return {"ok": True, "message": "If this email is registered, a reset link has been sent."}
 
 
 @app.post("/api/users/reset-password")
 async def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     if len(body.password) < 8:
-        raise HTTPException(status_code=400, detail="Пароль слишком короткий")
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if not re.search(r'[A-Z]', body.password):
-        raise HTTPException(status_code=400, detail="Нужна хотя бы одна заглавная буква")
+        raise HTTPException(status_code=400, detail="Password must contain at least one uppercase letter")
     if not re.search(r'[0-9]', body.password):
-        raise HTTPException(status_code=400, detail="Нужна хотя бы одна цифра")
+        raise HTTPException(status_code=400, detail="Password must contain at least one number")
     if not re.search(r'[^A-Za-z0-9]', body.password):
-        raise HTTPException(status_code=400, detail="Нужен хотя бы один спецсимвол")
+        raise HTTPException(status_code=400, detail="Password must contain at least one special character")
     token_hash = hashlib.sha256(body.token.encode()).hexdigest()
     user = db.query(User).filter(User.password_reset_token == token_hash).first()
     if not user or not user.password_reset_expires:
-        raise HTTPException(status_code=400, detail="Неверная или устаревшая ссылка")
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
     if datetime.now(timezone.utc) > user.password_reset_expires.replace(tzinfo=timezone.utc):
-        raise HTTPException(status_code=400, detail="Ссылка истекла — запросите новую")
+        raise HTTPException(status_code=400, detail="Reset link expired — please request a new one")
     user.password_hash           = hash_password(body.password[:72])
     user.password_reset_token    = None
     user.password_reset_expires  = None
     db.commit()
-    return {"ok": True, "message": "Пароль успешно изменён"}
+    return {"ok": True, "message": "Password changed successfully"}
 
 
 @app.post("/api/users/login")
@@ -534,8 +539,8 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
-    if not user.email_verified:
-        raise HTTPException(status_code=403, detail="Please verify your email before logging in.")
+    # Note: email_verified is NOT required to login — UserDashboard shows a "Verify email"
+    # banner for unverified users, and sensitive actions can require verification separately.
     user.last_login = datetime.now(timezone.utc)
     db.commit()
     if user.totp_enabled:
@@ -615,7 +620,7 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "tg_username": user.tg_username or "",
         "tg_connected": bool(user.tg_chat_id),
         "has_api_keys": key_row is not None,
-        "api_key_testnet": key_row.is_testnet if key_row else False,
+        "api_key_demo": key_row.is_demo if key_row else False,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "email_verified": bool(user.email_verified),
         "totp_enabled": bool(user.totp_enabled),
@@ -689,7 +694,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         if key_row:
             key_row.api_key_enc   = encrypt_field(body.api_key)
             key_row.secret_enc    = encrypt_field(body.secret)
-            key_row.is_testnet    = body.is_testnet
+            key_row.is_demo       = body.is_demo
             key_row.last_verified = None
         else:
             key_row = UserApiKey(
@@ -697,7 +702,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
                 exchange    = "bybit",
                 api_key_enc = encrypt_field(body.api_key),
                 secret_enc  = encrypt_field(body.secret),
-                is_testnet  = body.is_testnet,
+                is_demo     = body.is_demo,
             )
             db.add(key_row)
         db.commit()
@@ -935,6 +940,322 @@ async def get_user_pnl(
         }
         for r in rows
     ]
+
+
+
+
+def _init_user_exchange(key_row):
+    try:
+        from utils.crypto import decrypt_field as _df
+        api_key = _df(key_row.api_key_enc)
+        secret  = _df(key_row.secret_enc)
+        ex = ccxt.bybit({
+            'apiKey': api_key,
+            'secret': secret,
+            'enableRateLimit': True,
+            'options': {'defaultType': 'linear', 'recvWindow': 10000},
+        })
+        ex.has['fetchCurrencies'] = False
+        if key_row.is_demo:
+            ex.urls['api'] = ex.urls['demotrading']
+        # no load_markets() — we use raw V5 calls to avoid 3-4s overhead
+        return ex
+    except Exception:
+        return None
+
+
+def _bybit_balance(ex):
+    """Raw Bybit V5 USDT UNIFIED balance — no load_markets needed."""
+    raw   = ex.private_get_v5_account_wallet_balance({"accountType": "UNIFIED"})
+    coins = raw["result"]["list"][0].get("coin", [])
+    usdt  = next((c for c in coins if c["coin"] == "USDT"), {})
+    return {
+        "wallet":         float(usdt.get("walletBalance")  or 0),
+        "equity":         float(usdt.get("equity")         or 0),
+        "unrealized_pnl": float(usdt.get("unrealisedPnl")  or 0),
+    }
+
+
+def _bybit_positions(ex):
+    """Raw Bybit V5 open linear positions — no load_markets needed."""
+    raw   = ex.private_get_v5_position_list({"category": "linear", "settleCoin": "USDT"})
+    items = raw.get("result", {}).get("list", [])
+    result = []
+    open_items = [p for p in items if float(p.get("size") or 0) > 0]
+    for p in sorted(open_items, key=lambda x: float(x.get("unrealisedPnl") or 0), reverse=True):
+        upnl   = float(p.get("unrealisedPnl") or 0)
+        margin = float(p.get("positionIM") or 1)
+        result.append({
+            "symbol":         p["symbol"].replace("USDT", ""),
+            "side":           "LONG" if p.get("side") == "Buy" else "SHORT",
+            "entry_price":    float(p.get("avgPrice") or 0),
+            "qty":            float(p.get("size") or 0),
+            "unrealized_pnl": upnl,
+            "pnl_pct":        round(upnl / margin * 100, 2) if margin else 0,
+        })
+    return result
+
+
+@app.get("/api/users/balance")
+async def get_user_balance(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        b = _bybit_balance(ex)
+        return {"usdt_wallet": b["wallet"], "usdt_equity": b["equity"],
+                "unrealized_pnl": b["unrealized_pnl"], "usdt_free": b["wallet"]}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/api/users/positions")
+async def get_user_positions(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        return _bybit_positions(ex)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+_BOT_LABELS = {
+    "news":        "Signal Bot",
+    "fr":          "Funding Rate",
+    "grid":        "Grid Bot",
+    "listing":     "CEX Sniper",
+    "whale":       "Whale Tracker",
+    "liq_cascade": "Liq Cascade",
+}
+
+@app.get("/api/users/bot-summary")
+async def get_user_bot_summary(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+
+    from sqlalchemy import func as _sf, case as _case
+    rows = (
+        db.query(
+            UserTrade.source,
+            _sf.count(UserTrade.id).label("n"),
+            _sf.sum(UserTrade.pnl_usdt).label("pnl"),
+            _sf.sum(_case((UserTrade.pnl_usdt > 0, 1), else_=0)).label("wins"),
+        )
+        .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
+        .group_by(UserTrade.source)
+        .all()
+    )
+
+    bots = []
+    total_realized = 0.0
+    for source, n, pnl, wins in rows:
+        pnl = float(pnl or 0)
+        wr  = round(float(wins or 0) / n * 100, 1) if n else 0
+        total_realized += pnl
+        bots.append({
+            "source":   source,
+            "label":    _BOT_LABELS.get(source, source),
+            "trades":   n,
+            "pnl":      round(pnl, 2),
+            "win_rate": wr,
+        })
+    bots.sort(key=lambda x: x["pnl"], reverse=True)
+
+    balance   = None
+    positions = []
+    key_row   = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if key_row:
+        try:
+            ex = _init_user_exchange(key_row)
+            if ex:
+                balance   = _bybit_balance(ex)
+                positions = _bybit_positions(ex)
+        except Exception:
+            pass
+
+    total_unrealized = sum(p["unrealized_pnl"] for p in positions)
+    return {
+        "balance":          balance,
+        "positions":        positions,
+        "bots":             bots,
+        "total_realized":   round(total_realized, 2),
+        "total_unrealized": round(total_unrealized, 2),
+        "total":            round(total_realized + total_unrealized, 2),
+    }
+
+
+def _fetch_all_closed_pnl(ex, max_pages: int = 20):
+    """Fetch all closed PnL from Bybit via cursor pagination."""
+    all_items = []
+    cursor = ""
+    for _ in range(max_pages):
+        params = {"category": "linear", "limit": 200}
+        if cursor:
+            params["cursor"] = cursor
+        raw    = ex.private_get_v5_position_closed_pnl(params)
+        result = raw.get("result", {})
+        items  = result.get("list", [])
+        all_items.extend(items)
+        cursor = result.get("nextPageCursor", "")
+        if not cursor or not items:
+            break
+    return all_items
+
+
+@app.get("/api/users/closed-pnl")
+async def get_user_closed_pnl(
+    days: int = 30,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        all_items = _fetch_all_closed_pnl(ex)
+        cutoff_ms = int((time.time() - days * 86400) * 1000) if days > 0 else 0
+        items = [it for it in all_items if int(it.get("updatedTime") or 0) >= cutoff_ms]
+
+        trades     = []
+        total_pnl  = 0.0
+        total_wins = 0
+        for it in items:
+            pnl = float(it.get("closedPnl") or 0)
+            total_pnl += pnl
+            if pnl > 0:
+                total_wins += 1
+            trades.append({
+                "symbol":      it.get("symbol", "").replace("USDT", ""),
+                "side":        it.get("side", ""),
+                "qty":         float(it.get("qty") or 0),
+                "entry_price": float(it.get("avgEntryPrice") or 0),
+                "exit_price":  float(it.get("avgExitPrice") or 0),
+                "pnl":         round(pnl, 2),
+                "closed_at":   it.get("updatedTime", ""),
+            })
+        trades.sort(key=lambda x: x["closed_at"], reverse=True)
+        return {
+            "trades":       trades,
+            "total_pnl":    round(total_pnl, 2),
+            "total_trades": len(trades),
+            "wins":         total_wins,
+            "losses":       len(trades) - total_wins,
+            "win_rate":     round(total_wins / len(trades) * 100, 1) if trades else 0,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/api/users/analytics")
+async def get_user_analytics(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        all_items = _fetch_all_closed_pnl(ex)
+        if not all_items:
+            return {
+                "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0},
+                "daily":   [],
+                "by_coin": [],
+                "best":    [],
+                "worst":   [],
+            }
+
+        cutoff_30d  = int(time.time() * 1000) - 30 * 86400 * 1000
+        total_pnl   = 0.0
+        wins        = 0
+        coin_stats  = defaultdict(lambda: {"trades": 0, "pnl": 0.0, "wins": 0, "win_pnls": [], "loss_pnls": []})
+        daily_stats = defaultdict(lambda: {"pnl": 0.0, "trades": 0})
+        trade_list  = []
+
+        for it in all_items:
+            pnl       = float(it.get("closedPnl") or 0)
+            symbol    = it.get("symbol", "").replace("USDT", "")
+            closed_ms = int(it.get("updatedTime") or 0)
+
+            total_pnl += pnl
+            if pnl > 0:
+                wins += 1
+
+            cs = coin_stats[symbol]
+            cs["trades"] += 1
+            cs["pnl"]    += pnl
+            if pnl > 0:
+                cs["wins"] += 1
+                cs["win_pnls"].append(pnl)
+            else:
+                cs["loss_pnls"].append(pnl)
+
+            if closed_ms >= cutoff_30d:
+                date_str = datetime.fromtimestamp(closed_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+                daily_stats[date_str]["pnl"]    += pnl
+                daily_stats[date_str]["trades"] += 1
+
+            trade_list.append({"coin": symbol, "pnl": round(pnl, 2),
+                                "closed_at": it.get("updatedTime", ""), "side": it.get("side", "")})
+
+        n = len(all_items)
+        daily = sorted(
+            [{"date": d, "pnl": round(v["pnl"], 2), "trades": v["trades"]} for d, v in daily_stats.items()],
+            key=lambda x: x["date"],
+        )
+        by_coin = sorted(
+            [{
+                "coin":     coin,
+                "trades":   v["trades"],
+                "pnl":      round(v["pnl"], 2),
+                "wins":     v["wins"],
+                "avg_win":  round(sum(v["win_pnls"]) / len(v["win_pnls"]), 2) if v["win_pnls"] else 0,
+                "avg_loss": round(sum(v["loss_pnls"]) / len(v["loss_pnls"]), 2) if v["loss_pnls"] else 0,
+            } for coin, v in coin_stats.items()],
+            key=lambda x: x["pnl"], reverse=True,
+        )
+        by_date = sorted(trade_list, key=lambda x: x["pnl"], reverse=True)
+
+        return {
+            "summary": {
+                "total_trades": n,
+                "total_pnl":    round(total_pnl, 2),
+                "wins":         wins,
+                "losses":       n - wins,
+                "win_rate":     round(wins / n * 100, 1),
+            },
+            "daily":   daily,
+            "by_coin": by_coin,
+            "best":    by_date[:5],
+            "worst":   by_date[-5:][::-1] if len(by_date) >= 5 else by_date[::-1],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @app.get("/api/users/referrals")
@@ -2005,6 +2326,24 @@ _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "
 @app.get("/favicon.svg")
 async def favicon_svg():
     return FileResponse("static/favicon.svg", media_type="image/svg+xml")
+
+# Root-level static files that crawlers, social platforms, and search engines
+# expect at exact paths (NOT under /static/...). Served before the SPA catch-all.
+_ROOT_STATIC_FILES = {
+    "robots.txt":   "text/plain; charset=utf-8",
+    "sitemap.xml":  "application/xml; charset=utf-8",
+    "og-image.png": "image/png",
+}
+
+for _name, _mime in _ROOT_STATIC_FILES.items():
+    def _make_handler(filename: str, mime: str):
+        async def _handler():
+            path = f"static/{filename}"
+            if not os.path.exists(path):
+                raise HTTPException(status_code=404)
+            return FileResponse(path, media_type=mime)
+        return _handler
+    app.get(f"/{_name}")(_make_handler(_name, _mime))
 
 @app.get("/")
 async def read_index():

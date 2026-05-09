@@ -6,7 +6,6 @@ const API = (path) => fetch(path, {
 }).then(r => r.ok ? r.json() : Promise.reject(r.status));
 
 function StatCard({ label, value, sub, accent }) {
-  // accent: 'green' | 'red' | undefined
   const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
                   : accent === 'red'   ? '2px solid var(--accent-red)'
                   : '1px solid var(--border-subtle)';
@@ -30,10 +29,10 @@ function StatCard({ label, value, sub, accent }) {
   );
 }
 
-function SkeletonRow() {
+function SkeletonRow({ cols }) {
   return (
     <tr>
-      {[1,2,3,4,5,6].map(i => (
+      {Array.from({ length: cols }).map((_, i) => (
         <td key={i} style={{ padding: '12px 0' }}>
           <div style={{ height: 12, background: 'var(--bg3)', width: '80%', animation: 'pulse 1.5s ease-in-out infinite' }} />
         </td>
@@ -44,29 +43,30 @@ function SkeletonRow() {
 
 export default function OverviewTab() {
   const { t } = useLang();
-  const [me, setMe] = useState(null);
-  const [trades, setTrades] = useState([]);
-  const [pnl, setPnl] = useState([]);
+  const [me,      setMe]      = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [pnl30,   setPnl30]   = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       API('/api/users/me'),
-      API('/api/users/trades?limit=10'),
-      API('/api/users/pnl'),
-    ]).then(([me, trades, pnl]) => {
-      setMe(me); setTrades(trades); setPnl(pnl);
+      API('/api/users/bot-summary'),
+      API('/api/users/closed-pnl?days=30'),
+    ]).then(([me, summary, pnl30]) => {
+      setMe(me);
+      setSummary(summary);
+      setPnl30(pnl30);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const currentMonth = pnl[0] || {};
-  const openTrades = trades.filter(t => t.status === 'open');
-  const closedTrades = trades.filter(t => t.status === 'closed' && t.pnl_usdt != null);
-  const wins = closedTrades.filter(t => t.pnl_usdt > 0).length;
-  const winRate = closedTrades.length ? Math.round(wins / closedTrades.length * 100) : 0;
-  const planLabel = me?.plan === 'pro' ? 'PRO' : 'FREE';
-
-  const headers = [t.dashboard.hSymbol, t.dashboard.hSide, t.dashboard.hSource, t.dashboard.hEntry, t.dashboard.hPnL, t.dashboard.hStatus];
+  const balance       = summary?.balance;
+  const positions     = summary?.positions ?? [];
+  const recentTrades  = (pnl30?.trades ?? []).slice(0, 8);
+  const pnl30Val      = pnl30?.total_pnl ?? 0;
+  const winRate       = pnl30?.win_rate ?? 0;
+  const planLabel     = me?.plan === 'pro' ? 'PRO' : 'FREE';
+  const hasApiKeys    = me?.has_api_keys;
 
   return (
     <div>
@@ -76,9 +76,14 @@ export default function OverviewTab() {
           <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
             {planLabel}
           </span>
-          {!me.has_api_keys && (
+          {!hasApiKeys && (
             <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>
-              {t.dashboard.overview.noApiKeysPrefix} <a href="#" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api' })); }} style={{ color: 'var(--fg)', textDecoration: 'underline' }}>{t.dashboard.overview.connectBybit}</a> {t.dashboard.overview.toStartTrading}
+              {t.dashboard.overview.noApiKeysPrefix}{' '}
+              <a href="#" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api' })); }}
+                style={{ color: 'var(--fg)', textDecoration: 'underline' }}>
+                {t.dashboard.overview.connectBybit}
+              </a>{' '}
+              {t.dashboard.overview.toStartTrading}
             </span>
           )}
         </div>
@@ -87,57 +92,118 @@ export default function OverviewTab() {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 40 }}>
         <StatCard
-          label={t.dashboard.overview.monthlyPnl}
-          value={loading ? '—' : `${currentMonth.net_pnl >= 0 ? '+' : ''}${(currentMonth.net_pnl || 0).toFixed(2)} USDT`}
-          sub={currentMonth.performance_fee ? `${t.dashboard.overview.fee}: ${currentMonth.performance_fee.toFixed(2)} USDT` : null}
-          accent={currentMonth.net_pnl > 0 ? 'green' : currentMonth.net_pnl < 0 ? 'red' : undefined}
+          label="Wallet Balance"
+          value={loading ? '—' : balance ? `$${balance.wallet.toFixed(2)}` : '—'}
+          sub={balance ? `Equity $${balance.equity.toFixed(2)}` : null}
+          accent={balance?.wallet > 0 ? 'green' : undefined}
         />
-        <StatCard label={t.dashboard.overview.openPositions} value={loading ? '—' : openTrades.length} />
+        <StatCard
+          label="Open Positions"
+          value={loading ? '—' : positions.length}
+          sub={positions.length > 0
+            ? `${(summary?.total_unrealized ?? 0) >= 0 ? '+' : ''}${(summary?.total_unrealized ?? 0).toFixed(2)} USDT unrealized`
+            : null}
+        />
+        <StatCard
+          label="30d PnL"
+          value={loading ? '—' : `${pnl30Val >= 0 ? '+' : ''}${pnl30Val.toFixed(2)} USDT`}
+          sub={pnl30 ? `${pnl30.total_trades} trades` : null}
+          accent={pnl30Val > 0 ? 'green' : pnl30Val < 0 ? 'red' : undefined}
+        />
         <StatCard
           label={t.dashboard.overview.winRate}
           value={loading ? '—' : `${winRate}%`}
-          sub={`${closedTrades.length} ${t.dashboard.overview.closedTrades}`}
+          sub={pnl30 ? `${pnl30.wins}W / ${pnl30.losses}L` : null}
           accent={winRate >= 50 ? 'green' : undefined}
         />
-        <StatCard label={t.dashboard.overview.performanceFee} value={loading ? '—' : `${(currentMonth.performance_fee || 0).toFixed(2)} USDT`} sub={t.dashboard.overview.feeOf20} />
       </div>
 
-      {/* Active signals table */}
-      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>{t.dashboard.overview.activeSignals}</div>
+      {/* Open positions */}
+      {positions.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
+            Open Positions
+          </div>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', marginBottom: 32 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
+                  {['Symbol', 'Side', 'Entry', 'Unrealized PnL', 'PnL %'].map(h => (
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map((p, i) => (
+                  <tr key={i}
+                    style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{p.symbol}</td>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: p.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{p.entry_price?.toFixed(4)}</td>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: p.unrealized_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {p.unrealized_pnl >= 0 ? '+' : ''}{p.unrealized_pnl?.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '14px 16px', color: p.pnl_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {p.pnl_pct >= 0 ? '+' : ''}{p.pnl_pct}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* Recent closed trades */}
+      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
+        Recent Closed Trades (30d)
+      </div>
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
-              {headers.map(h => (
+              {['Symbol', 'Side', 'Entry', 'Exit', 'PnL', 'Date'].map(h => (
                 <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {loading ? [1,2,3].map(i => <SkeletonRow key={i} />) : (
-              trades.length === 0 ? (
+            {loading ? [1,2,3].map(i => <SkeletonRow key={i} cols={6} />) : (
+              recentTrades.length === 0 ? (
                 <tr><td colSpan={6} style={{ padding: '48px 20px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: 0.4 }}>
                     <path d="M3 3v18h18M7 14l4-4 4 4 5-5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{t.dashboard.overview.noTrades}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{hasApiKeys ? 'No closed trades in last 30 days' : t.dashboard.overview.noTrades}</div>
                 </td></tr>
-              ) : trades.slice(0, 10).map(tr => (
-                <tr key={tr.id}
-                  style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <td style={{ padding: '14px 16px', color: 'var(--text-primary)' }}>{tr.symbol.replace('/USDT:USDT', '')}</td>
-                  <td style={{ padding: '14px 16px', color: tr.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{tr.side}</td>
-                  <td style={{ padding: '14px 16px', color: 'var(--text-muted)', textTransform: 'uppercase', fontSize: 11, letterSpacing: '0.08em' }}>{tr.source}</td>
-                  <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.entry_price ? tr.entry_price.toFixed(4) : '—'}</td>
-                  <td style={{ padding: '14px 16px', color: tr.pnl_usdt > 0 ? 'var(--accent-green)' : tr.pnl_usdt < 0 ? 'var(--accent-red)' : 'var(--text-muted)', fontWeight: 600 }}>
-                    {tr.pnl_usdt != null ? `${tr.pnl_usdt >= 0 ? '+' : ''}${tr.pnl_usdt.toFixed(2)}` : '—'}
-                  </td>
-                  <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>{tr.status}</td>
-                </tr>
-              ))
+              ) : recentTrades.map((tr, i) => {
+                const closedMs  = parseInt(tr.closed_at);
+                const closedStr = closedMs
+                  ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })
+                  : '—';
+                const isLong = tr.side === 'Buy';
+                return (
+                  <tr key={i}
+                    style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{tr.symbol}</td>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {isLong ? 'LONG' : 'SHORT'}
+                    </td>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.entry_price?.toFixed(4) ?? '—'}</td>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.exit_price?.toFixed(4) ?? '—'}</td>
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: tr.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
+                    </td>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{closedStr}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
