@@ -1128,10 +1128,10 @@ async def get_user_closed_pnl(
     user    = _get_user_from_token(credentials.credentials, db)
     key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
     if not key_row:
-        raise HTTPException(status_code=404, detail="No API keys")
+        return {"trades": [], "total_pnl": 0.0, "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
     ex = _init_user_exchange(key_row)
     if not ex:
-        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+        return {"trades": [], "total_pnl": 0.0, "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0}
     try:
         all_items = _fetch_all_closed_pnl(ex)
         cutoff_ms = int((time.time() - days * 86400) * 1000) if days > 0 else 0
@@ -1178,10 +1178,10 @@ async def get_user_analytics(
     user    = _get_user_from_token(credentials.credentials, db)
     key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
     if not key_row:
-        raise HTTPException(status_code=404, detail="No API keys")
+        return {"summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0}, "daily": [], "by_coin": [], "best": [], "worst": []}
     ex = _init_user_exchange(key_row)
     if not ex:
-        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+        return {"summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0}, "daily": [], "by_coin": [], "best": [], "worst": []}
     try:
         all_items = _fetch_all_closed_pnl(ex)
         if not all_items:
