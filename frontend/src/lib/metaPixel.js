@@ -1,11 +1,18 @@
-// Meta Pixel — loaded only when VITE_META_PIXEL_ID is set at build time.
+// Meta Pixel — loaded only when VITE_META_PIXEL_ID is set at build time
+// AND the user has accepted cookie consent (kado_cookie_consent === 'accepted').
 // To enable: create frontend/.env.production with `VITE_META_PIXEL_ID=1234567890`
 // then rebuild. Without the var, no script is injected and no events fire.
 
 const PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID;
+const CONSENT_KEY = 'kado_cookie_consent';
 
 let initialized = false;
 let initialPageViewSent = false;
+
+function hasConsent() {
+  try { return localStorage.getItem(CONSENT_KEY) === 'accepted'; }
+  catch { return false; }
+}
 
 function loadFbq() {
   if (typeof window === 'undefined' || window.fbq) return;
@@ -23,6 +30,7 @@ function loadFbq() {
 
 export function initPixel() {
   if (!PIXEL_ID || initialized) return;
+  if (!hasConsent()) return;
   loadFbq();
   window.fbq('init', PIXEL_ID);
   window.fbq('track', 'PageView');

@@ -48,17 +48,44 @@ await ctx.route('**/api/users/me', route =>
 await ctx.route('**/api/billing/invoice/current', route =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(MOCK_INVOICE) })
 );
+// Mock backtest runs as empty so we see the empty-state copy
+await ctx.route('**/api/backtest/runs', route =>
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ runs: [] }) })
+);
+// Mock signals as empty paginated payload
+await ctx.route(/\/api\/signals(\?|$)/, route =>
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ signals: [], total: 0, pages: 1 }) })
+);
+// Stats with non-null fields so SignalsTab StatBoxes don't show '—'
+await ctx.route('**/api/stats', route =>
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+    total_trades: 12, win_rate: 66.7, long_count: 8, short_count: 4, total_pnl: 142.50,
+  }) })
+);
+// Bot data (BotTab)
+await ctx.route('**/api/data', route =>
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+    balance: { total: 0, free: 0 }, latest_signals: [],
+  }) })
+);
+await ctx.route('**/api/intel', route =>
+  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+    sources: { rss: true, telegram: true, liquidations: true, onchain: false },
+  }) })
+);
 // Endpoints that the dashboard expects to return arrays — return empty array to avoid .filter crashes
 const ARRAY_ENDPOINTS = [
   '/api/users/trades', '/api/users/pnl', '/api/users/logs',
   '/api/signals', '/api/news', '/api/users/api-keys',
 ];
+const SPECIFIC_ROUTES = [
+  '/api/users/me', '/api/billing/invoice/current', '/api/backtest/runs',
+  '/api/signals', '/api/stats', '/api/data', '/api/intel',
+];
 // Generic mock for any other /api/* call (specific routes registered above take priority via fallback)
 await ctx.route('**/api/**', async route => {
   const url = route.request().url();
-  if (url.includes('/api/users/me') || url.includes('/api/billing/invoice/current')) {
-    return route.fallback();
-  }
+  if (SPECIFIC_ROUTES.some(p => url.includes(p))) return route.fallback();
   if (ARRAY_ENDPOINTS.some(p => url.includes(p))) {
     return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
   }
@@ -138,6 +165,37 @@ for (const label of sectionLabels) {
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${OUT_DIR}/settings-all-open.png`, fullPage: true });
 console.log('✓ settings-all-open.png');
+
+// ── Tour additional tabs in dashboard ────────────────────────────────────
+const tabs = ['overview', 'bot', 'analytics', 'pnl', 'trades', 'logs', 'backtester', 'signals'];
+for (const tab of tabs) {
+  await page.evaluate((id) => window.dispatchEvent(new CustomEvent('switch-tab', { detail: id })), tab);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${OUT_DIR}/dash-${tab}.png`, fullPage: false });
+  console.log(`✓ dash-${tab}.png`);
+}
+
+// ── Landing page (no auth needed) ────────────────────────────────────────
+console.log('Visiting landing...');
+await page.goto(`${URL_BASE}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2500);
+await page.screenshot({ path: `${OUT_DIR}/landing-hero.png`, fullPage: false });
+console.log('✓ landing-hero.png');
+await page.evaluate(() => window.scrollTo(0, 1200));
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${OUT_DIR}/landing-bots.png`, fullPage: false });
+console.log('✓ landing-bots.png');
+
+// ── Pricing page ─────────────────────────────────────────────────────────
+console.log('Visiting pricing...');
+await page.goto(`${URL_BASE}/pricing`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+await page.waitForTimeout(2000);
+await page.screenshot({ path: `${OUT_DIR}/pricing-hero.png`, fullPage: false });
+console.log('✓ pricing-hero.png');
+await page.evaluate(() => window.scrollTo(0, 400));
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${OUT_DIR}/pricing-cards.png`, fullPage: false });
+console.log('✓ pricing-cards.png');
 
 await browser.close();
 console.log('Done.');

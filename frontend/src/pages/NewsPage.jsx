@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const MONO = "'Courier New','SF Mono',monospace";
 const SANS = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif";
@@ -346,6 +347,7 @@ function Skeleton() {
 export default function NewsPage() {
   const { t, lang } = useLang();
   const locale = LOCALE_MAP[lang] || 'en-US';
+  usePageTitle(t.nav.news);
 
   const [items,     setItems]     = useState([]);
   const [loading,   setLoading]   = useState(true);

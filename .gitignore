@@ -63,3 +63,19 @@ saas_database.sqlite
 
 # Playwright MCP runtime logs
 .playwright-mcp/
+
+# Claude Code (local-only overrides; settings.json IS committed)
+.claude/settings.local.json
+
+# Local backup files (Poxcoin's WIP scratch on VPS)
+*.bak
+*.bak2
+*.bak3
+*.vpsbak
+
+# SQLite WAL siblings of saas_database.sqlite (binary, corrupt on stash)
+saas_database.sqlite-shm
+saas_database.sqlite-wal
+
+# Hourly DB backups directory
+backups/

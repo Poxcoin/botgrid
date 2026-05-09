@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
@@ -101,6 +102,7 @@ function StrategyCard({ strategy, estMonthlyLabel }) {
 export default function StrategiesPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const { t } = useLang();
+  usePageTitle(t.nav.strategies);
 
   const STRATEGIES = ['s1','s2','s3'].map((k, i) => ({
     num: String(i + 1).padStart(2, '0'),

@@ -45,7 +45,7 @@ export default function LogsTab() {
   }, [lines]);
 
   return (
-    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', background: 'var(--bg-surface)' }}>
+    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, overflow: 'hidden', background: 'var(--bg-surface)' }}>
       <div style={{ height: 52, padding: '0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
         <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500 }}>{t.dashboard.logs.systemLogs}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
@@ -59,7 +59,7 @@ export default function LogsTab() {
             style={{
               background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)',
               padding: '6px 12px', fontSize: 10, fontFamily: MONO, letterSpacing: '0.12em', cursor: 'pointer',
-              borderRadius: 6, transition: 'all 150ms',
+              borderRadius: 4, transition: 'all 150ms',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-green)'; e.currentTarget.style.color = 'var(--accent-green)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}

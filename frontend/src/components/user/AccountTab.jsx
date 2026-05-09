@@ -13,6 +13,8 @@ function Section({ title, sub, defaultOpen = false, children }) {
     <div style={{ borderBottom: '1px solid var(--border)' }}>
       <button
         onClick={() => setOpen(o => !o)}
+        aria-label={`${title} section`}
+        aria-expanded={open}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           width: '100%', padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
@@ -36,7 +38,7 @@ function Section({ title, sub, defaultOpen = false, children }) {
   );
 }
 
-const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
+const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
 
 // ── Invoice panel ────────────────────────────────────────────────────────────
 function InvoicePanel() {
@@ -45,6 +47,7 @@ function InvoicePanel() {
   const [notifying, setNotifying] = useState(false);
   const [txInput, setTxInput] = useState('');
   const [notified, setNotified] = useState(false);
+  const [notifyErr, setNotifyErr] = useState('');
 
   useEffect(() => {
     API('/api/billing/invoice/current').then(setData).catch(() => {});
@@ -52,7 +55,7 @@ function InvoicePanel() {
 
   async function handleNotify() {
     if (!data?.invoice) return;
-    setNotifying(true);
+    setNotifying(true); setNotifyErr('');
     try {
       await API('/api/billing/invoice/notify', {
         method: 'POST',
@@ -61,7 +64,7 @@ function InvoicePanel() {
       setNotified(true);
       setData(d => ({ ...d, invoice: { ...d.invoice, notified: true } }));
     } catch (e) {
-      alert(typeof e === 'string' ? e : t.dashboard.settings.errorTryAgain);
+      setNotifyErr(typeof e === 'string' ? e : t.dashboard.settings.errorTryAgain);
     } finally {
       setNotifying(false);
     }
@@ -73,14 +76,14 @@ function InvoicePanel() {
   const row  = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 };
   const lbl  = { fontSize: 11, color: 'var(--muted-fg)' };
   const val  = { fontSize: 13, color: 'var(--fg)' };
-  const btn  = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
-  const txInp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '8px 12px', fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', marginTop: 8 };
+  const btn  = { background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4, padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: notifying ? 0.6 : 1, marginTop: 12 };
+  const txInp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', padding: '8px 12px', fontSize: 11, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', marginTop: 8 };
 
   const { invoice, current_week_pnl, projected_fee, wallet_trc20, week_label } = data;
 
   return (
     <div>
-      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16 }}>
+      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 10 }}>
           {t.dashboard.settings.thisWeek} {week_label}
         </div>
@@ -118,7 +121,7 @@ function InvoicePanel() {
           </div>
 
           {invoice.notified || notified ? (
-            <div style={{ fontSize: 12, color: '#4ade80', marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--accent-green)', marginTop: 12 }}>
               ✓ {t.dashboard.settings.paymentSent}
             </div>
           ) : (
@@ -132,6 +135,17 @@ function InvoicePanel() {
               <button disabled={notifying} onClick={handleNotify} style={btn}>
                 {notifying ? t.dashboard.settings.sending : t.dashboard.settings.iPaid}
               </button>
+              {notifyErr && (
+                <div role="alert" style={{
+                  marginTop: 10, padding: '8px 12px',
+                  border: '1px solid rgba(255,77,109,0.35)',
+                  background: 'rgba(255,77,109,0.08)',
+                  color: '#ff8a9b', fontSize: 12, fontFamily: 'var(--font-mono)',
+                  borderRadius: 4,
+                }}>
+                  ! {notifyErr}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -148,16 +162,20 @@ function InvoicePanel() {
 function BillingBlock({ plan, trialDaysLeft }) {
   const { t } = useLang();
   const btn = {
-    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4,
     padding: '8px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
     marginTop: 12,
   };
 
   if (plan === 'trial') {
+    const hasDays = typeof trialDaysLeft === 'number' && trialDaysLeft >= 0;
     return (
       <div>
         <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 8 }}>
-          {t.dashboard.settings.trial} — <span style={{ color: '#aaa' }}>{trialDaysLeft} {trialDaysLeft === 1 ? t.dashboard.settings.day : t.dashboard.settings.days} {t.dashboard.settings.leftSuffix}</span>
+          {t.dashboard.settings.trial}
+          {hasDays && (
+            <> — <span style={{ color: '#aaa' }}>{trialDaysLeft} {trialDaysLeft === 1 ? t.dashboard.settings.day : t.dashboard.settings.days} {t.dashboard.settings.leftSuffix}</span></>
+          )}
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12 }}>
           {t.dashboard.settings.trialDesc}
@@ -267,12 +285,12 @@ function TelegramBlock({ me, onChange }) {
   }
 
   const btnPrimary = {
-    background: 'var(--fg)', color: 'var(--bg)', border: 'none',
+    background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4,
     padding: '10px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
     opacity: linking ? 0.6 : 1,
   };
   const btnSecondary = {
-    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)',
+    background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', borderRadius: 4,
     padding: '8px 16px', fontSize: 11, cursor: 'pointer',
   };
 
@@ -341,7 +359,15 @@ export default function AccountTab() {
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
             {t.dashboard.settings.email}
           </div>
-          <input type="text" value={me?.email || ''} disabled style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }} />
+          <input
+            type="text"
+            id="account-email"
+            aria-label="Email address"
+            value={me?.email || ''}
+            disabled
+            readOnly
+            style={{ ...inp, opacity: 0.45, cursor: 'not-allowed' }}
+          />
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -368,7 +394,7 @@ export default function AccountTab() {
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'security' }))}
             style={{
-              marginTop: 10, background: 'none', border: '1px solid var(--border)', color: 'var(--fg)',
+              marginTop: 10, background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', borderRadius: 4,
               padding: '7px 14px', fontSize: 11, cursor: 'pointer', letterSpacing: '0.04em',
             }}
           >

@@ -355,8 +355,8 @@ export default function BacktesterTab() {
               </div>
             )}
             {!error && runs !== null && runs.length === 0 && (
-              <div className="px-5 py-10 text-center font-mono text-[11px] tracking-widest uppercase text-kado-gray">
-                {t.dashboard.backtester.noRunsYet} <code className="bg-kado-black/5 px-1">python tools/replay_backtest.py</code>
+              <div className="px-5 py-10 text-center font-mono text-[12px] text-kado-gray normal-case tracking-normal">
+                {t.dashboard.backtester.noRunsYet}
               </div>
             )}
             {!error && runs && runs.length > 0 && (
@@ -409,12 +409,6 @@ export default function BacktesterTab() {
             )}
           </div>
 
-          <div className="border border-white/20 p-5 font-mono text-[11px] tracking-wide text-white/60 space-y-1">
-            <div className="font-bold text-white uppercase tracking-[0.2em] text-[10px] mb-2">{t.dashboard.backtester.howToRunHeader}</div>
-            <div>python tools/replay_backtest.py</div>
-            <div>python tools/replay_backtest.py --days 7 --coins BTC ETH SOL</div>
-            <div>python tools/replay_backtest.py --balance 5000 --tp 8 --sl 2</div>
-          </div>
         </div>
       )}
     </div>

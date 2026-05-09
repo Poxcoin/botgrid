@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
+import { usePageTitle } from '@/lib/usePageTitle';
 
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
@@ -110,6 +111,7 @@ function PipelineCard({ step }) {
 export default function BotsPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const { t } = useLang();
+  usePageTitle(t.nav.bots);
 
   const BOTS = ['b1','b2','b3','b4','b5','b6','b7','b8'].map((k, i) => ({
     num: String(i + 1).padStart(2, '0'),

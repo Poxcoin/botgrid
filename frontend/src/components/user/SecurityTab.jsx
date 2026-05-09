@@ -116,7 +116,11 @@ function TwoFAModal({ mode, onClose, onDone }) {
   );
 }
 
-function ApiKeysSection({ me, onUpdate }) {
+// NOTE: API-keys management lives in its own tab (ApiKeysTab.jsx). This block
+// is kept here only so the read-only "Bybit Keys" status row in SecurityRow
+// stays accurate. The full editor moved out for clearer separation of concerns.
+// eslint-disable-next-line no-unused-vars
+function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
   const { t } = useLang();
   const [apiKey, setApiKey]     = useState('');
   const [secret, setSecret]     = useState('');
@@ -305,12 +309,7 @@ export default function SecurityTab() {
     <div style={{ width: '100%' }}>
       {modal2fa && <TwoFAModal mode={modal2fa} onClose={() => setModal2fa(null)} onDone={on2faDone} />}
 
-      <style>{`
-        .sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
-        @media (max-width: 900px) { .sec-grid { grid-template-columns: 1fr !important; } }
-      `}</style>
-
-      <div className="sec-grid">
+      <div style={{ maxWidth: 640 }}>
 
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
@@ -349,6 +348,8 @@ export default function SecurityTab() {
               : t.dashboard.security.apiKeysInactive}
             status={me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}
             statusColor={me?.has_api_keys ? '#22c55e' : '#555'}
+            action={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
+            actionLabel={me?.has_api_keys ? t.dashboard.security.manage : t.dashboard.security.connect}
           />
 
           <SecurityRow
@@ -362,11 +363,6 @@ export default function SecurityTab() {
             <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{t.dashboard.security.accountEmail}</div>
             <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{me?.email || '—'}</div>
           </div>
-        </div>
-
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.apiKeysHeader}</div>
-          <ApiKeysSection me={me} onUpdate={updateMe} />
         </div>
 
       </div>

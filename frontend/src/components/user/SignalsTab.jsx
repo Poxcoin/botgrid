@@ -108,9 +108,16 @@ export default function SignalsTab() {
                     <td style={{ padding: '10px 16px' }}>
                       <span style={{
                         display: 'inline-block', fontFamily: MONO, fontSize: 10, fontWeight: 700,
-                        letterSpacing: '0.15em', padding: '2px 7px',
-                        background: s.action === 'LONG' ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)',
-                        color: s.action === 'LONG' ? '#4ade80' : '#f87171',
+                        letterSpacing: '0.15em', padding: '3px 9px', borderRadius: 4,
+                        background: s.action === 'LONG'  ? 'rgba(0,212,170,0.12)'
+                                  : s.action === 'SHORT' ? 'rgba(255,77,109,0.12)'
+                                  : 'rgba(255,255,255,0.06)',
+                        border:     s.action === 'LONG'  ? '1px solid rgba(0,212,170,0.25)'
+                                  : s.action === 'SHORT' ? '1px solid rgba(255,77,109,0.25)'
+                                  : '1px solid rgba(255,255,255,0.12)',
+                        color:      s.action === 'LONG'  ? '#00d4aa'
+                                  : s.action === 'SHORT' ? '#ff4d6d'
+                                  : '#888',
                       }}>{s.action}</span>
                     </td>
                     <td style={{ padding: '10px 16px', fontFamily: MONO, fontWeight: 700 }}>
@@ -157,12 +164,14 @@ export default function SignalsTab() {
             {t.dashboard.signals.page} {page} / {data.pages} · {data.total} {t.dashboard.signals.rowsSuffix}
           </span>
           <div style={{ display: 'flex', gap: 4 }}>
-            {[['←', -1], ['→', 1]].map(([label, dir]) => (
+            {[['←', -1, 'Previous page'], ['→', 1, 'Next page']].map(([label, dir, ariaLabel]) => (
               <button
                 key={label}
                 onClick={() => setPage(p => Math.max(1, Math.min(data.pages, p + dir)))}
                 disabled={(dir === -1 && page === 1) || (dir === 1 && page >= data.pages)}
-                style={{ width: 32, height: 32, border: `1px solid ${B}`, background: 'none', color: '#fff', cursor: 'pointer', fontFamily: MONO, fontSize: 14, opacity: ((dir === -1 && page === 1) || (dir === 1 && page >= data.pages)) ? 0.3 : 1 }}
+                aria-label={ariaLabel}
+                title={ariaLabel}
+                style={{ width: 32, height: 32, border: `1px solid ${B}`, background: 'none', color: '#fff', cursor: 'pointer', fontFamily: MONO, fontSize: 14, borderRadius: 4, opacity: ((dir === -1 && page === 1) || (dir === 1 && page >= data.pages)) ? 0.3 : 1 }}
               >{label}</button>
             ))}
           </div>

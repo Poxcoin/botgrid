@@ -23,6 +23,15 @@ export default defineConfig({
   build: {
     outDir: '../static',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          recharts: ['recharts'],
+          datefns: ['date-fns'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 700,
   },
   resolve: {
     alias: {

@@ -1,21 +1,26 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import { LangProvider } from '@/lib/LangContext';
 import GlobalNeural from '@/components/global/GlobalNeural';
 import CursorTracker from '@/components/global/CursorTracker';
+import CookieBanner from '@/components/global/CookieBanner';
+import ErrorBoundary from '@/components/global/ErrorBoundary';
 import Landing from '@/pages/Landing';
-import BotsPage from '@/pages/BotsPage';
-import StrategiesPage from '@/pages/StrategiesPage';
-import PricingPage from '@/pages/PricingPage';
-import Auth from '@/pages/Auth';
-import Dashboard from '@/pages/Dashboard';
-import Waitlist from '@/pages/Waitlist';
-import NewsPage from '@/pages/NewsPage';
-import NewsCategoryPage from '@/pages/NewsCategoryPage';
 import ProtectedRoute from '@/lib/ProtectedRoute';
-import UserDashboard from '@/pages/UserDashboard';
 import { trackPageView } from '@/lib/metaPixel';
+
+const BotsPage          = lazy(() => import('@/pages/BotsPage'));
+const StrategiesPage    = lazy(() => import('@/pages/StrategiesPage'));
+const PricingPage       = lazy(() => import('@/pages/PricingPage'));
+const Auth              = lazy(() => import('@/pages/Auth'));
+const Waitlist          = lazy(() => import('@/pages/Waitlist'));
+const NewsPage          = lazy(() => import('@/pages/NewsPage'));
+const NewsCategoryPage  = lazy(() => import('@/pages/NewsCategoryPage'));
+const UserDashboard     = lazy(() => import('@/pages/UserDashboard'));
+const NotFoundPage      = lazy(() => import('@/pages/NotFoundPage'));
+const RiskDisclosurePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.RiskDisclosurePage })));
+const TermsOfServicePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.TermsOfServicePage })));
 
 function PixelRouteTracker() {
   const location = useLocation();
@@ -37,6 +42,9 @@ export default function App() {
         <PixelRouteTracker />
         <GlobalNeural />
         <CursorTracker />
+        <CookieBanner />
+        <ErrorBoundary>
+        <Suspense fallback={<RouteLoading />}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/bots" element={<BotsPage />} />
@@ -48,25 +56,26 @@ export default function App() {
           <Route path="/waitlist" element={<Waitlist />} />
           <Route path="/dashboard" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
-          <Route
-            path="*"
-            element={
-              <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--site-bg)' }}>
-                <div className="text-center" style={{ color: 'var(--site-fg)' }}>
-                  <div className="font-black text-8xl mb-4" style={{ opacity: 0.1 }}>404</div>
-                  <div className="font-mono text-sm tracking-widest uppercase mb-6" style={{ color: 'var(--hero-muted)' }}>Page not found</div>
-                  <a href="/" className="font-mono text-xs tracking-widest uppercase px-6 py-3 transition-colors"
-                    style={{ border: '1px solid var(--hero-border)', color: 'var(--site-fg)' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--site-fg)'; e.currentTarget.style.color = 'var(--site-bg)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--site-fg)'; }}
-                  >Go Home</a>
-                </div>
-              </div>
-            }
-          />
+          <Route path="/legal/risk-disclosure" element={<RiskDisclosurePage />} />
+          <Route path="/legal/terms" element={<TermsOfServicePage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </Suspense>
+        </ErrorBoundary>
         </Router>
       </LangProvider>
     </ThemeProvider>
+  );
+}
+
+function RouteLoading() {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'var(--bg-base, #050505)',
+    }}>
+      <div className="shimmer" style={{ width: 120, height: 4, borderRadius: 2 }} />
+    </div>
   );
 }

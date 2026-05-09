@@ -61,18 +61,18 @@
 
   /* ── Dark theme ── */
   .dark {
-    --bg-base:     #080a0e;
-    --bg-surface:  #0d1117;
-    --bg-elevated: #161b27;
-    --bg-overlay:  #1e2533;
+    --bg-base:     #050505;
+    --bg-surface:  #0a0a0a;
+    --bg-elevated: #111111;
+    --bg-overlay:  #161616;
 
     --text-primary:   #f0f2f5;
     --text-secondary: #8b95a8;
     --text-muted:     #4a5568;
 
-    --border-subtle:  rgba(255,255,255,0.06);
-    --border-default: rgba(255,255,255,0.10);
-    --border-strong:  rgba(255,255,255,0.18);
+    --border-subtle:  rgba(255,255,255,0.08);
+    --border-default: rgba(255,255,255,0.08);
+    --border-strong:  rgba(255,255,255,0.16);
 
     --accent-green:     #00d4aa;
     --accent-green-dim: rgba(0,212,170,0.12);
@@ -84,7 +84,7 @@
 
     --brand-glow: rgba(0,212,170,0.22);
 
-    --site-bg-glass: rgba(8,10,14,0.85);
+    --site-bg-glass: rgba(5,5,5,0.85);
   }
 
   html, body {
