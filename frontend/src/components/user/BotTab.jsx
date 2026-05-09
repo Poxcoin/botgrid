@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { authFetch } from '@/lib/api';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLang } from '@/lib/LangContext';
@@ -27,74 +27,36 @@ function StatBox({ label, value, sub, color, accent, live }) {
         {live && <span className="pulse-dot" />}
         <div style={{ fontSize: 26, fontWeight: 700, color: color || 'var(--text-primary)', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{value}</div>
       </div>
-      {sub && <div style={{ fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginTop: 8, fontFamily: MONO }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginTop: 8, fontFamily: MONO }}>{sub}</div>}
     </div>
   );
 }
 
-function pct(wins, total) {
-  if (!total) return '—';
-  return (wins / total * 100).toFixed(1) + '%';
-}
-
-function BotBreakdown({ bots }) {
-  if (!bots || !bots.length) {
-    return (
-      <div style={{ padding: '28px 20px', fontFamily: MONO, fontSize: 11, color: MUTED, textAlign: 'center' }}>
-        No bot trades recorded yet
-      </div>
-    );
-  }
-  const cols = [
-    { label: 'Bot',       align: 'left' },
-    { label: 'Trades',    align: 'right' },
-    { label: 'Win Rate',  align: 'right' },
-    { label: 'PnL (USDT)', align: 'right' },
-    { label: 'Avg Win',   align: 'right' },
-    { label: 'Avg Loss',  align: 'right' },
-  ];
+function NoKeyBanner() {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
-        <thead>
-          <tr style={{ borderBottom: `1px solid ${B}` }}>
-            {cols.map(c => (
-              <th key={c.label} style={{
-                textAlign: c.align, padding: '8px 20px',
-                fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
-                color: MUTED, fontWeight: 400,
-              }}>{c.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {bots.map((r, i) => {
-            const wr    = pct(r.wins, r.trades);
-            const isPos = (r.pnl ?? 0) >= 0;
-            return (
-              <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <td style={{ padding: '11px 20px', color: '#ccc', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-                  {r.label || r.source || '—'}
-                </td>
-                <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{r.trades}</td>
-                <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{wr}</td>
-                <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                  {isPos ? '+' : ''}{(r.pnl ?? 0).toFixed(2)}
-                </td>
-                <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--accent-green)' }}>
-                  {r.avg_win > 0 ? '+' + r.avg_win.toFixed(2) : '—'}
-                </td>
-                <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--accent-red)' }}>
-                  {r.avg_loss < 0 ? r.avg_loss.toFixed(2) : '—'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div style={{
+      border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24,
+      display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+    }}>
+      <div>
+        <div style={{ fontFamily: MONO, fontSize: 11, color: '#ccc', marginBottom: 6 }}>
+          No Bybit API key connected
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
+          Connect your key to see live balance, positions and trade history.
+        </div>
+      </div>
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
+        style={{
+          background: 'var(--text-primary)', color: 'var(--bg-base)',
+          border: 'none', padding: '9px 20px', fontFamily: MONO,
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+          textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0,
+        }}
+      >
+        Add API Key →
+      </button>
     </div>
   );
 }
@@ -111,9 +73,9 @@ function PositionsTable({ positions }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${B}` }}>
-              {['Symbol', 'Side', 'Entry', 'Unreal. PnL', 'PnL %'].map(h => (
+              {['Symbol', 'Side', 'Entry', 'Unreal. PnL', 'PnL %'].map((h, i) => (
                 <th key={h} style={{
-                  textAlign: h === 'Symbol' ? 'left' : 'right', padding: '8px 20px',
+                  textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
                   fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
                   color: MUTED, fontWeight: 400,
                 }}>{h}</th>
@@ -148,54 +110,111 @@ function PositionsTable({ positions }) {
   );
 }
 
+function CoinBreakdown({ trades }) {
+  if (!trades || !trades.length) return null;
+
+  // Compute per-coin stats from live Bybit closed-pnl data
+  const map = {};
+  trades.forEach(t => {
+    const coin = t.symbol || '?';
+    if (!map[coin]) map[coin] = { trades: 0, pnl: 0, wins: 0 };
+    map[coin].trades++;
+    map[coin].pnl += t.pnl;
+    if (t.pnl > 0) map[coin].wins++;
+  });
+
+  const rows = Object.entries(map)
+    .map(([coin, s]) => ({ coin, trades: s.trades, pnl: Math.round(s.pnl * 100) / 100, wr: s.trades ? Math.round(s.wins / s.trades * 100) : 0 }))
+    .sort((a, b) => b.pnl - a.pnl)
+    .slice(0, 10);
+
+  return (
+    <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
+      <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Top Coins — 30d</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: '#333', letterSpacing: '0.12em' }}>LIVE · FROM BYBIT</span>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${B}` }}>
+              {['Coin', 'Trades', 'Win Rate', 'PnL (USDT)'].map((h, i) => (
+                <th key={h} style={{
+                  textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
+                  fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+                  color: MUTED, fontWeight: 400,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const isPos = r.pnl >= 0;
+              return (
+                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <td style={{ padding: '10px 20px', color: '#ccc', fontWeight: 700, letterSpacing: '0.04em' }}>{r.coin}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.trades}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.wr}%</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                    {isPos ? '+' : ''}{r.pnl}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function BotTab() {
   const { t } = useLang();
-  const [data,      setData]      = useState(null);
-  const [intel,     setIntel]     = useState(null);
-  const [summary,   setSummary]   = useState(null);
-  const [breakdown, setBreakdown] = useState(null);
-  const [error,     setError]     = useState(false);
+  const [feed,    setFeed]    = useState(null);
+  const [intel,   setIntel]   = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [pnl,     setPnl]     = useState(null);
+  const [feedErr, setFeedErr] = useState(false);
 
-  const load = async () => {
+  const loadFeed = useCallback(async () => {
     try {
       const res = await authFetch('/api/data');
       if (!res.ok) throw new Error();
-      setData(await res.json());
-      setError(false);
-    } catch { setError(true); }
-  };
-
-  const loadAll = async () => {
-    try {
-      const res = await authFetch('/api/intel');
-      if (res.ok) setIntel(await res.json());
-    } catch {}
-    try {
-      const res = await authFetch('/api/users/bot-summary');
-      if (res.ok) setSummary(await res.json());
-    } catch {}
-    try {
-      const res = await authFetch('/api/analytics/breakdown');
-      if (res.ok) setBreakdown(await res.json());
-    } catch {}
-  };
-
-  useEffect(() => {
-    load(); loadAll();
-    const id = setInterval(load, 30000);
-    return () => clearInterval(id);
+      setFeed(await res.json());
+      setFeedErr(false);
+    } catch { setFeedErr(true); }
   }, []);
 
-  const feed = data?.latest_signals ?? [];
-  const signalsToday = feed.filter(s =>
+  const loadLive = useCallback(async () => {
+    const [iRes, sRes, pRes] = await Promise.allSettled([
+      authFetch('/api/intel'),
+      authFetch('/api/users/bot-summary'),
+      authFetch('/api/users/closed-pnl?days=30'),
+    ]);
+    if (iRes.status === 'fulfilled' && iRes.value.ok) setIntel(await iRes.value.json());
+    if (sRes.status === 'fulfilled' && sRes.value.ok) setSummary(await sRes.value.json());
+    if (pRes.status === 'fulfilled' && pRes.value.ok) setPnl(await pRes.value.json());
+  }, []);
+
+  useEffect(() => {
+    loadFeed(); loadLive();
+    const id = setInterval(() => { loadFeed(); loadLive(); }, 30000);
+    return () => clearInterval(id);
+  }, [loadFeed, loadLive]);
+
+  const signals = feed?.latest_signals ?? [];
+  const signalsToday = signals.filter(s =>
     new Date(s.timestamp).toDateString() === new Date().toDateString()
   ).length;
 
-  const totalRealized   = summary?.total_realized   ?? 0;
-  const totalUnrealized = summary?.total_unrealized ?? 0;
-
-  // User-specific bots if they have API key + trades, otherwise master breakdown
-  const botRows = (summary?.bots?.length > 0) ? summary.bots : (breakdown?.by_bot ?? []);
+  const hasKey   = summary?.balance !== null && summary?.balance !== undefined;
+  const balance  = summary?.balance;
+  const pnl30    = pnl?.total_pnl ?? 0;
+  const trades30 = pnl?.total_trades ?? 0;
+  const winRate  = pnl?.win_rate ?? 0;
 
   const headers = [t.dashboard.hTime, t.dashboard.hAsset, t.dashboard.hAction, t.dashboard.hScore, t.dashboard.hNews];
 
@@ -206,45 +225,45 @@ export default function BotTab() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
         <StatBox
           label={t.dashboard.bot.balance}
-          value={`$${(summary?.balance?.wallet ?? 0).toFixed(2)}`}
-          sub={`Equity $${(summary?.balance?.equity ?? 0).toFixed(2)}`}
-          color="var(--accent-green)" accent="green"
+          value={balance ? `$${balance.wallet.toFixed(2)}` : '—'}
+          sub={balance ? `Equity $${balance.equity.toFixed(2)}` : 'connect key'}
+          color={balance ? 'var(--accent-green)' : MUTED}
+          accent={balance ? 'green' : undefined}
+          live={!!balance}
         />
         <StatBox
-          label="Realized PnL"
-          value={`${totalRealized >= 0 ? '+' : ''}$${totalRealized.toFixed(2)}`}
-          sub={`${botRows.length} active bot${botRows.length !== 1 ? 's' : ''}`}
-          color={totalRealized > 0 ? 'var(--accent-green)' : totalRealized < 0 ? 'var(--accent-red)' : 'var(--text-primary)'}
-          accent={totalRealized > 0 ? 'green' : totalRealized < 0 ? 'red' : undefined}
+          label="30d PnL"
+          value={hasKey ? `${pnl30 >= 0 ? '+' : ''}$${pnl30.toFixed(2)}` : '—'}
+          sub={hasKey ? `${trades30} trades` : 'connect key'}
+          color={pnl30 > 0 ? 'var(--accent-green)' : pnl30 < 0 ? 'var(--accent-red)' : 'var(--text-primary)'}
+          accent={pnl30 > 0 ? 'green' : pnl30 < 0 ? 'red' : undefined}
         />
         <StatBox
           label={t.dashboard.bot.feedStatus}
-          value={error ? t.dashboard.bot.offline : t.dashboard.bot.live}
-          color={error ? 'var(--accent-red)' : 'var(--accent-green)'}
-          accent={error ? 'red' : 'green'}
-          live={!error}
+          value={feedErr ? t.dashboard.bot.offline : t.dashboard.bot.live}
+          color={feedErr ? 'var(--accent-red)' : 'var(--accent-green)'}
+          accent={feedErr ? 'red' : 'green'}
+          live={!feedErr}
           sub={intel
             ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
             : undefined}
         />
-        <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
+        <StatBox
+          label="Win Rate"
+          value={hasKey ? `${winRate}%` : '—'}
+          sub={hasKey ? `${pnl?.wins ?? 0}W / ${pnl?.losses ?? 0}L` : 'connect key'}
+          accent={winRate >= 50 ? 'green' : undefined}
+        />
       </div>
 
-      {/* ── Per-bot breakdown ──────────────────────────────────────────────── */}
-      <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
-        <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Bot Performance</span>
-          {totalUnrealized !== 0 && (
-            <span style={{ fontFamily: MONO, fontSize: 10, color: totalUnrealized >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-              Unrealized {totalUnrealized >= 0 ? '+' : ''}{totalUnrealized.toFixed(2)} USDT
-            </span>
-          )}
-        </div>
-        <BotBreakdown bots={botRows} />
-      </div>
+      {/* ── No key banner ─────────────────────────────────────────────────── */}
+      {!hasKey && summary !== null && <NoKeyBanner />}
 
       {/* ── Open positions ─────────────────────────────────────────────────── */}
       <PositionsTable positions={summary?.positions} />
+
+      {/* ── Per-coin breakdown (live from Bybit) ──────────────────────────── */}
+      <CoinBreakdown trades={pnl?.trades} />
 
       {/* ── Live Intel ─────────────────────────────────────────────────────── */}
       {intel && (
@@ -303,13 +322,13 @@ export default function BotTab() {
               </tr>
             </thead>
             <tbody>
-              {feed.length === 0 ? (
+              {signals.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>
-                    {data === null ? t.dashboard.loading : t.dashboard.bot.noSignalsYet}
+                    {feed === null ? t.dashboard.loading : t.dashboard.bot.noSignalsYet}
                   </td>
                 </tr>
-              ) : feed.map((s, i) => (
+              ) : signals.map((s, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}>
                   <td style={{ padding: '12px 20px', fontFamily: MONO, fontSize: 11, color: MUTED }}>
                     {formatDistanceToNowStrict(new Date(s.timestamp))} {t.dashboard.bot.ago}
