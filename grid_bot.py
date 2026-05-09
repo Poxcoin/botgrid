@@ -860,10 +860,15 @@ def _run_single(cfg: dict) -> None:
     trend_check_tick  = 0
     _trend_short_count = 0  # кількість послідовних SHORT-читань (для підтвердження)
     _rsi_4h           = 50.0  # кешований RSI(14,4h), оновлюється разом з трендом
+    _ema20_4h         = 0.0   # EMA20(4h) — trend filter для LONG BUY
+    _ema50_4h         = 0.0   # EMA50(4h) — trend filter для LONG BUY
     try:
-        _ohlcv_rsi_init = exchange.fetch_ohlcv(symbol, "4h", limit=22)
-        _rsi_4h = _calc_rsi([c[4] for c in _ohlcv_rsi_init[:-1]])
-        print(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f}")
+        _ohlcv_rsi_init = exchange.fetch_ohlcv(symbol, "4h", limit=60)
+        _closes_init    = [c[4] for c in _ohlcv_rsi_init[:-1]]
+        _rsi_4h         = _calc_rsi(_closes_init)
+        _ema20_4h       = _calc_ema(_closes_init, 20)
+        _ema50_4h       = _calc_ema(_closes_init, 50)
+        print(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
     except Exception:
         pass
 
@@ -884,9 +889,12 @@ def _run_single(cfg: dict) -> None:
                 trend_check_tick = 0
                 new_direction = _detect_trend(exchange, symbol)
                 try:
-                    _ohlcv_rsi = exchange.fetch_ohlcv(symbol, "4h", limit=22)
-                    _rsi_4h = _calc_rsi([c[4] for c in _ohlcv_rsi[:-1]])  # exclude live candle
-                    print(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f}")
+                    _ohlcv_rsi  = exchange.fetch_ohlcv(symbol, "4h", limit=60)
+                    _closes_rsi = [c[4] for c in _ohlcv_rsi[:-1]]  # exclude live candle
+                    _rsi_4h     = _calc_rsi(_closes_rsi)
+                    _ema20_4h   = _calc_ema(_closes_rsi, 20)
+                    _ema50_4h   = _calc_ema(_closes_rsi, 50)
+                    print(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
                 except Exception:
                     pass
 
@@ -1110,6 +1118,8 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
                     elif not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
                         print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
+                    elif _ema20_4h > 0 and _ema20_4h < _ema50_4h:
+                        print(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
                         limit_price = levels[current_zone]  # floor зони — maker order
                         _spread = (price - limit_price) / price if price > 0 else 0
