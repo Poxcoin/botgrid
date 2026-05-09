@@ -4,7 +4,6 @@ import TradesTab      from '@/components/user/TradesTab';
 import SettingsTab    from '@/components/user/SettingsTab';
 import AccountTab     from '@/components/user/AccountTab';
 import BotTab         from '@/components/user/BotTab';
-import SignalsTab     from '@/components/user/SignalsTab';
 import BacktesterTab  from '@/components/dashboard/BacktesterTab';
 import AnalyticsTab   from '@/components/user/AnalyticsTab';
 import SecurityTab    from '@/components/user/SecurityTab';
@@ -14,14 +13,13 @@ import { useLang }    from '@/lib/LangContext';
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
 
-const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'trades', 'signals', 'backtester'];
+const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'trades', 'backtester'];
 const SECONDARY_TAB_IDS = ['account', 'api-keys', 'security', 'settings'];
 const TAB_LABEL_KEY = {
   overview:   'tabOverview',
   bot:        'tabBot',
   analytics:  'tabAnalytics',
   trades:     'tabTrades',
-  signals:    'tabSignals',
   backtester: 'tabBacktester',
   account:    'tabAccount',
   'api-keys': 'tabApiKeys',
@@ -35,7 +33,6 @@ function TabContent({ tab }) {
     case 'bot':        return <BotTab />;
     case 'analytics':  return <AnalyticsTab />;
     case 'trades':     return <TradesTab />;
-    case 'signals':    return <SignalsTab />;
     case 'backtester': return <BacktesterTab />;
     case 'account':    return <AccountTab />;
     case 'api-keys':   return <ApiKeysTab />;
