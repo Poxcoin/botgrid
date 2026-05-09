@@ -14,7 +14,6 @@ from modules.liquidation_monitor import start_liquidation_monitor, liquidation_s
 from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.dex_scanner import start_dex_scanner, dex_queue
-from modules.funding_strategy import start_funding_strategy, funding_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
 from modules.analytics_db import save_signal, init_db, DB_PATH
 from modules.liquidation_monitor import get_liquidation_signal
@@ -458,7 +457,6 @@ def run_signal_engine():
     start_announcements_monitor()
     start_commander()
     start_dex_scanner()
-    start_funding_strategy()
     start_smart_wallet_tracker()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
@@ -756,64 +754,6 @@ def run_signal_engine():
             
             if urls_changed:
                 save_processed_urls(processed_urls)
-
-            # Funding Rate сигнали — окремий pipeline (без Claude)
-            while not funding_queue.empty():
-                try:
-                    fsig = funding_queue.get_nowait()
-                except Exception:
-                    break
-                coin    = fsig.get("coin", "")
-                now_ts  = datetime.now(timezone.utc).timestamp()
-
-                # Blacklist: confirmed losers не торгуємо навіть через FR
-                _FR_BLACKLIST = {"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE"}
-                if coin.upper() in _FR_BLACKLIST:
-                    print(f"[FR] ⛔ {coin} в чорному списку — пропускаємо")
-                    continue
-
-                last_ts = _coin_cooldown.get(coin, 0)
-                if now_ts - last_ts < COIN_COOLDOWN_SEC:
-                    remaining = int((COIN_COOLDOWN_SEC - (now_ts - last_ts)) / 60)
-                    print(f"[FR] ⏳ Cooldown {coin}: ще {remaining} хв")
-                    continue
-
-                # Денний ліміт: FR не більше 2 угод на монету
-                _today_fr = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-                _dc_fr = _daily_trade_count.get(coin.upper(), {"count": 0, "date": ""})
-                if _dc_fr["date"] != _today_fr:
-                    _dc_fr = {"count": 0, "date": _today_fr}
-                _btc_eth_fr = coin.upper() in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
-                _max_fr = MAX_DAILY_TRADES_BTC_ETH if _btc_eth_fr else MAX_DAILY_TRADES_ALT
-                if _dc_fr["count"] >= _max_fr:
-                    print(f"[FR] 📅 {coin}: денний ліміт {_max_fr} вичерпано — пропускаємо")
-                    continue
-
-                _coin_cooldown[coin] = now_ts
-                _dc_fr["count"] += 1
-                _daily_trade_count[coin.upper()] = _dc_fr
-                save_cooldown(_coin_cooldown)
-
-                # FR signals use their own scoring (SIGNAL_THRESHOLD=5.5 in funding_strategy.py)
-                _fr_score = abs(fsig.get("total_score", 0))
-                if _fr_score < 5.5:
-                    print(f"📊 [FR] {coin} score={_fr_score:.1f} < 5.5 — пропускаємо")
-                    continue
-                if not SIGNAL_BOT_TRADING:
-                    print(f"📊 [FR] {coin} {fsig.get('action')} — збір статистики (торгівля вимкнена)")
-                    continue
-                _btc_eth = {"BTC", "ETH"}
-                if coin.upper() in _btc_eth:
-                    execute_trade(fsig)
-                    _saas_dispatch(fsig, "fr",
-                        LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
-                else:
-                    execute_trade(fsig,
-                        leverage_override=ALT_LEVERAGE,
-                        tp_pct=ALT_TP, sl_pct=ALT_SL,
-                        size_pct=ALT_SIZE)
-                    _saas_dispatch(fsig, "fr",
-                        ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE)
 
             # ─── Liquidation cascade signals — standalone trades без новин ───────
             while not liquidation_signal_queue.empty():

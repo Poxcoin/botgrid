@@ -19,12 +19,13 @@ MONITOR_CHANNELS = [
     # --- Найшвидші (breaking news) ---
     "WatcherGuru",           # Breaking crypto news, репостить топ твіти
     # --- On-chain / Whale ---
-    "lookonchain",           # On-chain аналітика, whale рухи
-    "whale_alert_io",        # Whale Alert офіційний
-    # --- Crypto media ---
-    "wublockchainenglish",   # Wu Blockchain — часто першими
-    "cointelegraph",         # Cointelegraph оперативні новини
+    "lookonchain",           # On-chain аналітика, whale рухи — WLD/ARB/JUP profits came from here
+    # --- Crypto aggregator ---
     "crypto",                # Великий крипто агрегатор
+    # Видалено (підтверджені збитки):
+    # "whale_alert_io"       — 0% WR, -$9.18 (4 trades)
+    # "cointelegraph"        — 14% WR, -$19.87 (7 trades, старі новини)
+    # "wublockchainenglish"  — ZETA -$35.68, total -$54.88
 ]
 
 _HTML_RE = re.compile(r"<[^>]+>")
