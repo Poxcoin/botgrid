@@ -629,39 +629,50 @@ export default function AnalyticsTab() {
     );
   }
 
-  // User analytics (from Bybit API) if available, otherwise fall back to master DB breakdown
-  const userSummary = data?.summary;
-  const hasUserData = (userSummary?.total_trades ?? 0) > 0;
-
-  const summary  = hasUserData ? userSummary : breakdown?.summary;
-  const daily    = (data?.daily?.length    > 0) ? data.daily    : (breakdown?.daily    ?? []);
-  const by_coin  = (data?.by_coin?.length  > 0) ? data.by_coin  : (breakdown?.by_coin  ?? []);
-  const by_bot   = breakdown?.by_bot ?? [];
-  const best     = data?.best ?? [];
-  const worst    = data?.worst ?? [];
+  const { summary, by_coin, daily, best, worst } = data || {};
+  const noData = data !== null
+    && (summary?.total_trades ?? 0) === 0
+    && !daily?.length
+    && !by_coin?.length;
 
   const winRate = summary?.total_trades
     ? pct(summary.wins, summary.total_trades)
     : '—';
 
-  const bestDay = daily.length
+  const bestDay = daily?.length
     ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0])
     : null;
 
   const totalPnl = summary?.total_pnl ?? 0;
 
+  if (noData) {
+    return (
+      <div style={{ color: S.fg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
+          No API key connected
+        </div>
+        <div style={{ fontFamily: S.mono, fontSize: 12, color: '#333', marginBottom: 28, lineHeight: 1.6 }}>
+          Connect your Bybit API key to see personal analytics —<br />balance, PnL, trade history and coin breakdown.
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
+          style={{
+            background: 'var(--text-primary)', color: 'var(--bg-base)',
+            border: 'none', padding: '10px 24px',
+            fontFamily: S.mono, fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          Add API Key →
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ color: S.fg }}>
       <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
-
-      {!hasUserData && breakdown && (
-        <div style={{
-          fontFamily: S.mono, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
-          color: '#333', marginBottom: 20, textAlign: 'right',
-        }}>
-          SYSTEM DATA · ADD BYBIT KEY FOR YOUR ACCOUNT ANALYTICS
-        </div>
-      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
         <SummaryCard
@@ -697,24 +708,24 @@ export default function AnalyticsTab() {
       </div>
 
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title={t.dashboard.analytics.dailyPnl30} right={`${daily.length} ${t.dashboard.analytics.days}`} />
+        <SectionHeader title={t.dashboard.analytics.dailyPnl30} right={`${daily?.length ?? 0} ${t.dashboard.analytics.days}`} />
         <DailyChart daily={daily} t={t} />
       </div>
 
       <div style={{ marginBottom: 32 }}>
         <SectionHeader
           title={t.dashboard.analytics.byBotSource}
-          right={by_bot.length ? `${by_bot.length} ${t.dashboard.analytics.sources}` : ''}
+          right={breakdown?.by_bot?.length ? `${breakdown.by_bot.length} ${t.dashboard.analytics.sources}` : ''}
         />
-        <BotTable rows={by_bot} t={t} />
+        <BotTable rows={breakdown?.by_bot ?? []} t={t} />
       </div>
 
-      {by_coin.length > 0 && (
+      {by_coin && by_coin.length > 0 && (
         <CoinChart coins={by_coin} allTrades={allTrades} />
       )}
 
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title={t.dashboard.analytics.byCoin} right={`${by_coin.length} · ${t.dashboard.analytics.coinsSort}`} />
+        <SectionHeader title={t.dashboard.analytics.byCoin} right={`${by_coin?.length ?? 0} · ${t.dashboard.analytics.coinsSort}`} />
         <CoinTable rows={by_coin} t={t} />
       </div>
 
