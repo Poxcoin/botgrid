@@ -26,8 +26,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          recharts: ['recharts'],
-          datefns: ['date-fns'],
+          'recharts-lib': ['recharts'],
+          'datefns-lib': ['date-fns'],
         },
       },
     },
