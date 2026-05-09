@@ -79,7 +79,13 @@ def sync_user_trades(user_id: int) -> int:
         if not ex:
             return 0
 
-        items = _fetch_closed_pnl(ex)
+        all_items = _fetch_closed_pnl(ex)
+        if not all_items:
+            return 0
+
+        # Only import trades from after the user connected their key to Kado
+        key_since_ms = int(key_row.created_at.timestamp() * 1000) if key_row.created_at else 0
+        items = [it for it in all_items if int(it.get("updatedTime") or 0) >= key_since_ms]
         if not items:
             return 0
 
