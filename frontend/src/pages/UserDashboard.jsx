@@ -8,18 +8,22 @@ import BacktesterTab  from '@/components/dashboard/BacktesterTab';
 import AnalyticsTab   from '@/components/user/AnalyticsTab';
 import SecurityTab    from '@/components/user/SecurityTab';
 import ApiKeysTab     from '@/components/user/ApiKeysTab';
+import AssetsTab      from '@/components/user/AssetsTab';
+import ToolsTab       from '@/components/user/ToolsTab';
 import { useLang }    from '@/lib/LangContext';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
 
-const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'trades', 'backtester'];
+const MAIN_TAB_IDS = ['overview', 'bot', 'assets', 'trades', 'analytics', 'tools'];
 const SECONDARY_TAB_IDS = ['account', 'api-keys', 'security', 'settings'];
 const TAB_LABEL_KEY = {
   overview:   'tabOverview',
   bot:        'tabBot',
-  analytics:  'tabAnalytics',
+  assets:     'tabAssets',
   trades:     'tabTrades',
+  analytics:  'tabAnalytics',
+  tools:      'tabTools',
   backtester: 'tabBacktester',
   account:    'tabAccount',
   'api-keys': 'tabApiKeys',
@@ -27,12 +31,19 @@ const TAB_LABEL_KEY = {
   settings:   'tabSettings',
 };
 
+const TAB_LABEL_FALLBACK = {
+  assets: 'Assets',
+  tools:  'Tools',
+};
+
 function TabContent({ tab }) {
   switch (tab) {
     case 'overview':   return <OverviewTab />;
     case 'bot':        return <BotTab />;
+    case 'assets':     return <AssetsTab />;
     case 'analytics':  return <AnalyticsTab />;
     case 'trades':     return <TradesTab />;
+    case 'tools':      return <ToolsTab />;
     case 'backtester': return <BacktesterTab />;
     case 'account':    return <AccountTab />;
     case 'api-keys':   return <ApiKeysTab />;
@@ -223,7 +234,7 @@ export default function UserDashboard() {
                   }
                 }}
               >
-                {t.dashboard[TAB_LABEL_KEY[id]]}
+                {t.dashboard[TAB_LABEL_KEY[id]] ?? TAB_LABEL_FALLBACK[id] ?? id}
               </button>
             );
           })}

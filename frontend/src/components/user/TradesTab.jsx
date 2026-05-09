@@ -9,13 +9,19 @@ const PERIODS = [
   { label: '7d',  days: 7 },
   { label: '30d', days: 30 },
   { label: '90d', days: 90 },
+  { label: '180d', days: 180 },
 ];
+
+const BOT_LABELS = { grid:'Grid', news:'Signal', fr:'Funding', listing:'Sniper', bybit:'Bybit', other:'Other' };
 
 export default function TradesTab() {
   const { t } = useLang();
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [days,    setDays]    = useState(30);
+  const [data,       setData]      = useState(null);
+  const [loading,    setLoading]   = useState(true);
+  const [days,       setDays]      = useState(30);
+  const [filterSide, setFilterSide] = useState('ALL');
+  const [filterSrc,  setFilterSrc]  = useState('ALL');
+  const [search,     setSearch]    = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -23,7 +29,11 @@ export default function TradesTab() {
       .then(setData).catch(console.error).finally(() => setLoading(false));
   }, [days]);
 
-  const trades = data?.trades ?? [];
+  const allTrades = data?.trades ?? [];
+  const trades = allTrades
+    .filter(tr => filterSide === 'ALL' || tr.side === filterSide)
+    .filter(tr => filterSrc  === 'ALL' || tr.source === filterSrc)
+    .filter(tr => !search || tr.symbol.includes(search.toUpperCase()));
 
   const btnBase = {
     background: 'none', border: '1px solid var(--border-subtle)',
@@ -31,14 +41,15 @@ export default function TradesTab() {
     cursor: 'pointer', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
     transition: 'border-color 150ms, color 150ms',
   };
+  const activeBtn = { borderColor: 'var(--border-default)', color: 'var(--text-primary)' };
 
   return (
     <div>
       {/* Period filter + summary */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         {PERIODS.map(p => (
           <button key={p.days} onClick={() => setDays(p.days)}
-            style={{ ...btnBase, ...(days === p.days ? { borderColor: 'var(--border-default)', color: 'var(--text-primary)' } : {}) }}>
+            style={{ ...btnBase, ...(days === p.days ? activeBtn : {}) }}>
             {p.label}
           </button>
         ))}
@@ -53,12 +64,42 @@ export default function TradesTab() {
         )}
       </div>
 
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+      {/* Filters row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {['ALL', 'LONG', 'SHORT'].map(s => (
+          <button key={s} onClick={() => setFilterSide(s)}
+            style={{ ...btnBase, ...(filterSide === s ? { ...activeBtn, ...(s === 'LONG' ? { borderColor: 'var(--accent-green)', color: 'var(--accent-green)' } : s === 'SHORT' ? { borderColor: 'var(--accent-red)', color: 'var(--accent-red)' } : {}) } : {}) }}>
+            {s}
+          </button>
+        ))}
+        <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        {['ALL', ...Object.keys(BOT_LABELS)].map(s => (
+          <button key={s} onClick={() => setFilterSrc(s)}
+            style={{ ...btnBase, ...(filterSrc === s ? activeBtn : {}) }}>
+            {s === 'ALL' ? 'All Bots' : BOT_LABELS[s]}
+          </button>
+        ))}
+        <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        <input
+          value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search coin…"
+          style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 6,
+            color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 11,
+            padding: '5px 12px', outline: 'none', width: 130 }}
+        />
+        {trades.length !== allTrades.length && (
+          <span style={{ marginLeft: 4, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+            {trades.length} / {allTrades.length}
+          </span>
+        )}
+      </div>
+
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
-              {['Date', 'Symbol', 'Side', 'Entry', 'Exit', 'Qty', 'PnL'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
+              {['Date', 'Symbol', 'Bot', 'Side', 'Entry', 'Exit', 'Qty', 'PnL'].map(h => (
+                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -66,7 +107,7 @@ export default function TradesTab() {
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  {[1,2,3,4,5,6,7].map(j => (
+                  {[1,2,3,4,5,6,7,8].map(j => (
                     <td key={j} style={{ padding: '14px 16px' }}>
                       <div className="shimmer" style={{ height: 11, width: '70%', borderRadius: 3 }} />
                     </td>
@@ -74,7 +115,7 @@ export default function TradesTab() {
                 </tr>
               ))
             ) : trades.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: '48px 20px', color: 'var(--text-muted)', textAlign: 'center' }}>
+              <tr><td colSpan={8} style={{ padding: '48px 20px', color: 'var(--text-muted)', textAlign: 'center' }}>
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: 0.4 }}>
                   <path d="M3 3v18h18M7 14l4-4 4 4 5-5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -85,15 +126,22 @@ export default function TradesTab() {
               const closedStr = closedMs
                 ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: '2-digit' })
                 : '—';
-              const isLong = tr.side === 'Buy';
+              const isLong = tr.side === 'LONG';
+              const srcLabel = BOT_LABELS[tr.source] ?? tr.source ?? '—';
               return (
                 <tr key={i}
                   style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{closedStr}</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11, whiteSpace: 'nowrap' }}>{closedStr}</td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{tr.symbol}</td>
+                  <td style={{ padding: '14px 16px' }}>
+                    <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: 'var(--bg-elevated)',
+                      border: '1px solid var(--border-subtle)', color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                      {srcLabel}
+                    </span>
+                  </td>
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isLong ? 'LONG' : 'SHORT'}
                   </td>

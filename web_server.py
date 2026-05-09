@@ -1197,6 +1197,7 @@ async def get_user_closed_pnl(
             "exit_price":  float(t.exit_price or 0),
             "pnl":         round(pnl, 2),
             "closed_at":   str(closed_ms),
+            "source":      t.source or "bybit",
         })
     return {
         "trades":       trades,
