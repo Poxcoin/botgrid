@@ -1097,6 +1097,7 @@ async def get_user_bot_summary(
     balance   = None
     positions = []
     key_row   = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    has_key   = key_row is not None
     if key_row:
         try:
             ex = _init_user_exchange(key_row)
@@ -1108,6 +1109,7 @@ async def get_user_bot_summary(
 
     total_unrealized = sum(p["unrealized_pnl"] for p in positions)
     return {
+        "has_key":          has_key,
         "balance":          balance,
         "positions":        positions,
         "bots":             bots,
@@ -1193,21 +1195,16 @@ async def get_user_analytics(
 ):
     user    = _get_user_from_token(credentials.credentials, db)
     key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    _EMPTY = lambda has_key: {"has_key": has_key, "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0}, "daily": [], "by_coin": [], "best": [], "worst": []}
     if not key_row:
-        return {"summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0}, "daily": [], "by_coin": [], "best": [], "worst": []}
+        return _EMPTY(False)
     ex = _init_user_exchange(key_row)
     if not ex:
-        return {"summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0}, "daily": [], "by_coin": [], "best": [], "worst": []}
+        return _EMPTY(True)
     try:
         all_items = _fetch_all_closed_pnl(ex)
         if not all_items:
-            return {
-                "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0},
-                "daily":   [],
-                "by_coin": [],
-                "best":    [],
-                "worst":   [],
-            }
+            return _EMPTY(True)
 
         cutoff_30d  = int(time.time() * 1000) - 30 * 86400 * 1000
         total_pnl   = 0.0
@@ -1261,6 +1258,7 @@ async def get_user_analytics(
         by_date = sorted(trade_list, key=lambda x: x["pnl"], reverse=True)
 
         return {
+            "has_key": True,
             "summary": {
                 "total_trades": n,
                 "total_pnl":    round(total_pnl, 2),
@@ -1275,6 +1273,7 @@ async def get_user_analytics(
         }
     except Exception as e:
         return {
+            "has_key": True,
             "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0},
             "daily": [], "by_coin": [], "best": [], "worst": [], "error": str(e),
         }

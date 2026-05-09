@@ -210,7 +210,7 @@ export default function BotTab() {
     new Date(s.timestamp).toDateString() === new Date().toDateString()
   ).length;
 
-  const hasKey   = summary?.balance !== null && summary?.balance !== undefined;
+  const hasKey   = summary?.has_key ?? (summary?.balance !== null && summary?.balance !== undefined);
   const balance  = summary?.balance;
   const pnl30    = pnl?.total_pnl ?? 0;
   const trades30 = pnl?.total_trades ?? 0;

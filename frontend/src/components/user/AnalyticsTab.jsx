@@ -630,6 +630,7 @@ export default function AnalyticsTab() {
   }
 
   const { summary, by_coin, daily, best, worst } = data || {};
+  const hasKey = data?.has_key ?? false;
   const noData = data !== null
     && (summary?.total_trades ?? 0) === 0
     && !daily?.length
@@ -645,7 +646,7 @@ export default function AnalyticsTab() {
 
   const totalPnl = summary?.total_pnl ?? 0;
 
-  if (noData) {
+  if (noData && !hasKey) {
     return (
       <div style={{ color: S.fg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
         <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
@@ -666,6 +667,19 @@ export default function AnalyticsTab() {
         >
           Add API Key →
         </button>
+      </div>
+    );
+  }
+
+  if (noData && hasKey) {
+    return (
+      <div style={{ color: S.fg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: S.mono, fontSize: 11, color: S.muted, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
+          No trades yet
+        </div>
+        <div style={{ fontFamily: S.mono, fontSize: 12, color: '#333', lineHeight: 1.6 }}>
+          API key connected. Analytics will appear here once<br />the bot executes trades on your account.
+        </div>
       </div>
     );
   }
