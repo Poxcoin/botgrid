@@ -629,21 +629,39 @@ export default function AnalyticsTab() {
     );
   }
 
-  const { summary, by_coin, daily, best, worst } = data || {};
+  // User analytics (from Bybit API) if available, otherwise fall back to master DB breakdown
+  const userSummary = data?.summary;
+  const hasUserData = (userSummary?.total_trades ?? 0) > 0;
+
+  const summary  = hasUserData ? userSummary : breakdown?.summary;
+  const daily    = (data?.daily?.length    > 0) ? data.daily    : (breakdown?.daily    ?? []);
+  const by_coin  = (data?.by_coin?.length  > 0) ? data.by_coin  : (breakdown?.by_coin  ?? []);
+  const by_bot   = breakdown?.by_bot ?? [];
+  const best     = data?.best ?? [];
+  const worst    = data?.worst ?? [];
 
   const winRate = summary?.total_trades
     ? pct(summary.wins, summary.total_trades)
     : '—';
 
-  const bestDay = daily?.length
+  const bestDay = daily.length
     ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0])
     : null;
 
-  const pnlColor = (summary?.total_pnl ?? 0) >= 0 ? S.green : S.red;
+  const totalPnl = summary?.total_pnl ?? 0;
 
   return (
     <div style={{ color: S.fg }}>
       <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
+
+      {!hasUserData && breakdown && (
+        <div style={{
+          fontFamily: S.mono, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
+          color: '#333', marginBottom: 20, textAlign: 'right',
+        }}>
+          SYSTEM DATA · ADD BYBIT KEY FOR YOUR ACCOUNT ANALYTICS
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 32 }}>
         <SummaryCard
@@ -659,9 +677,9 @@ export default function AnalyticsTab() {
         />
         <SummaryCard
           label={t.dashboard.analytics.totalPnl}
-          value={`${(summary?.total_pnl ?? 0) >= 0 ? '+' : ''}${summary?.total_pnl ?? 0} USDT`}
-          color={(summary?.total_pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
-          accent={(summary?.total_pnl ?? 0) >= 0 ? 'green' : 'red'}
+          value={`${totalPnl >= 0 ? '+' : ''}${totalPnl} USDT`}
+          color={totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+          accent={totalPnl >= 0 ? 'green' : 'red'}
         />
         <SummaryCard
           label={t.dashboard.analytics.winRate}
@@ -679,24 +697,24 @@ export default function AnalyticsTab() {
       </div>
 
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title={t.dashboard.analytics.dailyPnl30} right={`${daily?.length ?? 0} ${t.dashboard.analytics.days}`} />
+        <SectionHeader title={t.dashboard.analytics.dailyPnl30} right={`${daily.length} ${t.dashboard.analytics.days}`} />
         <DailyChart daily={daily} t={t} />
       </div>
 
       <div style={{ marginBottom: 32 }}>
         <SectionHeader
           title={t.dashboard.analytics.byBotSource}
-          right={breakdown?.by_bot?.length ? `${breakdown.by_bot.length} ${t.dashboard.analytics.sources}` : ''}
+          right={by_bot.length ? `${by_bot.length} ${t.dashboard.analytics.sources}` : ''}
         />
-        <BotTable rows={breakdown?.by_bot ?? []} t={t} />
+        <BotTable rows={by_bot} t={t} />
       </div>
 
-      {by_coin && by_coin.length > 0 && (
+      {by_coin.length > 0 && (
         <CoinChart coins={by_coin} allTrades={allTrades} />
       )}
 
       <div style={{ marginBottom: 32 }}>
-        <SectionHeader title={t.dashboard.analytics.byCoin} right={`${by_coin?.length ?? 0} · ${t.dashboard.analytics.coinsSort}`} />
+        <SectionHeader title={t.dashboard.analytics.byCoin} right={`${by_coin.length} · ${t.dashboard.analytics.coinsSort}`} />
         <CoinTable rows={by_coin} t={t} />
       </div>
 
