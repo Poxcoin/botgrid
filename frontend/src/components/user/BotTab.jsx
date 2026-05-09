@@ -3,9 +3,9 @@ import { authFetch } from '@/lib/api';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLang } from '@/lib/LangContext';
 
-const B = 'rgba(255,255,255,0.06)';
+const B    = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
-const MONO = "'Courier New','SF Mono',monospace";
+const MONO  = "'Courier New','SF Mono',monospace";
 
 function StatBox({ label, value, sub, color, accent, live }) {
   const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
@@ -14,12 +14,9 @@ function StatBox({ label, value, sub, color, accent, live }) {
   return (
     <div
       style={{
-        flex: 1,
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderTop: topBorder,
-        borderRadius: 12,
-        padding: '20px 22px',
+        flex: 1, background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)', borderTop: topBorder,
+        borderRadius: 12, padding: '20px 22px',
         transition: 'border-color 200ms ease',
       }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
@@ -35,12 +32,129 @@ function StatBox({ label, value, sub, color, accent, live }) {
   );
 }
 
+function pct(wins, total) {
+  if (!total) return '—';
+  return (wins / total * 100).toFixed(1) + '%';
+}
+
+function BotBreakdown({ bots }) {
+  if (!bots || !bots.length) {
+    return (
+      <div style={{ padding: '28px 20px', fontFamily: MONO, fontSize: 11, color: MUTED, textAlign: 'center' }}>
+        No bot trades recorded yet
+      </div>
+    );
+  }
+  const cols = [
+    { label: 'Bot',       align: 'left' },
+    { label: 'Trades',    align: 'right' },
+    { label: 'Win Rate',  align: 'right' },
+    { label: 'PnL (USDT)', align: 'right' },
+    { label: 'Avg Win',   align: 'right' },
+    { label: 'Avg Loss',  align: 'right' },
+  ];
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${B}` }}>
+            {cols.map(c => (
+              <th key={c.label} style={{
+                textAlign: c.align, padding: '8px 20px',
+                fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+                color: MUTED, fontWeight: 400,
+              }}>{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {bots.map((r, i) => {
+            const wr    = pct(r.wins, r.trades);
+            const isPos = (r.pnl ?? 0) >= 0;
+            return (
+              <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <td style={{ padding: '11px 20px', color: '#ccc', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+                  {r.label || r.source || '—'}
+                </td>
+                <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{r.trades}</td>
+                <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{wr}</td>
+                <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  {isPos ? '+' : ''}{(r.pnl ?? 0).toFixed(2)}
+                </td>
+                <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--accent-green)' }}>
+                  {r.avg_win > 0 ? '+' + r.avg_win.toFixed(2) : '—'}
+                </td>
+                <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--accent-red)' }}>
+                  {r.avg_loss < 0 ? r.avg_loss.toFixed(2) : '—'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PositionsTable({ positions }) {
+  if (!positions || !positions.length) return null;
+  return (
+    <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
+      <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${B}` }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Open Positions</span>
+        <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--accent-green)' }}>{positions.length}</span>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${B}` }}>
+              {['Symbol', 'Side', 'Entry', 'Unreal. PnL', 'PnL %'].map(h => (
+                <th key={h} style={{
+                  textAlign: h === 'Symbol' ? 'left' : 'right', padding: '8px 20px',
+                  fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+                  color: MUTED, fontWeight: 400,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {positions.map((p, i) => {
+              const isLong   = p.side === 'LONG';
+              const isProfit = (p.unrealized_pnl ?? 0) >= 0;
+              return (
+                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <td style={{ padding: '11px 20px', color: '#ccc', fontWeight: 700 }}>{p.symbol}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(4) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                    {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
+                  </td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                    {isProfit ? '+' : ''}{p.pnl_pct ?? '—'}%
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function BotTab() {
   const { t } = useLang();
-  const [data,    setData]    = useState(null);
-  const [intel,   setIntel]   = useState(null);
-  const [error,   setError]   = useState(false);
-  const [summary, setSummary] = useState(null);
+  const [data,      setData]      = useState(null);
+  const [intel,     setIntel]     = useState(null);
+  const [summary,   setSummary]   = useState(null);
+  const [breakdown, setBreakdown] = useState(null);
+  const [error,     setError]     = useState(false);
 
   const load = async () => {
     try {
@@ -51,23 +165,24 @@ export default function BotTab() {
     } catch { setError(true); }
   };
 
-  const loadIntel = async () => {
+  const loadAll = async () => {
     try {
       const res = await authFetch('/api/intel');
       if (res.ok) setIntel(await res.json());
     } catch {}
-  };
-
-  const loadSummary = async () => {
     try {
       const res = await authFetch('/api/users/bot-summary');
       if (res.ok) setSummary(await res.json());
     } catch {}
+    try {
+      const res = await authFetch('/api/analytics/breakdown');
+      if (res.ok) setBreakdown(await res.json());
+    } catch {}
   };
 
   useEffect(() => {
-    load(); loadIntel(); loadSummary();
-    const id = setInterval(() => { load(); loadIntel(); loadSummary(); }, 30000);
+    load(); loadAll();
+    const id = setInterval(load, 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -76,14 +191,32 @@ export default function BotTab() {
     new Date(s.timestamp).toDateString() === new Date().toDateString()
   ).length;
 
+  const totalRealized   = summary?.total_realized   ?? 0;
+  const totalUnrealized = summary?.total_unrealized ?? 0;
+
+  // User-specific bots if they have API key + trades, otherwise master breakdown
+  const botRows = (summary?.bots?.length > 0) ? summary.bots : (breakdown?.by_bot ?? []);
+
   const headers = [t.dashboard.hTime, t.dashboard.hAsset, t.dashboard.hAction, t.dashboard.hScore, t.dashboard.hNews];
 
   return (
     <div>
-      {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatBox label={t.dashboard.bot.balance} value={`$${(summary?.balance?.wallet ?? 0).toFixed(2)}`} sub={`Equity $${(summary?.balance?.equity ?? 0).toFixed(2)}`} color="var(--accent-green)" accent="green" />
-        <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
+
+      {/* ── Stats row ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <StatBox
+          label={t.dashboard.bot.balance}
+          value={`$${(summary?.balance?.wallet ?? 0).toFixed(2)}`}
+          sub={`Equity $${(summary?.balance?.equity ?? 0).toFixed(2)}`}
+          color="var(--accent-green)" accent="green"
+        />
+        <StatBox
+          label="Realized PnL"
+          value={`${totalRealized >= 0 ? '+' : ''}$${totalRealized.toFixed(2)}`}
+          sub={`${botRows.length} active bot${botRows.length !== 1 ? 's' : ''}`}
+          color={totalRealized > 0 ? 'var(--accent-green)' : totalRealized < 0 ? 'var(--accent-red)' : 'var(--text-primary)'}
+          accent={totalRealized > 0 ? 'green' : totalRealized < 0 ? 'red' : undefined}
+        />
         <StatBox
           label={t.dashboard.bot.feedStatus}
           value={error ? t.dashboard.bot.offline : t.dashboard.bot.live}
@@ -92,13 +225,30 @@ export default function BotTab() {
           live={!error}
           sub={intel
             ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
-            : '...'}
+            : undefined}
         />
+        <StatBox label={t.dashboard.bot.signalsToday} value={signalsToday} sub={t.dashboard.bot.last24h} />
       </div>
 
-      {/* Live Intel */}
+      {/* ── Per-bot breakdown ──────────────────────────────────────────────── */}
+      <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
+        <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
+          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Bot Performance</span>
+          {totalUnrealized !== 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 10, color: totalUnrealized >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              Unrealized {totalUnrealized >= 0 ? '+' : ''}{totalUnrealized.toFixed(2)} USDT
+            </span>
+          )}
+        </div>
+        <BotBreakdown bots={botRows} />
+      </div>
+
+      {/* ── Open positions ─────────────────────────────────────────────────── */}
+      <PositionsTable positions={summary?.positions} />
+
+      {/* ── Live Intel ─────────────────────────────────────────────────────── */}
       {intel && (
-        <div style={{ border: `1px solid ${B}`, marginTop: 24 }}>
+        <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
           <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${B}` }}>
             <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.liveIntel}</span>
             {intel.updated_at && (
@@ -108,7 +258,7 @@ export default function BotTab() {
             )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            {['BTC','ETH','SOL','BNB'].map(coin => {
+            {['BTC', 'ETH', 'SOL', 'BNB'].map(coin => {
               const liq = intel.liquidations?.[coin];
               if (!liq) return <div key={coin} />;
               const sig = liq.signal;
@@ -118,7 +268,7 @@ export default function BotTab() {
                   <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: MUTED, marginBottom: 4 }}>{coin}</div>
                   <div style={{ fontFamily: MONO, fontWeight: 700, fontSize: 13, color: col }}>{sig}</div>
                   <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, marginTop: 2 }}>
-                    ↑${(liq.long_liq_usd/1000).toFixed(0)}K ↓${(liq.short_liq_usd/1000).toFixed(0)}K
+                    ↑${(liq.long_liq_usd / 1000).toFixed(0)}K ↓${(liq.short_liq_usd / 1000).toFixed(0)}K
                   </div>
                 </div>
               );
@@ -137,8 +287,8 @@ export default function BotTab() {
         </div>
       )}
 
-      {/* Live Feed */}
-      <div style={{ border: `1px solid ${B}`, marginTop: 24 }}>
+      {/* ── Intelligence feed ──────────────────────────────────────────────── */}
+      <div style={{ border: `1px solid ${B}` }}>
         <div style={{ padding: '0 20px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
           <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.intelligenceFeed}</span>
           <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>{t.dashboard.bot.auto30s}</span>
@@ -154,9 +304,11 @@ export default function BotTab() {
             </thead>
             <tbody>
               {feed.length === 0 ? (
-                <tr><td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>
-                  {data === null ? t.dashboard.loading : t.dashboard.bot.noSignalsYet}
-                </td></tr>
+                <tr>
+                  <td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>
+                    {data === null ? t.dashboard.loading : t.dashboard.bot.noSignalsYet}
+                  </td>
+                </tr>
               ) : feed.map((s, i) => (
                 <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}>
                   <td style={{ padding: '12px 20px', fontFamily: MONO, fontSize: 11, color: MUTED }}>
