@@ -1164,7 +1164,10 @@ async def get_user_closed_pnl(
             "win_rate":     round(total_wins / len(trades) * 100, 1) if trades else 0,
         }
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        return {
+            "trades": [], "total_pnl": 0.0, "total_trades": 0,
+            "wins": 0, "losses": 0, "win_rate": 0.0, "error": str(e),
+        }
 
 
 @app.get("/api/users/analytics")
@@ -1255,7 +1258,10 @@ async def get_user_analytics(
             "worst":   by_date[-5:][::-1] if len(by_date) >= 5 else by_date[::-1],
         }
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        return {
+            "summary": {"total_trades": 0, "total_pnl": 0.0, "wins": 0, "losses": 0, "win_rate": 0.0},
+            "daily": [], "by_coin": [], "best": [], "worst": [], "error": str(e),
+        }
 
 
 @app.get("/api/users/referrals")

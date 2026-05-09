@@ -8,13 +8,14 @@ import SignalsTab     from '@/components/user/SignalsTab';
 import BacktesterTab  from '@/components/dashboard/BacktesterTab';
 import AnalyticsTab   from '@/components/user/AnalyticsTab';
 import SecurityTab    from '@/components/user/SecurityTab';
+import ApiKeysTab     from '@/components/user/ApiKeysTab';
 import { useLang }    from '@/lib/LangContext';
 
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
 
 const MAIN_TAB_IDS = ['overview', 'bot', 'analytics', 'trades', 'signals', 'backtester'];
-const SECONDARY_TAB_IDS = ['account', 'security', 'settings'];
+const SECONDARY_TAB_IDS = ['account', 'api-keys', 'security', 'settings'];
 const TAB_LABEL_KEY = {
   overview:   'tabOverview',
   bot:        'tabBot',
@@ -23,6 +24,7 @@ const TAB_LABEL_KEY = {
   signals:    'tabSignals',
   backtester: 'tabBacktester',
   account:    'tabAccount',
+  'api-keys': 'tabApiKeys',
   security:   'tabSecurity',
   settings:   'tabSettings',
 };
@@ -36,6 +38,7 @@ function TabContent({ tab }) {
     case 'signals':    return <SignalsTab />;
     case 'backtester': return <BacktesterTab />;
     case 'account':    return <AccountTab />;
+    case 'api-keys':   return <ApiKeysTab />;
     case 'security':   return <SecurityTab />;
     case 'settings':   return <SettingsTab />;
     default:           return null;
