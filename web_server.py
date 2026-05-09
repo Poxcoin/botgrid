@@ -679,10 +679,26 @@ async def disconnect_tg(credentials: HTTPAuthorizationCredentials = Depends(secu
 
 @app.post("/api/users/keys")
 async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    """Save or replace the user's Bybit API key (stored encrypted)."""
+    """Save or replace the user's Bybit API key (stored encrypted). Validates key before saving."""
     user = _get_user_from_token(credentials.credentials, db)
     if not body.api_key or not body.secret:
         raise HTTPException(status_code=400, detail="api_key and secret are required")
+
+    # Validate key against Bybit API before storing
+    try:
+        test_ex = ccxt.bybit({
+            'apiKey':        body.api_key,
+            'secret':        body.secret,
+            'enableRateLimit': True,
+            'options':       {'defaultType': 'linear', 'recvWindow': 10000},
+        })
+        test_ex.has['fetchCurrencies'] = False
+        if body.is_testnet:
+            test_ex.urls['api'] = test_ex.urls['demotrading']
+        _bybit_balance(test_ex)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid API key — check that key and secret are correct and Trade + Position permissions are enabled on Bybit.")
+
     from sqlalchemy.exc import IntegrityError
     try:
         key_row = (
@@ -694,22 +710,22 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         if key_row:
             key_row.api_key_enc   = encrypt_field(body.api_key)
             key_row.secret_enc    = encrypt_field(body.secret)
-            key_row.is_testnet       = body.is_testnet
-            key_row.last_verified = None
+            key_row.is_testnet    = body.is_testnet
+            key_row.last_verified = datetime.utcnow()
         else:
             key_row = UserApiKey(
-                user_id     = user.id,
-                exchange    = "bybit",
-                api_key_enc = encrypt_field(body.api_key),
-                secret_enc  = encrypt_field(body.secret),
-                is_testnet  = body.is_testnet,
+                user_id       = user.id,
+                exchange      = "bybit",
+                api_key_enc   = encrypt_field(body.api_key),
+                secret_enc    = encrypt_field(body.secret),
+                is_testnet    = body.is_testnet,
+                last_verified = datetime.utcnow(),
             )
             db.add(key_row)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Could not save keys, try again")
-    # Немедленно запускаем боты для этого пользователя
     asyncio.get_running_loop().run_in_executor(None, dispatcher_sync_user, user.id)
     return {"ok": True}
 
