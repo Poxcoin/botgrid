@@ -44,13 +44,15 @@ FR_TREND_BONUS   = 1.5   # бонус якщо FR зростає 3 цикли п
 
 COIN_COOLDOWN_SEC = 4 * 3600
 
-# Розширений watchlist: 30 монет (було 20)
+# SOL видалено: покрито Grid ботом, FR WR 20% (-$33.35, 35 угод)
+# Видалено confirmed losers: OP 0%WR, ATOM 0%WR, TRX 0%WR, AAVE 0%WR
+# Видалено: LTC, ZETA, STX (низький WR, підтверджені збитки)
 WATCHLIST = [
-    "BTC",  "ETH",  "SOL",  "BNB",  "XRP",
+    "BTC",  "ETH",  "BNB",  "XRP",
     "ADA",  "DOGE", "AVAX", "DOT",  "LINK",
-    "INJ",  "SUI",  "APT",  "OP",   "ARB",
-    "NEAR", "FET",  "TON",  "TRX",  "ATOM",
-    "AAVE", "UNI",  "LDO",  "CRV",  "RUNE",
+    "INJ",  "SUI",  "APT",  "ARB",
+    "NEAR", "FET",  "TON",
+    "UNI",  "LDO",  "CRV",  "RUNE",
     "WLD",  "JUP",  "PENDLE", "ONDO",
 ]
 

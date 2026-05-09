@@ -484,6 +484,32 @@ def execute_trade(
             else:
                 print(f"⚠️ TP/SL не вдалося встановити: {e}")
 
+        # Якщо SL не вдалося встановити — закриваємо позицію ринковим ордером.
+        # Краще зафіксувати невеликий слiпаж при відкритті, ніж тримати без захисту.
+        if not _tp_sl_set:
+            print(f"🚨 SL не встановлено для {coin} — аварійне закриття позиції")
+            try:
+                close_side = "sell" if action.upper() == "LONG" else "buy"
+                exchange.create_order(
+                    symbol, "market", close_side, amount,
+                    params={"category": "linear", "reduceOnly": True},
+                )
+                print(f"✅ {coin} аварійно закрито (SL fail → immediate close)")
+                send_telegram_message(
+                    f"⚠️ <b>{coin} {action} — аварійне закриття</b>\n"
+                    f"SL не вдалося встановити. Позиція закрита щоб уникнути великого збитку.",
+                    TG_CHAT_ID
+                )
+                return
+            except Exception as close_err:
+                print(f"❌ Аварійне закриття {coin} провалилось: {close_err}")
+                send_telegram_message(
+                    f"🚨 <b>КРИТИЧНО: {coin} без SL!</b>\n"
+                    f"TP/SL не встановлено і аварійне закриття провалилось.\n"
+                    f"Закрий позицію вручну на Bybit.",
+                    TG_CHAT_ID
+                )
+
         # -------------------------------------------------
         # 4.6️⃣ Trailing stop (нативный Bybit)
         # Активируется после +1% движения в нашу сторону.

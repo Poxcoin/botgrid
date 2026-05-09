@@ -53,6 +53,30 @@ def _saas_dispatch(signal: dict, source: str, leverage: int,
     except Exception as e:
         print(f"[SAAS] dispatch error: {e}")
 PROCESSED_URLS_FILE = "processed_urls.json"
+COOLDOWN_FILE = "coin_cooldown.json"
+
+
+def load_cooldown() -> dict:
+    """Завантажує cooldown з диску — захист від flood при рестарті бота."""
+    if os.path.exists(COOLDOWN_FILE):
+        try:
+            with open(COOLDOWN_FILE, "r") as f:
+                data = json.load(f)
+            now = datetime.now(timezone.utc).timestamp()
+            # Очищаємо застарілі записи (старші за 2h — вони вже не блокують)
+            return {k: v for k, v in data.items() if now - v < COIN_COOLDOWN_SEC}
+        except Exception:
+            pass
+    return {}
+
+
+def save_cooldown(cooldown: dict) -> None:
+    try:
+        with open(COOLDOWN_FILE, "w") as f:
+            json.dump(cooldown, f)
+    except Exception as e:
+        print(f"[cooldown] save error: {e}")
+
 
 def load_ledger():
     """Загружает историю сигналов из файла при старте."""
@@ -453,8 +477,10 @@ def run_signal_engine():
     signal_ledger = load_ledger()
 
     # Cooldown: coin -> last_trade_ts — не торгуем одну монету чаще раз в 2 часа
-    _coin_cooldown: dict = {}
+    # Завантажуємо з диску щоб рестарт бота не скидав cooldown (захист від flood)
+    _coin_cooldown: dict = load_cooldown()
     COIN_COOLDOWN_SEC = 2 * 3600
+    print(f"[cooldown] завантажено {len(_coin_cooldown)} активних cooldown з диску")
 
     # Денний ліміт угод на монету: BTC/ETH max 2, альти max 2
     # {coin: {"count": int, "date": str "YYYY-MM-DD"}}
@@ -694,6 +720,7 @@ def run_signal_engine():
                                 _coin_cooldown[coin] = now_ts
                                 _dc["count"] += 1
                                 _daily_trade_count[coin.upper()] = _dc
+                                save_cooldown(_coin_cooldown)
 
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
@@ -738,16 +765,39 @@ def run_signal_engine():
                     break
                 coin    = fsig.get("coin", "")
                 now_ts  = datetime.now(timezone.utc).timestamp()
+
+                # Blacklist: confirmed losers не торгуємо навіть через FR
+                _FR_BLACKLIST = {"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE"}
+                if coin.upper() in _FR_BLACKLIST:
+                    print(f"[FR] ⛔ {coin} в чорному списку — пропускаємо")
+                    continue
+
                 last_ts = _coin_cooldown.get(coin, 0)
                 if now_ts - last_ts < COIN_COOLDOWN_SEC:
                     remaining = int((COIN_COOLDOWN_SEC - (now_ts - last_ts)) / 60)
                     print(f"[FR] ⏳ Cooldown {coin}: ще {remaining} хв")
                     continue
+
+                # Денний ліміт: FR не більше 2 угод на монету
+                _today_fr = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+                _dc_fr = _daily_trade_count.get(coin.upper(), {"count": 0, "date": ""})
+                if _dc_fr["date"] != _today_fr:
+                    _dc_fr = {"count": 0, "date": _today_fr}
+                _btc_eth_fr = coin.upper() in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                _max_fr = MAX_DAILY_TRADES_BTC_ETH if _btc_eth_fr else MAX_DAILY_TRADES_ALT
+                if _dc_fr["count"] >= _max_fr:
+                    print(f"[FR] 📅 {coin}: денний ліміт {_max_fr} вичерпано — пропускаємо")
+                    continue
+
                 _coin_cooldown[coin] = now_ts
-                # FR signals use their own scoring (SIGNAL_THRESHOLD=4.0 in funding_strategy.py)
+                _dc_fr["count"] += 1
+                _daily_trade_count[coin.upper()] = _dc_fr
+                save_cooldown(_coin_cooldown)
+
+                # FR signals use their own scoring (SIGNAL_THRESHOLD=5.5 in funding_strategy.py)
                 _fr_score = abs(fsig.get("total_score", 0))
-                if _fr_score < 4.0:
-                    print(f"📊 [FR] {coin} score={_fr_score:.1f} < 4.0 — пропускаємо")
+                if _fr_score < 5.5:
+                    print(f"📊 [FR] {coin} score={_fr_score:.1f} < 5.5 — пропускаємо")
                     continue
                 if not SIGNAL_BOT_TRADING:
                     print(f"📊 [FR] {coin} {fsig.get('action')} — збір статистики (торгівля вимкнена)")
@@ -812,6 +862,7 @@ def run_signal_engine():
                 _coin_cooldown[coin] = now_ts
                 _dc_liq["count"] += 1
                 _daily_trade_count[coin.upper()] = _dc_liq
+                save_cooldown(_coin_cooldown)
 
                 signal_id = save_signal(liq_sig, executed=False)
                 print(f"\n[LIQ] ⚡ CASCADE TRADE: {coin} {liq_sig['action']} "
