@@ -63,6 +63,13 @@ MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм що�
 # Вмикати тільки після накопичення 100+ угод з WR > 35%
 SIGNAL_BOT_TRADING = os.getenv("SIGNAL_BOT_TRADING", "False").lower() == "true"
 
+# ─── Cascade bot — окремий демо-режим ────────────────────────────────────────
+# CASCADE_IS_DEMO=True → cascade_bot.py використовує demo endpoint Bybit
+# (окремі API ключі від live — реєструються на bybit.com/dashboard/demo)
+CASCADE_IS_DEMO      = os.getenv("CASCADE_IS_DEMO", "False").lower() == "true"
+CASCADE_DEMO_API_KEY = os.getenv("CASCADE_DEMO_API_KEY", "")
+CASCADE_DEMO_SECRET  = os.getenv("CASCADE_DEMO_SECRET", "")
+
 # Параметри для нових лістингів (listing fast-path)
 LISTING_LEVERAGE = 5        # Перші години після лістингу = великий памп
 LISTING_TP = 20.0

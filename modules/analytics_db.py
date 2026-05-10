@@ -24,6 +24,11 @@ def _conn() -> sqlite3.Connection:
 
 def init_db() -> None:
     with _conn() as con:
+        # Migration: add bot_source to existing DBs that predate this column
+        try:
+            con.execute("ALTER TABLE trades ADD COLUMN bot_source TEXT NOT NULL DEFAULT 'signal'")
+        except Exception:
+            pass  # column already exists
         con.executescript("""
         CREATE TABLE IF NOT EXISTS signals (
             id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,6 +65,7 @@ def init_db() -> None:
             signal_id        INTEGER REFERENCES signals(id),
             coin             TEXT NOT NULL,
             action           TEXT NOT NULL,
+            bot_source       TEXT NOT NULL DEFAULT 'signal',
             entry_price      REAL,
             exit_price       REAL,
             pnl_usdt         REAL,
@@ -74,6 +80,7 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_signals_action ON signals(action);
         CREATE INDEX IF NOT EXISTS idx_signals_ts ON signals(timestamp);
         CREATE INDEX IF NOT EXISTS idx_trades_signal ON trades(signal_id);
+        CREATE INDEX IF NOT EXISTS idx_trades_source ON trades(bot_source);
         """)
 
 
@@ -141,14 +148,15 @@ def mark_signal_executed(signal_id: int, order_id: str = None) -> None:
 
 
 def save_trade(signal_id: int, coin: str, action: str,
-               entry_price: float, timestamp_open: str) -> int:
+               entry_price: float, timestamp_open: str,
+               bot_source: str = "signal") -> int:
     """Открывает новую сделку в БД. Возвращает ID."""
     init_db()
     with _conn() as con:
         cur = con.execute("""
-            INSERT INTO trades (signal_id, coin, action, entry_price, result, timestamp_open)
-            VALUES (?,?,?,?,'OPEN',?)
-        """, (signal_id, coin, action, entry_price, timestamp_open))
+            INSERT INTO trades (signal_id, coin, action, bot_source, entry_price, result, timestamp_open)
+            VALUES (?,?,?,?,?,'OPEN',?)
+        """, (signal_id, coin, action, bot_source, entry_price, timestamp_open))
         return cur.lastrowid
 
 

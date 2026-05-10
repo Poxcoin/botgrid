@@ -83,21 +83,22 @@ def _fetch_closed_pnl(exchange, symbol: str, since_ms: int) -> list:
 
 
 def _tag_source(coin: str, close_ts_ms: int) -> str:
-    """Визначає джерело угоди: signal, funding, або grid."""
+    """Визначає джерело угоди: signal, cascade, funding, або grid."""
     try:
         con = sqlite3.connect(DB_PATH)
         con.row_factory = sqlite3.Row
-        # Шукаємо signal bot угоду: ±30 хвилин і та ж монета
         window_ms = 30 * 60 * 1000
         open_min = datetime.fromtimestamp((close_ts_ms - window_ms * 8) / 1000, tz=timezone.utc).isoformat()
         close_max = datetime.fromtimestamp((close_ts_ms + 60_000) / 1000, tz=timezone.utc).isoformat()
         row = con.execute(
-            "SELECT id FROM trades WHERE coin=? AND timestamp_open>=? AND timestamp_open<=? LIMIT 1",
+            "SELECT bot_source FROM trades WHERE coin=? AND timestamp_open>=? AND timestamp_open<=? "
+            "ORDER BY timestamp_open DESC LIMIT 1",
             (coin, open_min, close_max)
         ).fetchone()
         con.close()
         if row:
-            return "signal"
+            # Повертаємо точний bot_source зі збереженого запису
+            return row["bot_source"] if row["bot_source"] else "signal"
     except Exception:
         pass
     return "grid"
@@ -207,6 +208,7 @@ def get_report() -> dict:
     signal_rows  = [r for r in rows if r["bot_source"] == "signal"]
     grid_rows    = [r for r in rows if r["bot_source"] == "grid"]
     funding_rows = [r for r in rows if r["bot_source"] == "funding"]
+    cascade_rows = [r for r in rows if r["bot_source"] == "cascade"]
     all_closed   = list(rows)
 
     # Топ монети всього
@@ -220,6 +222,7 @@ def get_report() -> dict:
         "signal":  _stats(signal_rows),
         "grid":    _stats(grid_rows),
         "funding": _stats(funding_rows),
+        "cascade": _stats(cascade_rows),
         "top_coins": top_coins[:5],
         "worst_coins": top_coins[-3:] if len(top_coins) >= 3 else [],
     }
@@ -261,5 +264,107 @@ def start_sync(exchange_factory, interval: int = SYNC_INTERVAL) -> threading.Thr
                 print(f"[unified_pnl] Помилка синку: {e}")
 
     t = threading.Thread(target=_loop, name="unified-pnl-sync", daemon=True)
+    t.start()
+    return t
+
+
+_CASCADE_COINS = ["BTC", "ETH", "SOL"]
+
+
+def sync_cascade_from_bybit(exchange) -> int:
+    """
+    Синхронізує закриті позиції cascade bot з Bybit demo.
+    Теги угоди як bot_source='cascade' в all_trades.
+    """
+    init_all_trades_table()
+
+    try:
+        con = _conn()
+        row = con.execute(
+            "SELECT MAX(timestamp_close) FROM all_trades WHERE bot_source='cascade'"
+        ).fetchone()
+        con.close()
+        last_close = row[0] if row and row[0] else None
+    except Exception:
+        last_close = None
+
+    if last_close:
+        try:
+            since_dt = datetime.fromisoformat(last_close.replace("Z", "+00:00")) - timedelta(minutes=30)
+        except Exception:
+            since_dt = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
+    else:
+        since_dt = datetime.now(timezone.utc) - timedelta(days=LOOKBACK_DAYS)
+
+    since_ms  = int(since_dt.timestamp() * 1000)
+    new_count = 0
+
+    for coin in _CASCADE_COINS:
+        symbol  = f"{coin}USDT"
+        entries = _fetch_closed_pnl(exchange, symbol, since_ms)
+        if not entries:
+            time.sleep(0.2)
+            continue
+
+        for e in entries:
+            close_ms  = int(e.get("updatedTime") or e.get("createdTime") or 0)
+            pnl_val   = float(e.get("closedPnl") or 0)
+            bybit_key = f"cascade_{symbol}_{close_ms}_{pnl_val:.4f}"
+
+            entry_px = float(e.get("avgEntryPrice") or 0)
+            exit_px  = float(e.get("avgExitPrice")  or 0)
+            qty      = float(e.get("qty") or 0)
+            side     = (e.get("side") or "").lower()
+            action   = "LONG" if side == "buy" else "SHORT"
+
+            open_ms  = int(e.get("createdTime") or 0)
+            ts_open  = datetime.fromtimestamp(open_ms  / 1000, tz=timezone.utc).isoformat() if open_ms  else None
+            ts_close = datetime.fromtimestamp(close_ms / 1000, tz=timezone.utc).isoformat() if close_ms else None
+            duration = round((close_ms - open_ms) / 60000) if open_ms and close_ms else None
+            result   = "WIN" if pnl_val > 0 else ("LOSS" if pnl_val < 0 else "BE")
+
+            try:
+                with _conn() as con:
+                    con.execute("""
+                        INSERT OR IGNORE INTO all_trades
+                        (bybit_key, bot_source, coin, action, qty,
+                         entry_price, exit_price, pnl_usdt, result,
+                         timestamp_open, timestamp_close, duration_min)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (bybit_key, "cascade", coin, action, qty,
+                          entry_px, exit_px, pnl_val, result,
+                          ts_open, ts_close, duration))
+                    if con.execute("SELECT changes()").fetchone()[0]:
+                        new_count += 1
+            except Exception as err:
+                print(f"[cascade_pnl] insert {symbol}: {err}")
+
+        time.sleep(0.3)
+
+    if new_count:
+        print(f"[cascade_pnl] ✅ {new_count} нових угод cascade синкронізовано")
+    return new_count
+
+
+def start_cascade_sync(exchange_factory, interval: int = SYNC_INTERVAL) -> threading.Thread:
+    """Фоновий PnL sync спеціально для cascade bot (demo exchange)."""
+    init_all_trades_table()
+
+    def _loop():
+        print(f"[cascade_pnl] 🔄 Cascade sync запущено (інтервал {interval // 60} хв)")
+        try:
+            ex = exchange_factory()
+            sync_cascade_from_bybit(ex)
+        except Exception as e:
+            print(f"[cascade_pnl] Перший синк помилка: {e}")
+        while True:
+            time.sleep(interval)
+            try:
+                ex = exchange_factory()
+                sync_cascade_from_bybit(ex)
+            except Exception as e:
+                print(f"[cascade_pnl] Помилка синку: {e}")
+
+    t = threading.Thread(target=_loop, name="cascade-pnl-sync", daemon=True)
     t.start()
     return t
