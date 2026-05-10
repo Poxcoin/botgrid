@@ -11,13 +11,17 @@ from datetime import datetime, timezone
 
 from database import SessionLocal, User, UserApiKey
 from utils.crypto import decrypt_field
-from grid_bot import run_grid_engine_for_user
+from grid_bot import run_grid_engine_for_user, _invalid_key_users
+from modules.tg_notifier import send_telegram_message
 
 logger = logging.getLogger("saas_dispatcher")
 
 # user_id → {"thread": Thread, "stop_event": Event, "started_at": datetime}
 _instances: dict[int, dict] = {}
 _lock = threading.Lock()
+
+# user_ids already notified about invalid key (to avoid spamming every 60s)
+_notified_invalid: set[int] = set()
 
 
 def _start_user(user_id: int, api_key: str, secret: str) -> None:
@@ -75,6 +79,24 @@ def _sync() -> None:
             active_ids.add(user.id)
             with _lock:
                 already_running = user.id in _instances and _instances[user.id]["thread"].is_alive()
+
+            # Key flagged invalid by grid thread — notify user, skip restart
+            if user.id in _invalid_key_users:
+                if user.id not in _notified_invalid:
+                    tg = getattr(user, "tg_chat_id", None)
+                    if tg:
+                        send_telegram_message(
+                            "⚠️ <b>Grid Bot зупинено</b>\n\n"
+                            "Ваш API ключ Bybit недійсний або термін дії закінчився "
+                            "(Bybit demo-ключі діють ~7 днів).\n\n"
+                            "Будь ласка, оновіть ключі в особистому кабінеті — "
+                            "після цього бот запуститься автоматично.",
+                            tg,
+                        )
+                    _notified_invalid.add(user.id)
+                    logger.warning(f"[DISPATCHER] ⚠️ User {user.id} has invalid Bybit key — grid stopped, user notified")
+                continue  # don't restart until key is updated
+
             if not already_running:
                 try:
                     ak  = decrypt_field(key_row.api_key_enc)
@@ -117,6 +139,10 @@ def sync_user(user_id: int) -> None:
         if not key_row or not user or not user.is_active or not user.email_verified:
             stop_user(user_id)
             return
+        # Clear invalid-key flags so the bot restarts cleanly with the new key
+        _invalid_key_users.discard(user_id)
+        _notified_invalid.discard(user_id)
+
         # Останавливаем старый инстанс если есть (ключи могли смениться)
         with _lock:
             already = user_id in _instances

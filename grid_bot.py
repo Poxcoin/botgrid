@@ -29,6 +29,14 @@ from modules.market_data import get_btc_2h_change
 from modules.analytics_db import save_trade, close_trade, save_user_trade, close_user_trade
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING
 
+
+class BybitKeyInvalidError(Exception):
+    """Raised when Bybit returns retCode 10003 (API key invalid / expired)."""
+
+
+# user_ids whose API key is known-invalid; cleared by saas_dispatcher on key update
+_invalid_key_users: set[int] = set()
+
 BTC_DUMP_THRESHOLD    = -2.5    # % за 2h — призупиняємо нові LONG BUY на альти
 BTC_PUMP_THRESHOLD    =  2.5    # % за 2h — призупиняємо нові SHORT на альти
 BYBIT_TAKER_FEE       = 0.00055 # 0.055% — taker (market orders, closes)
@@ -551,6 +559,9 @@ def _open_long_limit(exchange, symbol: str, level_price: float, level_idx: int,
             "placed_at":   int(datetime.now(timezone.utc).timestamp() * 1000),
         }
     except Exception as e:
+        err = str(e)
+        if "10003" in err or "API key is invalid" in err:
+            raise BybitKeyInvalidError(err) from e
         print(f"[GRID:{symbol}] LONG LIMIT error level {level_idx}: {e}")
         return None
 
@@ -573,6 +584,9 @@ def _open_short_limit(exchange, symbol: str, level_price: float, level_idx: int,
             "placed_at":   int(datetime.now(timezone.utc).timestamp() * 1000),
         }
     except Exception as e:
+        err = str(e)
+        if "10003" in err or "API key is invalid" in err:
+            raise BybitKeyInvalidError(err) from e
         print(f"[GRID:{symbol}] SHORT LIMIT error level {level_idx}: {e}")
         return None
 
@@ -1203,16 +1217,30 @@ def _run_single(cfg: dict) -> None:
 
             last_price = price
 
+        except BybitKeyInvalidError:
+            raise
         except Exception as e:
             print(f"[GRID:{symbol}] Помилка: {e}")
             time.sleep(30)
+
+
+def _run_single_safe(cfg: dict) -> None:
+    """Wrapper around _run_single that catches BybitKeyInvalidError."""
+    try:
+        _run_single(cfg)
+    except BybitKeyInvalidError as e:
+        symbol  = cfg.get("symbol", "?")
+        user_id = cfg.get("user_id")
+        print(f"[GRID:{symbol}] ❌ API ключ недійсний — grid зупинено (user {user_id}): {e}")
+        if user_id is not None:
+            _invalid_key_users.add(user_id)
 
 
 # ─── Головний цикл ───────────────────────────────────────────────────────────
 
 def _start_thread(cfg: dict) -> threading.Thread:
     t = threading.Thread(
-        target=_run_single,
+        target=_run_single_safe,
         args=(cfg,),
         name=f"grid-{cfg['symbol']}",
         daemon=True,
