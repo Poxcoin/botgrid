@@ -298,26 +298,24 @@ const CHART_TYPES = [
   { id: 'area',             label: 'Line',     title: 'Line / Area chart'            },
 ];
 
-const CHART_TYPE_BAR = {
+const COL_GREEN = '#00d4aa';
+const COL_RED   = '#ff4d6d';
+const CHART_TYPE_CFG = {
   candle_solid: {
-    upColor: '#00d4aa',   downColor: '#ff4d6d',   noChangeColor: '#888',
-    upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
-    upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
+    bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' },
+    vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }],
   },
   candle_up_stroke: {
-    upColor: 'transparent',         downColor: 'rgba(255,255,255,0.85)', noChangeColor: 'rgba(255,255,255,0.4)',
-    upBorderColor: 'rgba(255,255,255,0.85)', downBorderColor: 'rgba(255,255,255,0.85)', noChangeBorderColor: 'rgba(255,255,255,0.4)',
-    upWickColor: 'rgba(255,255,255,0.55)',   downWickColor: 'rgba(255,255,255,0.55)',   noChangeWickColor: 'rgba(255,255,255,0.3)',
+    bar: { upColor: 'transparent', downColor: 'rgba(255,255,255,0.85)', noChangeColor: 'rgba(255,255,255,0.4)', upBorderColor: 'rgba(255,255,255,0.85)', downBorderColor: 'rgba(255,255,255,0.85)', noChangeBorderColor: 'rgba(255,255,255,0.4)', upWickColor: 'rgba(255,255,255,0.55)', downWickColor: 'rgba(255,255,255,0.55)', noChangeWickColor: 'rgba(255,255,255,0.3)' },
+    vol: [{ upColor: 'rgba(255,255,255,0.18)', downColor: 'rgba(255,255,255,0.09)', noChangeColor: 'rgba(255,255,255,0.12)' }],
   },
   candle_stroke: {
-    upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent',
-    upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
-    upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
+    bar: { upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' },
+    vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }],
   },
   area: {
-    upColor: '#00d4aa',   downColor: '#ff4d6d',   noChangeColor: '#888',
-    upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
-    upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
+    bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' },
+    vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }],
   },
 };
 
@@ -334,57 +332,62 @@ function KlineChart({ coin, tf }) {
   const [chartType,     setChartType]     = useState('candle_solid');
 
   useEffect(() => {
-    if (!elRef.current) return;
-
     const el = elRef.current;
-    const chart = init(el, { styles: CHART_STYLES, locale: 'en-US' });
-    chartRef.current = chart;
+    if (!el) return;
 
-    chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: coin === 'BTC' ? 1 : 2, volumePrecision: 4 });
-    chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
-    chart.setDataLoader({
-      getBars: async ({ period, timestamp, callback }) => {
-        try {
-          let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
-          if (timestamp) url += `&end=${timestamp - 1}`;
-          const r = await fetch(url);
-          const d = await r.json();
-          const data = (d.result?.list || []).slice().reverse().map(k => ({
-            timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-          }));
-          callback(data, data.length >= 1000);
-        } catch { callback([], false); }
-      },
-      subscribeBar: ({ period, callback: cb }) => {
-        timerRef.current = setInterval(async () => {
+    let mounted = true;
+    let ro = null;
+
+    const setup = () => {
+      if (!mounted) return;
+      const { width, height } = el.getBoundingClientRect();
+      if (width === 0 || height === 0) { requestAnimationFrame(setup); return; }
+
+      const chart = init(el, { styles: CHART_STYLES, locale: 'en-US' });
+      chartRef.current = chart;
+
+      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: coin === 'BTC' ? 1 : 2, volumePrecision: 4 });
+      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
+      chart.setDataLoader({
+        getBars: async ({ period, timestamp, callback }) => {
           try {
-            const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
+            let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
+            if (timestamp) url += `&end=${timestamp - 1}`;
+            const r = await fetch(url);
             const d = await r.json();
-            const k = d?.result?.list?.[0];
-            if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
-          } catch {}
-        }, 5000);
-      },
-      unsubscribeBar: () => {
-        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      },
-    });
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        try {
-          chart.resize();
-          chart.zoomAtCoordinate?.(-5);
-        } catch {}
+            const data = (d.result?.list || []).slice().reverse().map(k => ({
+              timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+            }));
+            callback(data, data.length >= 1000);
+          } catch { callback([], false); }
+        },
+        subscribeBar: ({ period, callback: cb }) => {
+          timerRef.current = setInterval(async () => {
+            try {
+              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
+              const d = await r.json();
+              const k = d?.result?.list?.[0];
+              if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
+            } catch {}
+          }, 5000);
+        },
+        unsubscribeBar: () => {
+          if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        },
       });
-    });
 
-    const ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
-    ro.observe(el);
+      requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
+
+      ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
+      ro.observe(el);
+    };
+
+    requestAnimationFrame(setup);
 
     return () => {
+      mounted = false;
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      ro.disconnect();
+      if (ro) ro.disconnect();
       try { dispose(el); } catch {}
       chartRef.current = null;
       panesRef.current = {};
@@ -393,8 +396,8 @@ function KlineChart({ coin, tf }) {
 
   function applyChartType(typeId) {
     setChartType(typeId);
-    const bar = CHART_TYPE_BAR[typeId] || CHART_TYPE_BAR.candle_solid;
-    try { chartRef.current?.setStyles({ candle: { type: typeId, bar } }); } catch {}
+    const cfg = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
+    try { chartRef.current?.setStyles({ candle: { type: typeId, bar: cfg.bar }, indicator: { bars: cfg.vol } }); } catch {}
   }
 
   function selectTool(toolId) {
