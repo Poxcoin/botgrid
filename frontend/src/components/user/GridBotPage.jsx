@@ -298,6 +298,29 @@ const CHART_TYPES = [
   { id: 'area',             label: 'Line',     title: 'Line / Area chart'            },
 ];
 
+const CHART_TYPE_BAR = {
+  candle_solid: {
+    upColor: '#00d4aa',   downColor: '#ff4d6d',   noChangeColor: '#888',
+    upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
+    upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
+  },
+  candle_up_stroke: {
+    upColor: 'transparent',         downColor: 'rgba(255,255,255,0.85)', noChangeColor: 'rgba(255,255,255,0.4)',
+    upBorderColor: 'rgba(255,255,255,0.85)', downBorderColor: 'rgba(255,255,255,0.85)', noChangeBorderColor: 'rgba(255,255,255,0.4)',
+    upWickColor: 'rgba(255,255,255,0.55)',   downWickColor: 'rgba(255,255,255,0.55)',   noChangeWickColor: 'rgba(255,255,255,0.3)',
+  },
+  candle_stroke: {
+    upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent',
+    upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
+    upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
+  },
+  area: {
+    upColor: '#00d4aa',   downColor: '#ff4d6d',   noChangeColor: '#888',
+    upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
+    upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
+  },
+};
+
 
 // ── KlineChart ────────────────────────────────────────────────
 
@@ -347,9 +370,16 @@ function KlineChart({ coin, tf }) {
       },
     });
 
-    requestAnimationFrame(() => { try { chart.resize(); } catch {} });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          chart.resize();
+          chart.zoomAtCoordinate?.(-5);
+        } catch {}
+      });
+    });
 
-    const ro = new ResizeObserver(() => { try { chart.resize(); } catch {} });
+    const ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
     ro.observe(el);
 
     return () => {
@@ -363,7 +393,8 @@ function KlineChart({ coin, tf }) {
 
   function applyChartType(typeId) {
     setChartType(typeId);
-    try { chartRef.current?.setStyles({ candle: { type: typeId } }); } catch {}
+    const bar = CHART_TYPE_BAR[typeId] || CHART_TYPE_BAR.candle_solid;
+    try { chartRef.current?.setStyles({ candle: { type: typeId, bar } }); } catch {}
   }
 
   function selectTool(toolId) {
@@ -462,8 +493,10 @@ function KlineChart({ coin, tf }) {
           ))}
         </div>
 
-        {/* Chart canvas */}
-        <div ref={elRef} style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', background: 'var(--bg-base)' }} />
+        {/* Chart canvas — absolute-fill wrapper ensures klinecharts gets correct dimensions */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
+          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: 'var(--bg-base)' }} />
+        </div>
 
         {/* Order book */}
         <OrderBook coin={coin} />
