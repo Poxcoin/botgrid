@@ -402,7 +402,7 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
             if user_id is not None:
                 db_trade_id = save_user_trade(user_id, coin, "LONG", fill, "grid")
             else:
-                db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
+                db_trade_id = save_trade(None, coin, "LONG", fill, ts_open, bot_source="grid")
         except Exception:
             db_trade_id = None
         print(f"[GRID:{symbol}] 🟢 LONG BUY level {level_idx} @ {fill:.4f} | qty={qty}")
@@ -483,7 +483,7 @@ def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
             if user_id is not None:
                 db_trade_id = save_user_trade(user_id, coin, "SHORT", fill, "grid")
             else:
-                db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open)
+                db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open, bot_source="grid")
         except Exception:
             db_trade_id = None
         print(f"[GRID:{symbol}] 🔴 SHORT SELL level {level_idx} @ {fill:.4f} | qty={qty}")
@@ -659,7 +659,7 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                         if user_id is not None:
                             db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid")
                         else:
-                            db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
+                            db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open, bot_source="grid")
                     except Exception:
                         db_trade_id = None
                     positions[zone_str] = {

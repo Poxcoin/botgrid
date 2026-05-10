@@ -1079,6 +1079,63 @@ async def get_user_positions(
         raise HTTPException(status_code=502, detail=str(e))
 
 
+@app.get("/api/users/grid-positions")
+async def get_user_grid_positions(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+    all_trades = (
+        db.query(UserTrade)
+        .filter(UserTrade.user_id == user.id, UserTrade.source == "grid")
+        .order_by(UserTrade.opened_at.desc())
+        .all()
+    )
+    live: dict = {}
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if key_row:
+        try:
+            ex = _init_user_exchange(key_row)
+            if ex:
+                for p in _bybit_positions(ex):
+                    live[p["symbol"]] = p
+        except Exception:
+            pass
+
+    result = []
+    for coin in ["BTC", "ETH"]:
+        coin_trades   = [t for t in all_trades if coin in (t.symbol or "").upper()]
+        open_trades   = [t for t in coin_trades if t.status == "open"]
+        closed_trades = [t for t in coin_trades if t.status == "closed"]
+        closed_pnl    = sum(float(t.pnl_usdt or 0) for t in closed_trades)
+        wins          = sum(1 for t in closed_trades if float(t.pnl_usdt or 0) > 0)
+        live_pos      = live.get(coin)
+        result.append({
+            "coin":        coin,
+            "symbol":      f"{coin}USDT",
+            "open_count":  len(open_trades),
+            "open_pnl":    round(live_pos["unrealized_pnl"] if live_pos else 0, 2),
+            "mark_price":  live_pos["mark_price"]  if live_pos else None,
+            "entry_price": live_pos["entry_price"] if live_pos else None,
+            "leverage":    live_pos["leverage"]    if live_pos else None,
+            "total_trades":  len(coin_trades),
+            "closed_trades": len(closed_trades),
+            "closed_pnl":    round(closed_pnl, 2),
+            "win_rate":      round(wins / len(closed_trades) * 100, 1) if closed_trades else 0,
+            "open_positions": [
+                {
+                    "id":          t.id,
+                    "side":        t.side,
+                    "entry_price": t.entry_price,
+                    "qty":         t.qty,
+                    "opened_at":   t.opened_at.isoformat() if t.opened_at else None,
+                }
+                for t in open_trades[:10]
+            ],
+        })
+    return result
+
+
 _BOT_LABELS = {
     "news":        "Signal Bot",
     "fr":          "Funding Rate",
