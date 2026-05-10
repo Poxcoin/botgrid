@@ -388,6 +388,11 @@ class ApiKeyRequest(BaseModel):
     api_key: str
     secret: str
     is_testnet: bool = False
+    is_demo: bool = False
+
+    @property
+    def use_demo(self) -> bool:
+        return self.is_demo or self.is_testnet
 
 def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
@@ -707,7 +712,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
             'options':       {'defaultType': 'linear', 'recvWindow': 10000},
         })
         test_ex.has['fetchCurrencies'] = False
-        if body.is_testnet:
+        if body.use_demo:
             test_ex.urls['api'] = test_ex.urls['demotrading']
         _bybit_balance(test_ex)
     except Exception:
@@ -724,7 +729,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         if key_row:
             key_row.api_key_enc   = encrypt_field(body.api_key)
             key_row.secret_enc    = encrypt_field(body.secret)
-            key_row.is_testnet    = body.is_testnet
+            key_row.is_testnet    = body.use_demo
             key_row.last_verified = datetime.utcnow()
         else:
             key_row = UserApiKey(
@@ -732,7 +737,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
                 exchange      = "bybit",
                 api_key_enc   = encrypt_field(body.api_key),
                 secret_enc    = encrypt_field(body.secret),
-                is_testnet    = body.is_testnet,
+                is_testnet    = body.use_demo,
                 last_verified = datetime.utcnow(),
             )
             db.add(key_row)
@@ -1843,19 +1848,32 @@ async def get_dashboard_data(token: str = Depends(require_any_auth)):
             })
             if IS_DEMO_TRADING:
                 exchange.urls['api'] = exchange.urls['demotrading']
-            elif USE_TESTNET:
-                exchange.set_sandbox_mode(True)
-            try:
-                balance = exchange.fetch_balance({'accountType': 'unified'})
-                if "USDT" not in balance or balance["USDT"].get("total", 0) == 0:
-                    balance = exchange.fetch_balance({'accountType': 'contract'})
-                if "USDT" not in balance or balance["USDT"].get("total", 0) == 0:
+                exchange.has['fetchCurrencies'] = False
+                exchange.load_markets()
+                r = exchange.private_get_v5_account_wallet_balance(params={'accountType': 'UNIFIED'})
+                coins = r.get('result', {}).get('list', [{}])[0].get('coin', [])
+                for c in coins:
+                    if c.get('coin') == 'USDT':
+                        total = float(c.get('walletBalance') or 0)
+                        free  = float(c.get('availableToWithdraw') or c.get('walletBalance') or 0)
+                        balance_info["total"] = total
+                        balance_info["free"]  = free
+                        break
+            else:
+                if USE_TESTNET:
+                    exchange.set_sandbox_mode(True)
+                exchange.load_markets()
+                try:
+                    balance = exchange.fetch_balance({'accountType': 'unified'})
+                    if "USDT" not in balance or balance["USDT"].get("total", 0) == 0:
+                        balance = exchange.fetch_balance({'accountType': 'contract'})
+                    if "USDT" not in balance or balance["USDT"].get("total", 0) == 0:
+                        balance = exchange.fetch_balance()
+                except Exception:
                     balance = exchange.fetch_balance()
-            except:
-                balance = exchange.fetch_balance()
-            if "USDT" in balance:
-                balance_info["total"] = balance["USDT"].get("total", 0)
-                balance_info["free"]  = balance["USDT"].get("free", 0)
+                if "USDT" in balance:
+                    balance_info["total"] = balance["USDT"].get("total", 0)
+                    balance_info["free"]  = balance["USDT"].get("free", 0)
     except Exception as e:
         print(f"Ошибка получения баланса: {e}")
 
