@@ -406,6 +406,9 @@ export const translations = {
       language:     'Language',
       logout:       'Log Out',
       integrations: 'Integrations',
+      theme:        'Theme',
+      themeDark:    'Dark',
+      themeLight:   'Light',
     },
     landing: {
       tagline:     'AI-DRIVEN SIGNAL INTELLIGENCE',
@@ -1007,6 +1010,9 @@ export const translations = {
       language:     'Idioma',
       logout:       'Cerrar sesión',
       integrations: 'Integraciones',
+      theme:        'Tema',
+      themeDark:    'Oscuro',
+      themeLight:   'Claro',
     },
     landing: {
       tagline:     'INTELIGENCIA DE SEÑALES IA',
@@ -1608,6 +1614,9 @@ export const translations = {
       language:     'Мова',
       logout:       'Вийти',
       integrations: 'Інтеграції',
+      theme:        'Тема',
+      themeDark:    'Темна',
+      themeLight:   'Світла',
     },
     landing: {
       tagline:     'AI-АНАЛІТИКА СИГНАЛІВ',
@@ -2209,6 +2218,9 @@ export const translations = {
       language:     'Язык',
       logout:       'Выйти',
       integrations: 'Интеграции',
+      theme:        'Тема',
+      themeDark:    'Тёмная',
+      themeLight:   'Светлая',
     },
     landing: {
       tagline:     'AI-АНАЛИТИКА СИГНАЛОВ',
@@ -2810,6 +2822,9 @@ export const translations = {
       language:     'Sprache',
       logout:       'Abmelden',
       integrations: 'Integrationen',
+      theme:        'Thema',
+      themeDark:    'Dunkel',
+      themeLight:   'Hell',
     },
     landing: {
       tagline:     'KI-SIGNAL-INTELLIGENCE',
@@ -3411,6 +3426,9 @@ export const translations = {
       language:     '语言',
       logout:       '退出登录',
       integrations: '集成',
+      theme:        '主题',
+      themeDark:    '深色',
+      themeLight:   '浅色',
     },
     landing: {
       tagline:     'AI 驱动信号智能',
