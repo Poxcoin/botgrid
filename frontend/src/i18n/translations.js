@@ -593,6 +593,12 @@ export const translations = {
       'ON-CHAIN':  'Whale moves, DeFi, blockchain analytics and smart contracts.',
       LISTINGS:    'New exchange listings and project launches.',
     },
+    cookies: {
+      body:      'We use cookies to improve your experience and analyse traffic.',
+      learnMore: 'Learn more',
+      accept:    'Accept',
+      reject:    'Decline',
+    },
   },
 
   // ── Español ───────────────────────────────────────────────────────────────
@@ -1187,6 +1193,12 @@ export const translations = {
       MARKETS:     'Acciones, índices, resultados y finanzas tradicionales.',
       'ON-CHAIN':  'Movimientos de ballenas, DeFi, analítica blockchain, smart contracts.',
       LISTINGS:    'Nuevos listings de exchanges y lanzamientos de proyectos.',
+    },
+    cookies: {
+      body:      'Usamos cookies para mejorar tu experiencia y analizar el tráfico.',
+      learnMore: 'Más información',
+      accept:    'Aceptar',
+      reject:    'Rechazar',
     },
   },
 
@@ -1783,6 +1795,12 @@ export const translations = {
       'ON-CHAIN':  'Рухи китів, DeFi, аналітика блокчейну, смарт-контракти.',
       LISTINGS:    'Нові лістинги на біржах та запуски проектів.',
     },
+    cookies: {
+      body:      'Ми використовуємо файли cookie для покращення досвіду та аналізу трафіку.',
+      learnMore: 'Детальніше',
+      accept:    'Прийняти',
+      reject:    'Відхилити',
+    },
   },
 
   // ── Русский ───────────────────────────────────────────────────────────────
@@ -2377,6 +2395,12 @@ export const translations = {
       MARKETS:     'Акции, индексы, отчётность и традиционные финансы.',
       'ON-CHAIN':  'Движения китов, DeFi, аналитика блокчейна, смарт-контракты.',
       LISTINGS:    'Новые листинги на биржах и запуски проектов.',
+    },
+    cookies: {
+      body:      'Мы используем файлы cookie для улучшения опыта и анализа трафика.',
+      learnMore: 'Подробнее',
+      accept:    'Принять',
+      reject:    'Отклонить',
     },
   },
 
@@ -2973,6 +2997,12 @@ export const translations = {
       'ON-CHAIN':  'Whale-Bewegungen, DeFi, Blockchain-Analytik, Smart Contracts.',
       LISTINGS:    'Neue Börsenlistings und Projektlaunches.',
     },
+    cookies: {
+      body:      'Wir verwenden Cookies, um Ihre Erfahrung zu verbessern und den Datenverkehr zu analysieren.',
+      learnMore: 'Mehr erfahren',
+      accept:    'Akzeptieren',
+      reject:    'Ablehnen',
+    },
   },
 
   // ── 中文 ──────────────────────────────────────────────────────────────────
@@ -3567,6 +3597,12 @@ export const translations = {
       MARKETS:     '股票、指数、财报和传统金融。',
       'ON-CHAIN':  '鲸鱼移动、DeFi、链上分析、智能合约。',
       LISTINGS:    '新交易所上市和项目发布。',
+    },
+    cookies: {
+      body:      '我们使用Cookie来改善您的体验并分析流量。',
+      learnMore: '了解更多',
+      accept:    '接受',
+      reject:    '拒绝',
     },
   },
 };
