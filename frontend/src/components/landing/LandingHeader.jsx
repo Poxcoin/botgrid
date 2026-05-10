@@ -2,12 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import TickerTape from '@/components/landing/TickerTape';
 import { useLang } from '@/lib/LangContext';
+import { useTheme } from '@/lib/ThemeContext';
 
 const MONO = "'Courier New','SF Mono',monospace";
 const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 
 const LANG_LABELS = { en: 'English', es: 'Español', uk: 'Українська', ru: 'Русский', de: 'Deutsch', zh: '中文' };
-const TG_BOT_USERNAME = '@KADO_c_BOT';
+const TG_CHANNEL_URL = 'https://t.me/kadoclub07';
 
 function NavLink({ to, label }) {
   const { pathname } = useLocation();
@@ -25,67 +26,162 @@ function NavLink({ to, label }) {
   );
 }
 
-function SectionLabel({ children }) {
+/* ── Section header (small uppercase label above each block) ── */
+function SectionTitle({ children }) {
   return (
-    <div style={{ padding: '10px 18px 4px', fontFamily: MONO, fontSize: 8, color: '#3a3a3a', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+    <div style={{
+      padding: '14px 20px 8px',
+      fontFamily: MONO, fontSize: 9, color: '#3a3a3a',
+      letterSpacing: '0.22em', textTransform: 'uppercase',
+    }}>
       {children}
     </div>
   );
 }
 
-function MenuItem({ icon, label, sub, to, onClick, danger }) {
+function Divider() {
+  return <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />;
+}
+
+/* ── Theme segmented toggle (Dark / Light, always inline) ── */
+function ThemeSegment() {
+  const { theme, toggle } = useTheme();
+  const { t } = useLang();
+
+  const seg = (label, isActive, onClick) => (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+        color: isActive ? '#fff' : '#777',
+        border: '1px solid ' + (isActive ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)'),
+        borderRadius: 6,
+        fontFamily: FONT, fontSize: 12, fontWeight: 500,
+        padding: '8px 0', cursor: 'pointer',
+        transition: 'all 140ms',
+        letterSpacing: '0.02em',
+      }}
+      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; } }}
+      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; } }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div style={{ padding: '0 20px 14px', display: 'flex', gap: 8 }}>
+      {seg(t.settings.themeDark,  theme === 'dark',  () => { if (theme !== 'dark') toggle(); })}
+      {seg(t.settings.themeLight, theme === 'light', () => { if (theme !== 'light') toggle(); })}
+    </div>
+  );
+}
+
+/* ── Language inline-expandable list ── */
+function LanguageBlock() {
+  const { lang, setLang, LANGS, t } = useLang();
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <div
+        onClick={() => setExpanded(v => !v)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '11px 20px', cursor: 'pointer',
+          transition: 'background 120ms',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: '#777' }}>
+          <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+          <path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        </svg>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: FONT, fontSize: 13, color: '#ddd', lineHeight: 1.2 }}>{t.settings.language}</div>
+        </div>
+        <span style={{ fontFamily: MONO, fontSize: 10, color: '#666', letterSpacing: '0.04em' }}>{LANG_LABELS[lang]}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 180ms', flexShrink: 0 }}>
+          <path d="M3 2l4 3-4 3" stroke="#555" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: '2px 12px 8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+          {LANGS.map(({ code }) => {
+            const active = lang === code;
+            return (
+              <button key={code}
+                onClick={() => setLang(code)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  border: '1px solid ' + (active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'),
+                  borderRadius: 6,
+                  cursor: 'pointer', transition: 'all 120ms',
+                  fontFamily: FONT, fontSize: 12,
+                  color: active ? '#fff' : '#888',
+                }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#ccc'; } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; } }}
+              >
+                <span>{LANG_LABELS[code]}</span>
+                {active && (
+                  <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
+                    <path d="M2 6.5l3.5 3.5 5.5-6" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── Single row link ── */
+function MenuRow({ icon, label, onClick, href, danger }) {
   const inner = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 18px' }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-        background: danger ? 'rgba(231,76,60,0.08)' : 'rgba(255,255,255,0.05)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: danger ? '#e74c3c' : '#777',
-      }}>
-        {icon}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: FONT, fontSize: 13, color: danger ? '#e74c3c' : '#bbb', lineHeight: 1.2 }}>{label}</div>
-        {sub && <div style={{ fontFamily: MONO, fontSize: 9, color: '#444', marginTop: 2, letterSpacing: '0.04em' }}>{sub}</div>}
-      </div>
-      {!danger && (
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-          <path d="M3 2l4 3-4 3" stroke="#333" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '11px 20px',
+      transition: 'background 120ms',
+    }}>
+      <span style={{ flexShrink: 0, color: danger ? '#e74c3c' : '#777', display: 'flex' }}>{icon}</span>
+      <span style={{ flex: 1, fontFamily: FONT, fontSize: 13, color: danger ? '#e74c3c' : '#ddd' }}>{label}</span>
+      {href && (
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+          <path d="M3.5 8.5l5-5M5 3.5h3.5V7" stroke="#555" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )}
     </div>
   );
 
-  const hover = e => { e.currentTarget.style.background = danger ? 'rgba(231,76,60,0.06)' : 'rgba(255,255,255,0.04)'; };
-  const out   = e => { e.currentTarget.style.background = 'none'; };
+  const onEnter = e => { e.currentTarget.style.background = danger ? 'rgba(231,76,60,0.07)' : 'rgba(255,255,255,0.03)'; };
+  const onLeave = e => { e.currentTarget.style.background = 'transparent'; };
 
-  if (to) return (
-    <Link to={to} style={{ display: 'block', textDecoration: 'none', transition: 'background 120ms' }}
-      onMouseEnter={hover} onMouseLeave={out}>
+  if (href) return (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      style={{ display: 'block', textDecoration: 'none', cursor: 'pointer' }}
+      onMouseEnter={onEnter} onMouseLeave={onLeave}>
       {inner}
-    </Link>
+    </a>
   );
   return (
-    <div onClick={onClick} style={{ cursor: 'pointer', transition: 'background 120ms' }}
-      onMouseEnter={hover} onMouseLeave={out}>
+    <div onClick={onClick} style={{ cursor: 'pointer' }}
+      onMouseEnter={onEnter} onMouseLeave={onLeave}>
       {inner}
     </div>
   );
 }
 
-function Divider() {
-  return <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 0' }} />;
-}
-
-function getUser() {
-  try { return JSON.parse(localStorage.getItem('kado_user') || '{}'); } catch { return {}; }
-}
-
 function SettingsDropdown({ onClose }) {
-  const { lang, setLang, LANGS, t } = useLang();
-  const [subMenu, setSubMenu] = useState(null); // null | 'language'
+  const { t } = useLang();
   const isLoggedIn = !!localStorage.getItem('kado_token');
-  const user = isLoggedIn ? getUser() : {};
 
   function logout() {
     localStorage.removeItem('kado_token');
@@ -96,184 +192,72 @@ function SettingsDropdown({ onClose }) {
 
   const panelStyle = {
     position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-    width: 296, background: '#0d0d0d',
-    border: '1px solid rgba(255,255,255,0.1)',
+    width: 308, background: '#0b0b0b',
+    border: '1px solid rgba(255,255,255,0.09)',
+    borderRadius: 10,
     boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
     zIndex: 200, overflow: 'hidden',
+    paddingTop: 4, paddingBottom: 4,
   };
 
-  /* ── Language sub-menu ── */
-  if (subMenu === 'language') {
-    return (
-      <div style={panelStyle}>
-        {/* Back header */}
-        <button
-          onClick={() => setSubMenu(null)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            width: '100%', padding: '13px 18px',
-            background: 'none', border: 'none', cursor: 'pointer',
-            borderBottom: '1px solid rgba(255,255,255,0.07)',
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M9 2L4 7l5 5" stroke="#555" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span style={{ fontFamily: FONT, fontSize: 13, color: '#555' }}>{t.settings.language}</span>
-        </button>
-
-        {/* Language list */}
-        <div style={{ paddingTop: 4, paddingBottom: 6 }}>
-          {LANGS.map(({ code }) => {
-            const active = lang === code;
-            return (
-              <button key={code}
-                onClick={() => { setLang(code); setSubMenu(null); }}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  width: '100%', padding: '11px 18px',
-                  background: active ? 'rgba(255,255,255,0.04)' : 'none',
-                  border: 'none', cursor: 'pointer',
-                  transition: 'background 120ms',
-                }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'none'; }}
-              >
-                <span style={{ fontFamily: FONT, fontSize: 13, color: active ? '#fff' : '#888' }}>
-                  {LANG_LABELS[code]}
-                </span>
-                {active && (
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-                    <path d="M2 6.5l3.5 3.5 5.5-6" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Main menu ── */
   return (
     <div style={panelStyle}>
-
-      {/* ── Account info bar (logged in only) ── */}
-      {isLoggedIn && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-            background: 'rgba(255,255,255,0.07)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: MONO, fontSize: 13, fontWeight: 700, color: '#bbb',
-          }}>
-            {(user.email?.[0] || 'K').toUpperCase()}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: MONO, fontSize: 10, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.email || '—'}
-            </div>
-            {user.plan && (
-              <div style={{ fontFamily: MONO, fontSize: 8, letterSpacing: '0.14em', color: '#3a3a3a', textTransform: 'uppercase', marginTop: 2 }}>
-                {user.plan}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Account section ── */}
-      <div style={{ paddingTop: 6 }}>
-        <SectionLabel>{t.settings.account}</SectionLabel>
-        <MenuItem
-          icon={<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M2.5 14c0-3 2.462-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>}
-          label={t.settings.account}
-          to={isLoggedIn ? '/account' : '/auth?mode=login'}
-          onClick={onClose}
-        />
-        <MenuItem
-          icon={<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1l.7 1.3H11l-.8 1.15.3 1.3L8 4l-2.5 1 .3-1.3L5 2.3h2.3L8 1z" fill="currentColor" opacity=".25"/><circle cx="8" cy="9" r="2.8" stroke="currentColor" strokeWidth="1.3"/><path d="M8 6.2V4m0 9.8V12M4.95 7.3L3.5 5.84M12.5 12.16l-1.45-1.46M4.95 10.7l-1.45 1.46M12.5 3.84L11.05 5.3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>}
-          label={t.settings.security}
-          to={isLoggedIn ? '/account#security' : '/auth?mode=login'}
-          onClick={onClose}
-        />
-      </div>
+      {/* ── THEME ── */}
+      <SectionTitle>{t.settings.theme}</SectionTitle>
+      <ThemeSegment />
 
       <Divider />
 
-      {/* ── Integrations section ── */}
-      <div>
-        <SectionLabel>{t.settings.integrations}</SectionLabel>
-        <MenuItem
-          icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.49 8.31-1.97 9.27c-.15.66-.54.82-1.09.51l-3-2.21-1.45 1.39c-.16.16-.3.3-.6.3l.21-3.05 5.56-5.02c.24-.21-.05-.33-.37-.12L6.87 13.8 3.9 12.87c-.64-.2-.65-.64.14-.95l11.57-4.46c.53-.19 1 .13.88.85z"/></svg>}
-          label={t.settings.tgBot}
-          sub={TG_BOT_USERNAME}
-          to={isLoggedIn ? '/account#telegram' : '/auth?mode=login'}
-          onClick={onClose}
-        />
-        <MenuItem
-          icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5"/><path d="M2 10h20M8 15h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><circle cx="17" cy="15" r="1" fill="currentColor" opacity=".6"/></svg>}
-          label={t.settings.tgChannel}
-          to={isLoggedIn ? '/account#channel' : '/auth?mode=login'}
-          onClick={onClose}
-        />
-      </div>
+      {/* ── LANGUAGE (inline-expandable) ── */}
+      <LanguageBlock />
 
       <Divider />
 
-      {/* ── Language row → opens sub-menu ── */}
-      <div style={{ paddingTop: 4, paddingBottom: 4 }}>
-        <div
-          onClick={() => setSubMenu('language')}
-          style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 18px', cursor: 'pointer', transition: 'background 120ms' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
-        >
-          <div style={{
-            width: 28, height: 28, borderRadius: 6, flexShrink: 0,
-            background: 'rgba(255,255,255,0.05)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#777',
-          }}>
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
-              <path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: FONT, fontSize: 13, color: '#bbb' }}>{t.settings.language}</div>
-            <div style={{ fontFamily: MONO, fontSize: 9, color: '#444', marginTop: 2 }}>{LANG_LABELS[lang]}</div>
-          </div>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M3 2l4 3-4 3" stroke="#333" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* ── TELEGRAM CHANNEL (external link) ── */}
+      <MenuRow
+        icon={
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm5.49 8.31-1.97 9.27c-.15.66-.54.82-1.09.51l-3-2.21-1.45 1.39c-.16.16-.3.3-.6.3l.21-3.05 5.56-5.02c.24-.21-.05-.33-.37-.12L6.87 13.8 3.9 12.87c-.64-.2-.65-.64.14-.95l11.57-4.46c.53-.19 1 .13.88.85z"/>
           </svg>
-        </div>
-      </div>
+        }
+        label={t.settings.tgChannel}
+        href={TG_CHANNEL_URL}
+      />
 
       <Divider />
 
-      {/* ── Log out / Login ── */}
+      {/* ── LOG OUT or LOGIN/SIGNUP ── */}
       {isLoggedIn ? (
-        <div style={{ paddingBottom: 4 }}>
-          <MenuItem
-            icon={<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M10.5 8H3M5.5 5.5L3 8l2.5 2.5M7 4V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-            label={t.settings.logout}
-            onClick={logout}
-            danger
-          />
-        </div>
+        <MenuRow
+          icon={
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M10.5 8H3M5.5 5.5L3 8l2.5 2.5M7 4V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          }
+          label={t.settings.logout}
+          onClick={logout}
+          danger
+        />
       ) : (
-        <div style={{ padding: '6px 18px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ padding: '10px 16px 12px', display: 'flex', gap: 8 }}>
           <Link to="/auth?mode=login" onClick={onClose}
-            style={{ display: 'block', padding: '9px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, textAlign: 'center', fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none', transition: 'all 120ms' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#888'; }}>
+            style={{
+              flex: 1, padding: '9px 0', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 6, textAlign: 'center',
+              fontFamily: FONT, fontSize: 12, color: '#aaa', textDecoration: 'none',
+              transition: 'all 120ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#aaa'; }}>
             {t.auth.login}
           </Link>
           <Link to="/auth?mode=register" onClick={onClose}
-            style={{ display: 'block', padding: '9px', background: '#fff', borderRadius: 6, textAlign: 'center', fontFamily: FONT, fontSize: 13, fontWeight: 600, color: '#000', textDecoration: 'none', transition: 'opacity 120ms' }}
+            style={{
+              flex: 1, padding: '9px 0', background: '#fff',
+              borderRadius: 6, textAlign: 'center',
+              fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#000', textDecoration: 'none',
+              transition: 'opacity 120ms',
+            }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
             {t.auth.signup}
