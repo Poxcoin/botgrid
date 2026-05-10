@@ -1,382 +1,218 @@
 import React, { useState, useEffect, useRef } from 'react';
-import OverviewTab    from '@/components/user/OverviewTab';
-import TradesTab      from '@/components/user/TradesTab';
-import SettingsTab    from '@/components/user/SettingsTab';
-import AccountTab     from '@/components/user/AccountTab';
-import BotTab         from '@/components/user/BotTab';
-import BacktesterTab  from '@/components/dashboard/BacktesterTab';
-import AnalyticsTab   from '@/components/user/AnalyticsTab';
-import SecurityTab    from '@/components/user/SecurityTab';
-import ApiKeysTab     from '@/components/user/ApiKeysTab';
-import AssetsTab      from '@/components/user/AssetsTab';
-import ToolsTab       from '@/components/user/ToolsTab';
-import { useLang }    from '@/lib/LangContext';
+import OverviewTab  from '@/components/user/OverviewTab';
+import GridBotPage  from '@/components/user/GridBotPage';
+import SettingsTab  from '@/components/user/SettingsTab';
+import AccountTab   from '@/components/user/AccountTab';
+import SecurityTab  from '@/components/user/SecurityTab';
+import ApiKeysTab   from '@/components/user/ApiKeysTab';
+import AssetsTab    from '@/components/user/AssetsTab';
 
-const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
-const MONO = "'Courier New','SF Mono',monospace";
-
-const MAIN_TAB_IDS = ['overview', 'bot', 'assets', 'trades', 'analytics', 'tools'];
-const SECONDARY_TAB_IDS = ['account', 'api-keys', 'security', 'settings'];
-const TAB_LABEL_KEY = {
-  overview:   'tabOverview',
-  bot:        'tabBot',
-  assets:     'tabAssets',
-  trades:     'tabTrades',
-  analytics:  'tabAnalytics',
-  tools:      'tabTools',
-  backtester: 'tabBacktester',
-  account:    'tabAccount',
-  'api-keys': 'tabApiKeys',
-  security:   'tabSecurity',
-  settings:   'tabSettings',
-};
-
-const TAB_LABEL_FALLBACK = {
-  assets: 'Assets',
-  tools:  'Tools',
-};
-
-function TabContent({ tab }) {
-  switch (tab) {
-    case 'overview':   return <OverviewTab />;
-    case 'bot':        return <BotTab />;
-    case 'assets':     return <AssetsTab />;
-    case 'analytics':  return <AnalyticsTab />;
-    case 'trades':     return <TradesTab />;
-    case 'tools':      return <ToolsTab />;
-    case 'backtester': return <BacktesterTab />;
-    case 'account':    return <AccountTab />;
-    case 'api-keys':   return <ApiKeysTab />;
-    case 'security':   return <SecurityTab />;
-    case 'settings':   return <SettingsTab />;
-    default:           return null;
-  }
-}
+const BOTS = [
+  { id: 'signal',  label: 'Signal'         },
+  { id: 'grid',    label: 'Grid'           },
+  { id: 'cascade', label: 'Cascade'        },
+  { id: 'dex',     label: 'DEX Sniper'     },
+  { id: 'listing', label: 'Listing Sniper' },
+];
+const BOT_IDS = BOTS.map(b => b.id);
 
 function getUser() {
   try { return JSON.parse(localStorage.getItem('kado_user') || '{}'); } catch { return {}; }
 }
 
-function UserDropdown({ user, activeTab, setActiveTab, onClose }) {
-  const { t } = useLang();
-  function logout() {
-    localStorage.removeItem('kado_token');
-    localStorage.removeItem('kado_user');
-    window.location.href = '/auth';
+function Page({ tab }) {
+  if (tab === 'grid') return <GridBotPage />;
+  if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} />;
+  switch (tab) {
+    case 'account':  return <AccountTab />;
+    case 'api-keys': return <ApiKeysTab />;
+    case 'security': return <SecurityTab />;
+    case 'settings': return <SettingsTab />;
+    case 'assets':   return <AssetsTab />;
+    default:         return null;
   }
-
-  return (
-    <div style={{
-      position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-      width: 224, background: '#0e0e0e',
-      border: '1px solid rgba(255,255,255,0.1)',
-      boxShadow: '0 20px 48px rgba(0,0,0,0.7)',
-      zIndex: 200, padding: '8px 0',
-    }}>
-      {/* User info block */}
-      <div style={{ padding: '10px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        {user.plan && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center',
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 100, padding: '2px 9px',
-            fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
-            color: user.plan === 'performance' || user.plan === 'pro' ? '#ccc' : '#555',
-            textTransform: 'uppercase', marginBottom: 7,
-          }}>
-            {user.plan}
-          </div>
-        )}
-        <div style={{
-          fontFamily: MONO, fontSize: 10, color: '#4a4a4a',
-          letterSpacing: '0.02em',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {user.email || '—'}
-        </div>
-      </div>
-
-      {/* Security & Settings */}
-      {SECONDARY_TAB_IDS.map(id => (
-        <button key={id}
-          onClick={() => { setActiveTab(id); onClose(); }}
-          style={{
-            display: 'flex', alignItems: 'center',
-            width: '100%', padding: '10px 16px',
-            background: activeTab === id ? 'rgba(255,255,255,0.04)' : 'none',
-            border: 'none', cursor: 'pointer',
-            fontFamily: FONT, fontSize: 13,
-            color: activeTab === id ? '#fff' : '#666',
-            textAlign: 'left', transition: 'background 120ms, color 120ms',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = activeTab === id ? 'rgba(255,255,255,0.04)' : 'none'; e.currentTarget.style.color = activeTab === id ? '#fff' : '#666'; }}
-        >
-          {t.dashboard[TAB_LABEL_KEY[id]]}
-        </button>
-      ))}
-
-      <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '8px 0' }} />
-
-      <button
-        onClick={logout}
-        style={{
-          display: 'flex', alignItems: 'center',
-          width: '100%', padding: '10px 16px',
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: FONT, fontSize: 13, color: '#555',
-          textAlign: 'left', transition: 'background 120ms, color 120ms',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#fff'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#555'; }}
-      >
-        {t.dashboard.logout}
-      </button>
-    </div>
-  );
 }
 
 export default function UserDashboard() {
-  const { t } = useLang();
-  const [activeTab, setActiveTab]   = useState('overview');
-  const [menuOpen,  setMenuOpen]    = useState(false);
-  const [userDrop,  setUserDrop]    = useState(false);
-  const userDropRef = useRef(null);
   const user = getUser();
-  const allTabIds = [...MAIN_TAB_IDS, ...SECONDARY_TAB_IDS];
+  const [tab,      setTab]      = useState('signal');
+  const [botsOpen, setBotsOpen] = useState(true);
+  const [drop,     setDrop]     = useState(false);
+  const dropRef = useRef(null);
 
   useEffect(() => {
-    const h = e => setActiveTab(e.detail);
+    const h = e => setTab(e.detail);
     window.addEventListener('switch-tab', h);
     return () => window.removeEventListener('switch-tab', h);
   }, []);
 
   useEffect(() => {
-    function handler(e) {
-      if (userDropRef.current && !userDropRef.current.contains(e.target)) setUserDrop(false);
-    }
-    if (userDrop) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [userDrop]);
+    if (!drop) return;
+    const h = e => { if (!dropRef.current?.contains(e.target)) setDrop(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [drop]);
+
+  const isBot = BOT_IDS.includes(tab);
+  const allItems = [
+    ...BOTS,
+    { id: 'account', label: 'Account' },
+    { id: 'api-keys', label: 'API Keys' },
+    { id: 'security', label: 'Security' },
+    { id: 'settings', label: 'Settings' },
+  ];
+  const pageLabel = allItems.find(x => x.id === tab)?.label ?? '';
+
+  const NavItem = ({ id, label, indent = false }) => {
+    const on = tab === id;
+    return (
+      <button onClick={() => setTab(id)} style={{
+        width: '100%', display: 'flex', alignItems: 'center',
+        padding: indent ? '8px 20px 8px 40px' : '10px 20px',
+        background: on ? '#fff' : 'transparent',
+        border: 'none', cursor: 'pointer',
+        color: on ? '#000' : 'rgba(255,255,255,0.4)',
+        fontSize: 13, textAlign: 'left',
+        fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",
+        fontWeight: on ? 500 : 400,
+        letterSpacing: indent ? 0 : '0.01em',
+        transition: 'background 0.1s, color 0.1s',
+      }}
+      onMouseEnter={e => { if (!on) { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; } }}
+      onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; } }}>
+        {label}
+      </button>
+    );
+  };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#060606', color: '#fff', fontFamily: FONT }}>
+    <div style={{
+      display: 'flex', height: '100vh', overflow: 'hidden',
+      background: '#000', color: '#fff',
+      fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif",
+    }}>
 
-      {/* ── Top navigation bar ──────────────────────────────────────────────── */}
-      <header style={{
-        height: 58,
-        borderBottom: '1px solid var(--border-subtle)',
-        background: 'var(--site-bg-glass)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        position: 'sticky', top: 0, zIndex: 50,
-        display: 'flex', alignItems: 'stretch',
-        padding: '0 24px',
+      {/* SIDEBAR */}
+      <div style={{
+        width: 200, flexShrink: 0,
+        background: '#000',
+        borderRight: '1px solid rgba(255,255,255,0.1)',
+        display: 'flex', flexDirection: 'column',
       }}>
-        {/* Logo */}
-        <a href="/" style={{
-          display: 'flex', alignItems: 'center',
-          fontFamily: MONO, fontSize: 14, fontWeight: 800,
-          letterSpacing: '0.15em', color: 'var(--text-primary)',
-          textDecoration: 'none', marginRight: 32, flexShrink: 0,
-        }}>
-          KADO
-        </a>
 
-        {/* Mobile burger */}
-        <button className="kado-burger"
-          onClick={() => setMenuOpen(v => !v)}
-          style={{
-            display: 'none', alignItems: 'center',
-            background: 'none', border: 'none', color: '#fff',
-            cursor: 'pointer', padding: '0 8px 0 0', marginRight: 8,
-          }}>
-          <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
-            <rect width="18" height="1.5" fill="currentColor"/>
-            <rect y="6" width="18" height="1.5" fill="currentColor"/>
-            <rect y="12" width="18" height="1.5" fill="currentColor"/>
-          </svg>
-        </button>
-
-        {/* Tab nav */}
-        <nav className="kado-topnav" style={{
-          display: 'flex', alignItems: 'stretch', flex: 1, gap: 0,
-          overflowX: 'auto', scrollbarWidth: 'none',
+        {/* logo */}
+        <div style={{
+          height: 56, display: 'flex', alignItems: 'center', padding: '0 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
         }}>
-          {MAIN_TAB_IDS.map(id => {
-            const active = activeTab === id;
-            return (
-              <button key={id}
-                onClick={() => setActiveTab(id)}
-                style={{
-                  height: '100%', padding: '0 16px',
-                  background: 'none', border: 'none',
-                  borderBottom: active ? '2px solid var(--accent-green)' : '2px solid transparent',
-                  marginBottom: -1,
-                  fontFamily: FONT, fontSize: 13,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? 'var(--text-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer', flexShrink: 0,
-                  transition: 'color 200ms, border-color 200ms',
-                  letterSpacing: '0.01em',
-                }}
-                onMouseEnter={e => {
-                  if (!active) {
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                    e.currentTarget.style.borderBottomColor = 'var(--border-default)';
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!active) {
-                    e.currentTarget.style.color = 'var(--text-muted)';
-                    e.currentTarget.style.borderBottomColor = 'transparent';
-                  }
-                }}
-              >
-                {t.dashboard[TAB_LABEL_KEY[id]] ?? TAB_LABEL_FALLBACK[id] ?? id}
-              </button>
-            );
-          })}
+          <a href="/" style={{
+            fontFamily: "'Courier New',monospace",
+            fontSize: 14, fontWeight: 700, letterSpacing: '0.35em',
+            color: '#fff', textDecoration: 'none',
+          }}>KADO</a>
+        </div>
+
+        {/* nav */}
+        <nav style={{ flex: 1, padding: '12px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
+
+          {/* Bots parent */}
+          <button onClick={() => setBotsOpen(v => !v)} style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 20px',
+            background: isBot && !botsOpen ? '#fff' : 'transparent',
+            border: 'none', cursor: 'pointer',
+            color: isBot ? (botsOpen ? '#fff' : '#000') : 'rgba(255,255,255,0.4)',
+            fontSize: 13, fontFamily: 'inherit',
+            letterSpacing: '0.01em',
+          }}
+          onMouseEnter={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; } }}
+          onMouseLeave={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = isBot ? '#fff' : 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; } }}>
+            <span>Bots</span>
+            <span style={{ fontSize: 9, opacity: 0.5 }}>{botsOpen ? '▾' : '▸'}</span>
+          </button>
+
+          {botsOpen && BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '12px 0' }}/>
+
+          {[
+            { id: 'account',  label: 'Account'  },
+            { id: 'api-keys', label: 'API Keys' },
+            { id: 'security', label: 'Security' },
+            { id: 'settings', label: 'Settings' },
+          ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
         </nav>
 
-        {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0, marginLeft: 16 }}>
-          {user.email_verified === false && (
-            <div style={{ fontFamily: MONO, fontSize: 9, color: '#f59e0b', letterSpacing: '0.08em', flexShrink: 0 }}>
-              {t.dashboard.verifyEmail}
-            </div>
-          )}
+        {/* footer */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          padding: '12px 20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{
+            fontSize: 11, color: 'rgba(255,255,255,0.25)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+          }}>
+            {user.email ?? '—'}
+          </span>
+          <button onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.2)', fontSize: 16, flexShrink: 0, lineHeight: 1, padding: '0 0 0 8px' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}>
+            ↪
+          </button>
+        </div>
+      </div>
 
-          {/* User pill */}
-          <div ref={userDropRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setUserDrop(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: userDrop ? 'var(--bg-elevated)' : 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 100, padding: '5px 12px 5px 6px',
-                cursor: 'pointer', transition: 'border-color 200ms, box-shadow 200ms, background 200ms',
-                boxShadow: userDrop ? '0 0 12px var(--brand-glow)' : 'none',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--accent-green)';
-                e.currentTarget.style.boxShadow = '0 0 12px var(--brand-glow)';
-              }}
-              onMouseLeave={e => {
-                if (!userDrop) {
-                  e.currentTarget.style.borderColor = 'var(--border-default)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
-            >
-              {/* Avatar */}
-              <span style={{
-                width: 24, height: 24, borderRadius: '50%',
-                background: 'rgba(255,255,255,0.12)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: MONO, fontSize: 10, color: '#ccc', flexShrink: 0,
-              }}>
-                {user.email ? user.email[0].toUpperCase() : '?'}
-              </span>
-              <span className="kado-user-email" style={{
-                fontFamily: FONT, fontSize: 12, color: '#888',
-                maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {user.email || t.dashboard.account}
-              </span>
-              <svg width="9" height="5" viewBox="0 0 9 5" fill="none" style={{ opacity: 0.35, flexShrink: 0 }}>
-                <path d="M1 1l3.5 3L8 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+      {/* MAIN */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+
+        {/* header */}
+        <div style={{
+          height: 56, flexShrink: 0,
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 28px',
+        }}>
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)' }}>{pageLabel}</span>
+
+          <div ref={dropRef} style={{ position: 'relative' }}>
+            <button onClick={() => setDrop(v => !v)} style={{
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+              padding: '6px 14px', cursor: 'pointer',
+              fontSize: 12, color: 'rgba(255,255,255,0.35)', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; } }}>
+              {user.email ?? 'Account'}
             </button>
-            {userDrop && (
-              <UserDropdown
-                user={user}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                onClose={() => setUserDrop(false)}
-              />
+
+            {drop && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180,
+                background: '#111', border: '1px solid rgba(255,255,255,0.12)', zIndex: 100,
+              }}>
+                <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                  {user.email}
+                </div>
+                <button onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
+                  style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'left', fontFamily: 'inherit' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'none'; }}>
+                  Logout
+                </button>
+              </div>
             )}
           </div>
         </div>
-      </header>
 
-      {/* ── Content ─────────────────────────────────────────────────────────── */}
-      <main className="kado-content" style={{ padding: '36px 32px 72px', minWidth: 0 }}>
-        <TabContent tab={activeTab} />
-      </main>
-
-      {/* ── Mobile slide-over ────────────────────────────────────────────────── */}
-      {menuOpen && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 100 }}
-          onClick={() => setMenuOpen(false)}
-        >
-          <div
-            style={{
-              position: 'absolute', top: 0, left: 0, bottom: 0, width: 268,
-              background: '#060606', borderRight: '1px solid rgba(255,255,255,0.08)',
-              display: 'flex', flexDirection: 'column', overflowY: 'auto',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ padding: '18px 22px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontFamily: MONO, fontSize: 14, fontWeight: 900, letterSpacing: '-0.03em' }}>KADO</span>
-              <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18 }}>✕</button>
-            </div>
-            <nav style={{ flex: 1, padding: '8px 0' }}>
-              {allTabIds.map(id => {
-                const active = activeTab === id;
-                return (
-                  <button key={id}
-                    onClick={() => { setActiveTab(id); setMenuOpen(false); }}
-                    style={{
-                      display: 'flex', alignItems: 'center',
-                      width: '100%', textAlign: 'left',
-                      padding: '12px 24px',
-                      background: active ? 'rgba(255,255,255,0.04)' : 'none',
-                      border: 'none',
-                      fontFamily: FONT, fontSize: 14,
-                      cursor: 'pointer', color: active ? '#fff' : '#555',
-                      transition: 'background 120ms, color 120ms',
-                    }}
-                  >
-                    {t.dashboard[TAB_LABEL_KEY[id]]}
-                  </button>
-                );
-              })}
-            </nav>
-            <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-              {user.email && (
-                <div style={{ fontFamily: MONO, fontSize: 10, color: '#3a3a3a', marginBottom: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.email}
-                </div>
-              )}
-              <button
-                onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
-                style={{
-                  background: 'none', border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#555', fontFamily: FONT, fontSize: 13,
-                  padding: '9px 0', cursor: 'pointer', width: '100%',
-                  borderRadius: 8, transition: 'border-color 150ms, color 150ms',
-                }}>
-                {t.dashboard.logout}
-              </button>
-            </div>
-          </div>
+        {/* content */}
+        <div style={{ flex: 1, overflow: tab === 'grid' ? 'hidden' : 'auto', padding: tab === 'grid' ? 0 : '28px', display: 'flex', flexDirection: 'column' }}>
+          <Page tab={tab} />
         </div>
-      )}
+      </div>
 
-      <style>{`
-        @media (max-width: 768px) {
-          .kado-burger      { display: flex !important; }
-          .kado-topnav      { display: none !important; }
-          .kado-user-email  { display: none !important; }
-          .kado-content     { padding: 20px 16px 72px !important; }
-        }
-        .kado-topnav::-webkit-scrollbar { display: none; }
-      `}</style>
+      <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1)}`}</style>
     </div>
   );
 }

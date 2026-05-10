@@ -162,7 +162,7 @@ class UserApiKey(Base):
     last_verified = Column(DateTime, nullable=True)   # last successful ping
     created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    __table_args__ = (UniqueConstraint("user_id", "exchange", name="uq_user_exchange"),)
+    __table_args__ = (UniqueConstraint("user_id", "exchange", "is_testnet", name="uq_user_exchange_testnet"),)
 
     user = relationship("User", back_populates="api_keys")
 

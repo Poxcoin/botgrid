@@ -620,11 +620,22 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         user.plan = "free"
         db.commit()
     sub = user.subscription
-    key_row = next((k for k in user.api_keys if k.exchange == "bybit"), None)
+    key_rows = [k for k in user.api_keys if k.exchange == "bybit"]
+    live_key = next((k for k in key_rows if not k.is_testnet), None)
+    demo_key = next((k for k in key_rows if k.is_testnet), None)
+    display_key = live_key or demo_key
     trial_days_left = None
     if user.plan == "trial" and user.trial_ends_at:
         delta = user.trial_ends_at - datetime.utcnow()
         trial_days_left = max(0, delta.days)
+    def _mask(enc_key):
+        try:
+            k = decrypt_field(enc_key)
+            if not k or len(k) < 8:
+                return '••••••••••••••••••••'
+            return k[:6] + '••••••••••••' + k[-4:]
+        except Exception:
+            return '••••••••••••••••••••'
     return {
         "id": user.id,
         "email": user.email,
@@ -638,8 +649,13 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "tg_chat_id": user.tg_chat_id,
         "tg_username": user.tg_username or "",
         "tg_connected": bool(user.tg_chat_id),
-        "has_api_keys": key_row is not None,
-        "api_key_demo": key_row.is_testnet if key_row else False,
+        "has_api_keys": len(key_rows) > 0,
+        "has_demo_key": demo_key is not None,
+        "has_live_key": live_key is not None,
+        "api_key_demo": display_key.is_testnet if display_key else False,
+        "bybit_api_key_masked": _mask(display_key.api_key_enc) if display_key else None,
+        "bybit_demo_key_masked": _mask(demo_key.api_key_enc) if demo_key else None,
+        "bybit_live_key_masked": _mask(live_key.api_key_enc) if live_key else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "email_verified": bool(user.email_verified),
         "totp_enabled": bool(user.totp_enabled),
@@ -722,7 +738,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
     try:
         key_row = (
             db.query(UserApiKey)
-            .filter_by(user_id=user.id, exchange="bybit")
+            .filter_by(user_id=user.id, exchange="bybit", is_testnet=body.use_demo)
             .with_for_update()
             .first()
         )
@@ -751,9 +767,9 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
 
 
 @app.delete("/api/users/keys")
-async def delete_api_keys(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def delete_api_keys(is_testnet: bool = Query(False), credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
-    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").delete()
+    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=is_testnet).delete()
     db.commit()
     # Немедленно останавливаем боты
     asyncio.get_running_loop().run_in_executor(None, dispatcher_stop_user, user.id)
@@ -1125,8 +1141,9 @@ async def get_user_bot_summary(
 
     balance   = None
     positions = []
-    key_row   = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    has_key   = key_row is not None
+    key_rows  = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row   = next((k for k in key_rows if not k.is_testnet), None) or (key_rows[0] if key_rows else None)
+    has_key   = len(key_rows) > 0
     if key_row:
         try:
             ex = _init_user_exchange(key_row)

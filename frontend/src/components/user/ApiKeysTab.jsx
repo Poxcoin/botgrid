@@ -12,11 +12,6 @@ const API = (path, opts) => fetch(path, {
   return json;
 });
 
-function mask(key) {
-  if (!key || key.length < 8) return '••••••••••••••••••••';
-  return key.slice(0, 6) + '••••••••••••' + key.slice(-4);
-}
-
 const inp = {
   width: '100%', background: 'var(--bg-elevated)',
   border: '1px solid var(--border-default)',
@@ -25,14 +20,13 @@ const inp = {
   boxSizing: 'border-box', borderRadius: 6,
 };
 
-function KeyForm({ existing, onSaved, onCancel }) {
-  const [apiKey,   setApiKey]   = useState('');
-  const [secret,   setSecret]   = useState('');
-  const [testnet,  setTestnet]  = useState(false);
-  const [showKey,  setShowKey]  = useState(false);
-  const [showSec,  setShowSec]  = useState(false);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState('');
+function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
+  const [apiKey,  setApiKey]  = useState('');
+  const [secret,  setSecret]  = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [showSec, setShowSec] = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
 
   async function submit(e) {
     e.preventDefault();
@@ -41,9 +35,9 @@ function KeyForm({ existing, onSaved, onCancel }) {
     try {
       await API('/api/users/keys', {
         method: 'POST',
-        body: JSON.stringify({ api_key: apiKey.trim(), secret: secret.trim(), is_testnet: testnet }),
+        body: JSON.stringify({ api_key: apiKey.trim(), secret: secret.trim(), is_testnet: isTestnet }),
       });
-      onSaved(apiKey.trim(), testnet);
+      onSaved(apiKey.trim());
     } catch (e) {
       setError(e.message);
     } finally {
@@ -78,7 +72,7 @@ function KeyForm({ existing, onSaved, onCancel }) {
         </div>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 6 }}>
           Secret
         </div>
@@ -96,11 +90,6 @@ function KeyForm({ existing, onSaved, onCancel }) {
           }}>{showSec ? 'HIDE' : 'SHOW'}</button>
         </div>
       </div>
-
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', fontSize: 13, fontFamily: FONT, color: 'var(--text-secondary)' }}>
-        <input type="checkbox" checked={testnet} onChange={e => setTestnet(e.target.checked)} style={{ accentColor: 'var(--accent-green)', width: 14, height: 14 }} />
-        Testnet (demo trading only)
-      </label>
 
       {error && (
         <div style={{
@@ -144,7 +133,6 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
       background: 'rgba(0,212,170,0.04)',
       borderRadius: 8, padding: '18px 20px',
     }}>
-      {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-green)' }} />
@@ -190,7 +178,6 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
         </div>
       </div>
 
-      {/* Key display */}
       <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)', letterSpacing: '0.06em', marginBottom: 6 }}>
         {maskedKey}
       </div>
@@ -201,36 +188,37 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
   );
 }
 
-export default function ApiKeysTab() {
-  const [me,        setMe]        = useState(null);
-  const [maskedKey, setMaskedKey] = useState('');
-  const [showForm,  setShowForm]  = useState(false);
-  const [deleting,  setDeleting]  = useState(false);
-  const [success,   setSuccess]   = useState('');
+function KeySection({ title, subtitle, isTestnet, maskedKey, onSaved, onDeleted }) {
+  const [showForm, setShowForm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [success,  setSuccess]  = useState('');
+  const [localMasked, setLocalMasked] = useState(maskedKey || null);
 
   useEffect(() => {
-    API('/api/users/me').then(d => {
-      setMe(d);
-      if (d.bybit_api_key_masked) setMaskedKey(d.bybit_api_key_masked);
-    }).catch(console.error);
-  }, []);
+    setLocalMasked(maskedKey || null);
+  }, [maskedKey]);
 
-  function onSaved(rawKey, testnet) {
-    setMaskedKey(mask(rawKey));
-    setMe(m => ({ ...m, has_api_keys: true, api_key_demo: testnet }));
+  const hasKey = Boolean(localMasked);
+
+  function handleSaved(rawKey) {
+    const masked = rawKey.length < 8
+      ? '••••••••••••••••••••'
+      : rawKey.slice(0, 6) + '••••••••••••' + rawKey.slice(-4);
+    setLocalMasked(masked);
     setShowForm(false);
-    setSuccess('Key saved and verified successfully. Bot will start trading on your account.');
+    setSuccess('Key saved and verified successfully.');
     setTimeout(() => setSuccess(''), 5000);
+    onSaved && onSaved();
   }
 
-  async function onDelete() {
-    if (!confirm('Remove API key? The bot will stop trading on your account.')) return;
+  async function handleDelete() {
+    if (!confirm(`Remove ${title} key? ${isTestnet ? 'Demo trading will stop.' : 'The bot will stop trading on your live account.'}`)) return;
     setDeleting(true);
     try {
-      await API('/api/users/keys', { method: 'DELETE' });
-      setMe(m => ({ ...m, has_api_keys: false, api_key_demo: false }));
-      setMaskedKey('');
+      await API(`/api/users/keys?is_testnet=${isTestnet}`, { method: 'DELETE' });
+      setLocalMasked(null);
       setShowForm(false);
+      onDeleted && onDeleted();
     } catch (e) {
       alert(e.message);
     } finally {
@@ -238,65 +226,61 @@ export default function ApiKeysTab() {
     }
   }
 
-  const hasKey = me?.has_api_keys;
-
   return (
-    <div style={{ width: '100%', maxWidth: 580, fontFamily: FONT }}>
-
-      {/* Title */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-          API Keys
+    <div style={{
+      border: '1px solid var(--border-default)',
+      borderRadius: 10, padding: '20px 22px', marginBottom: 16,
+    }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 3 }}>
+          {title}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          Connect your Bybit account to enable live trading and analytics.
+        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+          {subtitle}
         </div>
       </div>
 
-      {/* Success message */}
       {success && (
         <div style={{
-          marginBottom: 20, padding: '10px 16px',
+          marginBottom: 14, padding: '10px 14px',
           border: '1px solid rgba(0,212,170,0.3)',
           background: 'rgba(0,212,170,0.06)',
           color: 'var(--accent-green)', fontSize: 12, fontFamily: MONO,
           borderRadius: 6,
         }}>
-          ✓ {success}
+          {success}
         </div>
       )}
 
-      {/* Connected key card */}
       {hasKey && !showForm && (
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 12 }}>
           <KeyCard
-            maskedKey={maskedKey || '••••••' + '••••••••••••' + '••••'}
-            isTestnet={me?.api_key_demo}
+            maskedKey={localMasked}
+            isTestnet={isTestnet}
             onReplace={() => setShowForm(true)}
-            onDelete={onDelete}
+            onDelete={handleDelete}
             deleting={deleting}
           />
         </div>
       )}
 
-      {/* Replace/add form */}
       {(!hasKey || showForm) && (
         <KeyForm
+          isTestnet={isTestnet}
           existing={hasKey && showForm}
-          onSaved={onSaved}
+          onSaved={handleSaved}
           onCancel={showForm ? () => setShowForm(false) : null}
         />
       )}
 
-      {/* Add another key — placeholder for future multi-key support */}
       {hasKey && !showForm && (
-        <div style={{ marginTop: 20 }}>
+        <div style={{ marginTop: 10 }}>
           <button
             onClick={() => setShowForm(true)}
             style={{
               background: 'none', border: '1px dashed var(--border-default)',
-              color: 'var(--text-muted)', fontFamily: FONT, fontSize: 13,
-              padding: '10px 20px', cursor: 'pointer', borderRadius: 6, width: '100%',
+              color: 'var(--text-muted)', fontFamily: FONT, fontSize: 12,
+              padding: '8px 16px', cursor: 'pointer', borderRadius: 6, width: '100%',
               transition: 'border-color 150ms, color 150ms',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
@@ -306,10 +290,53 @@ export default function ApiKeysTab() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Security note */}
+export default function ApiKeysTab() {
+  const [me, setMe] = useState(null);
+
+  useEffect(() => {
+    API('/api/users/me').then(d => setMe(d)).catch(console.error);
+  }, []);
+
+  function reload() {
+    API('/api/users/me').then(d => setMe(d)).catch(console.error);
+  }
+
+  return (
+    <div style={{ width: '100%', maxWidth: 580, fontFamily: FONT }}>
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+          API Keys
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          Connect your Bybit accounts to enable trading and analytics.
+        </div>
+      </div>
+
+      <KeySection
+        title="Demo Account"
+        subtitle="Test strategies with paper money — Bybit Testnet"
+        isTestnet={true}
+        maskedKey={me?.bybit_demo_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
+
+      <KeySection
+        title="Live Account"
+        subtitle="Real funds — Bybit Mainnet. Grant Trade + Position permissions only."
+        isTestnet={false}
+        maskedKey={me?.bybit_live_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
+
       <div style={{
-        marginTop: 32, paddingTop: 20,
+        marginTop: 16, paddingTop: 20,
         borderTop: '1px solid var(--border-subtle)',
         fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7,
       }}>
@@ -318,7 +345,7 @@ export default function ApiKeysTab() {
         Keys are stored encrypted (AES-256) and validated against Bybit before saving.<br />
         Keys are write-only — once saved they cannot be retrieved.
         {me?.totp_enabled
-          ? <div style={{ color: 'var(--accent-green)', marginTop: 6 }}>✓ Two-factor authentication enabled</div>
+          ? <div style={{ color: 'var(--accent-green)', marginTop: 6 }}>Two-factor authentication enabled</div>
           : <div style={{ marginTop: 6 }}>2FA is <strong style={{ color: 'var(--text-primary)' }}>not enabled</strong> — enable it in Security settings.</div>
         }
       </div>
