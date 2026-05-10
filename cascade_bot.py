@@ -37,7 +37,6 @@ from modules.trader import _init_exchange, get_free_usdt
 from modules.tg_notifier import send_telegram_message
 from modules.market_data import get_funding_rate
 from modules.analytics_db import save_trade, close_trade
-from modules.unified_pnl import start_cascade_sync
 from config.settings import (
     TG_CHAT_ID, SIGNAL_BOT_TRADING,
     CASCADE_IS_DEMO, CASCADE_DEMO_API_KEY, CASCADE_DEMO_SECRET,
@@ -532,7 +531,6 @@ def run_cascade_bot() -> None:
 
     threading.Thread(target=_ws_thread,        name="cascade-ws",      daemon=True).start()
     threading.Thread(target=_monitor_positions, name="cascade-monitor", daemon=True).start()
-    start_cascade_sync(lambda: _init_cascade_exchange())
 
     print("[CASCADE] Всі потоки запущено. Слухаємо ліквідації...")
 
