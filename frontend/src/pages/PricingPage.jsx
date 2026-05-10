@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Percent } from 'lucide-react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
@@ -109,10 +110,16 @@ const S = {
     fontWeight: 800,
     lineHeight: 1,
     letterSpacing: '-0.04em',
-    background: 'linear-gradient(135deg, #00d4aa, #4299e1)',
-    WebkitBackgroundClip: 'text',
-    backgroundClip: 'text',
-    color: 'transparent',
+    color: '#00d4aa',
+  },
+  pricePercentIcon: {
+    width: 40,
+    height: 40,
+    marginLeft: 2,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    color: '#00d4aa',
+    flexShrink: 0,
   },
   pricePer: {
     fontSize: '14px',
@@ -341,7 +348,8 @@ export default function PricingPage() {
               <span style={S.popularPill}>{t.pricing.recommendedPill}</span>
               <div style={S.cardLabel}>{t.pricing.perfLabel}</div>
               <div style={S.priceRow}>
-                <span style={S.priceBigGradient}>20%</span>
+                <span style={S.priceBigGradient}>25</span>
+                <Percent strokeWidth={2.5} style={S.pricePercentIcon} aria-hidden="true" />
                 <span style={S.pricePer}>{t.pricing.perfUnit}</span>
               </div>
               <p style={S.cardDesc}>
