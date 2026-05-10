@@ -38,7 +38,9 @@ from modules.tg_notifier import send_telegram_message
 from modules.market_data import get_funding_rate
 from modules.analytics_db import save_trade, close_trade
 from config.settings import (
-    TG_CHAT_ID, SIGNAL_BOT_TRADING,
+    TG_CHAT_ID,
+    CASCADE_TRADING,
+    CASCADE_LIVE_MODE, CASCADE_LIVE_API_KEY, CASCADE_LIVE_SECRET,
     CASCADE_IS_DEMO, CASCADE_DEMO_API_KEY, CASCADE_DEMO_SECRET,
 )
 
@@ -99,32 +101,44 @@ _exchange: Optional[ccxt.Exchange] = None
 def _init_cascade_exchange() -> ccxt.Exchange:
     """
     Ініціалізує Bybit exchange для cascade bot.
-    CASCADE_IS_DEMO=True → demo endpoint + окремі API ключі.
-    Інакше — live ключі через стандартний _init_exchange().
+
+    CASCADE_LIVE_MODE=True  → live API ключі (CASCADE_LIVE_API_KEY/SECRET),
+                              ігнорує IS_DEMO_TRADING — для production деплою.
+    Інакше               → стандартний _init_exchange() (поважає IS_DEMO_TRADING).
     """
-    if not CASCADE_IS_DEMO:
-        return _init_exchange()
+    if CASCADE_LIVE_MODE:
+        if not CASCADE_LIVE_API_KEY or not CASCADE_LIVE_SECRET:
+            raise RuntimeError(
+                "CASCADE_LIVE_MODE=True але CASCADE_LIVE_API_KEY / CASCADE_LIVE_SECRET не задані в .env"
+            )
+        exchange = ccxt.bybit({
+            "apiKey":  CASCADE_LIVE_API_KEY,
+            "secret":  CASCADE_LIVE_SECRET,
+            "enableRateLimit": True,
+            "options": {
+                "defaultType":             "linear",
+                "adjustForTimeDifference": True,
+                "recvWindow":              10000,
+            },
+        })
+        exchange.load_markets()
+        return exchange
 
-    if not CASCADE_DEMO_API_KEY or not CASCADE_DEMO_SECRET:
-        raise RuntimeError(
-            "CASCADE_IS_DEMO=True але CASCADE_DEMO_API_KEY / CASCADE_DEMO_SECRET не задані в .env"
-        )
+    # Demo або той самий акаунт що й інші боти (IS_DEMO_TRADING керує)
+    if CASCADE_IS_DEMO and CASCADE_DEMO_API_KEY and CASCADE_DEMO_SECRET:
+        exchange = ccxt.bybit({
+            "apiKey":  CASCADE_DEMO_API_KEY,
+            "secret":  CASCADE_DEMO_SECRET,
+            "enableRateLimit": True,
+            "options": {"defaultType": "linear", "adjustForTimeDifference": True, "recvWindow": 10000},
+        })
+        exchange.urls["api"]            = exchange.urls["demotrading"]
+        exchange.options["defaultType"] = "linear"
+        exchange.has["fetchCurrencies"] = False
+        exchange.load_markets()
+        return exchange
 
-    exchange = ccxt.bybit({
-        "apiKey":  CASCADE_DEMO_API_KEY,
-        "secret":  CASCADE_DEMO_SECRET,
-        "enableRateLimit": True,
-        "options": {
-            "defaultType":           "linear",
-            "adjustForTimeDifference": True,
-            "recvWindow":            10000,
-        },
-    })
-    exchange.urls["api"]          = exchange.urls["demotrading"]
-    exchange.options["defaultType"] = "linear"
-    exchange.has["fetchCurrencies"] = False   # Demo не підтримує /v5/asset/coin/query-info
-    exchange.load_markets()
-    return exchange
+    return _init_exchange()
 
 
 # ─── Ліквідаційний WebSocket ──────────────────────────────────────────────────
@@ -227,8 +241,8 @@ def _check_cascade_signal(coin: str) -> None:
 # ─── Виконання угоди ──────────────────────────────────────────────────────────
 
 def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float) -> None:
-    if not SIGNAL_BOT_TRADING:
-        print(f"[CASCADE] 📊 {coin} {action} — торгівля вимкнена")
+    if not CASCADE_TRADING:
+        print(f"[CASCADE] 📊 {coin} {action} — торгівля вимкнена (CASCADE_TRADING=False)")
         return
 
     try:
@@ -495,7 +509,12 @@ def _ws_thread() -> None:
 def run_cascade_bot() -> None:
     global _running, _exchange, _daily_date, _daily_start_bal
 
-    mode_tag = "[DEMO]" if CASCADE_IS_DEMO else "[LIVE]"
+    if CASCADE_LIVE_MODE:
+        mode_tag = "[LIVE 🔴]"
+    elif CASCADE_IS_DEMO:
+        mode_tag = "[DEMO]"
+    else:
+        mode_tag = "[DEMO via IS_DEMO_TRADING]"
 
     print("=" * 55)
     print(f"  CASCADE BOT {mode_tag}  —  {', '.join(WATCHLIST)}")
