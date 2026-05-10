@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 const SUFFIX = ' — Kado';
 const DEFAULT_TITLE = 'Kado — AI Signal Intelligence';
-const DEFAULT_DESC = 'KADO automates crypto trading on Bybit using AI signals. Performance plan: 20% of net new profits, no upfront cost. You keep custody — we never touch your funds.';
+const DEFAULT_DESC = 'KADO automates crypto trading on Bybit using AI signals. Performance plan: 25% of net new profits, no upfront cost. You keep custody — we never touch your funds.';
 
 function setMeta(name, value, attr = 'name') {
   if (!value) return;
