@@ -39,8 +39,11 @@ async def main():
     log.info("Bot online as @%s (id=%s)", me.username, me.id)
 
     await bot.set_my_commands([
-        {"command": "menu", "description": "Главное меню"},
-        {"command": "help", "description": "Помощь"},
+        {"command": "balance",   "description": "Баланс Bybit"},
+        {"command": "positions", "description": "Открытые позиции"},
+        {"command": "pnl",       "description": "Статистика PnL"},
+        {"command": "menu",      "description": "Главное меню"},
+        {"command": "help",      "description": "Помощь"},
     ])
 
     try:

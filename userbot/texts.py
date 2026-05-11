@@ -39,8 +39,50 @@ UNKNOWN_COMMAND = (
     "Не знаю такой команды. Используй /menu, чтобы посмотреть что я умею."
 )
 
-MENU_PLACEHOLDER = (
-    "📊 <b>Меню</b>\n\n"
-    "Скоро здесь будут команды для проверки баланса, PnL и позиций.\n"
-    "Пока что бот шлёт уведомления — следи за чатом."
+MENU = (
+    "📊 <b>Команды</b>\n\n"
+    "/balance — баланс и нереализованный PnL\n"
+    "/positions — открытые позиции\n"
+    "/pnl — статистика прибыли\n"
+    "/help — справка"
+)
+
+NOT_LINKED = (
+    "Этот чат ещё не привязан к аккаунту KADO.\n"
+    "Зайди на kadoclub.net → Settings → Telegram и нажми <b>«Подключить Telegram»</b>."
+)
+
+NO_API_KEY = (
+    "🔑 API-ключ не подключён.\n"
+    "Добавь Bybit-ключ в Settings → API Keys на kadoclub.net — после этого станут доступны "
+    "/balance, /positions и автоторговля."
+)
+
+EXCHANGE_ERROR = (
+    "⚠️ Не удалось получить данные с биржи. Попробуй через минуту.\n"
+    "Если повторяется — проверь, что API-ключ активен в Settings → API Keys."
+)
+
+BALANCE_TPL = (
+    "💼 <b>Bybit (USDT)</b>\n\n"
+    "Wallet: <b>{wallet}</b>\n"
+    "Equity: <b>{equity}</b>\n"
+    "Unrealized PnL: <b>{upnl}</b>"
+)
+
+POSITIONS_EMPTY = "📭 Открытых позиций нет."
+
+POSITIONS_HEADER = "📈 <b>Открытые позиции ({n})</b>\n\n"
+
+PNL_TPL = (
+    "📊 <b>PnL</b>\n\n"
+    "Сегодня: <b>{today_pnl}</b> ({today_n} сделок, WR {today_wr}%)\n"
+    "7 дней: <b>{week_pnl}</b> ({week_n} сделок, WR {week_wr}%)\n"
+    "30 дней: <b>{month_pnl}</b> ({month_n} сделок, WR {month_wr}%)\n"
+    "Всё время: <b>{all_pnl}</b> ({all_n} сделок, WR {all_wr}%)"
+)
+
+DB_TEMP_ERROR = (
+    "⚠️ Временная ошибка базы данных. Попробуй ещё раз через минуту.\n"
+    "Если повторяется — напиши в поддержку."
 )
