@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import time
+import requests
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -22,7 +23,7 @@ from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from pydantic import EmailStr
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog
@@ -47,6 +48,75 @@ except Exception as _liq_import_err:
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
 
+# {user_id: [(unix_ts, unrealized_pnl), ...]}  — in-process ring buffer
+_pnl_history: dict = {}
+_PNL_ALERT_THRESHOLD = 200.0  # USD drop within 1 hour triggers alert
+
+def _tg_alert(text: str):
+    """Fire-and-forget TG message to admin chat."""
+    token = os.getenv("TG_BOT_TOKEN", "")
+    chat  = os.getenv("TG_CHAT_ID", "")
+    if not token or not chat:
+        return
+    try:
+        import requests as _req
+        _req.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                  json={"chat_id": chat, "text": text, "parse_mode": "HTML"},
+                  timeout=6)
+    except Exception:
+        pass
+
+
+async def _pnl_alert_loop():
+    """Every 5 min: check unrealized PnL per user; alert if drops > threshold in last hour."""
+    await asyncio.sleep(300)
+    while True:
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _pnl_alert_check)
+        except Exception as e:
+            print(f"[PNL_ALERT] error: {e}")
+        await asyncio.sleep(300)
+
+
+def _pnl_alert_check():
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        key_rows = db.query(UserApiKey).filter_by(exchange="bybit").all()
+        now_ts = time.time()
+        for kr in key_rows:
+            try:
+                ex = _init_user_exchange(kr)
+                if not ex:
+                    continue
+                positions = _bybit_positions(ex)
+                upnl = sum(p["unrealized_pnl"] for p in positions)
+                hist = _pnl_history.setdefault(kr.user_id, [])
+                hist.append((now_ts, upnl))
+                # keep only last 2 hours
+                _pnl_history[kr.user_id] = [(t, v) for t, v in hist if now_ts - t <= 7200]
+                # check drop vs 1h ago
+                one_hour_ago = now_ts - 3600
+                old = [v for t, v in _pnl_history[kr.user_id] if t <= one_hour_ago]
+                if old:
+                    baseline = old[-1]
+                    drop = baseline - upnl
+                    if drop >= _PNL_ALERT_THRESHOLD:
+                        _tg_alert(
+                            f"⚠️ <b>PnL Alert</b>\n"
+                            f"Unrealized PnL dropped <b>${drop:.0f}</b> in the last hour\n"
+                            f"Was: <b>${baseline:+.0f}</b> → Now: <b>${upnl:+.0f}</b>\n"
+                            f"Positions: {len(positions)}"
+                        )
+                        # Reset to avoid spam — clear history so next alert is fresh
+                        _pnl_history[kr.user_id] = [(now_ts, upnl)]
+            except Exception as e:
+                print(f"[PNL_ALERT] user {kr.user_id}: {e}")
+    finally:
+        db.close()
+
+
 async def _bybit_sync_loop():
     """Background loop: import closed PnL for all users every 15 minutes."""
     await asyncio.sleep(120)  # let services start first
@@ -63,6 +133,7 @@ async def _bybit_sync_loop():
 async def _startup():
     asyncio.create_task(position_closer.run_loop())
     asyncio.create_task(_bybit_sync_loop())
+    asyncio.create_task(_pnl_alert_loop())
     asyncio.get_running_loop().run_in_executor(None, start_dispatcher)
     _threading.Thread(target=_cascade_reader_loop, daemon=True, name="CascadeReader").start()
 
@@ -1093,6 +1164,67 @@ async def get_user_positions(
         return _bybit_positions(ex)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+class ClosePositionRequest(BaseModel):
+    symbol: str  # coin without USDT, e.g. "ETH"
+
+@app.post("/api/users/close-position")
+async def close_user_position(
+    body: ClosePositionRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        positions = _bybit_positions(ex)
+        p = next((x for x in positions if x["symbol"] == body.symbol), None)
+        if not p:
+            raise HTTPException(status_code=404, detail="Position not found")
+        close_side = "sell" if p["side"] == "LONG" else "buy"
+        market_id  = ex.market_id(f"{body.symbol}USDT")
+        ex.private_post_v5_order_create({
+            "category":   "linear",
+            "symbol":     market_id,
+            "side":       "Sell" if p["side"] == "LONG" else "Buy",
+            "orderType":  "Market",
+            "qty":        str(p["qty"]),
+            "reduceOnly": True,
+            "timeInForce": "IOC",
+        })
+        return {"ok": True, "symbol": body.symbol, "qty": p["qty"]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/api/users/bot-heartbeat")
+async def get_bot_heartbeat(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+    from sqlalchemy import func as _sf2
+    rows = (
+        db.query(UserTrade.source, _sf2.max(UserTrade.opened_at).label("last_open"))
+        .filter(UserTrade.user_id == user.id)
+        .group_by(UserTrade.source)
+        .all()
+    )
+    now = datetime.utcnow()
+    result = {}
+    for source, last_open in rows:
+        if last_open:
+            diff_min = int((now - last_open).total_seconds() / 60)
+            result[source] = {"last_trade_min_ago": diff_min, "last_trade_at": last_open.isoformat()}
+    return result
 
 
 _BOT_LABELS = {

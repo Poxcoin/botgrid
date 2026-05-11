@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { init as klInit, dispose as klDispose } from 'klinecharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
@@ -120,7 +121,7 @@ const TF_LIST     = ['1', '5', '15', '60', '240', 'D'];
 const TF_LABEL    = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', 'D': '1D' };
 const POP_COINS   = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
 
-function Chart({ coin }) {
+function Chart({ coin, entryPrice }) {
   const elRef    = useRef(null);
   const chartRef = useRef(null);
   const timerRef = useRef(null);
@@ -173,6 +174,19 @@ function Chart({ coin }) {
         },
       });
       requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
+      if (entryPrice && entryPrice > 0) {
+        try {
+          chart.createAnnotation?.({
+            id: 'entry',
+            point: { timestamp: Date.now(), value: entryPrice },
+            styles: {
+              line: { show: true, style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.7)' },
+              text: { show: true, color: '#fbbf24', size: 10, family: 'JetBrains Mono, monospace', paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderSize: 0, backgroundColor: 'rgba(251,191,36,0.15)' },
+            },
+            extendData: `Entry $${entryPrice}`,
+          });
+        } catch {}
+      }
       ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
       ro.observe(el);
     };
@@ -186,7 +200,7 @@ function Chart({ coin }) {
       try { klDispose(el); } catch {}
       chartRef.current = null;
     };
-  }, [coin, tf]);
+  }, [coin, tf, entryPrice]);
 
   useEffect(() => {
     const go = () => fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${coin}USDT`)
@@ -259,16 +273,32 @@ function Chart({ coin }) {
 /* ══════════════════════════════════════════════════════════════════
    BOTTOM PANEL
 ══════════════════════════════════════════════════════════════════ */
-function Panel({ botTrades, botPositions, pnl30 }) {
+function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
   const [tab, setTab] = useState('open');
+  const [fundingRates, setFundingRates] = useState({});
   const open   = useMemo(() => botTrades.filter(t => !t.closed_at), [botTrades]);
   const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
+
+  useEffect(() => {
+    if (!botPositions.length) return;
+    const symbols = [...new Set(botPositions.map(p => sym(p.symbol)))];
+    symbols.forEach(s => {
+      fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${s}USDT`)
+        .then(r => r.json())
+        .then(d => {
+          const fr = d?.result?.list?.[0]?.fundingRate;
+          if (fr != null) setFundingRates(prev => ({ ...prev, [s]: parseFloat(fr) * 100 }));
+        })
+        .catch(() => {});
+    });
+  }, [botPositions]);
 
   const TABS = [
     { id: 'open',      label: 'Open Orders',   n: open.length },
     { id: 'positions', label: 'Positions',     n: botPositions.length },
     { id: 'history',   label: 'Trade History', n: null },
     { id: 'pnl',       label: 'P&L',           n: null },
+    { id: 'equity',    label: 'Equity Curve',  n: null },
   ];
 
   const Th = ({ v, r }) => (
@@ -327,7 +357,7 @@ function Panel({ botTrades, botPositions, pnl30 }) {
 
         {tab === 'positions' && (botPositions.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="PnL%" r/><Th v="Unrealized" r/></tr></thead>
+            <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="FR 8h"/><Th v="PnL%" r/><Th v="Unrealized" r/><Th v=""/></tr></thead>
             <tbody>{botPositions.map((p, i) => {
               const upnl   = p.unrealized_pnl ?? 0;
               const hasSL  = !!p.stop_loss;
@@ -342,8 +372,21 @@ function Panel({ botTrades, botPositions, pnl30 }) {
                   <Td v={fix(p.mark_price, 4)}/>
                   <Td v={hasSL ? fix(p.stop_loss, 4) : '—'} hi={!hasSL ? 'var(--accent-red)' : undefined}/>
                   <Td v={hasTP ? fix(p.take_profit, 4) : '⚠ NO TP'} hi={!hasTP ? 'var(--accent-red)' : undefined}/>
+                  {(() => {
+                    const fr = fundingRates[sym(p.symbol)];
+                    return <Td v={fr != null ? `${fr >= 0 ? '+' : ''}${fr.toFixed(4)}%` : '—'} hi={fr != null ? (fr >= 0 ? 'var(--accent-red)' : 'var(--accent-green)') : undefined}/>;
+                  })()}
                   <Td v={p.pnl_pct != null ? `${sign(p.pnl_pct, 1)}%` : '—'} hi={pos(p.pnl_pct ?? 0) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
                   <Td v={`${sign(upnl)} USDT`} hi={pos(upnl) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                  <td style={{ padding: '4px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <button
+                      onClick={() => onClose(p.symbol)}
+                      style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,109,0.15)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                      Close
+                    </button>
+                  </td>
                 </tr>
               );
             })}</tbody>
@@ -383,6 +426,37 @@ function Panel({ botTrades, botPositions, pnl30 }) {
           </div>
           : <Empty />
         )}
+
+        {tab === 'equity' && (() => {
+          const sorted = [...botTrades]
+            .filter(t => t.closed_at && t.pnl_usdt != null)
+            .sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
+          let cum = 0;
+          const data = sorted.map(t => {
+            cum += parseFloat(t.pnl_usdt ?? t.pnl ?? 0);
+            return { t: dstr(t.closed_at), v: parseFloat(cum.toFixed(2)) };
+          });
+          if (data.length === 0) return <Empty />;
+          const isPos = data[data.length - 1]?.v >= 0;
+          return (
+            <div style={{ padding: '12px 4px', height: 240 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="eq_grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+                  <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`}/>
+                  <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} formatter={v => [`$${v}`, 'Cumulative PnL']} labelStyle={{ color: 'rgba(240,242,245,0.5)', fontSize: 9 }}/>
+                  <Area type="monotone" dataKey="v" stroke={isPos ? '#00d4aa' : '#ff4d6d'} strokeWidth={1.5} fill="url(#eq_grad)" dot={false} activeDot={{ r: 3 }}/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
@@ -392,10 +466,11 @@ function Panel({ botTrades, botPositions, pnl30 }) {
    MAIN
 ══════════════════════════════════════════════════════════════════ */
 export default function OverviewTab({ botId = 'signal' }) {
-  const [pnl30,   setPnl30]   = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [trades,  setTrades]  = useState([]);
-  const [coin,    setCoin]    = useState('BTC');
+  const [pnl30,     setPnl30]     = useState(null);
+  const [summary,   setSummary]   = useState(null);
+  const [trades,    setTrades]    = useState([]);
+  const [coin,      setCoin]      = useState('BTC');
+  const [heartbeat, setHeartbeat] = useState({});
 
   useEffect(() => { api('/api/users/closed-pnl?days=30').then(setPnl30).catch(() => {}); }, []);
 
@@ -406,6 +481,13 @@ export default function OverviewTab({ botId = 'signal' }) {
   }, []);
 
   useEffect(() => { refresh(); const id = setInterval(refresh, 5000); return () => clearInterval(id); }, [refresh]);
+
+  useEffect(() => {
+    const go = () => api('/api/users/bot-heartbeat').then(setHeartbeat).catch(() => {});
+    go();
+    const id = setInterval(go, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const positions    = summary?.positions ?? [];
   const balance      = summary?.balance;
@@ -438,6 +520,24 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   const openN = botTrades.filter(t => !t.closed_at).length;
 
+  const activePos  = botPos.find(p => sym(p.symbol) === coin);
+  const entryPrice = activePos?.entry_price ?? 0;
+
+  const handleClose = useCallback(async (symbol) => {
+    if (!confirm(`Close ${symbol} position?`)) return;
+    try {
+      const r = await fetch('/api/users/close-position', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
+      setTimeout(refresh, 1000);
+    } catch (e) {
+      alert(`Failed to close ${symbol}: ${e.message}`);
+    }
+  }, [refresh]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -456,6 +556,23 @@ export default function OverviewTab({ botId = 'signal' }) {
           </div>
         ))}
       </div>
+
+      {/* ── HEARTBEAT ─────────────────────────────────────────── */}
+      {heartbeat[botId] != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(() => {
+            const h = heartbeat[botId];
+            const ago = h?.last_trade_min_ago;
+            const fresh = ago != null && ago < 240;
+            return <>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: fresh ? 'var(--accent-green)' : 'var(--accent-red)', display: 'inline-block', flexShrink: 0 }}/>
+              <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
+                Last trade {ago != null ? (ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`) : '—'}
+              </span>
+            </>;
+          })()}
+        </div>
+      )}
 
       {/* ── COINS ─────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -482,10 +599,10 @@ export default function OverviewTab({ botId = 'signal' }) {
       </div>
 
       {/* ── CHART ─────────────────────────────────────────────── */}
-      <Chart coin={coin} />
+      <Chart coin={coin} entryPrice={entryPrice} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
-      <Panel botTrades={botTrades} botPositions={botPos} pnl30={pnl30}/>
+      <Panel botTrades={botTrades} botPositions={botPos} pnl30={pnl30} onClose={handleClose}/>
     </div>
   );
 }
