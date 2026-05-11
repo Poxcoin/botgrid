@@ -122,14 +122,16 @@ const TF_LABEL    = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h'
 const POP_COINS   = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
 
 function Chart({ coin, entryPrice }) {
-  const elRef    = useRef(null);
-  const chartRef = useRef(null);
-  const timerRef = useRef(null);
+  const elRef      = useRef(null);
+  const chartRef   = useRef(null);
+  const timerRef   = useRef(null);
+  const overlayRef = useRef(null);
   const [tf,        setTf]        = useState('60');
   const [chartType, setChartType] = useState('candle_solid');
   const [full,      setFull]      = useState(false);
   const [tick,      setTick]      = useState(null);
 
+  // Chart init — only on coin or tf change, NOT on entryPrice
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
@@ -143,6 +145,7 @@ function Chart({ coin, entryPrice }) {
 
       const chart = klInit(el, { styles: KL_STYLES, locale: 'en-US' });
       chartRef.current = chart;
+      overlayRef.current = null;
       const pp = coin === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(coin) ? 4 : 2;
       chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
@@ -174,19 +177,6 @@ function Chart({ coin, entryPrice }) {
         },
       });
       requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
-      if (entryPrice && entryPrice > 0) {
-        try {
-          chart.createAnnotation?.({
-            id: 'entry',
-            point: { timestamp: Date.now(), value: entryPrice },
-            styles: {
-              line: { show: true, style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.7)' },
-              text: { show: true, color: '#fbbf24', size: 10, family: 'JetBrains Mono, monospace', paddingLeft: 4, paddingRight: 4, paddingTop: 2, paddingBottom: 2, borderSize: 0, backgroundColor: 'rgba(251,191,36,0.15)' },
-            },
-            extendData: `Entry $${entryPrice}`,
-          });
-        } catch {}
-      }
       ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
       ro.observe(el);
     };
@@ -199,8 +189,33 @@ function Chart({ coin, entryPrice }) {
       if (ro) ro.disconnect();
       try { klDispose(el); } catch {}
       chartRef.current = null;
+      overlayRef.current = null;
     };
-  }, [coin, tf, entryPrice]);
+  }, [coin, tf]);
+
+  // Entry price overlay — updates without reiniting the chart
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    try {
+      if (overlayRef.current) {
+        chart.removeOverlay?.(overlayRef.current);
+        overlayRef.current = null;
+      }
+      if (entryPrice && entryPrice > 0) {
+        const id = chart.createOverlay?.({
+          name: 'horizontalStraightLine',
+          points: [{ value: entryPrice }],
+          styles: {
+            line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.8)' },
+          },
+          extendData: `Entry $${entryPrice}`,
+          lock: true,
+        });
+        overlayRef.current = id ?? null;
+      }
+    } catch {}
+  }, [entryPrice]);
 
   useEffect(() => {
     const go = () => fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${coin}USDT`)
