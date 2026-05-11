@@ -350,7 +350,8 @@ function KlineChart({ coin, tf }) {
       chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
       chart.setDataLoader({
-        getBars: async ({ period, timestamp, callback }) => {
+        getBars: async ({ type, period, timestamp, callback }) => {
+          if (type === 'backward') { callback([], false); return; }
           try {
             const parse = list => list.slice().reverse().map(k => ({
               timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
@@ -362,8 +363,7 @@ function KlineChart({ coin, tf }) {
               const d = await r.json();
               return parse(d.result?.list || []);
             };
-            if (!timestamp) {
-              // Initial load: fetch 5 pages = up to 5000 candles of history
+            if (type === 'init') {
               let all = [];
               let end = undefined;
               for (let i = 0; i < 5; i++) {
@@ -373,11 +373,10 @@ function KlineChart({ coin, tf }) {
                 end = page[0].timestamp - 1;
                 if (page.length < 1000) break;
               }
-              callback(all, all.length >= 1000);
+              callback(all, { backward: false, forward: all.length >= 1000 });
             } else {
-              // Lazy load on scroll-back
               const page = await fetchPage(timestamp - 1);
-              callback(page, page.length >= 1000);
+              callback(page, { backward: false, forward: page.length >= 1000 });
             }
           } catch { callback([], false); }
         },
