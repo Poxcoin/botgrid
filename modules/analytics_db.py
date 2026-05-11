@@ -227,6 +227,58 @@ def close_user_trade(trade_id: int, exit_price: float, pnl_usdt: float) -> None:
         db.close()
 
 
+def save_cascade_trade_all_users(coin: str, side: str, entry_price: float, qty: float = None) -> None:
+    """Mirror cascade open trade into user_trades for every active user (analytics only)."""
+    from database import SessionLocal, User, UserTrade
+    from datetime import datetime, timezone
+    db = SessionLocal()
+    try:
+        users = db.query(User).filter(User.is_active == True).all()
+        symbol = f"{coin}/USDT:USDT"
+        now = datetime.now(timezone.utc)
+        for u in users:
+            db.add(UserTrade(
+                user_id=u.id,
+                source="cascade",
+                symbol=symbol,
+                side=side,
+                entry_price=entry_price,
+                qty=qty,
+                status="open",
+                opened_at=now,
+            ))
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+def close_cascade_trade_all_users(coin: str, exit_price: float, pnl_usdt: float) -> None:
+    """Close all open cascade user_trades for this coin (called when system position closes)."""
+    from database import SessionLocal, UserTrade
+    from datetime import datetime, timezone
+    db = SessionLocal()
+    try:
+        symbol = f"{coin}/USDT:USDT"
+        trades = (
+            db.query(UserTrade)
+            .filter(UserTrade.source == "cascade", UserTrade.symbol == symbol, UserTrade.status == "open")
+            .all()
+        )
+        now = datetime.now(timezone.utc)
+        for t in trades:
+            t.exit_price = exit_price
+            t.pnl_usdt   = pnl_usdt
+            t.status     = "closed"
+            t.closed_at  = now
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 def migrate_signals_log(signals_log_path: str = "signals_log.json") -> int:
     """Импортирует существующие данные из signals_log.json в analytics.db."""
     if not os.path.exists(signals_log_path):

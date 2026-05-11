@@ -1,236 +1,727 @@
-import React, { useEffect, useState } from 'react';
-import { useLang } from '@/lib/LangContext';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { init as klInit, dispose as klDispose } from 'klinecharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-const API = (path) => fetch(path, {
-  headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
-}).then(r => r.ok ? r.json() : Promise.reject(r.status));
+/* ── design ─────────────────────────────────────────────────────── */
+const FF = 'var(--font-sans)';
+const FM = 'var(--font-mono)';
 
-function StatCard({ label, value, sub, accent }) {
-  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
-                  : accent === 'red'   ? '2px solid var(--accent-red)'
-                  : '1px solid var(--border-subtle)';
+/* ── api ─────────────────────────────────────────────────────────── */
+const api = p =>
+  fetch(p, { headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` } })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status));
+
+/* ── helpers ─────────────────────────────────────────────────────── */
+const sym  = s => (s || '').replace('/USDT', '').replace('USDT', '').trim();
+const pnl  = t => parseFloat(t?.pnl_usdt ?? t?.pnl ?? 0);
+const fix  = (v, d = 2) => v == null || isNaN(+v) ? '—' : (+v).toFixed(d);
+const sign = (v, d = 2) => { const n = +v; return isNaN(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(d); };
+const pos  = v => +v >= 0;
+const dstr = s => s ? new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+/* ══════════════════════════════════════════════════════════════════
+   MARKET TRADES
+══════════════════════════════════════════════════════════════════ */
+function Trades({ coin }) {
+  const [rows, setRows] = useState([]);
+  const buf = useRef([]);
+
+  useEffect(() => {
+    if (!coin) return;
+    fetch(`https://api.bybit.com/v5/market/recent-trade?category=linear&symbol=${coin}USDT&limit=80`)
+      .then(r => r.json()).then(d => {
+        const list = (d?.result?.list || []).map(t => ({ id: t.execId, p: t.price, q: t.size, buy: t.side === 'Buy' }));
+        buf.current = list; setRows(list);
+      }).catch(() => {});
+
+    const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+    ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`publicTrade.${coin}USDT`] }));
+    ws.onmessage = e => {
+      try {
+        const m = JSON.parse(e.data);
+        if (m.topic === `publicTrade.${coin}USDT` && Array.isArray(m.data)) {
+          buf.current = [...m.data.map(t => ({ id: t.i, p: t.p, q: t.v, buy: t.S === 'Buy' })), ...buf.current].slice(0, 80);
+          setRows([...buf.current]);
+        }
+      } catch {}
+    };
+    ws.onerror = ws.onclose = () => {};
+    return () => ws.close();
+  }, [coin]);
+
   return (
-    <div
-      style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderTop: topBorder,
-        borderRadius: 12,
-        padding: 24,
-        transition: 'border-color 200ms ease, transform 200ms ease',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-    >
-      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 36, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '-0.02em', color: 'var(--text-primary)', lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>{sub}</div>}
+    <div style={{ width: 180, flexShrink: 0, borderLeft: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ height: 40, flexShrink: 0, display: 'grid', gridTemplateColumns: '1fr auto', padding: '0 12px', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)' }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Price</span>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Qty</span>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'none' }}>
+        {rows.map((r, i) => (
+          <div key={r.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr auto', padding: '2px 12px', gap: 8 }}>
+            <span style={{ fontFamily: FM, fontSize: 10, color: r.buy ? 'var(--accent-green)' : 'var(--accent-red)' }}>{r.p}</span>
+            <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{(+r.q).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-function SkeletonRow({ cols }) {
+/* ══════════════════════════════════════════════════════════════════
+   CHART — identical to GridBotPage (draw tools, indicators, order book)
+══════════════════════════════════════════════════════════════════ */
+
+const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
+
+const CHART_STYLES = {
+  grid: {
+    horizontal: { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
+    vertical:   { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
+  },
+  candle: {
+    type: 'candle_solid',
+    bar: { upColor: '#00d4aa', downColor: '#ff4d6d', noChangeColor: '#888', upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888', upWickColor: '#00d4aa', downWickColor: '#ff4d6d', noChangeWickColor: '#888' },
+    tooltip: { showRule: 'follow_cross', showType: 'standard', labels: ['O', 'H', 'L', 'C', 'Vol'] },
+  },
+  indicator: {
+    ohlc: { upColor: '#00d4aa', downColor: '#ff4d6d', noChangeColor: '#888' },
+    bars: [{ upColor: 'rgba(0,212,170,0.5)', downColor: 'rgba(255,77,109,0.5)', noChangeColor: 'rgba(136,136,136,0.5)' }],
+  },
+  xAxis: {
+    axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
+    tickLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1, length: 3 },
+    tickText: { show: true, color: 'rgba(240,242,245,0.3)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
+  },
+  yAxis: {
+    axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
+    tickLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1, length: 3 },
+    tickText: { show: true, color: 'rgba(240,242,245,0.3)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
+  },
+  separator: { size: 1, color: 'rgba(255,255,255,0.06)', activeBackgroundColor: 'rgba(255,255,255,0.04)' },
+  crosshair: {
+    show: true,
+    horizontal: { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(255,255,255,0.2)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: '#fff', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 2, backgroundColor: '#1a1a1a' } },
+    vertical:   { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(255,255,255,0.2)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: '#fff', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 2, backgroundColor: '#1a1a1a' } },
+  },
+  overlay: {
+    point: { backgroundColor: '#00d4aa', borderColor: '#00d4aa', activeBackgroundColor: '#fff', activeBorderColor: '#fff' },
+    line:  { size: 1, color: '#00d4aa' },
+    text:  { color: '#fff', size: 12, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
+  },
+};
+
+const CHART_TYPES = [
+  { id: 'candle_solid',     label: 'Candles' },
+  { id: 'candle_up_stroke', label: 'B&W'     },
+  { id: 'candle_stroke',    label: 'Hollow'  },
+  { id: 'area',             label: 'Line'    },
+];
+const COL_GREEN = '#00d4aa';
+const COL_RED   = '#ff4d6d';
+const CHART_TYPE_CFG = {
+  candle_solid:     { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
+  candle_up_stroke: { bar: { upColor: 'transparent', downColor: 'rgba(255,255,255,0.85)', noChangeColor: 'rgba(255,255,255,0.4)', upBorderColor: 'rgba(255,255,255,0.85)', downBorderColor: 'rgba(255,255,255,0.85)', noChangeBorderColor: 'rgba(255,255,255,0.4)', upWickColor: 'rgba(255,255,255,0.55)', downWickColor: 'rgba(255,255,255,0.55)', noChangeWickColor: 'rgba(255,255,255,0.3)' }, vol: [{ upColor: 'rgba(255,255,255,0.18)', downColor: 'rgba(255,255,255,0.09)', noChangeColor: 'rgba(255,255,255,0.12)' }] },
+  candle_stroke:    { bar: { upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
+  area:             { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
+};
+
+const INDS_CANDLE = ['MA', 'EMA', 'BOLL'];
+const INDS_PANE   = ['VOL', 'MACD', 'RSI'];
+const ALL_INDS    = [...INDS_CANDLE, ...INDS_PANE];
+
+const DRAW_TOOLS = [
+  { id: null,                     icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l4 10 2-4 4-2L2 2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>, title: 'Default cursor' },
+  { id: 'segment',                icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>, title: 'Trend line' },
+  { id: 'horizontalStraightLine', icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>, title: 'Horizontal line' },
+  { id: 'rayLine',                icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="2" cy="12" r="1.5" fill="currentColor"/></svg>, title: 'Ray' },
+  { id: 'fibonacciLine',          icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5"/><line x1="1" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="3" y1="3" x2="3" y2="11" stroke="currentColor" strokeWidth="1.2"/><line x1="11" y1="3" x2="11" y2="11" stroke="currentColor" strokeWidth="1.2"/></svg>, title: 'Fibonacci' },
+];
+
+function OrderBook({ coin }) {
+  const [book, setBook] = useState({ b: [], a: [] });
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${coin}USDT&limit=12`)
+        .then(r => r.json())
+        .then(d => { if (alive && d.result) setBook(d.result); })
+        .catch(() => {});
+    load();
+    const t = setInterval(load, 1500);
+    return () => { alive = false; clearInterval(t); };
+  }, [coin]);
+
+  const bids = book.b.slice(0, 12);
+  const asks = book.a.slice(0, 12);
+  const maxSize = Math.max(...[...bids, ...asks].map(r => +r[1]), 1);
+  const spread  = bids[0] && asks[0] ? (+asks[0][0] - +bids[0][0]).toFixed(2) : null;
+
+  const OBRow = ({ price, size, side }) => {
+    const pct = Math.min((+size / maxSize) * 100, 100);
+    const isAsk = side === 'ask';
+    return (
+      <div style={{ position: 'relative', height: 17, display: 'flex', alignItems: 'center', padding: '0 10px', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${pct}%`, background: isAsk ? 'rgba(255,77,109,0.07)' : 'rgba(0,212,170,0.07)' }} />
+        <span style={{ fontFamily: FM, fontSize: 10, color: isAsk ? 'var(--accent-red)' : 'var(--accent-green)', zIndex: 1 }}>{(+price).toFixed(2)}</span>
+        <span style={{ fontFamily: FM, fontSize: 10, color: 'rgba(255,255,255,0.35)', zIndex: 1 }}>{(+size).toFixed(3)}</span>
+      </div>
+    );
+  };
+
   return (
-    <tr>
-      {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} style={{ padding: '12px 0' }}>
-          <div style={{ height: 12, background: 'var(--bg3)', width: '80%', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        </td>
-      ))}
-    </tr>
+    <div style={{ width: 170, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden' }}>
+      <div style={{ padding: '0 10px', height: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+        <span style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)' }}>Order Book</span>
+        {spread && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Δ {spread}</span>}
+      </div>
+      <div style={{ padding: '2px 0' }}>
+        <div style={{ padding: '0 10px', height: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontFamily: FF, fontSize: 9, color: 'var(--text-muted)' }}>PRICE</span>
+          <span style={{ fontFamily: FF, fontSize: 9, color: 'var(--text-muted)' }}>QTY</span>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+        {asks.slice().reverse().map(([p, s], i) => <OBRow key={i} price={p} size={s} side="ask" />)}
+      </div>
+      <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', flexShrink: 0 }}>
+        <span style={{ fontFamily: FM, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{bids[0] ? (+bids[0][0]).toFixed(2) : '—'}</span>
+      </div>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {bids.map(([p, s], i) => <OBRow key={i} price={p} size={s} side="bid" />)}
+      </div>
+    </div>
   );
 }
 
-function priceDp(v) {
-  if (!v) return 4;
-  if (v >= 10000) return 1;
-  if (v >= 100) return 2;
-  return 4;
-}
-
-export default function OverviewTab() {
-  const { t } = useLang();
-  const [me,      setMe]      = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [pnl30,   setPnl30]   = useState(null);
-  const [loading, setLoading] = useState(true);
+function Chart({ coin, entryPrice }) {
+  const elRef      = useRef(null);
+  const chartRef   = useRef(null);
+  const panesRef   = useRef({});
+  const timerRef   = useRef(null);
+  const entryOvRef = useRef(null);
+  const [tf,         setTf]         = useState('60');
+  const [activeTool, setActiveTool] = useState(null);
+  const [activeInds, setActiveInds] = useState({});
+  const [chartType,  setChartType]  = useState('candle_solid');
 
   useEffect(() => {
-    Promise.all([
-      API('/api/users/me'),
-      API('/api/users/bot-summary'),
-      API('/api/users/closed-pnl?days=30'),
-    ]).then(([me, summary, pnl30]) => {
-      setMe(me);
-      setSummary(summary);
-      setPnl30(pnl30);
-    }).catch(console.error).finally(() => setLoading(false));
-  }, []);
+    const el = elRef.current;
+    if (!el) return;
+    let mounted = true;
+    let ro = null;
 
-  const balance       = summary?.balance;
-  const positions     = summary?.positions ?? [];
-  const recentTrades  = (pnl30?.trades ?? []).slice(0, 8);
-  const pnl30Val      = pnl30?.total_pnl ?? 0;
-  const winRate       = pnl30?.win_rate ?? 0;
-  const planLabel     = me?.plan === 'pro' ? 'PRO' : 'FREE';
-  const hasApiKeys    = me?.has_api_keys;
+    const setup = () => {
+      if (!mounted) return;
+      const { width, height } = el.getBoundingClientRect();
+      if (width === 0 || height === 0) { requestAnimationFrame(setup); return; }
+
+      const chart = klInit(el, { styles: CHART_STYLES, locale: 'en-US' });
+      chartRef.current = chart;
+      panesRef.current = {};
+      entryOvRef.current = null;
+
+      const pp = coin === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(coin) ? 4 : 2;
+      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
+      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
+      chart.setDataLoader({
+        getBars: async ({ type, period, timestamp, callback }) => {
+          if (type !== 'init' && type !== 'forward') { callback([], false); return; }
+          try {
+            const parse = list => list.slice().reverse().map(k => ({
+              timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+            }));
+            const fetchPage = async end => {
+              let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
+              if (end) url += `&end=${end}`;
+              const r = await fetch(url);
+              const d = await r.json();
+              return parse(d.result?.list || []);
+            };
+            if (type === 'init') {
+              let all = [];
+              let end = undefined;
+              for (let i = 0; i < 5; i++) {
+                const page = await fetchPage(end);
+                if (!page.length) break;
+                all = [...page, ...all];
+                end = page[0].timestamp - 1;
+                if (page.length < 1000) break;
+              }
+              callback(all, { backward: false, forward: all.length >= 1000 });
+            } else {
+              const page = await fetchPage(timestamp - 1);
+              callback(page, { backward: false, forward: page.length >= 1000 });
+            }
+          } catch { callback([], false); }
+        },
+        subscribeBar: ({ period, callback: cb }) => {
+          timerRef.current = setInterval(async () => {
+            try {
+              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
+              const d = await r.json();
+              const k = d?.result?.list?.[0];
+              if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
+            } catch {}
+          }, 5000);
+        },
+        unsubscribeBar: () => {
+          if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        },
+      });
+      requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
+      ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
+      ro.observe(el);
+    };
+
+    requestAnimationFrame(setup);
+
+    return () => {
+      mounted = false;
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (ro) ro.disconnect();
+      try { klDispose(el); } catch {}
+      chartRef.current = null;
+      panesRef.current = {};
+      entryOvRef.current = null;
+    };
+  }, [coin, tf]);
+
+  // Entry price line — separate effect, no chart reinit
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    try {
+      if (entryOvRef.current) { chart.removeOverlay?.(entryOvRef.current); entryOvRef.current = null; }
+      if (entryPrice && entryPrice > 0) {
+        const id = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: entryPrice }], styles: { line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.85)' } }, extendData: `Entry $${entryPrice}`, lock: true });
+        entryOvRef.current = id ?? null;
+      }
+    } catch {}
+  }, [entryPrice]);
+
+  function applyChartType(typeId) {
+    setChartType(typeId);
+    const cfg = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
+    try { chartRef.current?.setStyles({ candle: { type: typeId, bar: cfg.bar }, indicator: { bars: cfg.vol } }); } catch {}
+  }
+
+  function selectTool(toolId) {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (activeTool === toolId) {
+      setActiveTool(null);
+      try { chart.removeOverlay(); } catch {}
+    } else {
+      setActiveTool(toolId);
+      if (toolId) try { chart.createOverlay({ name: toolId, lock: false }); } catch {}
+      else try { chart.removeOverlay(); } catch {}
+    }
+  }
+
+  function toggleInd(name) {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (activeInds[name]) {
+      const paneId = panesRef.current[name];
+      try {
+        if (INDS_CANDLE.includes(name)) chart.removeIndicator('candle_pane', name);
+        else if (paneId) chart.removeIndicator(paneId, name);
+      } catch {}
+      delete panesRef.current[name];
+      setActiveInds(p => ({ ...p, [name]: false }));
+    } else {
+      try {
+        if (INDS_CANDLE.includes(name)) {
+          chart.createIndicator(name, false, { id: 'candle_pane' });
+          panesRef.current[name] = 'candle_pane';
+        } else {
+          const paneId = chart.createIndicator(name, false, { height: 80 });
+          panesRef.current[name] = paneId;
+        }
+        setActiveInds(p => ({ ...p, [name]: true }));
+      } catch {}
+    }
+  }
 
   return (
-    <div>
-      {/* Plan badge */}
-      {me && (
-        <div style={{ marginBottom: 28, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
-            {planLabel}
-          </span>
-          {!hasApiKeys && (
-            <span style={{ fontSize: 12, color: 'var(--muted-fg)' }}>
-              {t.dashboard.overview.noApiKeysPrefix}{' '}
-              <a href="#" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api' })); }}
-                style={{ color: 'var(--fg)', textDecoration: 'underline' }}>
-                {t.dashboard.overview.connectBybit}
-              </a>{' '}
-              {t.dashboard.overview.toStartTrading}
-            </span>
-          )}
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 480, border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden' }}>
+
+      {/* Top toolbar: chart type + indicators + TF */}
+      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+        {CHART_TYPES.map(ct => (
+          <button key={ct.id} onClick={() => applyChartType(ct.id)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: chartType === ct.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${chartType === ct.id ? 'var(--border-strong)' : 'transparent'}`, color: chartType === ct.id ? 'var(--text-primary)' : 'var(--text-muted)' }}>{ct.label}</button>
+        ))}
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        <span style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Ind</span>
+        {ALL_INDS.map(name => (
+          <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {activeTool && (
+          <button onClick={() => { setActiveTool(null); try { chartRef.current?.removeOverlay(); } catch {} }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FF, fontSize: 10, background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>Clear</button>
+        )}
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        {['1','5','15','60','240','D'].map(t => (
+          <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{{ '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' }[t]}</button>
+        ))}
+      </div>
+
+      {/* Chart area */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* Left draw toolbar */}
+        <div style={{ width: 34, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 6, gap: 2, borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+          {DRAW_TOOLS.map(t => (
+            <button key={t.id ?? 'cursor'} title={t.title} onClick={() => selectTool(t.id)} style={{ width: 26, height: 26, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: activeTool === t.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeTool === t.id ? 'var(--border-strong)' : 'transparent'}`, color: activeTool === t.id ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0 }}>{t.icon}</button>
+          ))}
+        </div>
+        {/* Canvas */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
+          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: 'var(--bg-base)' }} />
+        </div>
+        {/* Order book */}
+        <OrderBook coin={coin} />
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BOTTOM PANEL
+══════════════════════════════════════════════════════════════════ */
+function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
+  const [tab, setTab] = useState('open');
+  const [fundingRates, setFundingRates] = useState({});
+  const open   = useMemo(() => botTrades.filter(t => !t.closed_at), [botTrades]);
+  const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
+
+  useEffect(() => {
+    if (!botPositions.length) return;
+    const symbols = [...new Set(botPositions.map(p => sym(p.symbol)))];
+    symbols.forEach(s => {
+      fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${s}USDT`)
+        .then(r => r.json())
+        .then(d => {
+          const fr = d?.result?.list?.[0]?.fundingRate;
+          if (fr != null) setFundingRates(prev => ({ ...prev, [s]: parseFloat(fr) * 100 }));
+        })
+        .catch(() => {});
+    });
+  }, [botPositions]);
+
+  const TABS = [
+    { id: 'open',      label: 'Open Orders',   n: open.length },
+    { id: 'positions', label: 'Positions',     n: botPositions.length },
+    { id: 'history',   label: 'Trade History', n: null },
+    { id: 'pnl',       label: 'P&L',           n: null },
+    { id: 'equity',    label: 'Equity Curve',  n: null },
+  ];
+
+  const Th = ({ v, r }) => (
+    <th style={{ padding: '6px 14px', fontFamily: FM, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, textAlign: r ? 'right' : 'left', background: 'var(--bg-base)', position: 'sticky', top: 0, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{v}</th>
+  );
+  const Td = ({ v, hi, r }) => (
+    <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: hi || 'var(--text-secondary)', textAlign: r ? 'right' : 'left', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{v ?? '—'}</td>
+  );
+  const Empty = () => (
+    <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>EMPTY</div>
+  );
+
+  return (
+    <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden' }}>
+      {/* tabs */}
+      <div style={{ display: 'flex', height: 40, borderBottom: '1px solid var(--border-subtle)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {TABS.map(t => {
+          const on = tab === t.id;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '0 18px',
+              background: 'transparent', border: 'none',
+              borderBottom: on ? '1px solid var(--text-primary)' : '1px solid transparent',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              fontFamily: FF, fontSize: 12,
+              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+            }}
+            onMouseEnter={e => { if (!on) e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            onMouseLeave={e => { if (!on) e.currentTarget.style.color = 'var(--text-muted)'; }}>
+              {t.label}
+              {t.n != null && (
+                <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', padding: '1px 5px', border: '1px solid var(--border-default)' }}>
+                  {t.n}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* content */}
+      <div style={{ maxHeight: 260, overflowY: 'auto', overflowX: 'auto' }}>
+        {tab === 'open' && (open.length === 0 ? <Empty /> :
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Size"/><Th v="Entry"/><Th v="Lev"/></tr></thead>
+            <tbody>{open.map((t, i) => (
+              <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <Td v={dstr(t.opened_at)}/>
+                <Td v={sym(t.symbol)} hi="var(--text-primary)"/>
+                <Td v={t.side} hi={t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
+                <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={t.leverage ? `${t.leverage}x` : '—'}/>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+
+        {tab === 'positions' && (botPositions.length === 0 ? <Empty /> :
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="FR 8h"/><Th v="PnL%" r/><Th v="Unrealized" r/><Th v=""/></tr></thead>
+            <tbody>{botPositions.map((p, i) => {
+              const upnl   = p.unrealized_pnl ?? 0;
+              const hasSL  = !!p.stop_loss;
+              const hasTP  = !!p.take_profit;
+              return (
+                <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Td v={sym(p.symbol)} hi="var(--text-primary)"/>
+                  <Td v={p.side} hi={p.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
+                  <Td v={p.leverage ? `${p.leverage}x` : '—'}/>
+                  <Td v={fix(p.qty, 3)}/>
+                  <Td v={fix(p.entry_price, 4)}/>
+                  <Td v={fix(p.mark_price, 4)}/>
+                  <Td v={hasSL ? fix(p.stop_loss, 4) : '—'} hi={!hasSL ? 'var(--accent-red)' : undefined}/>
+                  <Td v={hasTP ? fix(p.take_profit, 4) : '⚠ NO TP'} hi={!hasTP ? 'var(--accent-red)' : undefined}/>
+                  {(() => {
+                    const fr = fundingRates[sym(p.symbol)];
+                    return <Td v={fr != null ? `${fr >= 0 ? '+' : ''}${fr.toFixed(4)}%` : '—'} hi={fr != null ? (fr >= 0 ? 'var(--accent-red)' : 'var(--accent-green)') : undefined}/>;
+                  })()}
+                  <Td v={p.pnl_pct != null ? `${sign(p.pnl_pct, 1)}%` : '—'} hi={pos(p.pnl_pct ?? 0) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                  <Td v={`${sign(upnl)} USDT`} hi={pos(upnl) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                  <td style={{ padding: '4px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <button
+                      onClick={() => onClose(p.symbol)}
+                      style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,109,0.15)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                      Close
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        )}
+
+        {tab === 'history' && (closed.length === 0 ? <Empty /> :
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Size"/><Th v="Entry"/><Th v="Exit"/><Th v="PnL" r/></tr></thead>
+            <tbody>{closed.slice(0, 200).map((t, i) => {
+              const p = pnl(t);
+              return (
+                <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Td v={dstr(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
+                  <Td v={t.side} hi={t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
+                  <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={fix(t.exit_price, 4)}/>
+                  <Td v={`${sign(p)} USDT`} hi={pos(p) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                </tr>
+              );
+            })}</tbody>
+          </table>
+        )}
+
+        {tab === 'pnl' && (pnl30
+          ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
+            {[
+              ['30d PnL',  `${sign(pnl30.total_pnl)} USDT`, pos(pnl30.total_pnl)],
+              ['Win Rate', `${pnl30.win_rate}%`,             pnl30.win_rate >= 50],
+              ['Trades',   String(pnl30.total_trades),       true],
+              ['W / L',    `${pnl30.wins} / ${pnl30.losses}`, true],
+            ].map(([l, v, good]) => (
+              <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
+                <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 600, color: good ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{v}</div>
+              </div>
+            ))}
+          </div>
+          : <Empty />
+        )}
+
+        {tab === 'equity' && (() => {
+          const sorted = [...botTrades]
+            .filter(t => t.closed_at && t.pnl_usdt != null)
+            .sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
+          let cum = 0;
+          const data = sorted.map(t => {
+            cum += parseFloat(t.pnl_usdt ?? t.pnl ?? 0);
+            return { t: dstr(t.closed_at), v: parseFloat(cum.toFixed(2)) };
+          });
+          if (data.length === 0) return <Empty />;
+          const isPos = data[data.length - 1]?.v >= 0;
+          return (
+            <div style={{ padding: '12px 4px', height: 240 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="eq_grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0.25}/>
+                      <stop offset="95%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+                  <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`}/>
+                  <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} formatter={v => [`$${v}`, 'Cumulative PnL']} labelStyle={{ color: 'rgba(240,242,245,0.5)', fontSize: 9 }}/>
+                  <Area type="monotone" dataKey="v" stroke={isPos ? '#00d4aa' : '#ff4d6d'} strokeWidth={1.5} fill="url(#eq_grad)" dot={false} activeDot={{ r: 3 }}/>
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MAIN
+══════════════════════════════════════════════════════════════════ */
+const BOT_DB_SOURCE = { signal: 'news' };
+
+export default function OverviewTab({ botId = 'signal' }) {
+  const dbSource = BOT_DB_SOURCE[botId] ?? botId;
+
+  const [pnl30,     setPnl30]     = useState(null);
+  const [summary,   setSummary]   = useState(null);
+  const [trades,    setTrades]    = useState([]);
+  const [coin,      setCoin]      = useState('BTC');
+  const [heartbeat, setHeartbeat] = useState({});
+
+  useEffect(() => { api('/api/users/closed-pnl?days=30').then(setPnl30).catch(() => {}); }, []);
+
+  const refresh = useCallback(() => {
+    Promise.all([api('/api/users/bot-summary'), api('/api/users/trades?limit=500')])
+      .then(([s, td]) => { setSummary(s); setTrades(Array.isArray(td) ? td : (td?.trades ?? [])); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { refresh(); const id = setInterval(refresh, 5000); return () => clearInterval(id); }, [refresh]);
+
+  useEffect(() => {
+    const go = () => api('/api/users/bot-heartbeat').then(setHeartbeat).catch(() => {});
+    go();
+    const id = setInterval(go, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const positions    = summary?.positions ?? [];
+  const balance      = summary?.balance;
+  const totalUnreal  = summary?.total_unrealized ?? null;
+  const botTrades    = useMemo(() => trades.filter(t => (t.source || '') === dbSource), [trades, dbSource]);
+  const botPos       = positions; // all open positions come from same Bybit account
+
+  const botCoins = useMemo(() => {
+    const s = new Set();
+    botTrades.forEach(t => { const c = sym(t.symbol); if (c) s.add(c); });
+    botPos.forEach(p => { const c = sym(p.symbol); if (c) s.add(c); });
+    return [...s].sort();
+  }, [botTrades, botPos]);
+
+  const coins = useMemo(() => {
+    const extra = POP_COINS.filter(c => !botCoins.includes(c));
+    return [...botCoins, ...extra];
+  }, [botCoins]);
+
+  useEffect(() => {
+    if (botCoins.length > 0 && !botCoins.includes(coin)) setCoin(botCoins[0]);
+  }, [botId, botCoins]);
+
+  const stats = useMemo(() => {
+    const cl    = botTrades.filter(t => t.closed_at);
+    const total = cl.reduce((s, t) => s + pnl(t), 0);
+    const wins  = cl.filter(t => pnl(t) > 0).length;
+    return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
+  }, [botTrades]);
+
+  const openN = botTrades.filter(t => !t.closed_at).length;
+
+  const activePos  = botPos.find(p => sym(p.symbol) === coin);
+  const entryPrice = activePos?.entry_price ?? 0;
+
+  const handleClose = useCallback(async (symbol) => {
+    if (!confirm(`Close ${symbol} position?`)) return;
+    try {
+      const r = await fetch('/api/users/close-position', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
+      setTimeout(refresh, 1000);
+    } catch (e) {
+      alert(`Failed to close ${symbol}: ${e.message}`);
+    }
+  }, [refresh]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* ── STATS ─────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
+        {[
+          { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—', sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
+          { label: 'Unrealized', value: totalUnreal != null ? `${sign(totalUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open positions` : 'no open positions', good: totalUnreal != null ? pos(totalUnreal) : null },
+          { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
+          { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
+        ].map((s, i) => (
+          <div key={s.label} style={{ padding: '20px 20px', borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
+            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{s.label}</div>
+            <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', color: s.good === null ? 'var(--text-primary)' : s.good ? 'var(--accent-green)' : 'var(--accent-red)' }}>{s.value}</div>
+            {s.sub && <div style={{ fontFamily: FF, fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>{s.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* ── HEARTBEAT ─────────────────────────────────────────── */}
+      {heartbeat[dbSource] != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {(() => {
+            const h = heartbeat[dbSource];
+            const ago = h?.last_trade_min_ago;
+            const fresh = ago != null && ago < 240;
+            return <>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: fresh ? 'var(--accent-green)' : 'var(--accent-red)', display: 'inline-block', flexShrink: 0 }}/>
+              <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
+                Last trade {ago != null ? (ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`) : '—'}
+              </span>
+            </>;
+          })()}
         </div>
       )}
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 40 }}>
-        <StatCard
-          label="Wallet Balance"
-          value={loading ? '—' : balance ? `$${balance.wallet.toFixed(2)}` : '—'}
-          sub={balance ? `Equity $${balance.equity.toFixed(2)}` : null}
-          accent={balance?.wallet > 0 ? 'green' : undefined}
-        />
-        <StatCard
-          label="Open Positions"
-          value={loading ? '—' : positions.length}
-          sub={positions.length > 0
-            ? `${(summary?.total_unrealized ?? 0) >= 0 ? '+' : ''}${(summary?.total_unrealized ?? 0).toFixed(2)} USDT unrealized`
-            : null}
-        />
-        <StatCard
-          label="30d PnL"
-          value={loading ? '—' : `${pnl30Val >= 0 ? '+' : ''}${pnl30Val.toFixed(2)} USDT`}
-          sub={pnl30 ? `${pnl30.total_trades} trades` : null}
-          accent={pnl30Val > 0 ? 'green' : pnl30Val < 0 ? 'red' : undefined}
-        />
-        <StatCard
-          label={t.dashboard.overview.winRate}
-          value={loading ? '—' : `${winRate}%`}
-          sub={pnl30 ? `${pnl30.wins}W / ${pnl30.losses}L` : null}
-          accent={winRate >= 50 ? 'green' : undefined}
-        />
+      {/* ── COINS ─────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
+        {coins.map(c => {
+          const on = coin === c;
+          const isBot = botCoins.includes(c);
+          const hp    = botPos.some(p => sym(p.symbol) === c);
+          return (
+            <button key={c} onClick={() => setCoin(c)} style={{
+              fontFamily: FM, fontSize: 11, padding: '4px 10px',
+              background: on ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${on ? 'var(--border-strong)' : isBot ? 'rgba(0,212,170,0.3)' : 'var(--border-default)'}`,
+              color: on ? 'var(--text-primary)' : isBot ? 'var(--accent-green)' : 'var(--text-muted)',
+              cursor: 'pointer', position: 'relative',
+            }}
+            onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
+            onMouseLeave={e => { if (!on) { e.currentTarget.style.color = isBot ? 'var(--accent-green)' : 'var(--text-muted)'; e.currentTarget.style.borderColor = isBot ? 'rgba(0,212,170,0.3)' : 'var(--border-default)'; } }}>
+              {c}
+              {hp && <span style={{ position: 'absolute', top: 2, right: 2, width: 3, height: 3, borderRadius: '50%', background: 'var(--accent-green)' }}/>}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Open positions */}
-      {positions.length > 0 && (
-        <>
-          <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
-            Open Positions
-          </div>
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', marginBottom: 32, overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
-                  {['Symbol', 'Side', 'Lev', 'Entry', 'Mark', 'Unrealized PnL', 'ROE%', 'SL', 'TP', 'Liq'].map((h, i) => (
-                    <th key={h} style={{ padding: '12px 16px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {positions.map((p, i) => {
-                  const isLong   = p.side === 'LONG';
-                  const isProfit = (p.unrealized_pnl ?? 0) >= 0;
-                  return (
-                    <tr key={i}
-                      style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{p.symbol}</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: '#888' }}>{p.leverage ?? '—'}×</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(priceDp(p.entry_price)) ?? '—'}</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: '#999' }}>{p.mark_price?.toFixed(priceDp(p.mark_price)) ?? '—'}</td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: 600, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                        {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                        {isProfit ? '+' : ''}{p.pnl_pct ?? '—'}%
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: p.stop_loss ? 'var(--accent-red)' : '#333' }}>
-                        {p.stop_loss?.toFixed(priceDp(p.stop_loss)) ?? '—'}
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: p.take_profit ? 'var(--accent-green)' : '#333' }}>
-                        {p.take_profit?.toFixed(priceDp(p.take_profit)) ?? '—'}
-                      </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'right', color: p.liq_price ? 'rgba(255,77,109,0.5)' : '#333' }}>
-                        {p.liq_price?.toFixed(priceDp(p.liq_price)) ?? '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+      {/* ── CHART ─────────────────────────────────────────────── */}
+      <Chart coin={coin} entryPrice={entryPrice} />
 
-      {/* Recent closed trades */}
-      <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, fontFamily: 'var(--font-mono)' }}>
-        Recent Closed Trades (30d)
-      </div>
-      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-          <thead>
-            <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
-              {['Symbol', 'Side', 'Entry', 'Exit', 'PnL', 'Date'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? [1,2,3].map(i => <SkeletonRow key={i} cols={6} />) : (
-              recentTrades.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: '48px 20px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: 0.4 }}>
-                    <path d="M3 3v18h18M7 14l4-4 4 4 5-5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{hasApiKeys ? 'No closed trades in last 30 days' : t.dashboard.overview.noTrades}</div>
-                </td></tr>
-              ) : recentTrades.map((tr, i) => {
-                const closedMs  = parseInt(tr.closed_at);
-                const closedStr = closedMs
-                  ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' })
-                  : '—';
-                const isLong = tr.side === 'Buy';
-                return (
-                  <tr key={i}
-                    style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 150ms ease' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <td style={{ padding: '14px 16px', color: 'var(--text-primary)', fontWeight: 600 }}>{tr.symbol}</td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {isLong ? 'LONG' : 'SHORT'}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.entry_price?.toFixed(4) ?? '—'}</td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.exit_price?.toFixed(4) ?? '—'}</td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: tr.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                      {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{closedStr}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-      <style>{`@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
+      {/* ── PANEL ─────────────────────────────────────────────── */}
+      <Panel botTrades={botTrades} botPositions={botPos} pnl30={pnl30} onClose={handleClose}/>
     </div>
   );
 }

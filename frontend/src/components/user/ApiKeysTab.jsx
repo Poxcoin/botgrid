@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
-const MONO = "'Courier New','SF Mono',monospace";
-const FONT = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
+const FM = "'JetBrains Mono','Courier New',monospace";
+const FF = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
+
+const SUPPORT_EMAIL = 'support@kadoclub.net';
 
 const API = (path, opts) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
@@ -12,27 +14,148 @@ const API = (path, opts) => fetch(path, {
   return json;
 });
 
-function mask(key) {
-  if (!key || key.length < 8) return '••••••••••••••••••••';
-  return key.slice(0, 6) + '••••••••••••' + key.slice(-4);
+// ── Icons ──────────────────────────────────────────────────────────────────
+const ChevronIcon = ({ open }) => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ transition: 'transform 200ms', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
+    <path d="M3 5.5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const CopyIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+    <rect x="4.5" y="4.5" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+    <path d="M2.5 8.5H2a1 1 0 01-1-1V2a1 1 0 011-1h5.5a1 1 0 011 1v.5" stroke="currentColor" strokeWidth="1.2"/>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+    <path d="M2.5 7l3 3 5-6" stroke="#00d4aa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// ── Step-by-step guide ─────────────────────────────────────────────────────
+const STEPS = [
+  {
+    n: 1,
+    title: 'Open Bybit API Management',
+    body: 'Log in to Bybit → click your avatar (top right) → select API Management.',
+  },
+  {
+    n: 2,
+    title: 'Create a new key',
+    body: 'Click "Create New Key" → choose System-generated API Keys → give it a name (e.g. "Kado Bot").',
+  },
+  {
+    n: 3,
+    title: 'Set permissions',
+    body: (
+      <div>
+        <div style={{ marginBottom: 8 }}>Enable exactly these permissions:</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {[
+            ['✓', 'Unified Trading Account — Read'],
+            ['✓', 'Derivatives / Contract — Read + Trade'],
+            ['✓', 'Position — Read'],
+            ['✗', 'Withdrawal — NEVER enable'],
+            ['✗', 'Internal Transfer — leave off'],
+          ].map(([mark, text], i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: FM, fontSize: 11 }}>
+              <span style={{ color: mark === '✓' ? 'var(--accent-green)' : 'var(--accent-red)', width: 12, flexShrink: 0 }}>{mark}</span>
+              <span style={{ color: mark === '✓' ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    n: 4,
+    title: 'IP restriction (recommended)',
+    body: (
+      <div style={{ lineHeight: 1.6 }}>
+        Enable IP restriction and add the trading server IP. Contact support to get the exact address —{' '}
+        <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: 'var(--accent-green)', textDecoration: 'none' }}>{SUPPORT_EMAIL}</a>.
+      </div>
+    ),
+  },
+  {
+    n: 5,
+    title: 'Confirm with 2FA and copy the secret',
+    body: 'Complete the 2FA verification. Bybit shows the Secret only once — copy it immediately and paste both API Key + Secret into the form below.',
+  },
+];
+
+
+function SetupGuide() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, marginBottom: 24, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--bg-surface)', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(0,212,170,0.12)', border: '1px solid rgba(0,212,170,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="5" stroke="#00d4aa" strokeWidth="1.2"/>
+              <path d="M6 5v4M6 3.5v.5" stroke="#00d4aa" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontFamily: FF, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>How to create a Bybit API key</div>
+            <div style={{ fontFamily: FF, fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>Step-by-step guide — takes ~2 minutes</div>
+          </div>
+        </div>
+        <ChevronIcon open={open} />
+      </button>
+
+      {open && (
+        <div style={{ padding: '0 18px 20px', background: 'var(--bg-base)' }}>
+          <div style={{ height: 1, background: 'var(--border-subtle)', margin: '0 0 20px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {STEPS.map(s => (
+              <div key={s.n} style={{ display: 'flex', gap: 14 }}>
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                  <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{s.n}</span>
+                </div>
+                <div>
+                  <div style={{ fontFamily: FF, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>{s.title}</div>
+                  <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>{s.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 20, padding: '12px 14px', background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.2)', borderRadius: 7, display: 'flex', gap: 10 }}>
+            <span style={{ color: 'var(--accent-red)', fontSize: 14, flexShrink: 0 }}>⚠</span>
+            <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              <strong style={{ color: 'var(--accent-red)' }}>Never enable Withdrawal permission.</strong> The bot only needs to open/close positions and read your balance. Withdrawal access is unnecessary and a security risk.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-const inp = {
+// ── Key form ───────────────────────────────────────────────────────────────
+const inputStyle = {
   width: '100%', background: 'var(--bg-elevated)',
   border: '1px solid var(--border-default)',
-  color: 'var(--text-primary)', padding: '10px 14px',
-  fontSize: 13, fontFamily: MONO, outline: 'none',
+  color: 'var(--text-primary)', padding: '10px 44px 10px 14px',
+  fontSize: 13, fontFamily: FM, outline: 'none',
   boxSizing: 'border-box', borderRadius: 6,
 };
 
-function KeyForm({ existing, onSaved, onCancel }) {
-  const [apiKey,   setApiKey]   = useState('');
-  const [secret,   setSecret]   = useState('');
-  const [testnet,  setTestnet]  = useState(false);
-  const [showKey,  setShowKey]  = useState(false);
-  const [showSec,  setShowSec]  = useState(false);
-  const [saving,   setSaving]   = useState(false);
-  const [error,    setError]    = useState('');
+function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
+  const [apiKey,  setApiKey]  = useState('');
+  const [secret,  setSecret]  = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [showSec, setShowSec] = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
 
   async function submit(e) {
     e.preventDefault();
@@ -41,94 +164,57 @@ function KeyForm({ existing, onSaved, onCancel }) {
     try {
       await API('/api/users/keys', {
         method: 'POST',
-        body: JSON.stringify({ api_key: apiKey.trim(), secret: secret.trim(), is_testnet: testnet }),
+        body: JSON.stringify({ api_key: apiKey.trim(), secret: secret.trim(), is_testnet: isTestnet }),
       });
-      onSaved(apiKey.trim(), testnet);
-    } catch (e) {
-      setError(e.message);
+      onSaved(apiKey.trim());
+    } catch (err) {
+      setError(err.message);
     } finally {
       setSaving(false);
     }
   }
 
+  const EyeBtn = ({ show, onToggle }) => (
+    <button type="button" onClick={onToggle} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
+      {show
+        ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7s2.5-5 6-5 6 5 6 5-2.5 5-6 5-6-5-6-5z" stroke="currentColor" strokeWidth="1.2"/><circle cx="7" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.2"/><line x1="2" y1="2" x2="12" y2="12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+        : <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 7s2.5-5 6-5 6 5 6 5-2.5 5-6 5-6-5-6-5z" stroke="currentColor" strokeWidth="1.2"/><circle cx="7" cy="7" r="1.5" stroke="currentColor" strokeWidth="1.2"/></svg>
+      }
+    </button>
+  );
+
   return (
-    <form onSubmit={submit} autoComplete="off" style={{ marginTop: existing ? 20 : 0 }}>
+    <form onSubmit={submit} autoComplete="off">
       {existing && (
-        <div style={{ fontSize: 11, fontFamily: MONO, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 16 }}>
+        <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
           Replace existing key
         </div>
       )}
-
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 6 }}>
-          API Key
-        </div>
+        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>API Key</div>
         <div style={{ position: 'relative' }}>
-          <input
-            type={showKey ? 'text' : 'password'}
-            value={apiKey} onChange={e => setApiKey(e.target.value)}
-            placeholder="Paste Bybit API key" style={inp}
-            autoComplete="new-password"
-          />
-          <button type="button" onClick={() => setShowKey(v => !v)} style={{
-            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            cursor: 'pointer', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em',
-          }}>{showKey ? 'HIDE' : 'SHOW'}</button>
+          <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your Bybit API key" style={inputStyle} autoComplete="new-password"/>
+          <EyeBtn show={showKey} onToggle={() => setShowKey(v => !v)} />
         </div>
       </div>
-
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 6 }}>
-          Secret
-        </div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Secret</div>
         <div style={{ position: 'relative' }}>
-          <input
-            type={showSec ? 'text' : 'password'}
-            value={secret} onChange={e => setSecret(e.target.value)}
-            placeholder="Paste Bybit secret" style={inp}
-            autoComplete="new-password"
-          />
-          <button type="button" onClick={() => setShowSec(v => !v)} style={{
-            position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            cursor: 'pointer', fontSize: 10, fontFamily: MONO, letterSpacing: '0.1em',
-          }}>{showSec ? 'HIDE' : 'SHOW'}</button>
+          <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inputStyle} autoComplete="new-password"/>
+          <EyeBtn show={showSec} onToggle={() => setShowSec(v => !v)} />
         </div>
       </div>
-
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, cursor: 'pointer', fontSize: 13, fontFamily: FONT, color: 'var(--text-secondary)' }}>
-        <input type="checkbox" checked={testnet} onChange={e => setTestnet(e.target.checked)} style={{ accentColor: 'var(--accent-green)', width: 14, height: 14 }} />
-        Testnet (demo trading only)
-      </label>
-
       {error && (
-        <div style={{
-          marginBottom: 14, padding: '10px 14px',
-          border: '1px solid rgba(255,77,109,0.3)',
-          background: 'rgba(255,77,109,0.06)',
-          color: 'var(--accent-red)', fontSize: 12, fontFamily: MONO,
-          borderRadius: 6, lineHeight: 1.5,
-        }}>
+        <div style={{ marginBottom: 14, padding: '10px 14px', border: '1px solid rgba(255,77,109,0.3)', background: 'rgba(255,77,109,0.06)', color: 'var(--accent-red)', fontSize: 12, fontFamily: FM, borderRadius: 6, lineHeight: 1.5 }}>
           {error}
         </div>
       )}
-
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <button type="submit" disabled={saving} style={{
-          background: 'var(--text-primary)', color: 'var(--bg-base)',
-          border: 'none', padding: '10px 24px',
-          fontFamily: FONT, fontSize: 13, fontWeight: 600,
-          cursor: saving ? 'not-allowed' : 'pointer',
-          opacity: saving ? 0.6 : 1, borderRadius: 6,
-        }}>
-          {saving ? 'Validating…' : (existing ? 'Replace key' : 'Save key')}
+        <button type="submit" disabled={saving} style={{ background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', padding: '10px 24px', fontFamily: FF, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, borderRadius: 6 }}>
+          {saving ? 'Validating…' : existing ? 'Replace key' : 'Save key'}
         </button>
         {existing && onCancel && (
-          <button type="button" onClick={onCancel} style={{
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            fontFamily: FONT, fontSize: 13, cursor: 'pointer', padding: '10px 0',
-          }}>
+          <button type="button" onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontFamily: FF, fontSize: 13, cursor: 'pointer', padding: '10px 0' }}>
             Cancel
           </button>
         )}
@@ -137,100 +223,55 @@ function KeyForm({ existing, onSaved, onCancel }) {
   );
 }
 
+// ── Key card (existing key) ────────────────────────────────────────────────
 function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
   return (
-    <div style={{
-      border: '1px solid rgba(0,212,170,0.2)',
-      background: 'rgba(0,212,170,0.04)',
-      borderRadius: 8, padding: '18px 20px',
-    }}>
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-green)' }} />
-          <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--accent-green)', letterSpacing: '0.08em' }}>
-            BYBIT · ACTIVE
-          </span>
-          {isTestnet && (
-            <span style={{
-              fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
-              padding: '2px 7px', border: '1px solid var(--border-strong)',
-              color: 'var(--text-muted)', textTransform: 'uppercase',
-              borderRadius: 100,
-            }}>
-              TESTNET
-            </span>
-          )}
+    <div style={{ border: '1px solid rgba(0,212,170,0.2)', background: 'rgba(0,212,170,0.04)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-green)' }} />
+          <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--accent-green)', letterSpacing: '0.1em' }}>BYBIT · CONNECTED</span>
+          {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>DEMO</span>}
         </div>
-
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onReplace} style={{
-            background: 'none', border: '1px solid var(--border-default)',
-            color: 'var(--text-secondary)', fontFamily: FONT, fontSize: 12,
-            padding: '6px 14px', cursor: 'pointer', borderRadius: 6,
-            transition: 'border-color 150ms, color 150ms',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-          >
-            Replace
-          </button>
-          <button onClick={onDelete} disabled={deleting} style={{
-            background: 'none', border: '1px solid rgba(255,77,109,0.25)',
-            color: 'var(--accent-red)', fontFamily: FONT, fontSize: 12,
-            padding: '6px 14px', cursor: deleting ? 'not-allowed' : 'pointer',
-            borderRadius: 6, opacity: deleting ? 0.5 : 1,
-            transition: 'border-color 150ms',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,77,109,0.6)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,77,109,0.25)'; }}
-          >
+          <button onClick={onReplace} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>Replace</button>
+          <button onClick={onDelete} disabled={deleting} style={{ background: 'none', border: '1px solid rgba(255,77,109,0.25)', color: 'var(--accent-red)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: deleting ? 'not-allowed' : 'pointer', borderRadius: 5, opacity: deleting ? 0.5 : 1 }}>
             {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>
-
-      {/* Key display */}
-      <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)', letterSpacing: '0.06em', marginBottom: 6 }}>
-        {maskedKey}
-      </div>
-      <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)' }}>
-        Secret: ••••••••••••••••••••••••••••••••
-      </div>
+      <div style={{ fontFamily: FM, fontSize: 12, color: 'var(--text-primary)', letterSpacing: '0.06em', marginBottom: 4 }}>{maskedKey}</div>
+      <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>Secret: ••••••••••••••••••••••••••••••••</div>
     </div>
   );
 }
 
-export default function ApiKeysTab() {
-  const [me,        setMe]        = useState(null);
-  const [maskedKey, setMaskedKey] = useState('');
-  const [showForm,  setShowForm]  = useState(false);
-  const [deleting,  setDeleting]  = useState(false);
-  const [success,   setSuccess]   = useState('');
+// ── Key section (live / demo) ──────────────────────────────────────────────
+function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onDeleted }) {
+  const [showForm, setShowForm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [success,  setSuccess]  = useState('');
+  const [localMasked, setLocalMasked] = useState(maskedKey || null);
 
-  useEffect(() => {
-    API('/api/users/me').then(d => {
-      setMe(d);
-      if (d.bybit_api_key_masked) setMaskedKey(d.bybit_api_key_masked);
-    }).catch(console.error);
-  }, []);
+  useEffect(() => { setLocalMasked(maskedKey || null); }, [maskedKey]);
 
-  function onSaved(rawKey, testnet) {
-    setMaskedKey(mask(rawKey));
-    setMe(m => ({ ...m, has_api_keys: true, api_key_demo: testnet }));
-    setShowForm(false);
-    setSuccess('Key saved and verified successfully. Bot will start trading on your account.');
+  const hasKey = Boolean(localMasked);
+
+  function handleSaved(rawKey) {
+    const masked = rawKey.length < 8 ? '••••••••••••••••••••' : rawKey.slice(0, 6) + '••••••••••••' + rawKey.slice(-4);
+    setLocalMasked(masked); setShowForm(false);
+    setSuccess('Key saved and verified successfully.');
     setTimeout(() => setSuccess(''), 5000);
+    onSaved?.();
   }
 
-  async function onDelete() {
-    if (!confirm('Remove API key? The bot will stop trading on your account.')) return;
+  async function handleDelete() {
+    if (!confirm(`Remove ${title}? The bot will stop trading on this account.`)) return;
     setDeleting(true);
     try {
-      await API('/api/users/keys', { method: 'DELETE' });
-      setMe(m => ({ ...m, has_api_keys: false, api_key_demo: false }));
-      setMaskedKey('');
-      setShowForm(false);
+      await API(`/api/users/keys?is_testnet=${isTestnet}`, { method: 'DELETE' });
+      setLocalMasked(null); setShowForm(false);
+      onDeleted?.();
     } catch (e) {
       alert(e.message);
     } finally {
@@ -238,90 +279,88 @@ export default function ApiKeysTab() {
     }
   }
 
-  const hasKey = me?.has_api_keys;
-
   return (
-    <div style={{ width: '100%', maxWidth: 580, fontFamily: FONT }}>
-
-      {/* Title */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-          API Keys
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          Connect your Bybit account to enable live trading and analytics.
-        </div>
+    <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, padding: '20px 22px', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ fontFamily: FF, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
+        {badge && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 8px', border: `1px solid ${badge.color}30`, color: badge.color, borderRadius: 100 }}>{badge.text}</span>}
       </div>
+      <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>{subtitle}</div>
 
-      {/* Success message */}
       {success && (
-        <div style={{
-          marginBottom: 20, padding: '10px 16px',
-          border: '1px solid rgba(0,212,170,0.3)',
-          background: 'rgba(0,212,170,0.06)',
-          color: 'var(--accent-green)', fontSize: 12, fontFamily: MONO,
-          borderRadius: 6,
-        }}>
+        <div style={{ marginBottom: 14, padding: '10px 14px', border: '1px solid rgba(0,212,170,0.3)', background: 'rgba(0,212,170,0.06)', color: 'var(--accent-green)', fontSize: 12, fontFamily: FM, borderRadius: 6 }}>
           ✓ {success}
         </div>
       )}
 
-      {/* Connected key card */}
-      {hasKey && !showForm && (
-        <div style={{ marginBottom: 24 }}>
-          <KeyCard
-            maskedKey={maskedKey || '••••••' + '••••••••••••' + '••••'}
-            isTestnet={me?.api_key_demo}
-            onReplace={() => setShowForm(true)}
-            onDelete={onDelete}
-            deleting={deleting}
-          />
-        </div>
-      )}
+      {hasKey && !showForm && <KeyCard maskedKey={localMasked} isTestnet={isTestnet} onReplace={() => setShowForm(true)} onDelete={handleDelete} deleting={deleting} />}
+      {(!hasKey || showForm) && <KeyForm isTestnet={isTestnet} existing={hasKey && showForm} onSaved={handleSaved} onCancel={showForm ? () => setShowForm(false) : null} />}
+    </div>
+  );
+}
 
-      {/* Replace/add form */}
-      {(!hasKey || showForm) && (
-        <KeyForm
-          existing={hasKey && showForm}
-          onSaved={onSaved}
-          onCancel={showForm ? () => setShowForm(false) : null}
-        />
-      )}
+// ── Main export ────────────────────────────────────────────────────────────
+export default function ApiKeysTab() {
+  const [me, setMe] = useState(null);
+  const reload = () => API('/api/users/me').then(setMe).catch(console.error);
+  useEffect(() => { reload(); }, []);
 
-      {/* Add another key — placeholder for future multi-key support */}
-      {hasKey && !showForm && (
-        <div style={{ marginTop: 20 }}>
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              background: 'none', border: '1px dashed var(--border-default)',
-              color: 'var(--text-muted)', fontFamily: FONT, fontSize: 13,
-              padding: '10px 20px', cursor: 'pointer', borderRadius: 6, width: '100%',
-              transition: 'border-color 150ms, color 150ms',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-          >
-            + Replace / update key
-          </button>
+  return (
+    <div style={{ width: '100%', maxWidth: 600, fontFamily: FF }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>API Keys</div>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          Connect your Bybit account so the bot can open and close trades on your behalf. Keys are encrypted with AES-256 and never stored in plain text.
         </div>
-      )}
+      </div>
+
+      {/* Guide */}
+      <SetupGuide />
+
+      {/* Live key */}
+      <KeySection
+        title="Live Account"
+        badge={{ text: 'MAINNET', color: '#00d4aa' }}
+        subtitle="Real funds — Bybit Mainnet. The bot will trade with real money once this key is connected."
+        isTestnet={false}
+        maskedKey={me?.bybit_live_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
+
+      {/* Demo key */}
+      <KeySection
+        title="Demo Account"
+        badge={{ text: 'DEMO', color: '#888' }}
+        subtitle="Paper trading — Bybit Demo. Safe for testing strategies without real funds."
+        isTestnet={true}
+        maskedKey={me?.bybit_demo_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
 
       {/* Security note */}
-      <div style={{
-        marginTop: 32, paddingTop: 20,
-        borderTop: '1px solid var(--border-subtle)',
-        fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7,
-      }}>
-        <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 8 }}>Security</div>
-        Grant <strong style={{ color: 'var(--text-secondary)' }}>Trade + Position</strong> permissions only. Never enable Withdrawal.<br />
-        Keys are stored encrypted (AES-256) and validated against Bybit before saving.<br />
-        Keys are write-only — once saved they cannot be retrieved.
-        {me?.totp_enabled
-          ? <div style={{ color: 'var(--accent-green)', marginTop: 6 }}>✓ Two-factor authentication enabled</div>
-          : <div style={{ marginTop: 6 }}>2FA is <strong style={{ color: 'var(--text-primary)' }}>not enabled</strong> — enable it in Security settings.</div>
-        }
+      <div style={{ marginTop: 8, padding: '16px 18px', border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+        <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Security</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {[
+            'Grant Trade + Position permissions only. Never enable Withdrawal.',
+            'Restrict key to the trading server IP — contact support for the address.',
+            'Keys are stored encrypted — once saved they cannot be read back.',
+            me?.totp_enabled
+              ? '✓ Two-factor authentication is enabled on your account.'
+              : '2FA is not enabled — enable it in Settings for better protection.',
+          ].map((line, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontFamily: FF, fontSize: 12, color: i === 3 && me?.totp_enabled ? 'var(--accent-green)' : 'var(--text-muted)', lineHeight: 1.5 }}>
+              <span style={{ marginTop: 2, flexShrink: 0 }}>·</span>
+              {line}
+            </div>
+          ))}
+        </div>
       </div>
+
     </div>
   );
 }

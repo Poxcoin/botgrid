@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 import time
+import requests
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -22,7 +23,7 @@ from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from pydantic import EmailStr
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog
@@ -47,6 +48,75 @@ except Exception as _liq_import_err:
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
 
+# {user_id: [(unix_ts, unrealized_pnl), ...]}  — in-process ring buffer
+_pnl_history: dict = {}
+_PNL_ALERT_THRESHOLD = 200.0  # USD drop within 1 hour triggers alert
+
+def _tg_alert(text: str):
+    """Fire-and-forget TG message to admin chat."""
+    token = os.getenv("TG_BOT_TOKEN", "")
+    chat  = os.getenv("TG_CHAT_ID", "")
+    if not token or not chat:
+        return
+    try:
+        import requests as _req
+        _req.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                  json={"chat_id": chat, "text": text, "parse_mode": "HTML"},
+                  timeout=6)
+    except Exception:
+        pass
+
+
+async def _pnl_alert_loop():
+    """Every 5 min: check unrealized PnL per user; alert if drops > threshold in last hour."""
+    await asyncio.sleep(300)
+    while True:
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _pnl_alert_check)
+        except Exception as e:
+            print(f"[PNL_ALERT] error: {e}")
+        await asyncio.sleep(300)
+
+
+def _pnl_alert_check():
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        key_rows = db.query(UserApiKey).filter_by(exchange="bybit").all()
+        now_ts = time.time()
+        for kr in key_rows:
+            try:
+                ex = _init_user_exchange(kr)
+                if not ex:
+                    continue
+                positions = _bybit_positions(ex)
+                upnl = sum(p["unrealized_pnl"] for p in positions)
+                hist = _pnl_history.setdefault(kr.user_id, [])
+                hist.append((now_ts, upnl))
+                # keep only last 2 hours
+                _pnl_history[kr.user_id] = [(t, v) for t, v in hist if now_ts - t <= 7200]
+                # check drop vs 1h ago
+                one_hour_ago = now_ts - 3600
+                old = [v for t, v in _pnl_history[kr.user_id] if t <= one_hour_ago]
+                if old:
+                    baseline = old[-1]
+                    drop = baseline - upnl
+                    if drop >= _PNL_ALERT_THRESHOLD:
+                        _tg_alert(
+                            f"⚠️ <b>PnL Alert</b>\n"
+                            f"Unrealized PnL dropped <b>${drop:.0f}</b> in the last hour\n"
+                            f"Was: <b>${baseline:+.0f}</b> → Now: <b>${upnl:+.0f}</b>\n"
+                            f"Positions: {len(positions)}"
+                        )
+                        # Reset to avoid spam — clear history so next alert is fresh
+                        _pnl_history[kr.user_id] = [(now_ts, upnl)]
+            except Exception as e:
+                print(f"[PNL_ALERT] user {kr.user_id}: {e}")
+    finally:
+        db.close()
+
+
 async def _bybit_sync_loop():
     """Background loop: import closed PnL for all users every 15 minutes."""
     await asyncio.sleep(120)  # let services start first
@@ -63,6 +133,7 @@ async def _bybit_sync_loop():
 async def _startup():
     asyncio.create_task(position_closer.run_loop())
     asyncio.create_task(_bybit_sync_loop())
+    asyncio.create_task(_pnl_alert_loop())
     asyncio.get_running_loop().run_in_executor(None, start_dispatcher)
     _threading.Thread(target=_cascade_reader_loop, daemon=True, name="CascadeReader").start()
 
@@ -620,11 +691,22 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         user.plan = "free"
         db.commit()
     sub = user.subscription
-    key_row = next((k for k in user.api_keys if k.exchange == "bybit"), None)
+    key_rows = [k for k in user.api_keys if k.exchange == "bybit"]
+    live_key = next((k for k in key_rows if not k.is_testnet), None)
+    demo_key = next((k for k in key_rows if k.is_testnet), None)
+    display_key = live_key or demo_key
     trial_days_left = None
     if user.plan == "trial" and user.trial_ends_at:
         delta = user.trial_ends_at - datetime.utcnow()
         trial_days_left = max(0, delta.days)
+    def _mask(enc_key):
+        try:
+            k = decrypt_field(enc_key)
+            if not k or len(k) < 8:
+                return '••••••••••••••••••••'
+            return k[:6] + '••••••••••••' + k[-4:]
+        except Exception:
+            return '••••••••••••••••••••'
     return {
         "id": user.id,
         "email": user.email,
@@ -638,8 +720,13 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "tg_chat_id": user.tg_chat_id,
         "tg_username": user.tg_username or "",
         "tg_connected": bool(user.tg_chat_id),
-        "has_api_keys": key_row is not None,
-        "api_key_demo": key_row.is_testnet if key_row else False,
+        "has_api_keys": len(key_rows) > 0,
+        "has_demo_key": demo_key is not None,
+        "has_live_key": live_key is not None,
+        "api_key_demo": display_key.is_testnet if display_key else False,
+        "bybit_api_key_masked": _mask(display_key.api_key_enc) if display_key else None,
+        "bybit_demo_key_masked": _mask(demo_key.api_key_enc) if demo_key else None,
+        "bybit_live_key_masked": _mask(live_key.api_key_enc) if live_key else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "email_verified": bool(user.email_verified),
         "totp_enabled": bool(user.totp_enabled),
@@ -714,15 +801,20 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         test_ex.has['fetchCurrencies'] = False
         if body.use_demo:
             test_ex.urls['api'] = test_ex.urls['demotrading']
-        _bybit_balance(test_ex)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid API key — check that key and secret are correct and Trade + Position permissions are enabled on Bybit.")
+        _bybit_positions(test_ex)   # raises on invalid key; empty list is fine
+    except Exception as _e:
+        msg = str(_e)
+        # Extract just the Bybit error message if buried in ccxt output
+        import re as _re
+        m = _re.search(r'"retMsg"\s*:\s*"([^"]+)"', msg)
+        clean = m.group(1) if m else (msg[:120] if msg else "check key, secret and permissions")
+        raise HTTPException(status_code=400, detail=f"Bybit rejected the key: {clean}")
 
     from sqlalchemy.exc import IntegrityError
     try:
         key_row = (
             db.query(UserApiKey)
-            .filter_by(user_id=user.id, exchange="bybit")
+            .filter_by(user_id=user.id, exchange="bybit", is_testnet=body.use_demo)
             .with_for_update()
             .first()
         )
@@ -751,9 +843,9 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
 
 
 @app.delete("/api/users/keys")
-async def delete_api_keys(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def delete_api_keys(is_testnet: bool = Query(False), credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
-    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").delete()
+    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=is_testnet).delete()
     db.commit()
     # Немедленно останавливаем боты
     asyncio.get_running_loop().run_in_executor(None, dispatcher_stop_user, user.id)
@@ -918,7 +1010,7 @@ async def totp_recover(body: TotpRecoverRequest, request: Request, db: Session =
 
 @app.get("/api/users/trades")
 async def get_user_trades(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
@@ -1006,9 +1098,10 @@ def _bybit_balance(ex):
     coins = raw["result"]["list"][0].get("coin", [])
     usdt  = next((c for c in coins if c["coin"] == "USDT"), {})
     return {
-        "wallet":         float(usdt.get("walletBalance")  or 0),
-        "equity":         float(usdt.get("equity")         or 0),
-        "unrealized_pnl": float(usdt.get("unrealisedPnl")  or 0),
+        "wallet":         float(usdt.get("walletBalance")       or 0),
+        "equity":         float(usdt.get("equity")              or 0),
+        "unrealized_pnl": float(usdt.get("unrealisedPnl")       or 0),
+        "usdt_free":      float(usdt.get("availableToWithdraw") or 0),
     }
 
 
@@ -1079,60 +1172,64 @@ async def get_user_positions(
         raise HTTPException(status_code=502, detail=str(e))
 
 
-@app.get("/api/users/grid-positions")
-async def get_user_grid_positions(
+class ClosePositionRequest(BaseModel):
+    symbol: str  # coin without USDT, e.g. "ETH"
+
+@app.post("/api/users/close-position")
+async def close_user_position(
+    body: ClosePositionRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        positions = _bybit_positions(ex)
+        p = next((x for x in positions if x["symbol"] == body.symbol), None)
+        if not p:
+            raise HTTPException(status_code=404, detail="Position not found")
+        close_side = "sell" if p["side"] == "LONG" else "buy"
+        market_id  = ex.market_id(f"{body.symbol}USDT")
+        ex.private_post_v5_order_create({
+            "category":   "linear",
+            "symbol":     market_id,
+            "side":       "Sell" if p["side"] == "LONG" else "Buy",
+            "orderType":  "Market",
+            "qty":        str(p["qty"]),
+            "reduceOnly": True,
+            "timeInForce": "IOC",
+        })
+        return {"ok": True, "symbol": body.symbol, "qty": p["qty"]}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/api/users/bot-heartbeat")
+async def get_bot_heartbeat(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
     user = _get_user_from_token(credentials.credentials, db)
-    all_trades = (
-        db.query(UserTrade)
-        .filter(UserTrade.user_id == user.id, UserTrade.source == "grid")
-        .order_by(UserTrade.opened_at.desc())
+    from sqlalchemy import func as _sf2
+    rows = (
+        db.query(UserTrade.source, _sf2.max(UserTrade.opened_at).label("last_open"))
+        .filter(UserTrade.user_id == user.id)
+        .group_by(UserTrade.source)
         .all()
     )
-    live: dict = {}
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    if key_row:
-        try:
-            ex = _init_user_exchange(key_row)
-            if ex:
-                for p in _bybit_positions(ex):
-                    live[p["symbol"]] = p
-        except Exception:
-            pass
-
-    result = []
-    for coin in ["BTC", "ETH"]:
-        coin_trades   = [t for t in all_trades if coin in (t.symbol or "").upper()]
-        open_trades   = [t for t in coin_trades if t.status == "open"]
-        closed_trades = [t for t in coin_trades if t.status == "closed"]
-        closed_pnl    = sum(float(t.pnl_usdt or 0) for t in closed_trades)
-        wins          = sum(1 for t in closed_trades if float(t.pnl_usdt or 0) > 0)
-        live_pos      = live.get(coin)
-        result.append({
-            "coin":        coin,
-            "symbol":      f"{coin}USDT",
-            "open_count":  len(open_trades),
-            "open_pnl":    round(live_pos["unrealized_pnl"] if live_pos else 0, 2),
-            "mark_price":  live_pos["mark_price"]  if live_pos else None,
-            "entry_price": live_pos["entry_price"] if live_pos else None,
-            "leverage":    live_pos["leverage"]    if live_pos else None,
-            "total_trades":  len(coin_trades),
-            "closed_trades": len(closed_trades),
-            "closed_pnl":    round(closed_pnl, 2),
-            "win_rate":      round(wins / len(closed_trades) * 100, 1) if closed_trades else 0,
-            "open_positions": [
-                {
-                    "id":          t.id,
-                    "side":        t.side,
-                    "entry_price": t.entry_price,
-                    "qty":         t.qty,
-                    "opened_at":   t.opened_at.isoformat() if t.opened_at else None,
-                }
-                for t in open_trades[:10]
-            ],
-        })
+    now = datetime.utcnow()
+    result = {}
+    for source, last_open in rows:
+        if last_open:
+            diff_min = int((now - last_open).total_seconds() / 60)
+            result[source] = {"last_trade_min_ago": diff_min, "last_trade_at": last_open.isoformat()}
     return result
 
 
@@ -1182,8 +1279,9 @@ async def get_user_bot_summary(
 
     balance   = None
     positions = []
-    key_row   = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    has_key   = key_row is not None
+    key_rows  = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row   = next((k for k in key_rows if not k.is_testnet), None) or (key_rows[0] if key_rows else None)
+    has_key   = len(key_rows) > 0
     if key_row:
         try:
             ex = _init_user_exchange(key_row)
