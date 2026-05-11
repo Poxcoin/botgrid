@@ -1005,7 +1005,7 @@ async def totp_recover(body: TotpRecoverRequest, request: Request, db: Session =
 
 @app.get("/api/users/trades")
 async def get_user_trades(
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),

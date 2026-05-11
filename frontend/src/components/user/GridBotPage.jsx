@@ -187,27 +187,30 @@ function TickerRow({ coin, setCoin, tf, setTf, ticker }) {
 
 // ── AccountRow ────────────────────────────────────────────────
 
-function AccountRow({ balance, trades }) {
-  const realized = useMemo(() => (trades || []).reduce((s, t) => s + parseFloat(t.pnl_usdt || 0), 0), [trades]);
-  const connected = balance != null;
+function StatsPanel({ balance, trades, positions }) {
+  const closed    = useMemo(() => (trades || []).filter(t => t.closed_at || t.status === 'closed'), [trades]);
+  const realized  = useMemo(() => closed.reduce((s, t) => s + parseFloat(t.pnl_usdt || 0), 0), [closed]);
+  const wins      = useMemo(() => closed.filter(t => parseFloat(t.pnl_usdt || 0) > 0).length, [closed]);
+  const wr        = closed.length ? Math.round(wins / closed.length * 100) : 0;
+  const totalUnreal = useMemo(() => (positions || []).reduce((s, p) => s + parseFloat(p.unrealized_pnl || 0), 0), [positions]);
+
+  const sign = v => (v >= 0 ? '+' : '') + (+v).toFixed(2);
+  const pos  = v => v > 0;
+
+  const cards = [
+    { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—',      sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
+    { label: 'Unrealized', value: positions?.length ? `${sign(totalUnreal)} USDT` : '—',   sub: positions?.length ? `${positions.length} open positions` : 'no open positions', good: positions?.length ? pos(totalUnreal) : null },
+    { label: 'Realized',   value: `${sign(realized)} USDT`,                                sub: `${closed.length} closed trades`, good: closed.length > 0 ? pos(realized) : null },
+    { label: 'Win Rate',   value: `${wr}%`,                                                sub: `${wins}W / ${closed.length - wins}L`, good: closed.length > 0 ? wr >= 50 : null },
+  ];
 
   return (
-    <div style={{ height: 36, display: 'flex', alignItems: 'stretch', flexShrink: 0, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflowX: 'auto', scrollbarWidth: 'none' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', borderRight: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-        <span style={{ width: 5, height: 5, borderRadius: '50%', background: connected ? 'var(--accent-green)' : 'var(--text-muted)' }} />
-        <span style={{ fontFamily: SANS, fontSize: 10, color: connected ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-          {connected ? 'Bybit · Unified' : 'No key connected'}
-        </span>
-      </div>
-      {[
-        { label: 'Wallet',     value: fmtUSD(balance?.wallet) },
-        { label: 'Available',  value: fmtUSD(balance?.usdt_free) },
-        { label: 'Unrealized', value: balance?.unrealized_pnl != null ? `${fmtSign(balance.unrealized_pnl)} USDT` : '—', color: balance?.unrealized_pnl != null ? pclr(balance.unrealized_pnl) : undefined },
-        { label: 'Grid PnL',   value: `${fmtSign(realized)} USDT`, color: pclr(realized) },
-      ].map((c, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', borderRight: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-          <span style={{ fontFamily: SANS, fontSize: 10, color: 'var(--text-muted)' }}>{c.label}</span>
-          <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 500, color: c.color || 'var(--text-secondary)' }}>{c.value}</span>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+      {cards.map((s, i) => (
+        <div key={s.label} style={{ padding: '16px 20px', borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
+          <div style={{ fontFamily: SANS, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{s.label}</div>
+          <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: s.good === null ? 'var(--text-primary)' : s.good ? 'var(--accent-green)' : 'var(--accent-red)' }}>{s.value}</div>
+          {s.sub && <div style={{ fontFamily: SANS, fontSize: 11, color: 'var(--text-muted)', marginTop: 5 }}>{s.sub}</div>}
         </div>
       ))}
     </div>
@@ -704,7 +707,7 @@ export default function GridBotPage() {
   return (
     <div data-grid-root style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, background: 'var(--bg-base)', overflow: 'hidden' }}>
       <TickerRow coin={coin} setCoin={coin => { setCoin(coin); setTicker(null); }} tf={tf} setTf={setTf} ticker={ticker} />
-      <AccountRow balance={balance} trades={trades} />
+      <StatsPanel balance={balance} trades={trades} positions={positions} />
       <KlineChart coin={coin} tf={tf} />
       <BottomPanel coin={coin} trades={trades} positions={positions} />
     </div>
