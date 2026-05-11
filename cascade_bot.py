@@ -36,7 +36,7 @@ import ccxt
 from modules.trader import _init_exchange, get_free_usdt
 from modules.tg_notifier import send_telegram_message
 from modules.market_data import get_funding_rate
-from modules.analytics_db import save_trade, close_trade
+from modules.analytics_db import save_trade, close_trade, save_cascade_trade_all_users, close_cascade_trade_all_users
 from config.settings import (
     TG_CHAT_ID,
     CASCADE_TRADING,
@@ -298,6 +298,10 @@ def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float)
             db_id = save_trade(None, coin, action, fill_price, ts_open, bot_source="cascade")
         except Exception:
             db_id = None
+        try:
+            save_cascade_trade_all_users(coin, action, fill_price, qty)
+        except Exception:
+            pass
 
         with _pos_lock:
             _positions[coin] = {
@@ -436,17 +440,21 @@ def _on_closed(coin: str, pos: dict, exit_price: float, realized_pnl: float, rea
     _daily_pnl += realized_pnl
 
     # Закриваємо в БД
+    ref_price = exit_price if exit_price > 0 else pos["fill_price"]
     if pos.get("db_id"):
         try:
             age_min = max(0, round((datetime.now(timezone.utc).timestamp() - pos["opened_at"]) / 60))
-            ref_price = exit_price if exit_price > 0 else pos["fill_price"]
             if pos["action"] == "LONG":
                 pnl_pct = round((ref_price / pos["fill_price"] - 1) * 100, 2)
             else:
                 pnl_pct = round((pos["fill_price"] / ref_price - 1) * 100, 2)
-            close_trade(pos["db_id"], ref_price or pos["fill_price"], realized_pnl, pnl_pct, age_min)
+            close_trade(pos["db_id"], ref_price, realized_pnl, pnl_pct, age_min)
         except Exception:
             pass
+    try:
+        close_cascade_trade_all_users(coin, ref_price, realized_pnl)
+    except Exception:
+        pass
 
     icon       = "✅" if realized_pnl >= 0 else "❌"
     reason_str = {"tp_sl": "TP/SL Bybit", "time_stop": "⏱️ Time Stop 20хв"}.get(reason, reason)
