@@ -5,9 +5,9 @@ Linking flow: /start <token> → matches TgLinkToken → links User.tg_chat_id +
 import logging
 from datetime import datetime
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 from sqlalchemy.exc import SQLAlchemyError
 
 from database import SessionLocal, User, TgLinkToken
@@ -17,18 +17,27 @@ log = logging.getLogger("userbot")
 
 router = Router()
 
+MAIN_KB = ReplyKeyboardMarkup(
+    keyboard=[[
+        KeyboardButton(text=texts.BTN_START),
+        KeyboardButton(text=texts.BTN_MENU),
+        KeyboardButton(text=texts.BTN_ACCOUNT),
+    ]],
+    resize_keyboard=True,
+    is_persistent=True,
+)
+
 
 def _fmt_usd(v: float) -> str:
-    """+12.34 / -5.67 / 0.00 — short signed USD."""
     return f"{v:+,.2f}" if v else "0.00"
 
 
+# ── /start with deep-link token ──────────────────────────────────────────────
 @router.message(CommandStart(deep_link=True))
 async def cmd_start_with_token(message: Message, command: CommandObject):
-    """Handles /start <token> — the deep-link entry from the dashboard."""
     token = (command.args or "").strip()
     if not token:
-        await message.answer(texts.START_NOT_LINKED, parse_mode="HTML")
+        await message.answer(texts.START_NOT_LINKED, parse_mode="HTML", reply_markup=MAIN_KB)
         return
 
     chat_id  = str(message.chat.id)
@@ -37,22 +46,18 @@ async def cmd_start_with_token(message: Message, command: CommandObject):
     db = SessionLocal()
     try:
         link = db.query(TgLinkToken).filter(TgLinkToken.token == token).first()
-        if link is None:
-            await message.answer(texts.LINK_TOKEN_INVALID, parse_mode="HTML")
-            return
-        if link.used_at is not None:
-            await message.answer(texts.LINK_TOKEN_INVALID, parse_mode="HTML")
+        if link is None or link.used_at is not None:
+            await message.answer(texts.LINK_TOKEN_INVALID, parse_mode="HTML", reply_markup=MAIN_KB)
             return
         if link.expires_at < datetime.utcnow():
-            await message.answer(texts.LINK_TOKEN_EXPIRED, parse_mode="HTML")
+            await message.answer(texts.LINK_TOKEN_EXPIRED, parse_mode="HTML", reply_markup=MAIN_KB)
             return
 
         user = db.query(User).filter(User.id == link.user_id).first()
         if user is None or not user.is_active:
-            await message.answer(texts.LINK_TOKEN_INVALID, parse_mode="HTML")
+            await message.answer(texts.LINK_TOKEN_INVALID, parse_mode="HTML", reply_markup=MAIN_KB)
             return
 
-        # Link the account
         user.tg_chat_id  = chat_id
         user.tg_username = username
         link.used_at     = datetime.utcnow()
@@ -62,20 +67,19 @@ async def cmd_start_with_token(message: Message, command: CommandObject):
         await message.answer(
             texts.WELCOME_LINKED.format(name=display_name, plan=user.effective_plan.upper()),
             parse_mode="HTML",
+            reply_markup=MAIN_KB,
         )
     except SQLAlchemyError:
         db.rollback()
         log.exception("DB error in cmd_start_with_token (chat_id=%s)", chat_id)
-        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML")
+        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML", reply_markup=MAIN_KB)
     finally:
         db.close()
 
 
-@router.message(CommandStart())
-async def cmd_start_plain(message: Message):
-    """Handles bare /start — show status based on whether the chat is already linked."""
+# ── /start (bare) + 🚀 Старт button ─────────────────────────────────────────
+async def _send_start(message: Message):
     chat_id = str(message.chat.id)
-
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.tg_chat_id == chat_id).first()
@@ -83,27 +87,100 @@ async def cmd_start_plain(message: Message):
             await message.answer(
                 texts.WELCOME_ALREADY_LINKED.format(email=user.email),
                 parse_mode="HTML",
+                reply_markup=MAIN_KB,
             )
         else:
-            await message.answer(texts.START_NOT_LINKED, parse_mode="HTML")
+            await message.answer(texts.START_NOT_LINKED, parse_mode="HTML", reply_markup=MAIN_KB)
     except SQLAlchemyError:
         db.rollback()
-        log.exception("DB error in cmd_start_plain (chat_id=%s)", chat_id)
-        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML")
+        log.exception("DB error in _send_start (chat_id=%s)", chat_id)
+        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML", reply_markup=MAIN_KB)
     finally:
         db.close()
 
 
+@router.message(CommandStart())
+async def cmd_start_plain(message: Message):
+    await _send_start(message)
+
+
+@router.message(F.text == texts.BTN_START)
+async def btn_start(message: Message):
+    await _send_start(message)
+
+
+# ── /menu, /help + 📋 Меню button ───────────────────────────────────────────
+async def _send_menu(message: Message):
+    await message.answer(texts.MENU, parse_mode="HTML", reply_markup=MAIN_KB)
+
+
 @router.message(Command("menu"))
 async def cmd_menu(message: Message):
-    await message.answer(texts.MENU, parse_mode="HTML")
+    await _send_menu(message)
 
 
 @router.message(Command("help"))
 async def cmd_help(message: Message):
-    await message.answer(texts.MENU, parse_mode="HTML")
+    await _send_menu(message)
 
 
+@router.message(F.text == texts.BTN_MENU)
+async def btn_menu(message: Message):
+    await _send_menu(message)
+
+
+# ── /account + 👤 Аккаунт button ────────────────────────────────────────────
+async def _send_account(message: Message):
+    chat_id = str(message.chat.id)
+    db = SessionLocal()
+    try:
+        user = data.get_user_by_chat(db, chat_id)
+        if not user:
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML", reply_markup=MAIN_KB)
+            return
+
+        plan = user.effective_plan.upper()
+        if user.plan == "trial" and user.trial_ends_at:
+            remaining = user.trial_ends_at - datetime.utcnow()
+            days = max(0, remaining.days)
+            trial_line = f"\nТриал: ещё <b>{days}</b> дн."
+        else:
+            trial_line = ""
+
+        has_key    = any(k.exchange == "bybit" for k in user.api_keys)
+        api_status = "✅ подключён" if has_key else "❌ не подключён"
+        ref_code   = user.ref_code or "—"
+
+        await message.answer(
+            texts.ACCOUNT_TPL.format(
+                email=user.email,
+                plan=plan,
+                trial_line=trial_line,
+                api_status=api_status,
+                ref_code=ref_code,
+            ),
+            parse_mode="HTML",
+            reply_markup=MAIN_KB,
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        log.exception("DB error in _send_account (chat_id=%s)", chat_id)
+        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML", reply_markup=MAIN_KB)
+    finally:
+        db.close()
+
+
+@router.message(Command("account"))
+async def cmd_account(message: Message):
+    await _send_account(message)
+
+
+@router.message(F.text == texts.BTN_ACCOUNT)
+async def btn_account(message: Message):
+    await _send_account(message)
+
+
+# ── /balance ─────────────────────────────────────────────────────────────────
 @router.message(Command("balance"))
 async def cmd_balance(message: Message):
     chat_id = str(message.chat.id)
@@ -111,15 +188,15 @@ async def cmd_balance(message: Message):
     try:
         user = data.get_user_by_chat(db, chat_id)
         if not user:
-            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML", reply_markup=MAIN_KB)
             return
         bal = data.get_bybit_balance(user, db)
         if bal is None:
-            # Distinguish "no key" from "exchange error"
             has_key = any(k.exchange == "bybit" for k in user.api_keys)
             await message.answer(
                 texts.EXCHANGE_ERROR if has_key else texts.NO_API_KEY,
                 parse_mode="HTML",
+                reply_markup=MAIN_KB,
             )
             return
         await message.answer(
@@ -129,15 +206,17 @@ async def cmd_balance(message: Message):
                 upnl=_fmt_usd(bal["unrealized_pnl"]),
             ),
             parse_mode="HTML",
+            reply_markup=MAIN_KB,
         )
     except SQLAlchemyError:
         db.rollback()
         log.exception("DB error in cmd_balance (chat_id=%s)", chat_id)
-        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML")
+        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML", reply_markup=MAIN_KB)
     finally:
         db.close()
 
 
+# ── /positions ───────────────────────────────────────────────────────────────
 @router.message(Command("positions"))
 async def cmd_positions(message: Message):
     chat_id = str(message.chat.id)
@@ -145,7 +224,7 @@ async def cmd_positions(message: Message):
     try:
         user = data.get_user_by_chat(db, chat_id)
         if not user:
-            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML", reply_markup=MAIN_KB)
             return
         positions = data.get_bybit_positions(user, db)
         if positions is None:
@@ -153,10 +232,11 @@ async def cmd_positions(message: Message):
             await message.answer(
                 texts.EXCHANGE_ERROR if has_key else texts.NO_API_KEY,
                 parse_mode="HTML",
+                reply_markup=MAIN_KB,
             )
             return
         if not positions:
-            await message.answer(texts.POSITIONS_EMPTY, parse_mode="HTML")
+            await message.answer(texts.POSITIONS_EMPTY, parse_mode="HTML", reply_markup=MAIN_KB)
             return
 
         lines = [texts.POSITIONS_HEADER.format(n=len(positions))]
@@ -167,15 +247,16 @@ async def cmd_positions(message: Message):
                 f"   entry {p['entry_price']:g} → mark {p['mark_price']:g}\n"
                 f"   uPnL <b>{_fmt_usd(p['unrealized_pnl'])}</b> ({p['pnl_pct']:+.2f}%)"
             )
-        await message.answer("\n\n".join(lines), parse_mode="HTML")
+        await message.answer("\n\n".join(lines), parse_mode="HTML", reply_markup=MAIN_KB)
     except SQLAlchemyError:
         db.rollback()
         log.exception("DB error in cmd_positions (chat_id=%s)", chat_id)
-        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML")
+        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML", reply_markup=MAIN_KB)
     finally:
         db.close()
 
 
+# ── /pnl ─────────────────────────────────────────────────────────────────────
 @router.message(Command("pnl"))
 async def cmd_pnl(message: Message):
     chat_id = str(message.chat.id)
@@ -183,7 +264,7 @@ async def cmd_pnl(message: Message):
     try:
         user = data.get_user_by_chat(db, chat_id)
         if not user:
-            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML", reply_markup=MAIN_KB)
             return
         s = data.get_user_pnl_stats(user, db)
         await message.answer(
@@ -194,10 +275,11 @@ async def cmd_pnl(message: Message):
                 all_pnl  =_fmt_usd(s["all"]["pnl"]),   all_n  =s["all"]["trades"],   all_wr  =s["all"]["wr"],
             ),
             parse_mode="HTML",
+            reply_markup=MAIN_KB,
         )
     except SQLAlchemyError:
         db.rollback()
         log.exception("DB error in cmd_pnl (chat_id=%s)", chat_id)
-        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML")
+        await message.answer(texts.DB_TEMP_ERROR, parse_mode="HTML", reply_markup=MAIN_KB)
     finally:
         db.close()

@@ -39,12 +39,25 @@ UNKNOWN_COMMAND = (
     "Не знаю такой команды. Используй /menu, чтобы посмотреть что я умею."
 )
 
+BTN_START   = "🚀 Старт"
+BTN_MENU    = "📋 Меню"
+BTN_ACCOUNT = "👤 Аккаунт"
+
 MENU = (
     "📊 <b>Команды</b>\n\n"
     "/balance — баланс и нереализованный PnL\n"
     "/positions — открытые позиции\n"
     "/pnl — статистика прибыли\n"
+    "/account — твой аккаунт\n"
     "/help — справка"
+)
+
+ACCOUNT_TPL = (
+    "👤 <b>Аккаунт</b>\n\n"
+    "Email: <b>{email}</b>\n"
+    "План: <b>{plan}</b>{trial_line}\n"
+    "API-ключ: {api_status}\n"
+    "Реферальный код: <code>{ref_code}</code>"
 )
 
 NOT_LINKED = (
