@@ -1093,9 +1093,10 @@ def _bybit_balance(ex):
     coins = raw["result"]["list"][0].get("coin", [])
     usdt  = next((c for c in coins if c["coin"] == "USDT"), {})
     return {
-        "wallet":         float(usdt.get("walletBalance")  or 0),
-        "equity":         float(usdt.get("equity")         or 0),
-        "unrealized_pnl": float(usdt.get("unrealisedPnl")  or 0),
+        "wallet":         float(usdt.get("walletBalance")       or 0),
+        "equity":         float(usdt.get("equity")              or 0),
+        "unrealized_pnl": float(usdt.get("unrealisedPnl")       or 0),
+        "usdt_free":      float(usdt.get("availableToWithdraw") or 0),
     }
 
 
