@@ -602,6 +602,11 @@ export const translations = {
       accept:    'Accept',
       reject:    'Decline',
     },
+    errors: {
+      pageNotFoundTitle: 'Page Not Found',
+      pageNotFoundBody:  'The page you are looking for doesn\'t exist or has been moved.',
+      goHome:            'Go Home',
+    },
   },
 
   // ── Español ───────────────────────────────────────────────────────────────
@@ -1205,6 +1210,11 @@ export const translations = {
       learnMore: 'Más información',
       accept:    'Aceptar',
       reject:    'Rechazar',
+    },
+    errors: {
+      pageNotFoundTitle: 'Página No Encontrada',
+      pageNotFoundBody:  'La página que busca no existe o ha sido movida.',
+      goHome:            'Ir al Inicio',
     },
   },
 
@@ -1810,6 +1820,11 @@ export const translations = {
       accept:    'Прийняти',
       reject:    'Відхилити',
     },
+    errors: {
+      pageNotFoundTitle: 'Сторінку Не Знайдено',
+      pageNotFoundBody:  'Сторінка, яку Ви шукаєте, не існує або була переміщена.',
+      goHome:            'На Головну',
+    },
   },
 
   // ── Русский ───────────────────────────────────────────────────────────────
@@ -2413,6 +2428,11 @@ export const translations = {
       learnMore: 'Подробнее',
       accept:    'Принять',
       reject:    'Отклонить',
+    },
+    errors: {
+      pageNotFoundTitle: 'Страница Не Найдена',
+      pageNotFoundBody:  'Страница, которую Вы ищете, не существует или была перемещена.',
+      goHome:            'На Главную',
     },
   },
 
@@ -3018,6 +3038,11 @@ export const translations = {
       accept:    'Akzeptieren',
       reject:    'Ablehnen',
     },
+    errors: {
+      pageNotFoundTitle: 'Seite Nicht Gefunden',
+      pageNotFoundBody:  'Die gesuchte Seite existiert nicht oder wurde verschoben.',
+      goHome:            'Zur Startseite',
+    },
   },
 
   // ── 中文 ──────────────────────────────────────────────────────────────────
@@ -3621,6 +3646,11 @@ export const translations = {
       learnMore: '了解更多',
       accept:    '接受',
       reject:    '拒绝',
+    },
+    errors: {
+      pageNotFoundTitle: '页面未找到',
+      pageNotFoundBody:  '您查找的页面不存在或已被移动。',
+      goHome:            '返回首页',
     },
   },
 };
