@@ -231,7 +231,7 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-green)' }} />
           <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--accent-green)', letterSpacing: '0.1em' }}>BYBIT · CONNECTED</span>
-          {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>TESTNET</span>}
+          {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>DEMO</span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onReplace} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>Replace</button>
@@ -321,11 +321,22 @@ export default function ApiKeysTab() {
 
       {/* Live key */}
       <KeySection
-        title="Bybit Account"
+        title="Live Account"
         badge={{ text: 'MAINNET', color: '#00d4aa' }}
-        subtitle="Connect your Bybit account. The bot will open and close positions on your behalf."
+        subtitle="Real funds — Bybit Mainnet. The bot will trade with real money once this key is connected."
         isTestnet={false}
         maskedKey={me?.bybit_live_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
+
+      {/* Demo key */}
+      <KeySection
+        title="Demo Account"
+        badge={{ text: 'DEMO', color: '#888' }}
+        subtitle="Paper trading — Bybit Demo. Safe for testing strategies without real funds."
+        isTestnet={true}
+        maskedKey={me?.bybit_demo_key_masked || null}
         onSaved={reload}
         onDeleted={reload}
       />

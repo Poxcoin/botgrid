@@ -517,7 +517,7 @@ function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
                 <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <Td v={dstr(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
                   <Td v={t.side} hi={t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
-                  <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={fix(t.close_price, 4)}/>
+                  <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={fix(t.exit_price, 4)}/>
                   <Td v={`${sign(p)} USDT`} hi={pos(p) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
                 </tr>
               );
