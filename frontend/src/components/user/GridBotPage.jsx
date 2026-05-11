@@ -3,18 +3,8 @@ import { init, dispose } from 'klinecharts';
 import { authFetch } from '@/lib/api';
 
 const COINS = [
-  { key: 'BTC',  label: 'BTC/USDT'  },
-  { key: 'ETH',  label: 'ETH/USDT'  },
-  { key: 'SOL',  label: 'SOL/USDT'  },
-  { key: 'BNB',  label: 'BNB/USDT'  },
-  { key: 'XRP',  label: 'XRP/USDT'  },
-  { key: 'DOGE', label: 'DOGE/USDT' },
-  { key: 'ADA',  label: 'ADA/USDT'  },
-  { key: 'AVAX', label: 'AVAX/USDT' },
-  { key: 'LINK', label: 'LINK/USDT' },
-  { key: 'TON',  label: 'TON/USDT'  },
-  { key: 'PEPE', label: 'PEPE/USDT' },
-  { key: 'SUI',  label: 'SUI/USDT'  },
+  { key: 'BTC', label: 'BTC/USDT' },
+  { key: 'ETH', label: 'ETH/USDT' },
 ];
 const TFS = [
   { v: '1', l: '1m' }, { v: '5', l: '5m' }, { v: '15', l: '15m' },
