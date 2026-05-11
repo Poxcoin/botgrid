@@ -321,22 +321,11 @@ export default function ApiKeysTab() {
 
       {/* Live key */}
       <KeySection
-        title="Live Account"
+        title="Bybit Account"
         badge={{ text: 'MAINNET', color: '#00d4aa' }}
-        subtitle="Real funds — Bybit Mainnet. The bot will trade with real money once this key is connected."
+        subtitle="Connect your Bybit account. The bot will open and close positions on your behalf."
         isTestnet={false}
         maskedKey={me?.bybit_live_key_masked || null}
-        onSaved={reload}
-        onDeleted={reload}
-      />
-
-      {/* Demo key */}
-      <KeySection
-        title="Demo Account"
-        badge={{ text: 'TESTNET', color: '#888' }}
-        subtitle="Paper trading — Bybit Testnet. Safe for testing strategies without real funds."
-        isTestnet={true}
-        maskedKey={me?.bybit_demo_key_masked || null}
         onSaved={reload}
         onDeleted={reload}
       />

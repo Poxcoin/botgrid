@@ -225,7 +225,7 @@ function Chart({ coin, entryPrice }) {
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
       chart.setDataLoader({
         getBars: async ({ type, period, timestamp, callback }) => {
-          if (type === 'backward') { callback([], false); return; }
+          if (type !== 'init' && type !== 'forward') { callback([], false); return; }
           try {
             const parse = list => list.slice().reverse().map(k => ({
               timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
@@ -580,7 +580,11 @@ function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
 /* ══════════════════════════════════════════════════════════════════
    MAIN
 ══════════════════════════════════════════════════════════════════ */
+const BOT_DB_SOURCE = { signal: 'news' };
+
 export default function OverviewTab({ botId = 'signal' }) {
+  const dbSource = BOT_DB_SOURCE[botId] ?? botId;
+
   const [pnl30,     setPnl30]     = useState(null);
   const [summary,   setSummary]   = useState(null);
   const [trades,    setTrades]    = useState([]);
@@ -607,7 +611,7 @@ export default function OverviewTab({ botId = 'signal' }) {
   const positions    = summary?.positions ?? [];
   const balance      = summary?.balance;
   const totalUnreal  = summary?.total_unrealized ?? null;
-  const botTrades    = useMemo(() => trades.filter(t => (t.source || '') === botId), [trades, botId]);
+  const botTrades    = useMemo(() => trades.filter(t => (t.source || '') === dbSource), [trades, dbSource]);
   const botPos       = positions; // all open positions come from same Bybit account
 
   const botCoins = useMemo(() => {
@@ -673,10 +677,10 @@ export default function OverviewTab({ botId = 'signal' }) {
       </div>
 
       {/* ── HEARTBEAT ─────────────────────────────────────────── */}
-      {heartbeat[botId] != null && (
+      {heartbeat[dbSource] != null && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {(() => {
-            const h = heartbeat[botId];
+            const h = heartbeat[dbSource];
             const ago = h?.last_trade_min_ago;
             const fresh = ago != null && ago < 240;
             return <>

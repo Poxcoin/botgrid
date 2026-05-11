@@ -354,7 +354,7 @@ function KlineChart({ coin, tf }) {
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
       chart.setDataLoader({
         getBars: async ({ type, period, timestamp, callback }) => {
-          if (type === 'backward') { callback([], false); return; }
+          if (type !== 'init' && type !== 'forward') { callback([], false); return; }
           try {
             const parse = list => list.slice().reverse().map(k => ({
               timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
@@ -535,7 +535,7 @@ function KlineChart({ coin, tf }) {
 
 const BP_TABS = ['Positions', 'History', 'PnL'];
 
-function BottomPanel({ coin, trades, positions }) {
+function BottomPanel({ coin, trades, positions, onClose }) {
   const [tab, setTab] = useState('Positions');
 
   const openPos    = useMemo(() => (positions || []).filter(p => normSym(p.symbol) === coin), [positions, coin]);
@@ -589,7 +589,7 @@ function BottomPanel({ coin, trades, positions }) {
           openPos.length === 0
             ? <div style={{ padding: '20px 16px', fontFamily: SANS, fontSize: 12, color: 'var(--text-muted)' }}>No open positions · {coin}/USDT</div>
             : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><Th ch="Symbol"/><Th ch="Side"/><Th ch="Size"/><Th ch="Entry"/><Th ch="Mark"/><Th ch="Liq"/><Th ch="ROE"/><Th ch="Unrealized PnL" right/></tr></thead>
+                <thead><tr><Th ch="Symbol"/><Th ch="Side"/><Th ch="Size"/><Th ch="Entry"/><Th ch="Mark"/><Th ch="Liq"/><Th ch="ROE"/><Th ch="Unrealized PnL" right/><Th ch=""/></tr></thead>
                 <tbody>
                   {openPos.map((p, i) => (
                     <tr key={i}>
@@ -601,6 +601,19 @@ function BottomPanel({ coin, trades, positions }) {
                       <Td v={p.liq_price   ? `$${fmtN(p.liq_price, 2)}`   : '—'} color="var(--accent-amber)"/>
                       <Td v={p.pnl_pct != null ? `${fmtSign(p.pnl_pct, 2)}%` : '—'} color={p.pnl_pct != null ? pclr(p.pnl_pct) : undefined}/>
                       <Td v={`${fmtSign(p.unrealized_pnl ?? 0, 2)} USDT`} color={pclr(p.unrealized_pnl ?? 0)} right/>
+                      <td style={{ padding: '5px 14px', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>
+                        {onClose && (
+                          <button onClick={() => onClose(p.symbol)} style={{
+                            fontFamily: MONO, fontSize: 10, padding: '3px 8px',
+                            background: 'transparent', border: '1px solid var(--accent-red)',
+                            color: 'var(--accent-red)', cursor: 'pointer', borderRadius: 2,
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-red)'; e.currentTarget.style.color = '#000'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--accent-red)'; }}>
+                            Close
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -665,6 +678,20 @@ export default function GridBotPage() {
   const [balance,   setBalance]   = useState(null);
   const [ticker,    setTicker]    = useState(null);
 
+  const handleClose = async (symbol) => {
+    if (!confirm(`Close ${symbol} position?`)) return;
+    try {
+      const r = await authFetch('/api/users/close-position', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
+    } catch (e) {
+      alert(`Failed to close ${symbol}: ${e.message}`);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -709,7 +736,7 @@ export default function GridBotPage() {
       <TickerRow coin={coin} setCoin={coin => { setCoin(coin); setTicker(null); }} tf={tf} setTf={setTf} ticker={ticker} />
       <StatsPanel balance={balance} trades={trades} positions={positions} />
       <KlineChart coin={coin} tf={tf} />
-      <BottomPanel coin={coin} trades={trades} positions={positions} />
+      <BottomPanel coin={coin} trades={trades} positions={positions} onClose={handleClose} />
     </div>
   );
 }
