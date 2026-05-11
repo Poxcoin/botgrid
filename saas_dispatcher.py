@@ -24,11 +24,11 @@ _lock = threading.Lock()
 _notified_invalid: set[int] = set()
 
 
-def _start_user(user_id: int, api_key: str, secret: str) -> None:
+def _start_user(user_id: int, api_key: str, secret: str, is_demo: bool = False) -> None:
     stop_event = threading.Event()
     t = threading.Thread(
         target=run_grid_engine_for_user,
-        args=(user_id, api_key, secret, stop_event),
+        args=(user_id, api_key, secret, stop_event, is_demo),
         name=f"grid-u{user_id}",
         daemon=True,
     )
@@ -101,7 +101,7 @@ def _sync() -> None:
                 try:
                     ak  = decrypt_field(key_row.api_key_enc)
                     sec = decrypt_field(key_row.secret_enc)
-                    _start_user(user.id, ak, sec)
+                    _start_user(user.id, ak, sec, is_demo=key_row.is_testnet)
                 except Exception as e:
                     logger.error(f"[DISPATCHER] Failed to start user {user.id}: {e}")
 
@@ -151,7 +151,7 @@ def sync_user(user_id: int) -> None:
             time.sleep(1)
         ak  = decrypt_field(key_row.api_key_enc)
         sec = decrypt_field(key_row.secret_enc)
-        _start_user(user_id, ak, sec)
+        _start_user(user_id, ak, sec, is_demo=key_row.is_testnet)
     except Exception as e:
         logger.error(f"[DISPATCHER] sync_user({user_id}) error: {e}")
     finally:

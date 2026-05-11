@@ -714,6 +714,7 @@ def _run_single(cfg: dict) -> None:
     user_id    = cfg.get("user_id")       # None for owner's bot
     _api_key   = cfg.get("api_key")
     _api_secret = cfg.get("api_secret")
+    _is_demo   = cfg.get("is_demo", False)
 
     # Per-symbol overrides
     boundary_sl_pct       = cfg.get("boundary_sl_pct", BOUNDARY_SL_PCT)
@@ -728,7 +729,7 @@ def _run_single(cfg: dict) -> None:
         return
 
     try:
-        exchange = _init_exchange_for_user(_api_key, _api_secret) if _api_key else _init_exchange()
+        exchange = _init_exchange_for_user(_api_key, _api_secret, _is_demo) if _api_key else _init_exchange()
     except Exception as e:
         print(f"[GRID:{symbol}] ❌ Не вдалось підключитись до біржі: {e}")
         return
@@ -1283,14 +1284,14 @@ def run_grid_engine():
         print("\n[GRID] Зупинено всі сітки.")
 
 
-def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event: threading.Event) -> None:
+def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event: threading.Event, is_demo: bool = False) -> None:
     """Запускає grid engine для конкретного користувача з його API ключами."""
     thread_map: dict[str, threading.Thread] = {}
     for cfg in GRID_CONFIGS:
-        user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret}
+        user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret, "is_demo": is_demo}
         sym = user_cfg["symbol"]
         thread_map[sym] = _start_thread(user_cfg)
-        print(f"[GRID:u{user_id}] Запущено потік для {sym}")
+        print(f"[GRID:u{user_id}] Запущено потік для {sym} (demo={is_demo})")
 
     while not stop_event.is_set():
         stop_event.wait(timeout=60)
@@ -1298,7 +1299,7 @@ def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event
             sym = cfg["symbol"]
             t = thread_map.get(sym)
             if t and not t.is_alive() and not stop_event.is_set():
-                user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret}
+                user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret, "is_demo": is_demo}
                 _sym_state = _load_state(sym, user_id)
                 if _sym_state.get("stop_until", 0) > time.time():
                     continue

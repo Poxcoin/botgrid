@@ -81,38 +81,39 @@ def resolve_market_symbol(exchange: ccxt.Exchange, coin: str) -> str:
 
 
 def get_free_usdt(exchange: ccxt.Exchange) -> float:
-    """Universal balance fetcher for Bybit V5 (Unified / Contract / Demo)."""
-    try:
-        # Demo trading: ccxt fetch_balance не работает с demo endpoint,
-        # используем прямой API вызов к /v5/account/wallet-balance
-        if IS_DEMO_TRADING:
-            r = exchange.private_get_v5_account_wallet_balance(params={'accountType': 'UNIFIED'})
+    """Universal balance fetcher for Bybit V5 (Unified / Contract / Demo / per-user)."""
+    def _parse_v5_wallet(account_type: str) -> float | None:
+        try:
+            r = exchange.private_get_v5_account_wallet_balance(params={'accountType': account_type})
             coins = r.get('result', {}).get('list', [{}])[0].get('coin', [])
             for c in coins:
                 if c.get('coin') == 'USDT':
-                    return float(c.get('availableToWithdraw') or c.get('walletBalance') or 0)
-            return 0.0
-
-        # 1. Unified (Testnet / Mainnet)
-        try:
-            balance = exchange.fetch_balance({'accountType': 'unified'})
-            if "USDT" in balance and balance["USDT"].get("total", 0) > 0:
-                return float(balance["USDT"].get("free", balance["USDT"]["total"]))
-        except:
+                    v = float(c.get('availableToWithdraw') or c.get('walletBalance') or 0)
+                    if v > 0:
+                        return v
+        except Exception:
             pass
+        return None
 
-        # 2. Contract
-        try:
-            balance = exchange.fetch_balance({'accountType': 'contract'})
-            if "USDT" in balance and balance["USDT"].get("total", 0) > 0:
-                return float(balance["USDT"].get("free", balance["USDT"]["total"]))
-        except:
-            pass
+    try:
+        # 1. Try UNIFIED (works for live + some demo accounts)
+        v = _parse_v5_wallet('UNIFIED')
+        if v is not None:
+            return v
 
-        # 3. Fallback
-        balance = exchange.fetch_balance()
-        if "USDT" in balance:
-            return float(balance["USDT"].get("free", balance["USDT"].get("total", 0.0)))
+        # 2. Try CONTRACT (Bybit Demo Trading uses contract account)
+        v = _parse_v5_wallet('CONTRACT')
+        if v is not None:
+            return v
+
+        # 3. ccxt fallback chain
+        for acct in ({'accountType': 'unified'}, {'accountType': 'contract'}, {}):
+            try:
+                balance = exchange.fetch_balance(acct) if acct else exchange.fetch_balance()
+                if "USDT" in balance and balance["USDT"].get("total", 0) > 0:
+                    return float(balance["USDT"].get("free", balance["USDT"]["total"]))
+            except Exception:
+                pass
 
         return 0.0
     except Exception as e:
@@ -149,8 +150,8 @@ def _init_exchange() -> ccxt.Exchange:
     return exchange
 
 
-def _init_exchange_for_user(api_key: str, secret: str) -> ccxt.Exchange:
-    """Exchange для конкретного користувача з його API ключами (реальний акаунт)."""
+def _init_exchange_for_user(api_key: str, secret: str, is_demo: bool = False) -> ccxt.Exchange:
+    """Exchange для конкретного користувача з його API ключами."""
     exchange = ccxt.bybit({
         "apiKey": api_key,
         "secret": secret,
@@ -162,6 +163,8 @@ def _init_exchange_for_user(api_key: str, secret: str) -> ccxt.Exchange:
         },
     })
     exchange.has['fetchCurrencies'] = False
+    if is_demo:
+        exchange.urls['api'] = exchange.urls['demotrading']
     exchange.load_markets()
     return exchange
 
