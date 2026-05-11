@@ -67,7 +67,7 @@ def _build_exchange(api_key: str, secret: str, is_testnet: bool) -> ccxt.bybit:
         "options": {"defaultType": "linear"},
     })
     if is_testnet:
-        ex.urls["api"] = ex.urls["test"]
+        ex.urls["api"] = ex.urls["demotrading"]
     return ex
 
 
@@ -127,24 +127,21 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         market_id = ex.market_id(symbol)
         ex.set_leverage(leverage, symbol)
 
-        # Open position
+        # TP / SL prices (calculated from ticker before fill)
+        tp_price = round(price * (1 + tp_pct / 100), 6) if side == "LONG" else round(price * (1 - tp_pct / 100), 6)
+        sl_price = round(price * (1 - sl_pct / 100), 6) if side == "LONG" else round(price * (1 + sl_pct / 100), 6)
+
+        # Open position with inline TP/SL (Bybit linear supports this)
         order_side = "buy" if side == "LONG" else "sell"
         order = ex.create_order(symbol, "market", order_side, qty, params={
-            "category": "linear", "positionIdx": 0,
+            "category":    "linear",
+            "positionIdx": 0,
+            "takeProfit":  str(tp_price),
+            "stopLoss":    str(sl_price),
+            "tpTriggerBy": "MarkPrice",
+            "slTriggerBy": "MarkPrice",
         })
         fill = float(order.get("average") or price)
-
-        # TP / SL
-        tp_price = round(fill * (1 + tp_pct / 100), 6) if side == "LONG" else round(fill * (1 - tp_pct / 100), 6)
-        sl_price = round(fill * (1 - sl_pct / 100), 6) if side == "LONG" else round(fill * (1 + sl_pct / 100), 6)
-
-        ex.create_order(symbol, "limit", "sell" if side == "LONG" else "buy", qty, tp_price, params={
-            "category": "linear", "reduceOnly": True, "positionIdx": 0,
-        })
-        ex.set_trading_stop(symbol, params={
-            "category": "linear", "positionIdx": 0,
-            "stopLoss": str(sl_price), "slTriggerBy": "MarkPrice",
-        })
 
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    order.get("id"), fill, qty, "open")
