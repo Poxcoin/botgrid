@@ -327,15 +327,26 @@ function Panel({ botTrades, botPositions, pnl30 }) {
 
         {tab === 'positions' && (botPositions.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="Unrealized" r/></tr></thead>
-            <tbody>{botPositions.map((p, i) => (
-              <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Td v={sym(p.symbol)} hi="var(--text-primary)"/><Td v={p.side} hi={p.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
-                <Td v={fix(p.qty, 3)}/><Td v={fix(p.entry_price, 4)}/><Td v={fix(p.mark_price, 4)}/>
-                <Td v={p.sl ? fix(p.sl, 4) : '—'}/><Td v={p.tp ? fix(p.tp, 4) : '—'}/>
-                <Td v={`${sign(p.unrealized_pnl ?? 0)} USDT`} hi={pos(p.unrealized_pnl ?? 0) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
-              </tr>
-            ))}</tbody>
+            <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="PnL%" r/><Th v="Unrealized" r/></tr></thead>
+            <tbody>{botPositions.map((p, i) => {
+              const upnl   = p.unrealized_pnl ?? 0;
+              const hasSL  = !!p.stop_loss;
+              const hasTP  = !!p.take_profit;
+              return (
+                <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Td v={sym(p.symbol)} hi="var(--text-primary)"/>
+                  <Td v={p.side} hi={p.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
+                  <Td v={p.leverage ? `${p.leverage}x` : '—'}/>
+                  <Td v={fix(p.qty, 3)}/>
+                  <Td v={fix(p.entry_price, 4)}/>
+                  <Td v={fix(p.mark_price, 4)}/>
+                  <Td v={hasSL ? fix(p.stop_loss, 4) : '—'} hi={!hasSL ? 'var(--accent-red)' : undefined}/>
+                  <Td v={hasTP ? fix(p.take_profit, 4) : '⚠ NO TP'} hi={!hasTP ? 'var(--accent-red)' : undefined}/>
+                  <Td v={p.pnl_pct != null ? `${sign(p.pnl_pct, 1)}%` : '—'} hi={pos(p.pnl_pct ?? 0) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                  <Td v={`${sign(upnl)} USDT`} hi={pos(upnl) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                </tr>
+              );
+            })}</tbody>
           </table>
         )}
 
@@ -396,10 +407,11 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   useEffect(() => { refresh(); const id = setInterval(refresh, 5000); return () => clearInterval(id); }, [refresh]);
 
-  const positions = summary?.positions ?? [];
-  const balance   = summary?.balance;
-  const botTrades = useMemo(() => trades.filter(t => (t.source || '') === botId), [trades, botId]);
-  const botPos    = useMemo(() => positions.filter(p => (p.source || '') === botId), [positions, botId]);
+  const positions    = summary?.positions ?? [];
+  const balance      = summary?.balance;
+  const totalUnreal  = summary?.total_unrealized ?? null;
+  const botTrades    = useMemo(() => trades.filter(t => (t.source || '') === botId), [trades, botId]);
+  const botPos       = positions; // all open positions come from same Bybit account
 
   const botCoins = useMemo(() => {
     const s = new Set();
@@ -432,10 +444,10 @@ export default function OverviewTab({ botId = 'signal' }) {
       {/* ── STATS ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
         {[
-          { label: 'Balance',  value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—', sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
-          { label: 'Open',     value: String(openN), sub: botPos.length ? `${botPos.length} positions` : null, good: null },
-          { label: 'Bot PnL',  value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
-          { label: 'Win Rate', value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
+          { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—', sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
+          { label: 'Unrealized', value: totalUnreal != null ? `${sign(totalUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open positions` : 'no open positions', good: totalUnreal != null ? pos(totalUnreal) : null },
+          { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
+          { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
         ].map((s, i) => (
           <div key={s.label} style={{ padding: '20px 20px', borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
             <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{s.label}</div>
