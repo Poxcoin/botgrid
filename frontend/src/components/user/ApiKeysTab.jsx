@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 const FM = "'JetBrains Mono','Courier New',monospace";
 const FF = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 
-const VPS_IP = '159.69.110.239';
+const SUPPORT_EMAIL = 'support@kadoclub.net';
 
 const API = (path, opts) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
@@ -73,9 +73,9 @@ const STEPS = [
     n: 4,
     title: 'IP restriction (recommended)',
     body: (
-      <div>
-        <div style={{ marginBottom: 8 }}>Restrict the key to the server IP for extra security:</div>
-        <CopyIP ip={VPS_IP} />
+      <div style={{ lineHeight: 1.6 }}>
+        Enable IP restriction and add the trading server IP. Contact support to get the exact address —{' '}
+        <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: 'var(--accent-green)', textDecoration: 'none' }}>{SUPPORT_EMAIL}</a>.
       </div>
     ),
   },
@@ -86,23 +86,6 @@ const STEPS = [
   },
 ];
 
-function CopyIP({ ip }) {
-  const [copied, setCopied] = useState(false);
-  function copy() {
-    navigator.clipboard.writeText(ip).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
-  }
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <code style={{ fontFamily: FM, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', padding: '4px 10px', borderRadius: 4 }}>
-        {ip}
-      </code>
-      <button onClick={copy} title="Copy IP" style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? '#00d4aa' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 4, fontSize: 11, fontFamily: FF }}>
-        {copied ? <CheckIcon /> : <CopyIcon />}
-        {copied ? 'Copied' : 'Copy'}
-      </button>
-    </div>
-  );
-}
 
 function SetupGuide() {
   const [open, setOpen] = useState(false);
@@ -364,7 +347,7 @@ export default function ApiKeysTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {[
             'Grant Trade + Position permissions only. Never enable Withdrawal.',
-            `Restrict key to IP ${VPS_IP} for maximum security.`,
+            'Restrict key to the trading server IP — contact support for the address.',
             'Keys are stored encrypted — once saved they cannot be read back.',
             me?.totp_enabled
               ? '✓ Two-factor authentication is enabled on your account.'
