@@ -226,14 +226,33 @@ function Chart({ coin, entryPrice }) {
       chart.setDataLoader({
         getBars: async ({ period, timestamp, callback }) => {
           try {
-            let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
-            if (timestamp) url += `&end=${timestamp - 1}`;
-            const r = await fetch(url);
-            const d = await r.json();
-            const data = (d.result?.list || []).slice().reverse().map(k => ({
+            const parse = list => list.slice().reverse().map(k => ({
               timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
             }));
-            callback(data, data.length >= 1000);
+            const fetchPage = async end => {
+              let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
+              if (end) url += `&end=${end}`;
+              const r = await fetch(url);
+              const d = await r.json();
+              return parse(d.result?.list || []);
+            };
+            if (!timestamp) {
+              // Initial load: fetch 5 pages = up to 5000 candles of history
+              let all = [];
+              let end = undefined;
+              for (let i = 0; i < 5; i++) {
+                const page = await fetchPage(end);
+                if (!page.length) break;
+                all = [...page, ...all];
+                end = page[0].timestamp - 1;
+                if (page.length < 1000) break;
+              }
+              callback(all, all.length >= 1000);
+            } else {
+              // Lazy load on scroll-back
+              const page = await fetchPage(timestamp - 1);
+              callback(page, page.length >= 1000);
+            }
           } catch { callback([], false); }
         },
         subscribeBar: ({ period, callback: cb }) => {
