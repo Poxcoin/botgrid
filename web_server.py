@@ -801,9 +801,13 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
         test_ex.has['fetchCurrencies'] = False
         if body.use_demo:
             test_ex.urls['api'] = test_ex.urls['demotrading']
-        _bybit_balance(test_ex)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid API key — check that key and secret are correct and Trade + Position permissions are enabled on Bybit.")
+        # Use query-api endpoint — works for any account type, just verifies signature
+        raw = test_ex.private_get_v5_user_query_api({})
+        ret = raw.get("retCode", -1)
+        if ret != 0:
+            raise ValueError(raw.get("retMsg", "rejected"))
+    except Exception as _e:
+        raise HTTPException(status_code=400, detail=f"Invalid API key — {_e}. Check key/secret and that Read permissions are enabled on Bybit.")
 
     from sqlalchemy.exc import IntegrityError
     try:
