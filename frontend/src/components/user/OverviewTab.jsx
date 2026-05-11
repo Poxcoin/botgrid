@@ -116,8 +116,9 @@ const KL_CFG = {
   area:             { bar: { upColor: '#00d4aa', downColor: '#ff4d6d', noChangeColor: '#888', upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888', upWickColor: '#00d4aa', downWickColor: '#ff4d6d', noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
 };
 
-const TF_LIST  = ['1', '5', '15', '60', '240', 'D'];
-const TF_LABEL = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', 'D': '1D' };
+const TF_LIST     = ['1', '5', '15', '60', '240', 'D'];
+const TF_LABEL    = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', 'D': '1D' };
+const POP_COINS   = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
 
 function Chart({ coin }) {
   const elRef    = useRef(null);
@@ -141,7 +142,8 @@ function Chart({ coin }) {
 
       const chart = klInit(el, { styles: KL_STYLES, locale: 'en-US' });
       chartRef.current = chart;
-      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: coin === 'BTC' ? 1 : 2, volumePrecision: 4 });
+      const pp = coin === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(coin) ? 4 : 2;
+      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
       chart.setDataLoader({
         getBars: async ({ period, timestamp, callback }) => {
@@ -399,14 +401,21 @@ export default function OverviewTab({ botId = 'signal' }) {
   const botTrades = useMemo(() => trades.filter(t => (t.source || '') === botId), [trades, botId]);
   const botPos    = useMemo(() => positions.filter(p => (p.source || '') === botId), [positions, botId]);
 
-  const coins = useMemo(() => {
+  const botCoins = useMemo(() => {
     const s = new Set();
     botTrades.forEach(t => { const c = sym(t.symbol); if (c) s.add(c); });
     botPos.forEach(p => { const c = sym(p.symbol); if (c) s.add(c); });
-    return [...s].sort().slice(0, 16);
+    return [...s].sort();
   }, [botTrades, botPos]);
 
-  useEffect(() => { if (coins.length > 0 && !coins.includes(coin)) setCoin(coins[0]); }, [botId, coins]);
+  const coins = useMemo(() => {
+    const extra = POP_COINS.filter(c => !botCoins.includes(c));
+    return [...botCoins, ...extra];
+  }, [botCoins]);
+
+  useEffect(() => {
+    if (botCoins.length > 0 && !botCoins.includes(coin)) setCoin(botCoins[0]);
+  }, [botId, botCoins]);
 
   const stats = useMemo(() => {
     const cl    = botTrades.filter(t => t.closed_at);
@@ -437,29 +446,28 @@ export default function OverviewTab({ botId = 'signal' }) {
       </div>
 
       {/* ── COINS ─────────────────────────────────────────────── */}
-      {coins.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
-          {coins.map(c => {
-            const on = coin === c;
-            const hp = botPos.some(p => sym(p.symbol) === c);
-            return (
-              <button key={c} onClick={() => setCoin(c)} style={{
-                fontFamily: FM, fontSize: 11, padding: '4px 10px',
-                background: on ? 'var(--bg-elevated)' : 'transparent',
-                border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
-                color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-                cursor: 'pointer', position: 'relative',
-              }}
-              onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
-              onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}>
-                {c}
-                {hp && <span style={{ position: 'absolute', top: 2, right: 2, width: 3, height: 3, borderRadius: '50%', background: 'var(--accent-green)' }}/>}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
+        {coins.map(c => {
+          const on = coin === c;
+          const isBot = botCoins.includes(c);
+          const hp    = botPos.some(p => sym(p.symbol) === c);
+          return (
+            <button key={c} onClick={() => setCoin(c)} style={{
+              fontFamily: FM, fontSize: 11, padding: '4px 10px',
+              background: on ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${on ? 'var(--border-strong)' : isBot ? 'rgba(0,212,170,0.3)' : 'var(--border-default)'}`,
+              color: on ? 'var(--text-primary)' : isBot ? 'var(--accent-green)' : 'var(--text-muted)',
+              cursor: 'pointer', position: 'relative',
+            }}
+            onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
+            onMouseLeave={e => { if (!on) { e.currentTarget.style.color = isBot ? 'var(--accent-green)' : 'var(--text-muted)'; e.currentTarget.style.borderColor = isBot ? 'rgba(0,212,170,0.3)' : 'var(--border-default)'; } }}>
+              {c}
+              {hp && <span style={{ position: 'absolute', top: 2, right: 2, width: 3, height: 3, borderRadius: '50%', background: 'var(--accent-green)' }}/>}
+            </button>
+          );
+        })}
+      </div>
 
       {/* ── CHART ─────────────────────────────────────────────── */}
       <Chart coin={coin} />

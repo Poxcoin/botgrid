@@ -3,8 +3,18 @@ import { init, dispose } from 'klinecharts';
 import { authFetch } from '@/lib/api';
 
 const COINS = [
-  { key: 'ETH', label: 'ETH/USDT' },
-  { key: 'BTC', label: 'BTC/USDT' },
+  { key: 'BTC',  label: 'BTC/USDT'  },
+  { key: 'ETH',  label: 'ETH/USDT'  },
+  { key: 'SOL',  label: 'SOL/USDT'  },
+  { key: 'BNB',  label: 'BNB/USDT'  },
+  { key: 'XRP',  label: 'XRP/USDT'  },
+  { key: 'DOGE', label: 'DOGE/USDT' },
+  { key: 'ADA',  label: 'ADA/USDT'  },
+  { key: 'AVAX', label: 'AVAX/USDT' },
+  { key: 'LINK', label: 'LINK/USDT' },
+  { key: 'TON',  label: 'TON/USDT'  },
+  { key: 'PEPE', label: 'PEPE/USDT' },
+  { key: 'SUI',  label: 'SUI/USDT'  },
 ];
 const TFS = [
   { v: '1', l: '1m' }, { v: '5', l: '5m' }, { v: '15', l: '15m' },
@@ -346,7 +356,8 @@ function KlineChart({ coin, tf }) {
       const chart = init(el, { styles: CHART_STYLES, locale: 'en-US' });
       chartRef.current = chart;
 
-      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: coin === 'BTC' ? 1 : 2, volumePrecision: 4 });
+      const pp = coin === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(coin) ? 4 : 2;
+      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
       chart.setDataLoader({
         getBars: async ({ period, timestamp, callback }) => {
@@ -636,7 +647,7 @@ function BottomPanel({ coin, trades, positions }) {
 // ── Root ───────────────────────────────────────────────────────
 
 export default function GridBotPage() {
-  const [coin,      setCoin]      = useState('ETH');
+  const [coin,      setCoin]      = useState('BTC');
   const [tf,        setTf]        = useState('60');
   const [trades,    setTrades]    = useState([]);
   const [positions, setPositions] = useState([]);
@@ -656,8 +667,13 @@ export default function GridBotPage() {
         }
         if (sRes.ok) {
           const d = await sRes.json();
-          setPositions(d.positions ?? []);
+          const pos = d.positions ?? [];
+          setPositions(pos);
           setBalance(d.balance ?? null);
+          if (pos.length > 0) {
+            const activeCoin = normSym(pos[0].symbol);
+            if (activeCoin && COINS.some(c => c.key === activeCoin)) setCoin(activeCoin);
+          }
         }
       } catch {}
     };
