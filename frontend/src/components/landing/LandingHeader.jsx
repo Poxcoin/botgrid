@@ -15,11 +15,12 @@ function NavLink({ to, label }) {
   const active = pathname === to || (to !== '/' && pathname.startsWith(to));
   return (
     <Link to={to} style={{
-      fontFamily: FONT, fontSize: 13, color: active ? '#fff' : '#888',
+      fontFamily: FONT, fontSize: 13,
+      color: active ? 'var(--nav-fg-hover)' : 'var(--nav-fg)',
       textDecoration: 'none', transition: 'color 150ms',
     }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#fff'; }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#888'; }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--nav-fg-hover)'; }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--nav-fg)'; }}
     >
       {label}
     </Link>
@@ -31,7 +32,7 @@ function SectionTitle({ children }) {
   return (
     <div style={{
       padding: '14px 20px 8px',
-      fontFamily: MONO, fontSize: 9, color: '#3a3a3a',
+      fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)',
       letterSpacing: '0.22em', textTransform: 'uppercase',
     }}>
       {children}
@@ -40,7 +41,7 @@ function SectionTitle({ children }) {
 }
 
 function Divider() {
-  return <div style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />;
+  return <div style={{ height: 1, background: 'var(--header-border)' }} />;
 }
 
 /* ── Theme segmented toggle (Dark / Light, always inline) ── */
@@ -53,17 +54,17 @@ function ThemeSegment() {
       onClick={onClick}
       style={{
         flex: 1,
-        background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
-        color: isActive ? '#fff' : '#777',
-        border: '1px solid ' + (isActive ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)'),
+        background: isActive ? 'var(--hover-bg-2)' : 'transparent',
+        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+        border: '1px solid ' + (isActive ? 'var(--border-strong)' : 'var(--border-subtle)'),
         borderRadius: 6,
         fontFamily: FONT, fontSize: 12, fontWeight: 500,
         padding: '8px 0', cursor: 'pointer',
         transition: 'all 140ms',
         letterSpacing: '0.02em',
       }}
-      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; } }}
-      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; } }}
+      onMouseEnter={e => { if (!isActive) { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}
+      onMouseLeave={e => { if (!isActive) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; } }}
     >
       {label}
     </button>
@@ -91,20 +92,20 @@ function LanguageBlock() {
           padding: '11px 20px', cursor: 'pointer',
           transition: 'background 120ms',
         }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--hover-bg)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: '#777' }}>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, color: 'var(--text-secondary)' }}>
           <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
           <path d="M8 1.5C8 1.5 5.5 4 5.5 8s2.5 6.5 2.5 6.5M8 1.5C8 1.5 10.5 4 10.5 8S8 14.5 8 14.5M1.5 8h13" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
         </svg>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: FONT, fontSize: 13, color: '#ddd', lineHeight: 1.2 }}>{t.settings.language}</div>
+          <div style={{ fontFamily: FONT, fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.2 }}>{t.settings.language}</div>
         </div>
-        <span style={{ fontFamily: MONO, fontSize: 10, color: '#666', letterSpacing: '0.04em' }}>{LANG_LABELS[lang]}</span>
+        <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{LANG_LABELS[lang]}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
-          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 180ms', flexShrink: 0 }}>
-          <path d="M3 2l4 3-4 3" stroke="#555" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 180ms', flexShrink: 0, color: 'var(--text-muted)' }}>
+          <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
 
@@ -118,20 +119,20 @@ function LanguageBlock() {
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '8px 12px',
-                  background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
-                  border: '1px solid ' + (active ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'),
+                  background: active ? 'var(--hover-bg-2)' : 'transparent',
+                  border: '1px solid ' + (active ? 'var(--border-default)' : 'var(--border-subtle)'),
                   borderRadius: 6,
                   cursor: 'pointer', transition: 'all 120ms',
                   fontFamily: FONT, fontSize: 12,
-                  color: active ? '#fff' : '#888',
+                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
                 }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = '#ccc'; } }}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#888'; } }}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'var(--hover-bg)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
               >
                 <span>{LANG_LABELS[code]}</span>
                 {active && (
                   <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-                    <path d="M2 6.5l3.5 3.5 5.5-6" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 6.5l3.5 3.5 5.5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
               </button>
@@ -151,17 +152,17 @@ function MenuRow({ icon, label, onClick, href, danger }) {
       padding: '11px 20px',
       transition: 'background 120ms',
     }}>
-      <span style={{ flexShrink: 0, color: danger ? '#e74c3c' : '#777', display: 'flex' }}>{icon}</span>
-      <span style={{ flex: 1, fontFamily: FONT, fontSize: 13, color: danger ? '#e74c3c' : '#ddd' }}>{label}</span>
+      <span style={{ flexShrink: 0, color: danger ? 'var(--accent-red)' : 'var(--text-secondary)', display: 'flex' }}>{icon}</span>
+      <span style={{ flex: 1, fontFamily: FONT, fontSize: 13, color: danger ? 'var(--accent-red)' : 'var(--text-primary)' }}>{label}</span>
       {href && (
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M3.5 8.5l5-5M5 3.5h3.5V7" stroke="#555" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, color: 'var(--text-muted)' }}>
+          <path d="M3.5 8.5l5-5M5 3.5h3.5V7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )}
     </div>
   );
 
-  const onEnter = e => { e.currentTarget.style.background = danger ? 'rgba(231,76,60,0.07)' : 'rgba(255,255,255,0.03)'; };
+  const onEnter = e => { e.currentTarget.style.background = danger ? 'var(--accent-red-dim)' : 'var(--hover-bg)'; };
   const onLeave = e => { e.currentTarget.style.background = 'transparent'; };
 
   if (href) return (
@@ -192,10 +193,10 @@ function SettingsDropdown({ onClose }) {
 
   const panelStyle = {
     position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-    width: 308, background: '#0b0b0b',
-    border: '1px solid rgba(255,255,255,0.09)',
+    width: 308, background: 'var(--panel-bg)',
+    border: '1px solid var(--border-default)',
     borderRadius: 10,
-    boxShadow: '0 24px 64px rgba(0,0,0,0.85)',
+    boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
     zIndex: 200, overflow: 'hidden',
     paddingTop: 4, paddingBottom: 4,
   };
@@ -242,20 +243,20 @@ function SettingsDropdown({ onClose }) {
         <div style={{ padding: '10px 16px 12px', display: 'flex', gap: 8 }}>
           <Link to="/auth?mode=login" onClick={onClose}
             style={{
-              flex: 1, padding: '9px 0', border: '1px solid rgba(255,255,255,0.1)',
+              flex: 1, padding: '9px 0', border: '1px solid var(--border-default)',
               borderRadius: 6, textAlign: 'center',
-              fontFamily: FONT, fontSize: 12, color: '#aaa', textDecoration: 'none',
+              fontFamily: FONT, fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none',
               transition: 'all 120ms',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#aaa'; }}>
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
             {t.auth.login}
           </Link>
           <Link to="/auth?mode=register" onClick={onClose}
             style={{
-              flex: 1, padding: '9px 0', background: '#fff',
+              flex: 1, padding: '9px 0', background: 'var(--cta-bg)',
               borderRadius: 6, textAlign: 'center',
-              fontFamily: FONT, fontSize: 12, fontWeight: 600, color: '#000', textDecoration: 'none',
+              fontFamily: FONT, fontSize: 12, fontWeight: 600, color: 'var(--cta-fg)', textDecoration: 'none',
               transition: 'opacity 120ms',
             }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
@@ -295,16 +296,16 @@ export default function LandingHeader() {
   return (
     <>
       <header className="w-full sticky top-0 z-50" style={{
-        background: 'rgba(6,6,6,0.88)',
+        background: 'var(--header-bg)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        borderBottom: '1px solid var(--header-border)',
       }}>
         <div style={{ padding: '0 48px', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
           {/* Logo */}
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '-0.04em', fontFamily: MONO, color: '#fff' }}>KADO</span>
+            <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '-0.04em', fontFamily: MONO, color: 'var(--text-primary)' }}>KADO</span>
           </Link>
 
           {/* Desktop nav */}
@@ -321,7 +322,7 @@ export default function LandingHeader() {
               <Link to="/account"
                 className="hidden sm:inline-flex items-center"
                 style={{
-                  background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
+                  background: 'var(--cta-bg)', color: 'var(--cta-fg)', padding: '8px 22px', borderRadius: 100,
                   fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
                 }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
@@ -332,15 +333,15 @@ export default function LandingHeader() {
               <>
                 <Link to="/auth?mode=login"
                   className="hidden sm:inline"
-                  style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none', transition: 'color 150ms' }}
-                  onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                  onMouseLeave={e => e.currentTarget.style.color = '#888'}>
+                  style={{ fontFamily: FONT, fontSize: 13, color: 'var(--nav-fg)', textDecoration: 'none', transition: 'color 150ms' }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'var(--nav-fg-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'var(--nav-fg)'}>
                   {t.auth.login}
                 </Link>
                 <Link to="/auth?mode=register"
                   className="hidden sm:inline-flex items-center"
                   style={{
-                    background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
+                    background: 'var(--cta-bg)', color: 'var(--cta-fg)', padding: '8px 22px', borderRadius: 100,
                     fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
                   }}
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
@@ -355,15 +356,15 @@ export default function LandingHeader() {
               <button
                 onClick={() => setSettingsOpen(v => !v)}
                 style={{
-                  background: settingsOpen ? 'rgba(255,255,255,0.07)' : 'none',
-                  border: settingsOpen ? '1px solid rgba(255,255,255,0.1)' : '1px solid transparent',
+                  background: settingsOpen ? 'var(--hover-bg-2)' : 'none',
+                  border: settingsOpen ? '1px solid var(--border-default)' : '1px solid transparent',
                   borderRadius: 6,
                   cursor: 'pointer', padding: '5px 6px',
-                  color: settingsOpen ? '#fff' : '#666',
+                  color: settingsOpen ? 'var(--text-primary)' : 'var(--text-muted)',
                   transition: 'all 150ms', display: 'flex', alignItems: 'center',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                onMouseLeave={e => { if (!settingsOpen) { e.currentTarget.style.color = '#666'; e.currentTarget.style.background = 'none'; e.currentTarget.style.border = '1px solid transparent'; } }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--hover-bg)'; }}
+                onMouseLeave={e => { if (!settingsOpen) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'none'; e.currentTarget.style.border = '1px solid transparent'; } }}
               >
                 {/* Cogwheel gear icon */}
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -377,7 +378,7 @@ export default function LandingHeader() {
             {/* Mobile burger */}
             <button className="md:hidden" onClick={() => setMobileOpen(v => !v)}
               aria-label="Open menu" aria-expanded={mobileOpen} title="Open menu"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: 4 }}>
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 4 }}>
               <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
                 <rect width="20" height="1.5" fill="currentColor"/>
                 <rect y="6" width="20" height="1.5" fill="currentColor"/>
@@ -389,29 +390,29 @@ export default function LandingHeader() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: '#060606' }}>
+          <div style={{ borderTop: '1px solid var(--header-border)', background: 'var(--bg-base)' }}>
             <div className="px-5 py-5 flex flex-col" style={{ gap: 4 }}>
               {navLinks.map(([to, label]) => (
                 <Link key={to} to={to} onClick={() => setMobileOpen(false)}
                   className="block py-3"
-                  style={{ fontFamily: FONT, fontSize: 14, letterSpacing: '0.02em', color: '#fff', textDecoration: 'none', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  style={{ fontFamily: FONT, fontSize: 14, letterSpacing: '0.02em', color: 'var(--text-primary)', textDecoration: 'none', borderBottom: '1px solid var(--header-border)' }}>
                   {label}
                 </Link>
               ))}
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, paddingTop: 16 }}>
                 {isLoggedIn ? (
                   <Link to="/account" onClick={() => setMobileOpen(false)}
-                    style={{ background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
+                    style={{ background: 'var(--cta-bg)', color: 'var(--cta-fg)', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
                     {t.auth.account}
                   </Link>
                 ) : (
                   <>
                     <Link to="/auth?mode=login" onClick={() => setMobileOpen(false)}
-                      style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none' }}>
+                      style={{ fontFamily: FONT, fontSize: 13, color: 'var(--nav-fg)', textDecoration: 'none' }}>
                       {t.auth.login}
                     </Link>
                     <Link to="/auth?mode=register" onClick={() => setMobileOpen(false)}
-                      style={{ background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
+                      style={{ background: 'var(--cta-bg)', color: 'var(--cta-fg)', padding: '8px 22px', borderRadius: 100, fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none' }}>
                       {t.auth.signup}
                     </Link>
                   </>

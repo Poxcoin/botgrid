@@ -33,6 +33,19 @@
 
     --brand-glow: rgba(0,184,148,0.18);
 
+    /* ── CTA (inverted primary action) ── */
+    --cta-bg: #0A0A0A;
+    --cta-fg: #FFFFFF;
+
+    /* ── Header / nav semantic ── */
+    --header-bg:     rgba(255,255,255,0.88);
+    --header-border: var(--border-subtle);
+    --nav-fg:        var(--text-secondary);
+    --nav-fg-hover:  var(--text-primary);
+    --panel-bg:      var(--bg-surface);
+    --hover-bg:      rgba(10,10,10,0.04);
+    --hover-bg-2:    rgba(10,10,10,0.07);
+
     /* ── Legacy aliases (existing components keep working) ── */
     --bg:        var(--bg-base);
     --bg2:       var(--bg-surface);
@@ -85,6 +98,19 @@
     --brand-glow: rgba(0,212,170,0.22);
 
     --site-bg-glass: rgba(5,5,5,0.85);
+
+    /* ── CTA (inverted) ── */
+    --cta-bg: #FFFFFF;
+    --cta-fg: #0A0A0A;
+
+    /* ── Header / nav semantic ── */
+    --header-bg:     rgba(6,6,6,0.88);
+    --header-border: rgba(255,255,255,0.06);
+    --nav-fg:        #888;
+    --nav-fg-hover:  #fff;
+    --panel-bg:      #0b0b0b;
+    --hover-bg:      rgba(255,255,255,0.03);
+    --hover-bg-2:    rgba(255,255,255,0.07);
   }
 
   html, body {

@@ -7,6 +7,17 @@
     <title>Kado — AI Signal Intelligence</title>
     <meta name="description" content="KADO automates crypto trading on Bybit using AI signals. Performance plan: 20% of net new profits, no upfront cost. You keep custody — we never touch your funds.">
     <meta name="theme-color" content="#050505">
+    <script>
+      // Anti-FOUC: apply theme before first paint. Order: stored pref → system pref → dark default.
+      (function () {
+        try {
+          var stored = localStorage.getItem('kado_theme');
+          var theme = stored || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) { document.documentElement.classList.add('dark'); }
+      })();
+    </script>
     <link rel="canonical" href="https://kadoclub.net/">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://kadoclub.net/">
@@ -21,9 +32,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <script type="module" src="/assets/index-xCAjaX8b.js"></script>
+    <script type="module" src="/assets/index-Cc4qIani.js"></script>
     <link rel="modulepreload" href="/assets/recharts-lib-CB3CrQrG.js">
-    <link rel="stylesheet" href="/assets/index-ZK7BcMXL.css">
+    <link rel="stylesheet" href="/assets/index-CfG_SbLC.css">
   </head>
   <body>
     <div id="root"></div>
