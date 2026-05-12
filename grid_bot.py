@@ -809,6 +809,23 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
                         state["positions"] = {}
                         _save_state(symbol, state, user_id)
+                    elif ex_qty > 0 and not state.get("positions"):
+                        # Orphaned positions: exchange has open, state tracks none → close market
+                        print(f"[GRID:{symbol}] ⚠️  Orphaned позиції на біржі без стейту — закриваємо")
+                        for _p in ex_positions:
+                            _qty = abs(float(_p.get("contracts") or 0))
+                            if _qty <= 0:
+                                continue
+                            _side = _p.get("side", "").lower()
+                            _close_side = "sell" if _side == "long" else "buy"
+                            try:
+                                exchange.create_order(
+                                    symbol, "market", _close_side, _qty,
+                                    params={"category": "linear", "reduceOnly": True},
+                                )
+                                print(f"[GRID:{symbol}] 🧹 Orphan {_side.upper()} qty={_qty} закрито")
+                            except Exception as _ce:
+                                print(f"[GRID:{symbol}] ⚠️ Orphan close помилка: {_ce}")
                 except Exception as _e:
                     print(f"[GRID:{symbol}] Reconcile помилка: {_e}")
 
