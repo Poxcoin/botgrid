@@ -66,9 +66,30 @@ def _build_exchange(api_key: str, secret: str, is_testnet: bool) -> ccxt.bybit:
         "secret": secret,
         "options": {"defaultType": "linear"},
     })
+    ex.has["fetchCurrencies"] = False
     if is_testnet:
         ex.urls["api"] = ex.urls["demotrading"]
+    ex.load_markets()
     return ex
+
+
+def _get_free_usdt(ex: ccxt.bybit) -> float:
+    """Balance fetch compatible with both demo (UNIFIED) and live (CONTRACT/UNIFIED)."""
+    for acct in ("UNIFIED", "CONTRACT"):
+        try:
+            r = ex.private_get_v5_account_wallet_balance(params={"accountType": acct})
+            coins = r.get("result", {}).get("list", [{}])[0].get("coin", [])
+            for c in coins:
+                if c.get("coin") == "USDT":
+                    v = float(c.get("availableToWithdraw") or c.get("walletBalance") or 0)
+                    if v > 0:
+                        return v
+        except Exception:
+            pass
+    try:
+        return float(ex.fetch_balance()["USDT"]["free"] or 0)
+    except Exception:
+        return 0.0
 
 
 def _log_trade(user_id: int, signal_id: str, source: str, symbol: str,
@@ -112,7 +133,7 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         ex = _build_exchange(user["api_key"], user["secret"], user["is_testnet"])
 
         # Balance → position size
-        balance  = ex.fetch_balance()["USDT"]["free"]
+        balance  = _get_free_usdt(ex)
         size_usd = balance * (size_pct / 100) * leverage
 
         # Market price
