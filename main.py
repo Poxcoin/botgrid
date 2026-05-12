@@ -15,6 +15,7 @@ from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
+from modules.funding_strategy import start_funding_strategy, funding_queue
 from modules.analytics_db import save_signal, init_db, DB_PATH
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
@@ -458,6 +459,7 @@ def run_signal_engine():
     start_commander()
     start_dex_scanner()
     start_smart_wallet_tracker()
+    start_funding_strategy()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
 
@@ -819,6 +821,33 @@ def run_signal_engine():
                     signal_id=signal_id)
                 _saas_dispatch(liq_sig, "liq_cascade",
                     ALT_LEVERAGE, 6.0, 2.5, round(ALT_SIZE * 0.8, 1))
+            # ──────────────────────────────────────────────────────────────────
+
+            # ─── Funding Rate mean-reversion signals ───────────────────────────
+            while not funding_queue.empty():
+                try:
+                    fr_sig = funding_queue.get_nowait()
+                except Exception:
+                    break
+                coin   = fr_sig.get("coin", "")
+                now_ts = datetime.now(timezone.utc).timestamp()
+                if now_ts - _coin_cooldown.get(coin, 0) < COIN_COOLDOWN_SEC:
+                    print(f"[FR] ⏳ Cooldown {coin}")
+                    continue
+                if is_coin_paused(coin):
+                    print(f"[FR] ⏸ {coin} призупинено — пропускаємо")
+                    continue
+                _coin_cooldown[coin] = now_ts
+                save_cooldown(_coin_cooldown)
+                fr_size   = round(ALT_SIZE * fr_sig.get("size_multiplier", 1.0), 1)
+                signal_id = save_signal(fr_sig, executed=False)
+                print(f"\n[FR] 🎯 {coin} {fr_sig['action']} | score={fr_sig['total_score']} "
+                      f"FR={fr_sig['components']['funding_rate']:+.4f}%")
+                if SIGNAL_BOT_TRADING:
+                    execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
+                                  tp_pct=ALT_TP, sl_pct=ALT_SL, size_pct=fr_size,
+                                  signal_id=signal_id)
+                _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, ALT_TP, ALT_SL, fr_size)
             # ──────────────────────────────────────────────────────────────────
 
             # Пишем live intel для дашборда
