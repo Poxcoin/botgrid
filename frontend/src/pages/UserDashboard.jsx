@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import OverviewTab  from '@/components/user/OverviewTab';
-import GridBotPage  from '@/components/user/GridBotPage';
 import SettingsTab  from '@/components/user/SettingsTab';
 import AccountTab   from '@/components/user/AccountTab';
 import SecurityTab  from '@/components/user/SecurityTab';
@@ -21,7 +20,6 @@ function getUser() {
 }
 
 function Page({ tab }) {
-  if (tab === 'grid') return <GridBotPage />;
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} />;
   switch (tab) {
     case 'account':  return <AccountTab />;
@@ -207,7 +205,7 @@ export default function UserDashboard() {
         </div>
 
         {/* content */}
-        <div style={{ flex: 1, overflow: tab === 'grid' ? 'hidden' : 'auto', padding: '28px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '28px', display: 'flex', flexDirection: 'column' }}>
           <Page tab={tab} />
         </div>
       </div>
