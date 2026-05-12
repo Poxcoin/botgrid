@@ -388,11 +388,16 @@ function Chart({ coin, entryPrice }) {
 /* ══════════════════════════════════════════════════════════════════
    BOTTOM PANEL
 ══════════════════════════════════════════════════════════════════ */
-function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
+function Panel({ botTrades, botPositions, onClose = () => {} }) {
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
   const open   = useMemo(() => botTrades.filter(t => !t.closed_at), [botTrades]);
   const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
+
+  const pnlTotal = useMemo(() => closed.reduce((s, t) => s + pnl(t), 0), [closed]);
+  const pnlWins  = useMemo(() => closed.filter(t => pnl(t) > 0), [closed]);
+  const pnlLoss  = useMemo(() => closed.filter(t => pnl(t) < 0), [closed]);
+  const pnlWr    = closed.length ? Math.round(pnlWins.length / closed.length * 100) : 0;
 
   useEffect(() => {
     if (!botPositions.length) return;
@@ -525,13 +530,13 @@ function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
           </table>
         )}
 
-        {tab === 'pnl' && (pnl30
-          ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
+        {tab === 'pnl' && (closed.length === 0 ? <Empty /> :
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
             {[
-              ['30d PnL',  `${sign(pnl30.total_pnl)} USDT`, pos(pnl30.total_pnl)],
-              ['Win Rate', `${pnl30.win_rate}%`,             pnl30.win_rate >= 50],
-              ['Trades',   String(pnl30.total_trades),       true],
-              ['W / L',    `${pnl30.wins} / ${pnl30.losses}`, true],
+              ['Total PnL', `${sign(pnlTotal)} USDT`,                        pos(pnlTotal)],
+              ['Win Rate',  `${pnlWr}%`,                                      pnlWr >= 50],
+              ['Trades',    String(closed.length),                            true],
+              ['W / L',     `${pnlWins.length} / ${pnlLoss.length}`,         true],
             ].map(([l, v, good]) => (
               <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
@@ -539,7 +544,6 @@ function Panel({ botTrades, botPositions, pnl30, onClose = () => {} }) {
               </div>
             ))}
           </div>
-          : <Empty />
         )}
 
         {tab === 'equity' && (() => {
@@ -585,13 +589,10 @@ const BOT_DB_SOURCE = { signal: 'news' };
 export default function OverviewTab({ botId = 'signal' }) {
   const dbSource = BOT_DB_SOURCE[botId] ?? botId;
 
-  const [pnl30,     setPnl30]     = useState(null);
   const [summary,   setSummary]   = useState(null);
   const [trades,    setTrades]    = useState([]);
   const [coin,      setCoin]      = useState('BTC');
   const [heartbeat, setHeartbeat] = useState({});
-
-  useEffect(() => { api('/api/users/closed-pnl?days=30').then(setPnl30).catch(() => {}); }, []);
 
   const refresh = useCallback(() => {
     Promise.all([api('/api/users/bot-summary'), api('/api/users/trades?limit=500')])
@@ -721,7 +722,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <Chart coin={coin} entryPrice={entryPrice} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
-      <Panel botTrades={botTrades} botPositions={botPos} pnl30={pnl30} onClose={handleClose}/>
+      <Panel botTrades={botTrades} botPositions={botPos} onClose={handleClose}/>
     </div>
   );
 }
