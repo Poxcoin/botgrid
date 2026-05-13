@@ -12,7 +12,8 @@ Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONPATH=/opt/botgrid
 EnvironmentFile=/opt/botgrid/.env
 ExecStart=/opt/botgrid/venv/bin/python -u -m userbot.main
-Restart=on-failure
+ExecStartPost=/opt/botgrid/scripts/notify_restart.sh kado-userbot
+Restart=always
 RestartSec=10
 StandardOutput=append:/opt/botgrid/userbot.log
 StandardError=append:/opt/botgrid/userbot.log

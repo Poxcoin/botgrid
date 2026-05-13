@@ -173,7 +173,7 @@ def _real_ip(request: Request) -> str:
 # ─── Global API rate limit middleware ────────────────────────────────────────
 @app.middleware("http")
 async def global_rate_limit(request: Request, call_next):
-    if request.url.path.startswith("/api/"):
+    if request.url.path.startswith("/api/") and request.url.path != "/api/health":
         ip = _real_ip(request)
         if not _check_rate_limit(f"api:{ip}", window=60, max_hits=120):
             return Response("Rate limit exceeded", status_code=429)
@@ -339,6 +339,16 @@ class BacktestStartRequest(BaseModel):
 
 class BillingCheckoutRequest(BaseModel):
     plan: str   # basic | pro | performance
+
+
+# ─── Health check (public, no auth, no rate limit) ────────────────────────────
+@app.get("/api/health")
+async def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute("SELECT 1")
+        return {"status": "ok", "timestamp": datetime.utcnow().isoformat() + "Z"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 @app.post("/api/backtest/start")

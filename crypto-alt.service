@@ -11,7 +11,8 @@ Environment=PATH=/opt/botgrid/venv/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=/opt/botgrid/.env
 ExecStart=/opt/botgrid/venv/bin/python -u altcoin_bot.py
-Restart=on-failure
+ExecStartPost=/opt/botgrid/scripts/notify_restart.sh crypto-alt
+Restart=always
 RestartSec=15
 StandardOutput=append:/opt/botgrid/alt_engine.log
 StandardError=append:/opt/botgrid/alt_engine.log
