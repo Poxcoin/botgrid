@@ -42,6 +42,7 @@ from config.settings import (
     CASCADE_TRADING,
     CASCADE_LIVE_MODE, CASCADE_LIVE_API_KEY, CASCADE_LIVE_SECRET,
     CASCADE_IS_DEMO, CASCADE_DEMO_API_KEY, CASCADE_DEMO_SECRET,
+    OWNER_USER_ID,
 )
 
 # ─── Конфіг ───────────────────────────────────────────────────────────────────
@@ -98,13 +99,37 @@ _exchange: Optional[ccxt.Exchange] = None
 
 # ─── Exchange init ────────────────────────────────────────────────────────────
 
+def _get_owner_key() -> tuple[str, str, bool] | None:
+    """Pull API key from DB for OWNER_USER_ID. Returns (api_key, secret, is_testnet) or None."""
+    if not OWNER_USER_ID:
+        return None
+    try:
+        from database import SessionLocal, UserApiKey
+        from utils.crypto import decrypt_field
+        db = SessionLocal()
+        try:
+            row = db.query(UserApiKey).filter_by(user_id=OWNER_USER_ID, exchange="bybit").first()
+            if not row:
+                return None
+            key = decrypt_field(row.api_key_enc)
+            secret = decrypt_field(row.secret_enc)
+            if not key or not secret:
+                return None
+            return key, secret, row.is_testnet
+        finally:
+            db.close()
+    except Exception as e:
+        print(f"[CASCADE] ⚠ не вдалося прочитати ключ з БД: {e}")
+        return None
+
+
 def _init_cascade_exchange() -> ccxt.Exchange:
     """
-    Ініціалізує Bybit exchange для cascade bot.
-
-    CASCADE_LIVE_MODE=True  → live API ключі (CASCADE_LIVE_API_KEY/SECRET),
-                              ігнорує IS_DEMO_TRADING — для production деплою.
-    Інакше               → стандартний _init_exchange() (поважає IS_DEMO_TRADING).
+    Пріоритет:
+    1. CASCADE_LIVE_MODE=True  → live ключі з .env
+    2. OWNER_USER_ID заданий   → ключ з БД (автоматично demo/live залежно від is_testnet)
+    3. CASCADE_IS_DEMO + env   → старий demo fallback
+    4. Fallback                → _init_exchange() (IS_DEMO_TRADING з .env)
     """
     if CASCADE_LIVE_MODE:
         if not CASCADE_LIVE_API_KEY or not CASCADE_LIVE_SECRET:
@@ -124,7 +149,25 @@ def _init_cascade_exchange() -> ccxt.Exchange:
         exchange.load_markets()
         return exchange
 
-    # Demo або той самий акаунт що й інші боти (IS_DEMO_TRADING керує)
+    # Ключ з бази — не треба перестворювати при ротації ключів
+    db_creds = _get_owner_key()
+    if db_creds:
+        api_key, secret, is_testnet = db_creds
+        exchange = ccxt.bybit({
+            "apiKey":  api_key,
+            "secret":  secret,
+            "enableRateLimit": True,
+            "options": {"defaultType": "linear", "adjustForTimeDifference": True, "recvWindow": 10000},
+        })
+        if is_testnet:
+            exchange.urls["api"] = exchange.urls["demotrading"]
+        exchange.has["fetchCurrencies"] = False
+        exchange.load_markets()
+        mode = "demo" if is_testnet else "live"
+        print(f"[CASCADE] 🔑 ключ з БД (user={OWNER_USER_ID}, {mode})")
+        return exchange
+
+    # Старий demo fallback через env vars
     if CASCADE_IS_DEMO and CASCADE_DEMO_API_KEY and CASCADE_DEMO_SECRET:
         exchange = ccxt.bybit({
             "apiKey":  CASCADE_DEMO_API_KEY,
