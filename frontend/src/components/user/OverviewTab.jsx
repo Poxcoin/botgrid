@@ -391,7 +391,7 @@ function Chart({ coin, entryPrice }) {
 function Panel({ botTrades, botPositions, onClose = () => {} }) {
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
-  const open   = useMemo(() => botTrades.filter(t => !t.closed_at), [botTrades]);
+  const open   = useMemo(() => botTrades.filter(t => !t.closed_at && t.status !== 'failed'), [botTrades]);
   const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
 
   const pnlTotal = useMemo(() => closed.reduce((s, t) => s + pnl(t), 0), [closed]);
@@ -639,7 +639,7 @@ export default function OverviewTab({ botId = 'signal' }) {
     return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
   }, [botTrades]);
 
-  const openN = botTrades.filter(t => !t.closed_at).length;
+  const openN = botTrades.filter(t => !t.closed_at && t.status !== 'failed').length;
 
   const activePos  = botPos.find(p => sym(p.symbol) === coin);
   const entryPrice = activePos?.entry_price ?? 0;
