@@ -268,7 +268,7 @@ def update_trade_closed(order_id: str, exit_price: float, pnl_usdt: float):
             monthly = MonthlyPnl(user_id=trade.user_id, year=now.year, month=now.month)
             db.add(monthly)
 
-        monthly.gross_pnl       += pnl_usdt
+        monthly.gross_pnl        = (monthly.gross_pnl or 0.0) + pnl_usdt
         monthly.performance_fee  = max(0.0, monthly.gross_pnl * 0.20)
         monthly.net_pnl          = monthly.gross_pnl - monthly.performance_fee
 
