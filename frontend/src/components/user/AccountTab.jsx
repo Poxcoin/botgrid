@@ -27,8 +27,8 @@ function Section({ title, sub, defaultOpen = false, children }) {
         }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>{title}</div>
-          {sub && <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 3 }}>{sub}</div>}
+          <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>{title}</div>
+          {sub && <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginTop: 4 }}>{sub}</div>}
         </div>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 180ms', opacity: 0.5 }}>
           <path d="M2 4l3.5 3L9 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -43,7 +43,7 @@ function Section({ title, sub, defaultOpen = false, children }) {
   );
 }
 
-const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', padding: '10px 14px', fontSize: 13, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
+const inp = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--fg)', padding: '12px 16px', fontSize: 14, fontFamily: 'var(--font-sans)', outline: 'none', boxSizing: 'border-box' };
 
 // ── Invoice panel ────────────────────────────────────────────────────────────
 function InvoicePanel() {
@@ -291,44 +291,44 @@ function TelegramBlock({ me, onChange }) {
 
   const btnPrimary = {
     background: 'var(--fg)', color: 'var(--bg)', border: 'none', borderRadius: 4,
-    padding: '10px 20px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    padding: '12px 22px', fontSize: 14, fontWeight: 600, cursor: 'pointer',
     opacity: linking ? 0.6 : 1,
   };
   const btnSecondary = {
     background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', borderRadius: 4,
-    padding: '8px 16px', fontSize: 11, cursor: 'pointer',
+    padding: '10px 18px', fontSize: 13, cursor: 'pointer',
   };
 
   if (me?.tg_connected) {
     return (
       <div>
-        <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 4 }}>
+        <div style={{ fontSize: 14, color: 'var(--fg)', marginBottom: 6 }}>
           <span style={{ color: '#4ade80', marginRight: 6 }}>✓</span>
           {me.tg_username
             ? <>{t.dashboard.settings.connectedAs} <span style={{ fontFamily: 'var(--font-mono)' }}>@{me.tg_username}</span></>
             : t.dashboard.settings.connectedShort}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 14 }}>
           {t.dashboard.settings.notifsArrive}
         </div>
         <button onClick={disconnect} disabled={disconnecting} style={btnSecondary}>
           {disconnecting ? t.dashboard.settings.disconnecting : t.dashboard.settings.disconnect}
         </button>
-        {err && <div style={{ fontSize: 12, color: '#e55', marginTop: 8 }}>{err}</div>}
+        {err && <div style={{ fontSize: 13, color: '#e55', marginTop: 8 }}>{err}</div>}
       </div>
     );
   }
 
   return (
     <div>
-      <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 14, lineHeight: 1.5 }}>
         {t.dashboard.settings.notifsSetup}
       </div>
       <button onClick={connect} disabled={linking || waiting} style={btnPrimary}>
         {linking ? t.dashboard.settings.opening : waiting ? t.dashboard.account.waitingTg : t.dashboard.settings.connectTelegram}
       </button>
       {waiting && (
-        <div style={{ fontSize: 11, color: '#aaa', marginTop: 10, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 13, color: '#aaa', marginTop: 10, lineHeight: 1.5 }}>
           {t.dashboard.account.tgPressStart}
         </div>
       )}
@@ -365,7 +365,7 @@ export default function AccountTab() {
         defaultOpen
       >
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 8 }}>
             {t.dashboard.settings.email}
           </div>
           <input
@@ -380,31 +380,31 @@ export default function AccountTab() {
         </div>
 
         <div style={{ marginBottom: 18 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 8 }}>
             {t.dashboard.settings.plan}
           </div>
-          <span style={{ fontSize: 11, letterSpacing: '0.12em', padding: '3px 8px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
+          <span style={{ fontSize: 12, letterSpacing: '0.12em', padding: '4px 10px', border: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
             {planUpper}
           </span>
           {expires && (
-            <span style={{ fontSize: 12, color: 'var(--muted-fg)', marginLeft: 10 }}>
+            <span style={{ fontSize: 13, color: 'var(--muted-fg)', marginLeft: 10 }}>
               {t.dashboard.settings.expires} {expires}
             </span>
           )}
         </div>
 
         <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 8 }}>
             {t.dashboard.account.security2fa}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--fg)' }}>
+          <div style={{ fontSize: 14, color: 'var(--fg)' }}>
             {me?.totp_enabled ? <span style={{ color: '#4ade80' }}>✓ {t.dashboard.account.enabled}</span> : <span style={{ color: 'var(--muted-fg)' }}>{t.dashboard.account.disabled}</span>}
           </div>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'security' }))}
             style={{
-              marginTop: 10, background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', borderRadius: 4,
-              padding: '7px 14px', fontSize: 11, cursor: 'pointer', letterSpacing: '0.04em',
+              marginTop: 12, background: 'none', border: '1px solid var(--border)', color: 'var(--fg)', borderRadius: 4,
+              padding: '8px 16px', fontSize: 13, cursor: 'pointer', letterSpacing: '0.04em',
             }}
           >
             {t.dashboard.account.manageSecurity} →

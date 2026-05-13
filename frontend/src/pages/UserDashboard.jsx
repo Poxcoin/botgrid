@@ -85,7 +85,7 @@ export default function UserDashboard() {
         border: 'none', cursor: 'pointer',
         color: on ? '#000' : 'rgba(255,255,255,0.4)',
         fontSize: 13, textAlign: 'left',
-        fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",
+        fontFamily: "var(--font-sans)",
         fontWeight: on ? 500 : 400,
         letterSpacing: indent ? 0 : '0.01em',
         transition: 'background 0.1s, color 0.1s',
@@ -101,7 +101,7 @@ export default function UserDashboard() {
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
       background: '#000', color: '#fff',
-      fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif",
+      fontFamily: "var(--font-sans)",
     }}>
 
       {/* SIDEBAR */}

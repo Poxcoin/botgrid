@@ -28,8 +28,8 @@ function Section({ title, sub, defaultOpen = false, children }) {
         }}
       >
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: '-0.01em' }}>{title}</div>
-          {sub && <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginTop: 3 }}>{sub}</div>}
+          <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>{title}</div>
+          {sub && <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginTop: 4 }}>{sub}</div>}
         </div>
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 180ms', opacity: 0.5 }}>
           <path d="M2 4l3.5 3L9 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -41,9 +41,9 @@ function Section({ title, sub, defaultOpen = false, children }) {
 }
 
 const selectStyle = {
-  width: '100%', maxWidth: 320,
+  width: '100%', maxWidth: 360,
   background: 'var(--bg2)', border: '1px solid var(--border)',
-  color: 'var(--fg)', padding: '10px 14px', fontSize: 13,
+  color: 'var(--fg)', padding: '12px 16px', fontSize: 14,
   fontFamily: 'var(--font-sans)', outline: 'none', cursor: 'pointer',
   appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
   backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'11\' height=\'11\' viewBox=\'0 0 11 11\' fill=\'none\'><path d=\'M2 4l3.5 3L9 4\' stroke=\'%23999\' stroke-width=\'1.4\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/></svg>")',
@@ -97,8 +97,8 @@ function NotificationsBlock() {
           gap: 16,
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, color: 'var(--fg)', marginBottom: 3 }}>{c.label}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted-fg)', lineHeight: 1.5 }}>{c.desc}</div>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--fg)', marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontSize: 13, color: 'var(--muted-fg)', lineHeight: 1.5 }}>{c.desc}</div>
           </div>
           <span style={{
             position: 'relative', width: 36, height: 20, flexShrink: 0,
@@ -153,7 +153,7 @@ export default function SettingsTab() {
         sub={LANG_FULL[lang]}
         defaultOpen
       >
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
           {t.dashboard.settingsPrefs.languageDesc}
         </div>
         <select value={lang} onChange={e => setLang(e.target.value)} style={selectStyle}>
@@ -169,7 +169,7 @@ export default function SettingsTab() {
         sub={theme === 'dark' ? t.dashboard.settingsPrefs.themeDark : t.dashboard.settingsPrefs.themeLight}
         defaultOpen
       >
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
           {t.dashboard.settingsPrefs.themeDesc}
         </div>
         <select value={theme} onChange={e => changeTheme(e.target.value)} style={selectStyle}>
@@ -184,7 +184,7 @@ export default function SettingsTab() {
         sub={tz === 'auto' ? t.dashboard.settingsPrefs.tzAuto : tz}
         defaultOpen
       >
-        <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
           {t.dashboard.settingsPrefs.timezoneDesc}
         </div>
         <select value={tz} onChange={e => changeTz(e.target.value)} style={selectStyle}>
