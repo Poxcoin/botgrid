@@ -759,7 +759,8 @@ def run_signal_engine():
                                     execute_trade(signal,
                                         leverage_override=LISTING_LEVERAGE,
                                         tp_pct=LISTING_TP, sl_pct=LISTING_SL,
-                                        size_pct=LISTING_SIZE, signal_id=signal_id)
+                                        size_pct=LISTING_SIZE, signal_id=signal_id,
+                                        bot_source="listing")
                                     _saas_dispatch(signal, "listing",
                                         LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE)
                                     _post_to_channel(signal, "listing")
@@ -774,7 +775,8 @@ def run_signal_engine():
                                         execute_trade(signal,
                                             leverage_override=dyn_lev,
                                             tp_pct=ALT_TP, sl_pct=ALT_SL,
-                                            size_pct=ALT_SIZE, signal_id=signal_id)
+                                            size_pct=ALT_SIZE, signal_id=signal_id,
+                                            bot_source="news")
                                         _saas_dispatch(signal, "news",
                                             dyn_lev, ALT_TP, ALT_SL, ALT_SIZE)
                                         _post_to_channel(signal, "news")
@@ -783,7 +785,8 @@ def run_signal_engine():
                                     print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
                                     execute_trade(signal,
                                         leverage_override=dyn_lev,
-                                        signal_id=signal_id)
+                                        signal_id=signal_id,
+                                        bot_source="news")
                                     _saas_dispatch(signal, "news",
                                         dyn_lev, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
                                     _post_to_channel(signal, "news")
@@ -852,7 +855,8 @@ def run_signal_engine():
                     leverage_override=ALT_LEVERAGE,
                     tp_pct=6.0, sl_pct=2.5,
                     size_pct=round(ALT_SIZE * 0.8, 1),
-                    signal_id=signal_id)
+                    signal_id=signal_id,
+                    bot_source="liq_cascade")
                 _saas_dispatch(liq_sig, "liq_cascade",
                     ALT_LEVERAGE, 6.0, 2.5, round(ALT_SIZE * 0.8, 1))
                 _post_to_channel(liq_sig, "liq_cascade")
@@ -881,7 +885,7 @@ def run_signal_engine():
                 if SIGNAL_BOT_TRADING:
                     execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
                                   tp_pct=ALT_TP, sl_pct=ALT_SL, size_pct=fr_size,
-                                  signal_id=signal_id)
+                                  signal_id=signal_id, bot_source="fr")
                 _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, ALT_TP, ALT_SL, fr_size)
                 _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────

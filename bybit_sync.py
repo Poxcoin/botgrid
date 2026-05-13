@@ -89,13 +89,27 @@ def sync_user_trades(user_id: int) -> int:
         if not items:
             return 0
 
-        # Load existing order_ids for this user to skip duplicates
-        existing = {
+        # Load existing order_ids for dedup
+        existing_order_ids = {
             r[0]
             for r in db.query(UserTrade.order_id)
             .filter(UserTrade.user_id == user_id, UserTrade.order_id.isnot(None))
             .all()
         }
+
+        # Load ALL trades indexed by (normalized coin, entry_price) for broader dedup
+        all_trades = db.query(UserTrade).filter(UserTrade.user_id == user_id).all()
+        trades_by_coin: dict[str, list] = {}
+        for t in all_trades:
+            c = _normalize_coin(t.symbol or "")
+            trades_by_coin.setdefault(c, []).append(t)
+
+        # Separate open trades for update logic
+        open_by_coin: dict[str, list] = {}
+        for t in all_trades:
+            if t.status == "open":
+                c = _normalize_coin(t.symbol or "")
+                open_by_coin.setdefault(c, []).append(t)
 
         new_count = 0
         for it in items:
@@ -103,38 +117,75 @@ def sync_user_trades(user_id: int) -> int:
             if not order_id:
                 order_id = f"{it.get('symbol', '')}_{it.get('updatedTime', '')}"
 
-            if order_id in existing:
+            if order_id in existing_order_ids:
                 continue
 
-            pnl      = float(it.get("closedPnl") or 0)
-            raw_side = it.get("side", "")
-            side     = "LONG" if raw_side == "Buy" else "SHORT"
+            pnl       = float(it.get("closedPnl") or 0)
+            coin      = _normalize_coin(it.get("symbol", ""))
             closed_ms = int(it.get("updatedTime") or 0)
-            closed_dt = (
-                datetime.utcfromtimestamp(closed_ms / 1000)
-                if closed_ms else None
-            )
+            closed_dt = datetime.utcfromtimestamp(closed_ms / 1000) if closed_ms else None
+            entry_p   = float(it.get("avgEntryPrice") or 0)
+            exit_p    = float(it.get("avgExitPrice") or 0)
+            qty       = float(it.get("qty") or 0)
 
-            db.add(UserTrade(
-                user_id     = user_id,
-                source      = "bybit",
-                symbol      = it.get("symbol", ""),
-                side        = side,
-                qty         = float(it.get("qty") or 0),
-                entry_price = float(it.get("avgEntryPrice") or 0),
-                exit_price  = float(it.get("avgExitPrice") or 0),
-                pnl_usdt    = pnl,
-                status      = "closed",
-                order_id    = order_id,
-                opened_at   = closed_dt,
-                closed_at   = closed_dt,
-            ))
-            existing.add(order_id)
+            # Skip if we already have a trade for this coin+entry_price combo (any source/status)
+            # This prevents bybit_sync from duplicating trades already logged by the dispatcher
+            already_exists = False
+            for t in trades_by_coin.get(coin, []):
+                if t.source != "bybit" and t.entry_price and entry_p:
+                    if abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.001:
+                        already_exists = True
+                        # If the existing trade is still open, close it with real PnL
+                        if t.status == "open":
+                            t.exit_price = exit_p
+                            t.pnl_usdt   = pnl
+                            t.status     = "closed"
+                            t.closed_at  = closed_dt
+                        break
+            if already_exists:
+                existing_order_ids.add(order_id)
+                new_count += 1
+                continue
+
+            # Try to match an existing open trade to update (for cases without entry_price match)
+            matched = None
+            candidates = open_by_coin.get(coin, [])
+            if candidates:
+                matched = min(candidates, key=lambda t: t.opened_at or datetime.min)
+
+            if matched:
+                matched.exit_price = exit_p
+                matched.pnl_usdt   = pnl
+                matched.status     = "closed"
+                matched.closed_at  = closed_dt
+                if not matched.order_id:
+                    matched.order_id = order_id
+                open_by_coin[coin] = [t for t in candidates if t.id != matched.id]
+            else:
+                # Completely new trade — insert as standalone "bybit" record
+                raw_side = it.get("side", "")
+                side = "LONG" if raw_side == "Buy" else "SHORT"
+                db.add(UserTrade(
+                    user_id     = user_id,
+                    source      = "bybit",
+                    symbol      = it.get("symbol", ""),
+                    side        = side,
+                    qty         = qty,
+                    entry_price = entry_p,
+                    exit_price  = exit_p,
+                    pnl_usdt    = pnl,
+                    status      = "closed",
+                    order_id    = order_id,
+                    opened_at   = closed_dt,
+                    closed_at   = closed_dt,
+                ))
+
+            existing_order_ids.add(order_id)
             new_count += 1
 
         if new_count:
             db.commit()
-            logger.info(f"[bybit_sync] user={user_id} inserted {new_count} new trades")
+            logger.info(f"[bybit_sync] user={user_id} updated/inserted {new_count} trades")
         return new_count
 
     except Exception as e:

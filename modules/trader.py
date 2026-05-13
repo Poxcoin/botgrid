@@ -256,6 +256,7 @@ def execute_trade(
     leverage_override: int = None,
     size_pct: float = None,
     signal_id: int = None,
+    bot_source: str = "news",
 ) -> None:
     """Execute a market order on Bybit based on the provided signal.
 
@@ -425,9 +426,8 @@ def execute_trade(
             from config.settings import OWNER_USER_ID
             if OWNER_USER_ID:
                 from modules.saas_dispatcher import _log_trade as _saas_log
-                src = signal.get("source", "news")
                 _saas_log(OWNER_USER_ID, str(signal_id) if signal_id else None,
-                          src, f"{coin}/USDT:USDT", action,
+                          bot_source, f"{coin}/USDT:USDT", action,
                           _lev, real_order_id, fill_price, amount, "open")
         except Exception as _e:
             print(f"[owner_log] {_e}")
