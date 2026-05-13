@@ -142,7 +142,7 @@ export default function SettingsTab() {
 
   return (
     <div style={{
-      width: '100%', maxWidth: 1100, margin: '0 auto',
+      width: '100%',
       display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
       gap: 16, alignItems: 'start',
     }}>

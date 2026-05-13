@@ -306,7 +306,7 @@ export default function ApiKeysTab() {
   useEffect(() => { reload(); }, []);
 
   return (
-    <div style={{ width: '100%', maxWidth: 1100, margin: '0 auto', fontFamily: FF, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ width: '100%', fontFamily: FF, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Header */}
       <div>
