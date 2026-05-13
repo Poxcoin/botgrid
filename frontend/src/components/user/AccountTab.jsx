@@ -347,7 +347,7 @@ export default function AccountTab() {
   const expires = me?.subscription_expires ? new Date(me.subscription_expires).toLocaleDateString() : null;
 
   return (
-    <div style={{ width: '100%', maxWidth: 720 }}>
+    <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
 
       {/* Profile section */}
       <Section

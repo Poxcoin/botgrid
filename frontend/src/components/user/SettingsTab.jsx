@@ -136,7 +136,7 @@ export default function SettingsTab() {
   }
 
   return (
-    <div style={{ width: '100%', maxWidth: 720 }}>
+    <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
 
       {/* Language */}
       <Section

@@ -309,7 +309,7 @@ export default function SecurityTab() {
     <div style={{ width: '100%' }}>
       {modal2fa && <TwoFAModal mode={modal2fa} onClose={() => setModal2fa(null)} onDone={on2faDone} />}
 
-      <div style={{ maxWidth: 640 }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
 
         <div>
           <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
