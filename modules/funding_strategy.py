@@ -76,6 +76,9 @@ def _calc_signal(coin: str) -> dict | None:
     # ── Tier-based scoring ───────────────────────────────────────────────────
     if fr > FR_SHORT_T1:
         # Лонги переплачують — потенційний SHORT
+        # Блокуємо SHORT якщо RSI < 40 — ринок вже перепроданий, шортити небезпечно
+        if rsi < 40:
+            return None
         score -= (fr - 0.02) * 150          # T1(0.04%)→-3, T2(0.06%)→-6, T3(0.10%)→-12
         if rsi > RSI_OB:
             score -= (rsi - RSI_OB) * 0.15
@@ -84,6 +87,9 @@ def _calc_signal(coin: str) -> dict | None:
 
     elif fr < FR_LONG_T1:
         # Шорти переплачують — потенційний LONG (squeeze)
+        # Блокуємо LONG якщо RSI > 60 — squeeze вже відбувся, входимо на піку
+        if rsi > 60:
+            return None
         score += (abs(fr) - 0.02) * 150
         if rsi < RSI_OS:
             score += (RSI_OS - rsi) * 0.15
