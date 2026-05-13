@@ -1199,16 +1199,23 @@ def _init_user_exchange(key_row):
 
 
 def _bybit_balance(ex):
-    """Raw Bybit V5 USDT UNIFIED balance — no load_markets needed."""
-    raw   = ex.private_get_v5_account_wallet_balance({"accountType": "UNIFIED"})
-    coins = raw["result"]["list"][0].get("coin", [])
-    usdt  = next((c for c in coins if c["coin"] == "USDT"), {})
-    return {
-        "wallet":         float(usdt.get("walletBalance")       or 0),
-        "equity":         float(usdt.get("equity")              or 0),
-        "unrealized_pnl": float(usdt.get("unrealisedPnl")       or 0),
-        "usdt_free":      float(usdt.get("availableToWithdraw") or 0),
-    }
+    """Raw Bybit V5 USDT balance — tries UNIFIED then CONTRACT (demo uses CONTRACT)."""
+    for acct in ("UNIFIED", "CONTRACT"):
+        try:
+            raw   = ex.private_get_v5_account_wallet_balance({"accountType": acct})
+            coins = raw.get("result", {}).get("list", [{}])[0].get("coin", [])
+            usdt  = next((c for c in coins if c.get("coin") == "USDT"), {})
+            wallet = float(usdt.get("walletBalance") or 0)
+            if wallet > 0:
+                return {
+                    "wallet":         wallet,
+                    "equity":         float(usdt.get("equity")              or wallet),
+                    "unrealized_pnl": float(usdt.get("unrealisedPnl")       or 0),
+                    "usdt_free":      float(usdt.get("availableToWithdraw") or wallet),
+                }
+        except Exception:
+            pass
+    return {"wallet": 0.0, "equity": 0.0, "unrealized_pnl": 0.0, "usdt_free": 0.0}
 
 
 def _bybit_positions(ex):
@@ -1389,13 +1396,16 @@ async def get_user_bot_summary(
     key_row   = next((k for k in key_rows if not k.is_testnet), None) or (key_rows[0] if key_rows else None)
     has_key   = len(key_rows) > 0
     if key_row:
-        try:
-            ex = _init_user_exchange(key_row)
-            if ex:
-                balance   = _bybit_balance(ex)
+        ex = _init_user_exchange(key_row)
+        if ex:
+            try:
+                balance = _bybit_balance(ex)
+            except Exception:
+                pass
+            try:
                 positions = _bybit_positions(ex)
-        except Exception:
-            pass
+            except Exception:
+                pass
 
     total_unrealized = sum(p["unrealized_pnl"] for p in positions)
     return {
