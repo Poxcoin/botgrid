@@ -15,10 +15,28 @@ Multi-coin support: кожна монета запускається у влас
 """
 import json
 import os
+import sys
 import threading
 import time
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+
+_LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grid_bot.log")
+
+
+def _log(*args, sep=" ", end="\n", **kwargs):
+    """Print wrapper: writes to grid_bot.log when running as a thread inside web_server,
+    otherwise to stdout (standalone mode — systemd captures it to grid_bot.log)."""
+    msg = sep.join(str(a) for a in args)
+    if threading.current_thread().name.startswith("grid-"):
+        try:
+            with open(_LOG_FILE, "a", encoding="utf-8") as _f:
+                _f.write(msg + "\n")
+        except Exception:
+            pass
+    else:
+        sys.stdout.write(msg + "\n")
+        sys.stdout.flush()
 
 import ccxt
 
@@ -153,10 +171,10 @@ def _detect_trend(exchange, symbol: str) -> str:
         ema50  = _calc_ema(closes, 50)
         price  = closes[-1]
         direction = "long" if price >= ema50 * SHORT_EMA_MARGIN else "short"
-        print(f"[GRID:{symbol}] Тренд: ціна=${price:.4f} EMA50=${ema50:.4f} threshold=${ema50 * SHORT_EMA_MARGIN:.4f} → {direction.upper()}")
+        _log(f"[GRID:{symbol}] Тренд: ціна=${price:.4f} EMA50=${ema50:.4f} threshold=${ema50 * SHORT_EMA_MARGIN:.4f} → {direction.upper()}")
         return direction
     except Exception as e:
-        print(f"[GRID:{symbol}] Trend detection error: {e} — defaulting to long")
+        _log(f"[GRID:{symbol}] Trend detection error: {e} — defaulting to long")
         return "long"
 
 
@@ -174,7 +192,7 @@ def _calc_atr(exchange, symbol: str, period: int = 14) -> float:
             trs.append(tr)
         return sum(trs[-period:]) / period
     except Exception as e:
-        print(f"[GRID:{symbol}] ATR error: {e}")
+        _log(f"[GRID:{symbol}] ATR error: {e}")
         return 0.0
 
 
@@ -192,18 +210,18 @@ def _detect_range(exchange, symbol: str) -> tuple[float, float]:
             half_range = ATR_RANGE_PERIODS * atr
             upper = round(price * (1 + RANGE_BUFFER) + half_range, 4)
             lower = round(max(price * (1 - RANGE_BUFFER) - half_range, price * 0.5), 4)
-            print(f"[GRID:{symbol}] ATR={atr:.4f} → range ${lower}—${upper} "
+            _log(f"[GRID:{symbol}] ATR={atr:.4f} → range ${lower}—${upper} "
                   f"(крок ≈${half_range * 2 / 10:.2f} на 10 рівнів)")
             return upper, lower
     except Exception as e:
-        print(f"[GRID:{symbol}] ATR range error: {e}")
+        _log(f"[GRID:{symbol}] ATR range error: {e}")
 
     ohlcv = exchange.fetch_ohlcv(symbol, timeframe="1d", limit=30)
     highs = [c[2] for c in ohlcv]
     lows  = [c[3] for c in ohlcv]
     upper = round(max(highs) * 1.05, 2)
     lower = round(min(lows)  * 0.95, 2)
-    print(f"[GRID:{symbol}] Fallback 30d range: ${lower}—${upper}")
+    _log(f"[GRID:{symbol}] Fallback 30d range: ${lower}—${upper}")
     return upper, lower
 
 
@@ -233,7 +251,7 @@ def _adjust_levels_to_profitable(symbol: str, upper: float, lower: float,
     # Мінімальна кількість рівнів для прибуткового кроку
     adjusted_n = max(MIN_GRID_LEVELS, int((upper - lower) / min_step))
     adjusted_step = (upper - lower) / adjusted_n
-    print(
+    _log(
         f"[GRID:{symbol}] ⚠️ Крок ${step:.4f} < мін ${min_step:.4f} "
         f"(fee {BYBIT_TAKER_FEE*2*100:.3f}% × {_fee_mult}x) "
         f"→ рівні {n} → {adjusted_n}, новий крок ${adjusted_step:.4f}"
@@ -260,7 +278,7 @@ def _set_leverage(exchange, symbol: str, leverage: int) -> None:
     try:
         exchange.set_leverage(leverage, symbol, params={"category": "linear"})
     except Exception as e:
-        print(f"[GRID:{symbol}] leverage: {e}")
+        _log(f"[GRID:{symbol}] leverage: {e}")
 
 
 def _close_all_positions(exchange, symbol: str, positions: dict,
@@ -309,11 +327,11 @@ def _close_all_positions(exchange, symbol: str, positions: dict,
                     else:
                         close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
                 except Exception as _de:
-                    print(f"[GRID:{symbol}] DB close error level {idx_str}: {_de}")
+                    _log(f"[GRID:{symbol}] DB close error level {idx_str}: {_de}")
 
-            print(f"[GRID:{symbol}] CLOSE-ALL {direction.upper()} level {idx_str} @ {fill:.4f} | net=${net_pnl:.2f}")
+            _log(f"[GRID:{symbol}] CLOSE-ALL {direction.upper()} level {idx_str} @ {fill:.4f} | net=${net_pnl:.2f}")
         except Exception as e:
-            print(f"[GRID:{symbol}] CLOSE-ALL error level {idx_str}: {e}")
+            _log(f"[GRID:{symbol}] CLOSE-ALL error level {idx_str}: {e}")
     positions.clear()
     return total_pnl
 
@@ -354,13 +372,13 @@ def _sync_close_all(exchange, symbol: str, tracked: dict,
                     params={"category": "linear", "reduceOnly": True},
                 )
                 orphans_found += 1
-                print(f"[GRID:{symbol}] 🧹 Orphan {actual_side.upper()} qty={qty} закрито")
+                _log(f"[GRID:{symbol}] 🧹 Orphan {actual_side.upper()} qty={qty} закрито")
             except Exception as close_err:
-                print(f"[GRID:{symbol}] ⚠️ Orphan close failed qty={qty}: {close_err}")
+                _log(f"[GRID:{symbol}] ⚠️ Orphan close failed qty={qty}: {close_err}")
         if orphans_found:
-            print(f"[GRID:{symbol}] 🧹 Sync: закрито {orphans_found} orphaned позицій на біржі")
+            _log(f"[GRID:{symbol}] 🧹 Sync: закрито {orphans_found} orphaned позицій на біржі")
     except Exception as e:
-        print(f"[GRID:{symbol}] ⚠️ Exchange sync check не вдався: {e}")
+        _log(f"[GRID:{symbol}] ⚠️ Exchange sync check не вдався: {e}")
 
     return total_pnl
 
@@ -407,12 +425,12 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
                 db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
         except Exception:
             db_trade_id = None
-        print(f"[GRID:{symbol}] 🟢 LONG BUY level {level_idx} @ {fill:.4f} | qty={qty}")
+        _log(f"[GRID:{symbol}] 🟢 LONG BUY level {level_idx} @ {fill:.4f} | qty={qty}")
         return {"fill_price": fill, "qty": qty, "order_id": order.get("id"),
                 "db_trade_id": db_trade_id,
                 "opened_ms": int(datetime.now(timezone.utc).timestamp() * 1000)}
     except Exception as e:
-        print(f"[GRID:{symbol}] LONG BUY error level {level_idx}: {e}")
+        _log(f"[GRID:{symbol}] LONG BUY error level {level_idx}: {e}")
         return None
 
 
@@ -451,12 +469,12 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
                 else:
                     close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
             except Exception as _e:
-                print(f"[GRID:{symbol}] DB close error: {_e}")
+                _log(f"[GRID:{symbol}] DB close error: {_e}")
 
-        print(f"[GRID:{symbol}] ✅ LONG SELL level {level_idx} @ {fill:.4f} | gross=${gross_pnl:.2f} fee=${entry_fee+exit_fee:.3f} net=${net_pnl:.2f}")
+        _log(f"[GRID:{symbol}] ✅ LONG SELL level {level_idx} @ {fill:.4f} | gross=${gross_pnl:.2f} fee=${entry_fee+exit_fee:.3f} net=${net_pnl:.2f}")
         return True, net_pnl, fill
     except Exception as e:
-        print(f"[GRID:{symbol}] LONG SELL error level {level_idx}: {e}")
+        _log(f"[GRID:{symbol}] LONG SELL error level {level_idx}: {e}")
         return False, 0.0, 0.0
 
 
@@ -489,12 +507,12 @@ def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
                 db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open)
         except Exception:
             db_trade_id = None
-        print(f"[GRID:{symbol}] 🔴 SHORT SELL level {level_idx} @ {fill:.4f} | qty={qty}")
+        _log(f"[GRID:{symbol}] 🔴 SHORT SELL level {level_idx} @ {fill:.4f} | qty={qty}")
         return {"fill_price": fill, "qty": qty, "order_id": order.get("id"),
                 "db_trade_id": db_trade_id,
                 "opened_ms": int(datetime.now(timezone.utc).timestamp() * 1000)}
     except Exception as e:
-        print(f"[GRID:{symbol}] SHORT SELL error level {level_idx}: {e}")
+        _log(f"[GRID:{symbol}] SHORT SELL error level {level_idx}: {e}")
         return None
 
 
@@ -533,12 +551,12 @@ def _close_short(exchange, symbol: str, entry: dict, level_idx: int, leverage: i
                 else:
                     close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
             except Exception as _e:
-                print(f"[GRID:{symbol}] DB close error: {_e}")
+                _log(f"[GRID:{symbol}] DB close error: {_e}")
 
-        print(f"[GRID:{symbol}] ✅ SHORT COVER level {level_idx} @ {fill:.4f} | gross=${gross_pnl:.2f} fee=${entry_fee+exit_fee:.3f} net=${net_pnl:.2f}")
+        _log(f"[GRID:{symbol}] ✅ SHORT COVER level {level_idx} @ {fill:.4f} | gross=${gross_pnl:.2f} fee=${entry_fee+exit_fee:.3f} net=${net_pnl:.2f}")
         return True, net_pnl, fill
     except Exception as e:
-        print(f"[GRID:{symbol}] SHORT COVER error level {level_idx}: {e}")
+        _log(f"[GRID:{symbol}] SHORT COVER error level {level_idx}: {e}")
         return False, 0.0, 0.0
 
 
@@ -553,7 +571,7 @@ def _open_long_limit(exchange, symbol: str, level_price: float, level_idx: int,
             symbol, "limit", "buy", qty, level_price,
             params={"category": "linear", "timeInForce": "PostOnly"},
         )
-        print(f"[GRID:{symbol}] 📋 LONG LIMIT @ {level_price:.4f} | qty={qty} | level {level_idx} | maker")
+        _log(f"[GRID:{symbol}] 📋 LONG LIMIT @ {level_price:.4f} | qty={qty} | level {level_idx} | maker")
         return {
             "order_id":    order["id"],
             "qty":         qty,
@@ -565,7 +583,7 @@ def _open_long_limit(exchange, symbol: str, level_price: float, level_idx: int,
         err = str(e)
         if "10003" in err or "API key is invalid" in err:
             raise BybitKeyInvalidError(err) from e
-        print(f"[GRID:{symbol}] LONG LIMIT error level {level_idx}: {e}")
+        _log(f"[GRID:{symbol}] LONG LIMIT error level {level_idx}: {e}")
         return None
 
 
@@ -578,7 +596,7 @@ def _open_short_limit(exchange, symbol: str, level_price: float, level_idx: int,
             symbol, "limit", "sell", qty, level_price,
             params={"category": "linear", "timeInForce": "PostOnly"},
         )
-        print(f"[GRID:{symbol}] 📋 SHORT LIMIT @ {level_price:.4f} | qty={qty} | level {level_idx} | maker")
+        _log(f"[GRID:{symbol}] 📋 SHORT LIMIT @ {level_price:.4f} | qty={qty} | level {level_idx} | maker")
         return {
             "order_id":    order["id"],
             "qty":         qty,
@@ -590,7 +608,7 @@ def _open_short_limit(exchange, symbol: str, level_price: float, level_idx: int,
         err = str(e)
         if "10003" in err or "API key is invalid" in err:
             raise BybitKeyInvalidError(err) from e
-        print(f"[GRID:{symbol}] SHORT LIMIT error level {level_idx}: {e}")
+        _log(f"[GRID:{symbol}] SHORT LIMIT error level {level_idx}: {e}")
         return None
 
 
@@ -599,9 +617,9 @@ def _cancel_all_pending(exchange, symbol: str, pending: dict) -> None:
     for zone_str, entry in list(pending.items()):
         try:
             exchange.cancel_order(entry["order_id"], symbol, params={"category": "linear"})
-            print(f"[GRID:{symbol}] 🚫 Pending ордер level {zone_str} скасовано")
+            _log(f"[GRID:{symbol}] 🚫 Pending ордер level {zone_str} скасовано")
         except Exception as e:
-            print(f"[GRID:{symbol}] Cancel pending помилка level {zone_str}: {e}")
+            _log(f"[GRID:{symbol}] Cancel pending помилка level {zone_str}: {e}")
     pending.clear()
 
 
@@ -627,7 +645,7 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
         open_orders = exchange.fetch_open_orders(symbol, params={"category": "linear"})
         open_map = {o["id"]: o for o in open_orders}
     except Exception as e:
-        print(f"[GRID:{symbol}] fetchOpenOrders помилка: {e}")
+        _log(f"[GRID:{symbol}] fetchOpenOrders помилка: {e}")
         return  # Пропускаємо тік, спробуємо наступного
 
     for zone_str in list(pending.keys()):
@@ -644,7 +662,7 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                 except Exception:
                     pass
                 del pending[zone_str]
-                print(f"[GRID:{symbol}] ⏱️ Pending ордер level {zone_str} timeout — скасовано")
+                _log(f"[GRID:{symbol}] ⏱️ Pending ордер level {zone_str} timeout — скасовано")
                 changed = True
         else:
             # Ордер зник з відкритих — або виконаний, або скасований
@@ -679,11 +697,11 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     }
                     del pending[zone_str]
                     side_str = "LONG BUY" if direction == "long" else "SHORT SELL"
-                    print(f"[GRID:{symbol}] ✅ Limit {side_str} level {zone_str} виконано @ {fill:.4f} (maker fee)")
+                    _log(f"[GRID:{symbol}] ✅ Limit {side_str} level {zone_str} виконано @ {fill:.4f} (maker fee)")
                     changed = True
                 else:
                     # canceled / rejected / expired
-                    print(f"[GRID:{symbol}] ❌ Pending ордер level {zone_str} відхилено ({status})")
+                    _log(f"[GRID:{symbol}] ❌ Pending ордер level {zone_str} відхилено ({status})")
                     del pending[zone_str]
                     changed = True
 
@@ -724,7 +742,7 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     }
                     del pending[zone_str]
                     side_str = "LONG BUY" if direction == "long" else "SHORT SELL"
-                    print(f"[GRID:{symbol}] ✅ {side_str} level {zone_str} @ {fill:.4f} (closed orders fallback)")
+                    _log(f"[GRID:{symbol}] ✅ {side_str} level {zone_str} @ {fill:.4f} (closed orders fallback)")
                     changed = True
                 else:
                     # Order not found in open or closed — wait up to 3 ticks before giving up
@@ -732,9 +750,9 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     if miss_count < 3:
                         entry["miss_count"] = miss_count
                         pending[zone_str] = entry
-                        print(f"[GRID:{symbol}] ⚠️ Pending level {zone_str} відсутній ({miss_count}/3) — чекаємо")
+                        _log(f"[GRID:{symbol}] ⚠️ Pending level {zone_str} відсутній ({miss_count}/3) — чекаємо")
                     else:
-                        print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — backoff {PENDING_BACKOFF_SEC}s")
+                        _log(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — backoff {PENDING_BACKOFF_SEC}s")
                         del pending[zone_str]
                         state.setdefault("pending_backoff", {})[zone_str] = time.time() + PENDING_BACKOFF_SEC
                     changed = True
@@ -769,19 +787,19 @@ def _run_single(cfg: dict) -> None:
     _stop_until = _pre_state.get("stop_until", 0)
     if _stop_until > time.time():
         _eta = datetime.fromtimestamp(_stop_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        print(f"[GRID:{symbol}] ⏰ Hard stop активний до {_eta} — чекаємо")
+        _log(f"[GRID:{symbol}] ⏰ Hard stop активний до {_eta} — чекаємо")
         return
 
     try:
         exchange = _init_exchange_for_user(_api_key, _api_secret, _is_demo) if _api_key else _init_exchange()
     except Exception as e:
-        print(f"[GRID:{symbol}] ❌ Не вдалось підключитись до біржі: {e}")
+        _log(f"[GRID:{symbol}] ❌ Не вдалось підключитись до біржі: {e}")
         return
     _set_leverage(exchange, symbol, leverage)
 
     _balance = get_free_usdt(exchange)
     size_usd = max(round(_balance * size_pct / 100.0, 2), size_usd_min)
-    print(f"[GRID:{symbol}] size_usd=${size_usd:.2f} ({size_pct}% від ${_balance:.2f})")
+    _log(f"[GRID:{symbol}] size_usd=${size_usd:.2f} ({size_pct}% від ${_balance:.2f})")
 
     # Визначаємо поточний тренд
     direction = _detect_trend(exchange, symbol)
@@ -790,13 +808,13 @@ def _run_single(cfg: dict) -> None:
 
     if auto_range:
         upper, lower = _detect_range(exchange, symbol)
-        print(f"[GRID:{symbol}] Авто-діапазон: ${lower:.2f} — ${upper:.2f}")
+        _log(f"[GRID:{symbol}] Авто-діапазон: ${lower:.2f} — ${upper:.2f}")
     else:
         upper, lower = cfg["upper_manual"], cfg["lower_manual"]
 
     levels, grid_levels = _adjust_levels_to_profitable(symbol, upper, lower, grid_levels, price, min_step_fee_mult_cfg)
     step   = levels[1] - levels[0]
-    print(f"[GRID:{symbol}] {grid_levels} рівнів | крок ${step:.2f} | режим {direction.upper()}")
+    _log(f"[GRID:{symbol}] {grid_levels} рівнів | крок ${step:.2f} | режим {direction.upper()}")
 
     state = _load_state(symbol, user_id)
     _state_valid = False
@@ -807,14 +825,14 @@ def _run_single(cfg: dict) -> None:
         _range_ratio = _s_upper / max(_s_lower, 0.0001)
         _price_in_range = _s_lower * 0.5 <= _cur_price_check <= _s_upper * 2
         if _range_ratio > 10 or not _price_in_range:
-            print(f"[GRID:{symbol}] ⚠️ Стан зіпсований — скидаємо")
+            _log(f"[GRID:{symbol}] ⚠️ Стан зіпсований — скидаємо")
         else:
             _state_valid = True
 
     if _state_valid:
         saved_direction = state.get("direction", "long")
         if saved_direction != direction:
-            print(f"[GRID:{symbol}] ⚠️ Тренд змінився з {saved_direction.upper()} → {direction.upper()} після рестарту — закриваємо старі позиції")
+            _log(f"[GRID:{symbol}] ⚠️ Тренд змінився з {saved_direction.upper()} → {direction.upper()} після рестарту — закриваємо старі позиції")
             _old_positions = state.get("positions", {})
             _old_pending   = state.get("pending_orders", {})
             if _old_pending:
@@ -822,7 +840,7 @@ def _run_single(cfg: dict) -> None:
             _restart_price = _get_current_price(exchange, symbol)
             _restart_pnl   = _sync_close_all(
                 exchange, symbol, _old_positions, leverage, _restart_price, saved_direction, user_id)
-            print(f"[GRID:{symbol}] Реалізований PnL при рестарт-тренді: ${_restart_pnl:.2f}")
+            _log(f"[GRID:{symbol}] Реалізований PnL при рестарт-тренді: ${_restart_pnl:.2f}")
             _state_valid = False
         else:
             upper  = state["upper"]
@@ -832,7 +850,7 @@ def _run_single(cfg: dict) -> None:
             # Якщо збережений крок менший за мінімально прибутковий — перебудовуємо
             _cur_price_for_step = _get_current_price(exchange, symbol)
             if step < _min_profitable_step(_cur_price_for_step):
-                print(
+                _log(
                     f"[GRID:{symbol}] ⚠️ Збережений крок ${step:.4f} не покриває комісії "
                     f"(мін ${_min_profitable_step(_cur_price_for_step):.4f}) — перебудовуємо сітку"
                 )
@@ -840,7 +858,7 @@ def _run_single(cfg: dict) -> None:
             else:
                 n_pos  = len(state.get("positions", {}))
                 n_pend = len(state.get("pending_orders", {}))
-                print(f"[GRID:{symbol}] ♻️  Відновлення: {n_pos} позицій, {n_pend} pending | {direction.upper()} | діапазон ${lower:.4f}—${upper:.4f}")
+                _log(f"[GRID:{symbol}] ♻️  Відновлення: {n_pos} позицій, {n_pend} pending | {direction.upper()} | діапазон ${lower:.4f}—${upper:.4f}")
                 # Скасовуємо pending ордери з попередньої сесії — після рестарту перевіримо що реально відкрито
                 _stale_pending = state.get("pending_orders", {})
                 if _stale_pending:
@@ -850,12 +868,12 @@ def _run_single(cfg: dict) -> None:
                     ex_positions = exchange.fetch_positions([symbol], params={"category": "linear"})
                     ex_qty = sum(abs(float(p.get("contracts") or 0)) for p in ex_positions)
                     if ex_qty == 0 and state.get("positions"):
-                        print(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
+                        _log(f"[GRID:{symbol}] ⚠️  Exchange: 0 позицій, очищаємо стан")
                         state["positions"] = {}
                         _save_state(symbol, state, user_id)
                     elif ex_qty > 0 and not state.get("positions"):
                         # Orphaned positions: exchange has open, state tracks none → close market
-                        print(f"[GRID:{symbol}] ⚠️  Orphaned позиції на біржі без стейту — закриваємо")
+                        _log(f"[GRID:{symbol}] ⚠️  Orphaned позиції на біржі без стейту — закриваємо")
                         for _p in ex_positions:
                             _qty = abs(float(_p.get("contracts") or 0))
                             if _qty <= 0:
@@ -867,11 +885,11 @@ def _run_single(cfg: dict) -> None:
                                     symbol, "market", _close_side, _qty,
                                     params={"category": "linear", "reduceOnly": True},
                                 )
-                                print(f"[GRID:{symbol}] 🧹 Orphan {_side.upper()} qty={_qty} закрито")
+                                _log(f"[GRID:{symbol}] 🧹 Orphan {_side.upper()} qty={_qty} закрито")
                             except Exception as _ce:
-                                print(f"[GRID:{symbol}] ⚠️ Orphan close помилка: {_ce}")
+                                _log(f"[GRID:{symbol}] ⚠️ Orphan close помилка: {_ce}")
                 except Exception as _e:
-                    print(f"[GRID:{symbol}] Reconcile помилка: {_e}")
+                    _log(f"[GRID:{symbol}] Reconcile помилка: {_e}")
 
     if not _state_valid:
         state = {
@@ -901,9 +919,9 @@ def _run_single(cfg: dict) -> None:
             _con.close()
             for _tid in _ids:
                 close_trade(_tid, 0.0, 0.0, 0.0, 0)
-                print(f"[GRID:{symbol}] 🧹 DB trade #{_tid} {coin} очищено (orphaned)")
+                _log(f"[GRID:{symbol}] 🧹 DB trade #{_tid} {coin} очищено (orphaned)")
         except Exception as _e:
-            print(f"[GRID:{symbol}] Orphan DB close помилка: {_e}")
+            _log(f"[GRID:{symbol}] Orphan DB close помилка: {_e}")
 
     _out_of_range_since: Optional[float] = None
     OUT_OF_RANGE_DELAY = 30 * 60  # 30 хвилин
@@ -921,7 +939,7 @@ def _run_single(cfg: dict) -> None:
     )
 
     last_price = _get_current_price(exchange, symbol)
-    print(f"[GRID:{symbol}] Поточна ціна: ${last_price:.4f}")
+    _log(f"[GRID:{symbol}] Поточна ціна: ${last_price:.4f}")
 
     # Відновлюємо лічильник ребілдів з _pre_state (завантаженого ДО будь-яких змін стану)
     # Читаємо саме _pre_state, бо state може бути вже перезаписаним порожнім dict
@@ -929,7 +947,7 @@ def _run_single(cfg: dict) -> None:
     if _pre_state.get("rebuild_day") == _today_str:
         rebuilds_today = _pre_state.get("rebuilds_today", 0)
         if rebuilds_today > 0:
-            print(f"[GRID:{symbol}] ♻️  Відновлено ребілди: {rebuilds_today}/{MAX_REBUILDS_DAY} за сьогодні")
+            _log(f"[GRID:{symbol}] ♻️  Відновлено ребілди: {rebuilds_today}/{MAX_REBUILDS_DAY} за сьогодні")
     else:
         rebuilds_today = 0
     rebuild_day       = datetime.now(timezone.utc).date()
@@ -944,7 +962,7 @@ def _run_single(cfg: dict) -> None:
         _rsi_4h         = _calc_rsi(_closes_init)
         _ema20_4h       = _calc_ema(_closes_init, 20)
         _ema50_4h       = _calc_ema(_closes_init, 50)
-        print(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
+        _log(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
     except Exception:
         pass
 
@@ -970,7 +988,7 @@ def _run_single(cfg: dict) -> None:
                     _rsi_4h     = _calc_rsi(_closes_rsi)
                     _ema20_4h   = _calc_ema(_closes_rsi, 20)
                     _ema50_4h   = _calc_ema(_closes_rsi, 50)
-                    print(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
+                    _log(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
                 except Exception:
                     pass
 
@@ -988,7 +1006,7 @@ def _run_single(cfg: dict) -> None:
 
                 if _should_flip:
                     positions = state["positions"]
-                    print(f"[GRID:{symbol}] 🔄 Тренд підтверджено: {direction.upper()} → {new_direction.upper()} — закриваємо {len(positions)} позицій")
+                    _log(f"[GRID:{symbol}] 🔄 Тренд підтверджено: {direction.upper()} → {new_direction.upper()} — закриваємо {len(positions)} позицій")
                     _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                     state.pop("pending_backoff", None)  # zone indices change after direction flip
                     state["pending_orders"] = {}
@@ -1018,7 +1036,7 @@ def _run_single(cfg: dict) -> None:
                 else:
                     _sl_threshold = _upper_bound * (1 + boundary_sl_pct)
                     _sl_msg = f"Ціна ${price:.2f} вище межі ${_upper_bound:.2f} на {boundary_sl_pct*100:.0f}%+ (SHORT pump)"
-                print(f"[GRID:{symbol}] 🛑 BOUNDARY SL: {_sl_msg} — закриваємо")
+                _log(f"[GRID:{symbol}] 🛑 BOUNDARY SL: {_sl_msg} — закриваємо")
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
                 realized = _sync_close_all(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
@@ -1056,14 +1074,14 @@ def _run_single(cfg: dict) -> None:
                     if _out_of_range_since is None:
                         _out_of_range_since = time.time()
                         direction_str = "вище" if price >= levels[-1] else "нижче"
-                        print(f"[GRID:{symbol}] Ціна ${price:.2f} {direction_str} межі — чекаємо 30 хв перед перебудовою")
+                        _log(f"[GRID:{symbol}] Ціна ${price:.2f} {direction_str} межі — чекаємо 30 хв перед перебудовою")
                         last_price = price
                         continue
 
                     waited = time.time() - _out_of_range_since
                     if waited < OUT_OF_RANGE_DELAY:
                         mins_left = int((OUT_OF_RANGE_DELAY - waited) / 60)
-                        print(f"[GRID:{symbol}] Out-of-range {waited/60:.0f} хв — ще {mins_left} хв до перебудови")
+                        _log(f"[GRID:{symbol}] Out-of-range {waited/60:.0f} хв — ще {mins_left} хв до перебудови")
                         last_price = price
                         continue
 
@@ -1090,7 +1108,7 @@ def _run_single(cfg: dict) -> None:
                             if hard_stop else
                             f"вичерпано перебудов ({rebuilds_today})"
                         )
-                        print(f"[GRID:{symbol}] 🛑 СТОП — {reason}. Закриваємо всі позиції.")
+                        _log(f"[GRID:{symbol}] 🛑 СТОП — {reason}. Закриваємо всі позиції.")
                         _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                         state["pending_orders"] = {}
                         realized = _sync_close_all(exchange, symbol, state["positions"], leverage, price, direction, user_id)
@@ -1120,7 +1138,7 @@ def _run_single(cfg: dict) -> None:
                 # Rebuild
                 rebuild_label = "вгору" if above_range else "вниз"
                 pnl_note = "💰 профітний" if not dangerous else "⚠️ збитковий"
-                print(f"[GRID:{symbol}] 🔄 Перебудова {rebuild_label} (#{rebuilds_today + 1}) {pnl_note} — ціна ${price:.2f}")
+                _log(f"[GRID:{symbol}] 🔄 Перебудова {rebuild_label} (#{rebuilds_today + 1}) {pnl_note} — ціна ${price:.2f}")
                 _cancel_all_pending(exchange, symbol, state.get("pending_orders", {}))
                 state["pending_orders"] = {}
                 state.pop("pending_backoff", None)  # zone indices change after rebuild
@@ -1198,23 +1216,23 @@ def _run_single(cfg: dict) -> None:
                     _is_btc  = symbol.startswith("BTC")
                     if _in_backoff:
                         _remain = int(state["pending_backoff"][zone_str] - _now_ts)
-                        print(f"[GRID:{symbol}] ⏳ Level {current_zone} backoff {_remain}s — пропускаємо")
+                        _log(f"[GRID:{symbol}] ⏳ Level {current_zone} backoff {_remain}s — пропускаємо")
                     elif _rsi_4h > RSI_OB_BUY and direction == "long":
-                        print(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
+                        _log(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
                     elif not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
-                        print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
+                        _log(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
                     elif _ema20_4h > 0 and _ema20_4h < _ema50_4h * (1 - EMA_BLOCK_MIN_GAP):
-                        print(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
+                        _log(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
                         limit_price = levels[current_zone]  # floor зони — maker order
                         _spread = (price - limit_price) / price if price > 0 else 0
                         if limit_price >= price:
                             # PostOnly відхилить ордер якщо ціна вже вище floor — пропускаємо
-                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — пропускаємо")
+                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — пропускаємо")
                             result = None
                         elif _spread < MIN_ORDER_SPREAD:
                             # Занадто близько до ринку — PostOnly може відхилити на Demo
-                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
                             result = None
                         else:
                             result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
@@ -1263,16 +1281,16 @@ def _run_single(cfg: dict) -> None:
                     _btc_chg = get_btc_2h_change()
                     _is_btc  = symbol.startswith("BTC")
                     if not _is_btc and _btc_chg > BTC_PUMP_THRESHOLD:
-                        print(f"[GRID:{symbol}] 🚫 BTC +{_btc_chg:.1f}% за 2h — SHORT призупинено")
+                        _log(f"[GRID:{symbol}] 🚫 BTC +{_btc_chg:.1f}% за 2h — SHORT призупинено")
                     elif len(positions) + len(pending_orders) < max_pos:
                         ceil_idx    = current_zone + 1 if current_zone + 1 < len(levels) else current_zone
                         limit_price = levels[ceil_idx]  # ceiling зони — maker order
                         _spread_s = (limit_price - price) / price if price > 0 else 0
                         if limit_price <= price:
-                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} ceil {limit_price:.4f} <= price {price:.4f} — пропускаємо")
+                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} ceil {limit_price:.4f} <= price {price:.4f} — пропускаємо")
                             result = None
                         elif _spread_s < MIN_ORDER_SPREAD:
-                            print(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread_s*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread_s*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
                             result = None
                         else:
                             result = _open_short_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
@@ -1291,7 +1309,7 @@ def _run_single(cfg: dict) -> None:
         except BybitKeyInvalidError:
             raise
         except Exception as e:
-            print(f"[GRID:{symbol}] Помилка: {e}")
+            _log(f"[GRID:{symbol}] Помилка: {e}")
             time.sleep(30)
 
 
@@ -1302,7 +1320,7 @@ def _run_single_safe(cfg: dict) -> None:
     except BybitKeyInvalidError as e:
         symbol  = cfg.get("symbol", "?")
         user_id = cfg.get("user_id")
-        print(f"[GRID:{symbol}] ❌ API ключ недійсний — grid зупинено (user {user_id}): {e}")
+        _log(f"[GRID:{symbol}] ❌ API ключ недійсний — grid зупинено (user {user_id}): {e}")
         if user_id is not None:
             _invalid_key_users.add(user_id)
 
@@ -1328,7 +1346,7 @@ def run_grid_engine():
     for cfg in GRID_CONFIGS:
         sym = cfg["symbol"]
         thread_map[sym] = _start_thread(cfg)
-        print(f"[GRID] Запущено потік для {sym}")
+        _log(f"[GRID] Запущено потік для {sym}")
 
     try:
         while True:
@@ -1342,16 +1360,16 @@ def run_grid_engine():
                     _stop_until = _sym_state.get("stop_until", 0)
                     if _stop_until > time.time():
                         _eta = datetime.fromtimestamp(_stop_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-                        print(f"[GRID] ⏰ {sym} hard stop до {_eta} — не перезапускаємо")
+                        _log(f"[GRID] ⏰ {sym} hard stop до {_eta} — не перезапускаємо")
                         continue
-                    print(f"[GRID] ⚠️ Потік {sym} впав — перезапуск...")
+                    _log(f"[GRID] ⚠️ Потік {sym} впав — перезапуск...")
                     send_telegram_message(
                         f"⚠️ <b>Grid потік перезапущено</b>\n<code>{sym}</code>",
                         TG_CHAT_ID,
                     )
                     thread_map[sym] = _start_thread(cfg)
     except KeyboardInterrupt:
-        print("\n[GRID] Зупинено всі сітки.")
+        _log("\n[GRID] Зупинено всі сітки.")
 
 
 def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event: threading.Event,
@@ -1363,7 +1381,7 @@ def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event
                     "is_demo": is_demo, "tg_chat_id": tg_chat_id}
         sym = user_cfg["symbol"]
         thread_map[sym] = _start_thread(user_cfg)
-        print(f"[GRID:u{user_id}] Запущено потік для {sym} (demo={is_demo})")
+        _log(f"[GRID:u{user_id}] Запущено потік для {sym} (demo={is_demo})")
 
     while not stop_event.is_set():
         stop_event.wait(timeout=60)
@@ -1376,14 +1394,14 @@ def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event
                 _sym_state = _load_state(sym, user_id)
                 if _sym_state.get("stop_until", 0) > time.time():
                     continue
-                print(f"[GRID:u{user_id}] ⚠️ Потік {sym} впав — перезапуск...")
+                _log(f"[GRID:u{user_id}] ⚠️ Потік {sym} впав — перезапуск...")
                 thread_map[sym] = _start_thread(user_cfg)
 
     # Stop event triggered — cancel all pending for this user
     for sym in list(thread_map.keys()):
         t = thread_map.get(sym)
         if t and t.is_alive():
-            print(f"[GRID:u{user_id}] Зупинка потоку {sym}")
+            _log(f"[GRID:u{user_id}] Зупинка потоку {sym}")
 
 
 if __name__ == "__main__":
