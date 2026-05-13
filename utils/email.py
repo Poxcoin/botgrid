@@ -122,6 +122,41 @@ def send_login_otp_email(to: str, code: str) -> bool:
     return _send(to, "Your Kado login code", html)
 
 
+def send_welcome_email(to: str, username: str) -> bool:
+    dashboard = f"{SITE_URL}/dashboard"
+    html = f"""
+<!DOCTYPE html>
+<html>
+<body style="background:#060606;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;padding:40px 20px;margin:0">
+  <div style="max-width:480px;margin:0 auto">
+    {_EMAIL_HEADER.format(site=SITE_URL)}
+    <div style="font-size:22px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px">Welcome to KADO, {username}!</div>
+    <p style="color:#888;font-size:14px;line-height:1.6;margin:0 0 24px">
+      Your account is ready. Here's how to activate your trading bot in 3 steps:
+    </p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:28px">
+      <tr><td style="padding:10px 0;border-bottom:1px solid #1a1a1a;vertical-align:top;width:24px;color:#fff;font-weight:600">1</td>
+          <td style="padding:10px 0 10px 12px;border-bottom:1px solid #1a1a1a;color:#ccc">Connect your Bybit API key (read + trade permissions, no withdrawal)</td></tr>
+      <tr><td style="padding:10px 0;border-bottom:1px solid #1a1a1a;vertical-align:top;color:#fff;font-weight:600">2</td>
+          <td style="padding:10px 0 10px 12px;border-bottom:1px solid #1a1a1a;color:#ccc">Choose your strategy — Grid Bot, Signal Bot, or Funding Rate</td></tr>
+      <tr><td style="padding:10px 0;vertical-align:top;color:#fff;font-weight:600">3</td>
+          <td style="padding:10px 0 10px 12px;color:#ccc">Watch your bot trade 24/7</td></tr>
+    </table>
+    <a href="{dashboard}"
+       style="display:inline-block;background:#fff;color:#000;padding:13px 28px;border-radius:100px;font-size:13px;font-weight:600;text-decoration:none;letter-spacing:0.01em">
+      Open Dashboard →
+    </a>
+    <p style="color:#444;font-size:11px;margin-top:40px;line-height:1.5">
+      Questions? <a href="mailto:support@kadoclub.net" style="color:#666">support@kadoclub.net</a><br>
+      — KADO Team
+    </p>
+  </div>
+</body>
+</html>
+"""
+    return _send(to, "Welcome to KADO — your bot is ready", html)
+
+
 def send_password_reset_email(to: str, token: str) -> bool:
     link = f"{SITE_URL}/auth?action=reset&token={token}"
     html = f"""

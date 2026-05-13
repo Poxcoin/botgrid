@@ -64,6 +64,10 @@ class User(Base):
     created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_login   = Column(DateTime, nullable=True)
 
+    # Onboarding
+    onboarding_completed = Column(Boolean, default=False)
+    onboarding_step      = Column(Integer, default=0)
+
     # Referral
     ref_code       = Column(String, unique=True, nullable=True, index=True)   # e.g. "KADO-X9KM2R"
     referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
@@ -302,6 +306,15 @@ def _migrate_columns():
             conn.execute(text("ALTER TABLE users ADD COLUMN ref_code VARCHAR"))
         if "referred_by_id" not in user_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN referred_by_id INTEGER"))
+        if "onboarding_completed" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT 0"))
+            # existing users with API keys are already onboarded
+            conn.execute(text(
+                "UPDATE users SET onboarding_completed = 1 "
+                "WHERE id IN (SELECT DISTINCT user_id FROM api_keys)"
+            ))
+        if "onboarding_step" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN onboarding_step INTEGER DEFAULT 0"))
 
 
 _migrate_columns()

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import OverviewTab  from '@/components/user/OverviewTab';
-import SettingsTab  from '@/components/user/SettingsTab';
-import AccountTab   from '@/components/user/AccountTab';
-import SecurityTab  from '@/components/user/SecurityTab';
-import ApiKeysTab   from '@/components/user/ApiKeysTab';
-import AssetsTab    from '@/components/user/AssetsTab';
+import OverviewTab      from '@/components/user/OverviewTab';
+import SettingsTab      from '@/components/user/SettingsTab';
+import AccountTab       from '@/components/user/AccountTab';
+import SecurityTab      from '@/components/user/SecurityTab';
+import ApiKeysTab       from '@/components/user/ApiKeysTab';
+import AssetsTab        from '@/components/user/AssetsTab';
+import OnboardingModal  from '@/components/user/OnboardingModal';
 
 const BOTS = [
   { id: 'signal',  label: 'Signal'         },
@@ -37,6 +38,18 @@ export default function UserDashboard() {
   const [botsOpen, setBotsOpen] = useState(true);
   const [drop,     setDrop]     = useState(false);
   const dropRef = useRef(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('kado_token');
+    if (!token) return;
+    fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && !data.onboarding_completed) setShowOnboarding(true);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const h = e => setTab(e.detail);
@@ -211,6 +224,14 @@ export default function UserDashboard() {
       </div>
 
       <style>{`*{box-sizing:border-box}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1)}`}</style>
+
+      {showOnboarding && (
+        <OnboardingModal
+          username={user.username}
+          onClose={() => setShowOnboarding(false)}
+          onGoToKeys={() => { setTab('api-keys'); setShowOnboarding(false); }}
+        />
+      )}
     </div>
   );
 }

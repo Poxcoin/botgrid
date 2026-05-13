@@ -29,7 +29,7 @@ PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
-from utils.email import send_verification_email, send_login_otp_email
+from utils.email import send_verification_email, send_login_otp_email, send_welcome_email
 from sqlalchemy.orm import Session
 
 from modules import position_closer
@@ -543,12 +543,11 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     db.add(user)
     db.commit()
     db.refresh(user)
-    # Send verification email in background — non-blocking, failure is silent
-    asyncio.get_running_loop().run_in_executor(
-        None, send_verification_email, body.email, verify_token
-    )
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, send_verification_email, body.email, verify_token)
+    loop.run_in_executor(None, send_welcome_email, body.email, body.username)
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "email_verified": False}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "email_verified": False, "onboarding_completed": False}}
 
 class VerifyEmailRequest(BaseModel):
     token: str
@@ -740,6 +739,8 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "email_verified": bool(user.email_verified),
         "totp_enabled": bool(user.totp_enabled),
+        "onboarding_completed": bool(user.onboarding_completed),
+        "onboarding_step": user.onboarding_step or 0,
     }
 
 @app.put("/api/users/me")
@@ -829,6 +830,24 @@ async def export_my_data(
             for t in trades
         ],
     }
+
+
+# ─── Onboarding ──────────────────────────────────────────────────────────────
+class OnboardingStepRequest(BaseModel):
+    step: int
+
+@app.post("/api/onboarding/step")
+async def update_onboarding_step(
+    body: OnboardingStepRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+    user.onboarding_step = max(user.onboarding_step or 0, body.step)
+    if body.step >= 3:
+        user.onboarding_completed = True
+    db.commit()
+    return {"ok": True, "onboarding_completed": bool(user.onboarding_completed), "onboarding_step": user.onboarding_step}
 
 
 # ─── Telegram bot linking (deep-link one-click flow) ─────────────────────────
