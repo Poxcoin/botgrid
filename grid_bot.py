@@ -85,6 +85,7 @@ MIN_GRID_LEVELS        = 3      # мінімальна кількість рів
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
 RSI_OB_BUY             = 72    # RSI(14,4h) > 72 → не розміщуємо нові BUY ордери
 BOUNDARY_SL_PCT        = 0.03  # 3% нижче нижньої межі сітки → жорсткий стоп
+EMA_BLOCK_MIN_GAP      = 0.01  # блокуємо LONG тільки якщо EMA20 < EMA50 * (1 - 1%) — фільтр шуму
 MIN_ORDER_SPREAD       = 0.002 # 0.2% мінімальний спред між limit та market — PostOnly safe
 
 # ─── State ───────────────────────────────────────────────────────────────────
@@ -1023,12 +1024,21 @@ def _run_single(cfg: dict) -> None:
                 realized = _sync_close_all(exchange, symbol, state.get("positions", {}), leverage, price, direction, user_id)
                 state["total_pnl"] += realized
                 state["positions"] = {}
-                state["stop_until"] = time.time() + 3600
+                rebuilds_today += 1
+                pause_secs = 3600
+                if rebuilds_today >= MAX_REBUILDS_DAY:
+                    import calendar
+                    _now_utc = datetime.now(timezone.utc)
+                    _midnight = _now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+                    pause_secs = int((_midnight.timestamp() + 86400 - time.time())) + 3600
+                state["stop_until"] = time.time() + pause_secs
+                state["rebuilds_today"] = rebuilds_today
                 _save_state(symbol, state, user_id)
+                pause_note = f"Пауза до завтра" if rebuilds_today >= MAX_REBUILDS_DAY else f"Пауза 1h ({rebuilds_today}/{MAX_REBUILDS_DAY} boundary SL сьогодні)"
                 send_telegram_message(
                     f"🛑 <b>Grid BOUNDARY SL</b> {symbol}\n"
                     f"{_sl_msg}\n"
-                    f"Реалізований PnL: ${realized:.2f} | Пауза 1h",
+                    f"Реалізований PnL: ${realized:.2f} | {pause_note}",
                     _tg_target,
                 )
                 break
@@ -1193,8 +1203,8 @@ def _run_single(cfg: dict) -> None:
                         print(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
                     elif not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
                         print(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
-                    elif _ema20_4h > 0 and _ema20_4h < _ema50_4h:
-                        print(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) — LONG BUY пропускаємо (downtrend)")
+                    elif _ema20_4h > 0 and _ema20_4h < _ema50_4h * (1 - EMA_BLOCK_MIN_GAP):
+                        print(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
                         limit_price = levels[current_zone]  # floor зони — maker order
                         _spread = (price - limit_price) / price if price > 0 else 0
