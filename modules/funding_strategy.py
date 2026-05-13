@@ -12,6 +12,8 @@ Funding Rate Mean Reversion Strategy.
 Запускається як daemon-поток, кладе готові сигнали в funding_queue.
 main.py читає funding_queue і викликає execute_trade напряму.
 """
+import json
+import os
 import time
 import threading
 import queue
@@ -21,6 +23,32 @@ from datetime import datetime, timezone
 from modules.market_data import get_market_metrics
 
 funding_queue: queue.Queue = queue.Queue()
+
+_CD_FILE = os.path.join(os.path.dirname(__file__), "..", "coin_cooldown.json")
+
+
+def _load_cooldowns() -> dict:
+    try:
+        with open(_CD_FILE) as f:
+            raw = json.load(f)
+        now = time.time()
+        return {k: v for k, v in raw.items() if now - v < COIN_COOLDOWN_SEC}
+    except Exception:
+        return {}
+
+
+def _save_cooldown(coin: str, ts: float) -> None:
+    try:
+        try:
+            with open(_CD_FILE) as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+        data[coin] = ts
+        with open(_CD_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception:
+        pass
 
 POLL_INTERVAL   = 900   # перевіряємо кожні 15 хвилин
 COIN_SLEEP      = 1.5   # пауза між монетами — не спамимо API
@@ -154,6 +182,8 @@ def _strategy_loop():
     while True:
         try:
             now_ts = time.time()
+            # Load cooldowns from disk each cycle so restarts don't reset them
+            _cooldowns.update(_load_cooldowns())
             fired  = 0
             for coin in WATCHLIST:
                 last_ts = _cooldowns.get(coin, 0)
@@ -165,6 +195,7 @@ def _strategy_loop():
                     if sig:
                         sig["timestamp"] = datetime.now(timezone.utc).isoformat()
                         _cooldowns[coin]  = now_ts
+                        _save_cooldown(coin, now_ts)   # persist immediately
                         funding_queue.put_nowait(sig)
                         print(
                             f"[FR] 🎯 {sig['action']} {coin} | "

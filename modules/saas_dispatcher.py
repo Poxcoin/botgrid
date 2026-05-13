@@ -130,6 +130,28 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
     sl_pct   = signal.get("sl_pct",   4.0)
 
     try:
+        # Guard: check existing open positions in DB before touching the exchange
+        _db = SessionLocal()
+        try:
+            coin_sym = symbol.split("/")[0].replace("USDT", "")
+            existing = _db.query(UserTrade).filter(
+                UserTrade.user_id == uid,
+                UserTrade.symbol == symbol,
+                UserTrade.status == "open",
+            ).first()
+            if existing:
+                print(f"[DISPATCHER] SKIP user={uid} {symbol} — вже відкрита позиція (id={existing.id})")
+                return False
+            open_count = _db.query(UserTrade).filter(
+                UserTrade.user_id == uid,
+                UserTrade.status == "open",
+            ).count()
+            if open_count >= 5:
+                print(f"[DISPATCHER] SKIP user={uid} — ліміт {open_count}/5 відкритих позицій")
+                return False
+        finally:
+            _db.close()
+
         ex = _build_exchange(user["api_key"], user["secret"], user["is_testnet"])
 
         # Balance → position size
