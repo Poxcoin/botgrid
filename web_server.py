@@ -2656,6 +2656,149 @@ async def liquidations_cascades():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  TELEGRAM MINI APP
+# ══════════════════════════════════════════════════════════════════════════════
+
+import hmac as _hmac
+from urllib.parse import parse_qsl as _parse_qsl, unquote as _unquote
+
+_WEBAPP_TOKENS: dict = {}   # token → user_id, expires at
+
+
+def _verify_tg_init_data(init_data: str, bot_token: str) -> dict | None:
+    """Return parsed user dict if initData HMAC is valid, else None."""
+    try:
+        params  = dict(_parse_qsl(init_data, keep_blank_values=True))
+        tg_hash = params.pop("hash", None)
+        if not tg_hash:
+            return None
+        data_check = "\n".join(f"{k}={params[k]}" for k in sorted(params))
+        secret = _hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+        calc   = _hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(calc, tg_hash):
+            return None
+        user_raw = params.get("user", "{}")
+        return json.loads(user_raw)
+    except Exception:
+        return None
+
+
+class WebAppInitRequest(BaseModel):
+    init_data: str
+
+
+class WebAppPauseRequest(BaseModel):
+    pause: bool
+
+
+@app.get("/webapp")
+async def serve_webapp():
+    path = "static/webapp.html"
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404)
+    return FileResponse(path, media_type="text/html",
+                        headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
+
+
+@app.post("/api/webapp/init")
+async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
+    bot_token = TG_BOT_TOKEN or ""
+    tg_user   = None
+
+    if body.init_data and bot_token:
+        tg_user = _verify_tg_init_data(body.init_data, bot_token)
+
+    # Dev fallback: allow empty initData only in testnet/demo
+    if tg_user is None:
+        if not (USE_TESTNET or IS_DEMO_TRADING):
+            raise HTTPException(status_code=401, detail="Invalid Telegram session")
+        tg_user = {"id": 0}
+
+    tg_id   = str(tg_user.get("id", ""))
+    # Look up user by tg_chat_id
+    user = db.query(User).filter(User.tg_chat_id == tg_id).first() if tg_id else None
+
+    balance   = {"usdt_wallet": 0, "unrealized_pnl": 0}
+    positions = []
+    signals   = []
+    paused    = False
+
+    if user:
+        key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+        if key_row:
+            try:
+                ex = _init_user_exchange(key_row)
+                if ex:
+                    b         = _bybit_balance(ex)
+                    balance   = {"usdt_wallet": b["wallet"], "unrealized_pnl": b["unrealized_pnl"]}
+                    positions = _bybit_positions(ex)
+            except Exception:
+                pass
+
+        # Recent signals from DB
+        try:
+            rows = (
+                db.query(UserTrade)
+                .filter_by(user_id=user.id)
+                .order_by(UserTrade.opened_at.desc())
+                .limit(10)
+                .all()
+            )
+            signals = [
+                {
+                    "coin":      r.symbol.replace("USDT", "").replace("/USDT:USDT", ""),
+                    "action":    r.action or "LONG",
+                    "result":    r.status.upper() if r.status and r.status != "open" else None,
+                    "timestamp": r.opened_at.isoformat() if r.opened_at else None,
+                }
+                for r in rows
+            ]
+        except Exception:
+            pass
+
+    # Issue short-lived opaque token for pause endpoint
+    token = secrets.token_hex(16)
+    _WEBAPP_TOKENS[token] = {
+        "user_id": user.id if user else None,
+        "expires": time.time() + 3600,
+    }
+
+    return {
+        "token":     token,
+        "paused":    paused,
+        "balance":   balance,
+        "positions": positions,
+        "signals":   signals,
+    }
+
+
+@app.post("/api/webapp/pause")
+async def webapp_pause(
+    body: WebAppPauseRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    token  = request.headers.get("X-Webapp-Token", "")
+    meta   = _WEBAPP_TOKENS.get(token)
+    if not meta or meta["expires"] < time.time():
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = meta.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=403, detail="No linked account")
+
+    try:
+        if body.pause:
+            dispatcher_stop_user(user_id)
+        else:
+            dispatcher_sync_user(user_id, db)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"ok": True, "paused": body.pause}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  SPA CATCH-ALL  — MUST BE LAST — иначе перехватывает все /api/* маршруты
 # ══════════════════════════════════════════════════════════════════════════════
 
