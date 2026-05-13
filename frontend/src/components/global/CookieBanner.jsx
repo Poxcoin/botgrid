@@ -46,7 +46,7 @@ export default function CookieBanner() {
     >
       <p style={{ fontSize: 13, lineHeight: 1.55, margin: 0, color: '#cbd5e1' }}>
         {t.cookies.body}{' '}
-        <Link to="/legal/terms" style={{ color: '#9ca3af', textDecoration: 'underline' }}>
+        <Link to="/legal/privacy" style={{ color: '#9ca3af', textDecoration: 'underline' }}>
           {t.cookies.learnMore}
         </Link>
       </p>

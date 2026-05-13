@@ -578,6 +578,14 @@ export default function Auth() {
                 <KadoButton type="submit" variant="blue" className="w-full" disabled={loading}>
                   {loading ? t.auth.pleaseWait : mode === 'login' ? t.auth.loginBtn : t.auth.signupBtn}
                 </KadoButton>
+                {mode === 'register' && (
+                  <p className="font-mono text-[10px] tracking-[0.05em] text-kado-black/40 leading-relaxed text-center">
+                    {t.auth.agreeTerms}{' '}
+                    <Link to="/legal/terms" className="underline hover:text-kado-blue transition-colors">{t.auth.agreeTermsTerms}</Link>
+                    {' '}{t.auth.agreeTermsAnd}{' '}
+                    <Link to="/legal/privacy" className="underline hover:text-kado-blue transition-colors">{t.auth.agreeTermsPrivacy}</Link>.
+                  </p>
+                )}
               </form>
 
               <div className="mt-8 font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/60 flex flex-col gap-3">
