@@ -14,6 +14,7 @@ import ccxt
 
 from database import SessionLocal, User, UserApiKey, UserTrade
 from modules.saas_dispatcher import _build_exchange, update_trade_closed
+from modules.analytics_db import close_user_trade
 from utils.crypto import decrypt_field
 
 POLL_INTERVAL    = 300   # seconds between polls
@@ -140,7 +141,11 @@ def _check_user(user: dict) -> int:
                 continue  # too young, retry next poll
             print(f"[CLOSER] ghost user={user_id} {trade.symbol} ({age_sec/3600:.0f}h) → close pnl=0")
 
-        update_trade_closed(trade.order_id, exit_price, pnl_usdt)
+        if trade.order_id:
+            update_trade_closed(trade.order_id, exit_price, pnl_usdt)
+        else:
+            # Grid trades: no Bybit order_id stored — close directly by DB id
+            close_user_trade(trade.id, exit_price, pnl_usdt)
         closed += 1
         print(f"[CLOSER] user={user_id} closed {trade.symbol} "
               f"exit={exit_price} pnl={pnl_usdt:+.2f}")

@@ -400,7 +400,8 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
         ts_open = datetime.now(timezone.utc).isoformat()
         try:
             if user_id is not None:
-                db_trade_id = save_user_trade(user_id, coin, "LONG", fill, "grid")
+                db_trade_id = save_user_trade(user_id, coin, "LONG", fill, "grid",
+                                              qty=qty, order_id=order.get("id"), leverage=leverage)
             else:
                 db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
         except Exception:
@@ -481,7 +482,8 @@ def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
         ts_open = datetime.now(timezone.utc).isoformat()
         try:
             if user_id is not None:
-                db_trade_id = save_user_trade(user_id, coin, "SHORT", fill, "grid")
+                db_trade_id = save_user_trade(user_id, coin, "SHORT", fill, "grid",
+                                              qty=qty, order_id=order.get("id"), leverage=leverage)
             else:
                 db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open)
         except Exception:
@@ -604,7 +606,8 @@ def _cancel_all_pending(exchange, symbol: str, pending: dict) -> None:
 
 def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                            direction: str, state: dict,
-                           user_id: Optional[int] = None) -> None:
+                           user_id: Optional[int] = None,
+                           leverage: int = 2) -> None:
     """Перевіряє статус pending limit ордерів кожен тік.
 
     Заповнені → переміщає в positions.
@@ -657,7 +660,8 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     ts_open = datetime.now(timezone.utc).isoformat()
                     try:
                         if user_id is not None:
-                            db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid")
+                            db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid",
+                                                          qty=qty, order_id=order_id, leverage=leverage)
                         else:
                             db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
                     except Exception:
@@ -715,6 +719,7 @@ def _run_single(cfg: dict) -> None:
     _api_key   = cfg.get("api_key")
     _api_secret = cfg.get("api_secret")
     _is_demo   = cfg.get("is_demo", False)
+    _tg_target = cfg.get("tg_chat_id") or TG_CHAT_ID
 
     # Per-symbol overrides
     boundary_sl_pct       = cfg.get("boundary_sl_pct", BOUNDARY_SL_PCT)
@@ -873,7 +878,7 @@ def _run_single(cfg: dict) -> None:
         f"<b>Рівнів:</b> {grid_levels} | Крок: ${step:.2f}\n"
         f"<b>Розмір:</b> ${size_usd} × {leverage}x\n"
         f"<b>Баланс:</b> ${free:.2f} USDT",
-        TG_CHAT_ID,
+        _tg_target,
     )
 
     last_price = _get_current_price(exchange, symbol)
@@ -959,7 +964,7 @@ def _run_single(cfg: dict) -> None:
                         f"🔄 <b>Grid тренд-флip</b> {symbol}\n"
                         f"Новий режим: {direction.upper()}\n"
                         f"Реалізований PnL: ${realized:.2f} | Загалом: ${state['total_pnl']:.2f}",
-                        TG_CHAT_ID,
+                        _tg_target,
                     )
 
             # ─── Boundary SL: ціна виходить за межі сітки на boundary_sl_pct ────
@@ -986,7 +991,7 @@ def _run_single(cfg: dict) -> None:
                     f"🛑 <b>Grid BOUNDARY SL</b> {symbol}\n"
                     f"{_sl_msg}\n"
                     f"Реалізований PnL: ${realized:.2f} | Пауза 1h",
-                    TG_CHAT_ID,
+                    _tg_target,
                 )
                 break
 
@@ -1060,7 +1065,7 @@ def _run_single(cfg: dict) -> None:
                             f"Режим: {direction.upper()}\n"
                             f"Причина: {reason}\n"
                             f"Загальний PnL: ${state['total_pnl']:.2f}",
-                            TG_CHAT_ID,
+                            _tg_target,
                         )
                         return
 
@@ -1090,7 +1095,7 @@ def _run_single(cfg: dict) -> None:
                     f"Новий діапазон: ${lower:.2f} — ${upper:.2f}\n"
                     f"Рівнів: {grid_levels} | Крок: ${step:.2f}\n"
                     f"Реалізований PnL: ${realized:.2f} | Загалом: ${state['total_pnl']:.2f}",
-                    TG_CHAT_ID,
+                    _tg_target,
                 )
                 last_price = price
                 continue
@@ -1102,7 +1107,7 @@ def _run_single(cfg: dict) -> None:
             pending_orders = state.setdefault("pending_orders", {})
 
             # ─── Перевіряємо pending limit ордери ───────────────────────────
-            _check_pending_orders(exchange, symbol, pending_orders, positions, direction, state, user_id)
+            _check_pending_orders(exchange, symbol, pending_orders, positions, direction, state, user_id, leverage)
 
             if direction == "long":
                 # ─── LONG: SELL якщо ціна виросла вище рівня позиції ────────
@@ -1131,7 +1136,7 @@ def _run_single(cfg: dict) -> None:
                                 f"Вхід: ${entry['fill_price']:.4f} | Вихід: ${fill_price:.4f}\n"
                                 f"PnL: +${realized_pnl:.2f} | Циклів: {state['completed']}\n"
                                 f"Загальний PnL: ${state['total_pnl']:.2f}",
-                                TG_CHAT_ID,
+                                _tg_target,
                             )
 
                 # ─── LONG: limit BUY на floor зони якщо нема позиції/pending ─
@@ -1172,7 +1177,7 @@ def _run_single(cfg: dict) -> None:
                                 f"📋 <b>Grid LONG LIMIT</b> {symbol}\n"
                                 f"Рівень {current_zone} @ ${limit_price:.4f} (maker)\n"
                                 f"Qty: {result['qty']} | Pending: {len(pending_orders)}",
-                                TG_CHAT_ID,
+                                _tg_target,
                             )
 
             else:  # direction == "short"
@@ -1201,7 +1206,7 @@ def _run_single(cfg: dict) -> None:
                                 f"Вхід: ${entry['fill_price']:.4f} | Вихід: ${fill_price:.4f}\n"
                                 f"PnL: +${realized_pnl:.2f} | Циклів: {state['completed']}\n"
                                 f"Загальний PnL: ${state['total_pnl']:.2f}",
-                                TG_CHAT_ID,
+                                _tg_target,
                             )
 
                 # ─── SHORT: limit SELL на ceiling зони якщо нема позиції/pending
@@ -1230,7 +1235,7 @@ def _run_single(cfg: dict) -> None:
                                 f"📋 <b>Grid SHORT LIMIT</b> {symbol}\n"
                                 f"Рівень {current_zone} @ ${limit_price:.4f} (maker)\n"
                                 f"Qty: {result['qty']} | Pending: {len(pending_orders)}",
-                                TG_CHAT_ID,
+                                _tg_target,
                             )
 
             last_price = price
@@ -1301,11 +1306,13 @@ def run_grid_engine():
         print("\n[GRID] Зупинено всі сітки.")
 
 
-def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event: threading.Event, is_demo: bool = False) -> None:
+def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event: threading.Event,
+                             is_demo: bool = False, tg_chat_id: str = None) -> None:
     """Запускає grid engine для конкретного користувача з його API ключами."""
     thread_map: dict[str, threading.Thread] = {}
     for cfg in GRID_CONFIGS:
-        user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret, "is_demo": is_demo}
+        user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret,
+                    "is_demo": is_demo, "tg_chat_id": tg_chat_id}
         sym = user_cfg["symbol"]
         thread_map[sym] = _start_thread(user_cfg)
         print(f"[GRID:u{user_id}] Запущено потік для {sym} (demo={is_demo})")
@@ -1316,7 +1323,8 @@ def run_grid_engine_for_user(user_id: int, api_key: str, secret: str, stop_event
             sym = cfg["symbol"]
             t = thread_map.get(sym)
             if t and not t.is_alive() and not stop_event.is_set():
-                user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret, "is_demo": is_demo}
+                user_cfg = {**cfg, "user_id": user_id, "api_key": api_key, "api_secret": secret,
+                            "is_demo": is_demo, "tg_chat_id": tg_chat_id}
                 _sym_state = _load_state(sym, user_id)
                 if _sym_state.get("stop_until", 0) > time.time():
                     continue

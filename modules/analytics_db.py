@@ -179,7 +179,9 @@ def close_trade(trade_id: int, exit_price: float, pnl_usdt: float,
 
 
 def save_user_trade(user_id: int, coin: str, side: str,
-                    entry_price: float, source: str = "grid") -> int:
+                    entry_price: float, source: str = "grid",
+                    qty: float = None, order_id: str = None,
+                    leverage: int = None) -> int:
     """Записывает открытую сделку в user_trades (SaaS таблица). Возвращает ID."""
     from database import SessionLocal, UserTrade
     from datetime import datetime, timezone
@@ -192,6 +194,9 @@ def save_user_trade(user_id: int, coin: str, side: str,
             symbol=symbol,
             side=side,
             entry_price=entry_price,
+            qty=qty,
+            order_id=order_id,
+            leverage=leverage,
             status="open",
             opened_at=datetime.now(timezone.utc),
         )
