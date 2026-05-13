@@ -17,7 +17,7 @@ export default function LandingFooter() {
   const { t } = useLang();
 
   const COLS = [
-    { title: t.footer.colProduct, links: [{ label: t.nav.bots, to: '/bots' }, { label: t.nav.strategies, to: '/strategies' }, { label: t.nav.pricing, to: '/pricing' }, { label: t.nav.news, to: '/news' }] },
+    { title: t.footer.colProduct, links: [{ label: t.nav.bots, to: '/bots' }, { label: t.nav.strategies, to: '/strategies' }, { label: t.nav.pricing, to: '/pricing' }, { label: t.nav.news, to: '/news' }, { label: t.footer.footerDocs, to: '/docs' }] },
     { title: t.footer.colAccess, links: [{ label: t.auth.signup.replace(' →', ''), to: '/auth?mode=register' }, { label: t.auth.login, to: '/auth?mode=login' }] },
     { title: t.footer.colLegal, links: [{ label: t.footer.legalRisk, to: '/legal/risk-disclosure' }, { label: t.footer.legalTerms, to: '/legal/terms' }, { label: t.footer.legalPrivacy, to: '/legal/privacy' }] },
   ];

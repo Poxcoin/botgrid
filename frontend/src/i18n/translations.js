@@ -558,6 +558,7 @@ export const translations = {
       legalRisk:    'Risk Disclosure',
       legalTerms:   'Terms of Service',
       legalPrivacy: 'Privacy Policy',
+      footerDocs:   'Documentation',
     },
     news: {
       masthead:    'TERMINAL',
@@ -1172,6 +1173,7 @@ export const translations = {
       legalRisk:    'Aviso de riesgo',
       legalTerms:   'Términos de servicio',
       legalPrivacy: 'Política de privacidad',
+      footerDocs:   'Documentación',
     },
     news: {
       masthead:    'TERMINAL',
@@ -1786,6 +1788,7 @@ export const translations = {
       legalRisk:    'Розкриття ризиків',
       legalTerms:   'Умови використання',
       legalPrivacy: 'Політика конфіденційності',
+      footerDocs:   'Документація',
     },
     news: {
       masthead:    'ТЕРМІНАЛ',
@@ -2400,6 +2403,7 @@ export const translations = {
       legalRisk:    'Раскрытие рисков',
       legalTerms:   'Условия использования',
       legalPrivacy: 'Политика конфиденциальности',
+      footerDocs:   'Документация',
     },
     news: {
       masthead:    'ТЕРМИНАЛ',
@@ -3014,6 +3018,7 @@ export const translations = {
       legalRisk:    'Risikohinweis',
       legalTerms:   'Nutzungsbedingungen',
       legalPrivacy: 'Datenschutzerklärung',
+      footerDocs:   'Dokumentation',
     },
     news: {
       masthead:    'TERMINAL',
@@ -3628,6 +3633,7 @@ export const translations = {
       legalRisk:    '风险披露',
       legalTerms:   '服务条款',
       legalPrivacy: '隐私政策',
+      footerDocs:   '文档',
     },
     news: {
       masthead:    '终端',

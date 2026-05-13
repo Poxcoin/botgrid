@@ -22,6 +22,7 @@ const NotFoundPage      = lazy(() => import('@/pages/NotFoundPage'));
 const RiskDisclosurePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.RiskDisclosurePage })));
 const TermsOfServicePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.TermsOfServicePage })));
 const PrivacyPolicyPage  = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const DocsPage           = lazy(() => import('@/pages/DocsPage'));
 
 function PixelRouteTracker() {
   const location = useLocation();
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/legal/risk-disclosure" element={<RiskDisclosurePage />} />
           <Route path="/legal/terms" element={<TermsOfServicePage />} />
           <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
         </Suspense>
