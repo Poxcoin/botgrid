@@ -116,7 +116,7 @@ function FaqItem({ q, a }) {
 }
 
 export default function DocsPage() {
-  usePageTitle('Documentation');
+  usePageTitle('Documentation', 'Step-by-step guides for connecting Bybit API, choosing trading strategies, and getting the most out of KADO.');
   const [active, setActive] = useState('getting-started');
 
   useEffect(() => {
