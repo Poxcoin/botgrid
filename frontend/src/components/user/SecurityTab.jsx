@@ -269,7 +269,12 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
 
 function SecurityRow({ label, status, statusColor, action, actionLabel, description }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
+      padding: '16px 18px',
+      border: '1px solid var(--border)', borderRadius: 10,
+      background: 'var(--bg-elevated, var(--bg2))',
+    }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{label}</div>
         {description && <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.5 }}>{description}</div>}
@@ -309,29 +314,37 @@ export default function SecurityTab() {
     <div style={{ width: '100%' }}>
       {modal2fa && <TwoFAModal mode={modal2fa} onClose={() => setModal2fa(null)} onDone={on2faDone} />}
 
-      <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div style={{ width: '100%', maxWidth: 1100, margin: '0 auto' }}>
 
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 20, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28, padding: '16px 20px', border: '1px solid var(--border)', background: 'var(--bg2)' }}>
-            <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
-              <svg viewBox="0 0 52 52" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
-                <circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" strokeWidth="4" />
-                <circle cx="26" cy="26" r="22" fill="none" stroke={secScore >= 80 ? '#22c55e' : secScore >= 50 ? '#eab308' : '#ef4444'} strokeWidth="4" strokeDasharray={`${2 * Math.PI * 22 * secScore / 100} ${2 * Math.PI * 22}`} strokeLinecap="round" />
-              </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{secScore}</div>
+        <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
+
+        {/* Score widget — full width */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16,
+          padding: '20px 22px',
+          border: '1px solid var(--border)', borderRadius: 10,
+          background: 'var(--bg-elevated, var(--bg2))',
+        }}>
+          <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
+            <svg viewBox="0 0 52 52" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
+              <circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" strokeWidth="4" />
+              <circle cx="26" cy="26" r="22" fill="none" stroke={secScore >= 80 ? '#22c55e' : secScore >= 50 ? '#eab308' : '#ef4444'} strokeWidth="4" strokeDasharray={`${2 * Math.PI * 22 * secScore / 100} ${2 * Math.PI * 22}`} strokeLinecap="round" />
+            </svg>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{secScore}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>
+              {scoreLabel} {t.dashboard.security.securitySuffix}
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>
-                {scoreLabel} {t.dashboard.security.securitySuffix}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.5 }}>
-                {secScore < 100 && t.dashboard.security.improveScore}
-                {secScore === 100 && t.dashboard.security.allActive}
-              </div>
+            <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.5 }}>
+              {secScore < 100 && t.dashboard.security.improveScore}
+              {secScore === 100 && t.dashboard.security.allActive}
             </div>
           </div>
+        </div>
 
+        {/* Security rows — 2-col grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
           <SecurityRow
             label={t.dashboard.security.twoFactorAuth}
             description={me?.totp_enabled ? t.dashboard.security.totpEnabledDesc : t.dashboard.security.totpDisabledDesc}
@@ -359,7 +372,11 @@ export default function SecurityTab() {
             statusColor="#22c55e"
           />
 
-          <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+          <div style={{
+            padding: '16px 18px',
+            border: '1px solid var(--border)', borderRadius: 10,
+            background: 'var(--bg-elevated, var(--bg2))',
+          }}>
             <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{t.dashboard.security.accountEmail}</div>
             <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{me?.email || '—'}</div>
           </div>

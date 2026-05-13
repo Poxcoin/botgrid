@@ -280,7 +280,7 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
   }
 
   return (
-    <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, padding: '20px 22px', marginBottom: 14 }}>
+    <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <div style={{ fontFamily: FF, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
         {badge && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 8px', border: `1px solid ${badge.color}30`, color: badge.color, borderRadius: 100 }}>{badge.text}</span>}
@@ -306,10 +306,10 @@ export default function ApiKeysTab() {
   useEffect(() => { reload(); }, []);
 
   return (
-    <div style={{ width: '100%', maxWidth: 600, margin: '0 auto', fontFamily: FF }}>
+    <div style={{ width: '100%', maxWidth: 1100, margin: '0 auto', fontFamily: FF, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
+      <div>
         <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>API Keys</div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
           Connect your Bybit account so the bot can open and close trades on your behalf. Keys are encrypted with AES-256 and never stored in plain text.
@@ -319,30 +319,30 @@ export default function ApiKeysTab() {
       {/* Guide */}
       <SetupGuide />
 
-      {/* Live key */}
-      <KeySection
-        title="Live Account"
-        badge={{ text: 'MAINNET', color: '#00d4aa' }}
-        subtitle="Real funds — Bybit Mainnet. The bot will trade with real money once this key is connected."
-        isTestnet={false}
-        maskedKey={me?.bybit_live_key_masked || null}
-        onSaved={reload}
-        onDeleted={reload}
-      />
-
-      {/* Demo key */}
-      <KeySection
-        title="Demo Account"
-        badge={{ text: 'DEMO', color: '#888' }}
-        subtitle="Paper trading — Bybit Demo. Safe for testing strategies without real funds."
-        isTestnet={true}
-        maskedKey={me?.bybit_demo_key_masked || null}
-        onSaved={reload}
-        onDeleted={reload}
-      />
+      {/* Live + Demo side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
+        <KeySection
+          title="Live Account"
+          badge={{ text: 'MAINNET', color: '#00d4aa' }}
+          subtitle="Real funds — Bybit Mainnet. The bot will trade with real money once this key is connected."
+          isTestnet={false}
+          maskedKey={me?.bybit_live_key_masked || null}
+          onSaved={reload}
+          onDeleted={reload}
+        />
+        <KeySection
+          title="Demo Account"
+          badge={{ text: 'DEMO', color: '#888' }}
+          subtitle="Paper trading — Bybit Demo. Safe for testing strategies without real funds."
+          isTestnet={true}
+          maskedKey={me?.bybit_demo_key_masked || null}
+          onSaved={reload}
+          onDeleted={reload}
+        />
+      </div>
 
       {/* Security note */}
-      <div style={{ marginTop: 8, padding: '16px 18px', border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-surface)' }}>
+      <div style={{ padding: '16px 18px', border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-surface)' }}>
         <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Security</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {[

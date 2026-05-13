@@ -7,18 +7,23 @@ const LANG_FULL = {
   en: 'English', es: 'Español', uk: 'Українська', ru: 'Русский', de: 'Deutsch', zh: '中文',
 };
 
-// ── Accordion section ────────────────────────────────────────────────────────
+// ── Card section ─────────────────────────────────────────────────────────────
 function Section({ title, sub, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{
+      border: '1px solid var(--border)',
+      borderRadius: 10,
+      background: 'var(--bg-elevated, var(--bg2))',
+      overflow: 'hidden',
+    }}>
       <button
         onClick={() => setOpen(o => !o)}
         aria-label={`${title} settings`}
         aria-expanded={open}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          width: '100%', padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
+          width: '100%', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--fg)', textAlign: 'left',
         }}
       >
@@ -30,7 +35,7 @@ function Section({ title, sub, defaultOpen = false, children }) {
           <path d="M2 4l3.5 3L9 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
-      {open && <div style={{ paddingBottom: 24 }}>{children}</div>}
+      {open && <div style={{ padding: '4px 20px 20px', borderTop: '1px solid var(--border)' }}>{children}</div>}
     </div>
   );
 }
@@ -136,7 +141,11 @@ export default function SettingsTab() {
   }
 
   return (
-    <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
+    <div style={{
+      width: '100%', maxWidth: 1100, margin: '0 auto',
+      display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      gap: 16, alignItems: 'start',
+    }}>
 
       {/* Language */}
       <Section
@@ -158,6 +167,7 @@ export default function SettingsTab() {
       <Section
         title={t.dashboard.settingsPrefs.themeTitle}
         sub={theme === 'dark' ? t.dashboard.settingsPrefs.themeDark : t.dashboard.settingsPrefs.themeLight}
+        defaultOpen
       >
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
           {t.dashboard.settingsPrefs.themeDesc}
@@ -172,6 +182,7 @@ export default function SettingsTab() {
       <Section
         title={t.dashboard.settingsPrefs.timezoneTitle}
         sub={tz === 'auto' ? t.dashboard.settingsPrefs.tzAuto : tz}
+        defaultOpen
       >
         <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 10, lineHeight: 1.5 }}>
           {t.dashboard.settingsPrefs.timezoneDesc}
@@ -187,6 +198,7 @@ export default function SettingsTab() {
       <Section
         title={t.dashboard.settingsPrefs.notifsTitle}
         sub={t.dashboard.settingsPrefs.notifsSub}
+        defaultOpen
       >
         <NotificationsBlock />
       </Section>
