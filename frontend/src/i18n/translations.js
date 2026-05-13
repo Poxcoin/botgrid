@@ -7,6 +7,7 @@ export const translations = {
       strategies: 'Strategies',
       pricing:    'Pricing',
       news:       'News',
+      docs:       'Docs',
     },
     auth: {
       login:                  'Login',
@@ -622,6 +623,7 @@ export const translations = {
       strategies: 'Estrategias',
       pricing:    'Precios',
       news:       'Noticias',
+      docs:       'Docs',
     },
     auth: {
       login:                  'Iniciar sesión',
@@ -1237,6 +1239,7 @@ export const translations = {
       strategies: 'Стратегії',
       pricing:    'Ціни',
       news:       'Новини',
+      docs:       'Docs',
     },
     auth: {
       login:                  'Увійти',
@@ -1852,6 +1855,7 @@ export const translations = {
       strategies: 'Стратегии',
       pricing:    'Цены',
       news:       'Новости',
+      docs:       'Docs',
     },
     auth: {
       login:                  'Войти',
@@ -2467,6 +2471,7 @@ export const translations = {
       strategies: 'Strategien',
       pricing:    'Preise',
       news:       'Nachrichten',
+      docs:       'Docs',
     },
     auth: {
       login:                  'Anmelden',
@@ -3082,6 +3087,7 @@ export const translations = {
       strategies: '策略',
       pricing:    '价格',
       news:       '新闻',
+      docs:       'Docs',
     },
     auth: {
       login:                  '登录',

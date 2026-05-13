@@ -290,6 +290,7 @@ export default function LandingHeader() {
     ['/strategies', t.nav.strategies],
     ['/pricing',    t.nav.pricing],
     ['/news',       t.nav.news],
+    ['/docs',       t.nav.docs],
   ];
 
   return (
