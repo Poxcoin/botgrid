@@ -6,18 +6,23 @@ const API = (path, opts) => fetch(path, {
   ...opts,
 }).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e.detail || 'Error')));
 
-// ── Accordion section ────────────────────────────────────────────────────────
+// ── Card section ─────────────────────────────────────────────────────────────
 function Section({ title, sub, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: '1px solid var(--border)' }}>
+    <div style={{
+      border: '1px solid var(--border)',
+      borderRadius: 10,
+      background: 'var(--bg-elevated, var(--bg2))',
+      overflow: 'hidden',
+    }}>
       <button
         onClick={() => setOpen(o => !o)}
         aria-label={`${title} section`}
         aria-expanded={open}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          width: '100%', padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer',
+          width: '100%', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--fg)', textAlign: 'left',
         }}
       >
@@ -30,7 +35,7 @@ function Section({ title, sub, defaultOpen = false, children }) {
         </svg>
       </button>
       {open && (
-        <div style={{ paddingBottom: 24 }}>
+        <div style={{ padding: '4px 20px 20px', borderTop: '1px solid var(--border)' }}>
           {children}
         </div>
       )}
@@ -347,7 +352,11 @@ export default function AccountTab() {
   const expires = me?.subscription_expires ? new Date(me.subscription_expires).toLocaleDateString() : null;
 
   return (
-    <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
+    <div style={{
+      width: '100%', maxWidth: 1100, margin: '0 auto',
+      display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      gap: 16, alignItems: 'start',
+    }}>
 
       {/* Profile section */}
       <Section
@@ -407,17 +416,21 @@ export default function AccountTab() {
       <Section
         title={t.dashboard.account.telegramTitle}
         sub={me?.tg_connected ? `@${me.tg_username || '—'}` : t.dashboard.account.telegramSubDisconnected}
+        defaultOpen
       >
         <TelegramBlock me={me} onChange={reload} />
       </Section>
 
-      {/* Billing section */}
-      <Section
-        title={t.dashboard.account.billingTitle}
-        sub={planUpper}
-      >
-        <BillingBlock plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
-      </Section>
+      {/* Billing section — full width */}
+      <div style={{ gridColumn: '1 / -1' }}>
+        <Section
+          title={t.dashboard.account.billingTitle}
+          sub={planUpper}
+          defaultOpen
+        >
+          <BillingBlock plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
+        </Section>
+      </div>
 
     </div>
   );
