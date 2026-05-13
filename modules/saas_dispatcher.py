@@ -144,9 +144,12 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         if qty <= 0:
             raise ValueError(f"qty={qty} too small (balance={balance:.2f})")
 
-        # Set leverage
-        market_id = ex.market_id(symbol)
-        ex.set_leverage(leverage, symbol)
+        # Set leverage — ignore 110043 ("leverage not modified" = already correct)
+        try:
+            ex.set_leverage(leverage, symbol)
+        except Exception as _le:
+            if "110043" not in str(_le):
+                raise
 
         # TP / SL prices (calculated from ticker before fill)
         tp_price = round(price * (1 + tp_pct / 100), 6) if side == "LONG" else round(price * (1 - tp_pct / 100), 6)
