@@ -291,41 +291,42 @@ function BotsSection() {
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: '120px 64px' }}>
         <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
                 style={{
-                  background: 'rgba(10,10,10,0.85)',
-                  padding: '32px 28px',
+                  background: 'rgba(15,15,15,0.92)',
+                  padding: '28px 28px 24px',
                   textAlign: 'left',
                   height: '100%',
                   boxSizing: 'border-box',
-                  borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 10,
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  display: 'flex', flexDirection: 'column',
                   transition: 'border-color 200ms, transform 200ms, background 200ms',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.16)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.22)';
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.background = 'rgba(17,17,17,0.92)';
+                  e.currentTarget.style.background = 'rgba(22,22,22,0.95)';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)';
                   e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.background = 'rgba(10,10,10,0.85)';
+                  e.currentTarget.style.background = 'rgba(15,15,15,0.92)';
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-                  <span style={{ fontSize: 10, color: '#333', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>
-                  <span style={{ fontSize: 9, color: '#777', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 100, padding: '3px 10px', letterSpacing: '0.04em', maxWidth: 130, textAlign: 'right', lineHeight: 1.4, fontFamily: FONT }}>{bot.tag}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
+                  <span style={{ fontSize: 12, color: '#444', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>
+                  <span style={{ fontSize: 11, color: '#9a9a9a', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 100, padding: '4px 12px', letterSpacing: '0.04em', maxWidth: 160, textAlign: 'right', lineHeight: 1.4, fontFamily: FONT }}>{bot.tag}</span>
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#e0e0e0', marginBottom: 6, letterSpacing: '-0.02em', fontFamily: FONT }}>{bot.name}</div>
-                <div style={{ fontSize: 12, color: '#555', fontStyle: 'italic', marginBottom: 14, lineHeight: 1.5, fontFamily: FONT }}>{bot.hook}</div>
-                <div style={{ fontSize: 11, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{bot.desc}</div>
-                <div style={{ marginTop: 20, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: '#f0f0f0', marginBottom: 8, letterSpacing: '-0.02em', fontFamily: FONT }}>{bot.name}</div>
+                <div style={{ fontSize: 14, color: '#7a7a7a', fontStyle: 'italic', marginBottom: 16, lineHeight: 1.5, fontFamily: FONT }}>{bot.hook}</div>
+                <div style={{ fontSize: 13, color: '#8a8a8a', lineHeight: 1.75, fontFamily: FONT, flex: 1 }}>{bot.desc}</div>
+                <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {bot.pills.map(p => (
-                    <span key={p} style={{ fontSize: 9, color: '#666', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 100, padding: '3px 10px', letterSpacing: '0.03em', fontFamily: FONT }}>{p}</span>
+                    <span key={p} style={{ fontSize: 11, color: '#888', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 100, padding: '4px 12px', letterSpacing: '0.03em', fontFamily: FONT }}>{p}</span>
                   ))}
                 </div>
               </div>
