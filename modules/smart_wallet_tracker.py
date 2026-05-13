@@ -65,7 +65,18 @@ def _on_message(ws, message):
     try:
         data   = json.loads(message)
         params = data.get("params", {})
-        result = params.get("result", {})
+        result = params.get("result")
+
+        # hashesOnly mode — result is a tx hash string; fetch full tx via HTTP
+        if isinstance(result, str):
+            import requests as _req
+            resp = _req.post(
+                f"https://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+                json={"jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionByHash", "params": [result]},
+                timeout=5,
+            )
+            result = resp.json().get("result") or {}
+
         if not isinstance(result, dict):
             return
 
@@ -151,11 +162,11 @@ def _on_open(ws):
         "method":  "eth_subscribe",
         "params":  [
             "alchemy_pendingTransactions",
-            {"fromAddress": list(SMART_WALLETS.keys())},
+            {"fromAddress": list(SMART_WALLETS.keys()), "hashesOnly": True},
         ],
     })
     ws.send(sub)
-    print(f"[SMART] ✅ Підписка на {len(SMART_WALLETS)} smart money адрес")
+    print(f"[SMART] ✅ Підписка на {len(SMART_WALLETS)} smart money адрес (hashesOnly)")
 
 
 def _ws_loop():

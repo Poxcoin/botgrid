@@ -205,7 +205,7 @@ def _ws_thread():
         "method": "eth_subscribe",
         "params": ["alchemy_pendingTransactions", {
             "toAddress": list(_EXCHANGE_SET),
-            "hashesOnly": False,
+            "hashesOnly": True,
         }]
     })
 
@@ -218,15 +218,27 @@ def _ws_thread():
             "method": "eth_subscribe",
             "params": ["alchemy_pendingTransactions", {
                 "fromAddress": list(_EXCHANGE_SET),
-                "hashesOnly": False,
+                "hashesOnly": True,
             }]
         }))
         print("[ONCHAIN] ✅ Ethereum on-chain мониторинг запущен (Alchemy WebSocket)")
 
     def on_message(ws, msg):
         try:
-            data = json.loads(msg)
-            tx = data.get("params", {}).get("result", {})
+            data   = json.loads(msg)
+            result = data.get("params", {}).get("result")
+            if not result:
+                return
+            if isinstance(result, str):
+                import requests as _req
+                r = _req.post(
+                    f"https://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}",
+                    json={"jsonrpc": "2.0", "id": 1, "method": "eth_getTransactionByHash", "params": [result]},
+                    timeout=5,
+                )
+                tx = r.json().get("result") or {}
+            else:
+                tx = result
             if tx:
                 _process_tx(tx)
         except Exception:
