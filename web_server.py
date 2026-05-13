@@ -29,7 +29,7 @@ PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
-from utils.email import send_verification_email, send_login_otp_email, send_welcome_email
+from utils.email import send_verification_email, send_login_otp_email, send_welcome_email, _smtp_enabled
 from sqlalchemy.orm import Session
 
 from modules import position_closer
@@ -646,18 +646,47 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
         partial = secrets.token_hex(16)
         _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300}
         return {"requires_2fa": True, "partial_token": partial}
-    # Email OTP step — send 6-digit code, defer JWT until verified
-    otp_token = secrets.token_hex(24)
-    code = f"{secrets.randbelow(1000000):06d}"
-    _otp_pending[otp_token] = {
-        "user_id": user.id,
-        "code": code,
-        "exp": time.time() + 300,
-        "attempts": 0,
-        "ip": ip,
-    }
-    asyncio.get_running_loop().run_in_executor(None, send_login_otp_email, user.email, code)
-    return {"requires_otp": True, "otp_token": otp_token}
+    # Email OTP — only if SMTP is configured; otherwise issue JWT directly
+    if _smtp_enabled():
+        otp_token = secrets.token_hex(24)
+        code = f"{secrets.randbelow(1000000):06d}"
+        _otp_pending[otp_token] = {
+            "user_id": user.id,
+            "code": code,
+            "exp": time.time() + 300,
+            "attempts": 0,
+            "ip": ip,
+        }
+        asyncio.get_running_loop().run_in_executor(None, send_login_otp_email, user.email, code)
+        return {"requires_otp": True, "otp_token": otp_token}
+    token = create_token(user.id, user.email)
+    return {"token": token, "user": {
+        "id": user.id, "email": user.email, "username": user.username,
+        "plan": user.plan, "subscribed": user.is_pro,
+        "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled),
+    }}
+
+
+class OtpResendRequest(BaseModel):
+    otp_token: str
+
+@app.post("/api/users/resend-otp")
+async def resend_otp(body: OtpResendRequest, request: Request, db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"resend_otp:{ip}", window=60, max_hits=3):
+        raise HTTPException(status_code=429, detail="Too many resend attempts. Wait 60s.")
+    _purge_expired()
+    entry = _otp_pending.get(body.otp_token)
+    if not entry or time.time() > entry["exp"]:
+        raise HTTPException(status_code=400, detail="Session expired. Please login again.")
+    new_code = f"{secrets.randbelow(1000000):06d}"
+    entry["code"] = new_code
+    entry["exp"]  = time.time() + 300
+    entry["attempts"] = 0
+    user = db.query(User).filter(User.id == entry["user_id"]).first()
+    if user:
+        asyncio.get_running_loop().run_in_executor(None, send_login_otp_email, user.email, new_code)
+    return {"ok": True}
 
 
 class OtpVerifyRequest(BaseModel):

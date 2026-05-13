@@ -107,7 +107,15 @@ function EmailOtpScreen({ otpToken, onSuccess, onBack }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resent] = useState(false);
+  const [resent, setResent] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(60);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const id = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [countdown]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -129,11 +137,36 @@ function EmailOtpScreen({ otpToken, onSuccess, onBack }) {
     }
   }
 
+  async function handleResend() {
+    setResending(true);
+    setError('');
+    setResent(false);
+    try {
+      const res = await fetch('/api/users/resend-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp_token: otpToken }),
+      });
+      if (res.ok) {
+        setResent(true);
+        setCountdown(60);
+      } else {
+        const data = await res.json();
+        setError(data.detail || t.auth.errSomethingWrong);
+      }
+    } catch {
+      setError(t.auth.errConnectionShort);
+    } finally {
+      setResending(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
         <h2 className="font-black text-4xl tracking-[-0.03em] leading-none mb-2 text-kado-black">{t.auth.otpHeading}</h2>
         <p className="text-kado-black/60 text-[15px]">{t.auth.otpSub}</p>
+        <p className="text-kado-black/40 text-[12px] mt-1">{t.auth.otpSpamHint}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-5">
         <Field
@@ -156,9 +189,18 @@ function EmailOtpScreen({ otpToken, onSuccess, onBack }) {
           {loading ? t.auth.verifying : t.auth.verifyBtn}
         </KadoButton>
       </form>
-      <button onClick={onBack} className="font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/40 hover:text-kado-black transition-colors">
-        {t.auth.backLogin}
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/40 hover:text-kado-black transition-colors">
+          {t.auth.backLogin}
+        </button>
+        <button
+          onClick={handleResend}
+          disabled={resending || countdown > 0}
+          className="font-mono text-[11px] tracking-[0.1em] uppercase text-kado-black/40 hover:text-kado-black transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          {resending ? '...' : countdown > 0 ? `${t.auth.otpResendIn} ${countdown}s` : t.auth.otpResendBtn}
+        </button>
+      </div>
     </div>
   );
 }
