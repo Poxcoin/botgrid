@@ -120,3 +120,10 @@ SITE_URL      = os.getenv("SITE_URL", "https://kadoclub.net")
 # BILLING — Manual USDT invoice (TRC-20)
 # ==========================================
 USDT_WALLET_TRC20 = os.getenv("USDT_WALLET_TRC20", "")
+
+# ==========================================
+# TELEGRAM CHANNEL — public signal publishing
+# ==========================================
+# Channel ID (починається з -100...). Отримати: @userinfobot → forward з каналу
+# Залишити порожнім щоб не публікувати сигнали в канал
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")

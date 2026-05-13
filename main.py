@@ -29,12 +29,43 @@ from config.settings import (
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
     LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
     LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE,
-    SIGNAL_BOT_TRADING,
+    SIGNAL_BOT_TRADING, TELEGRAM_CHANNEL_ID,
 )
 import ccxt
 
 # Путь к файлу истории
 LEDGER_FILE = "signals_log.json"
+
+
+# Cooldown для публікації в канал — не спамимо одну монету частіше ніж раз на 4 год
+_channel_cooldown: dict[str, float] = {}
+_CHANNEL_COOLDOWN_SEC = 4 * 3600
+
+
+def _post_to_channel(signal: dict, source: str) -> None:
+    """Publish signal to public Telegram channel. Never raises."""
+    if not TELEGRAM_CHANNEL_ID:
+        return
+    try:
+        coin   = signal.get("coin", "?")
+        action = signal.get("action", "?")
+        score  = signal.get("total_score", 0)
+        now_ts = time.time()
+        if now_ts - _channel_cooldown.get(coin, 0) < _CHANNEL_COOLDOWN_SEC:
+            return
+        _channel_cooldown[coin] = now_ts
+        src_label = {"news": "News Signal", "fr": "Funding Rate", "liq_cascade": "Liquidation", "listing": "New Listing"}.get(source, source.upper())
+        emoji     = "🟢" if action == "BUY" else "🔴"
+        text = (
+            f"📊 <b>KADO Signal</b>\n\n"
+            f"{emoji} <b>{coin}</b> — {action}\n"
+            f"⚡ Score: {score}\n"
+            f"📈 Strategy: {src_label}\n\n"
+            f"Trade smarter 👉 @KADO_c_BOT"
+        )
+        send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+    except Exception:
+        pass
 
 
 def _saas_dispatch(signal: dict, source: str, leverage: int,
@@ -731,6 +762,7 @@ def run_signal_engine():
                                         size_pct=LISTING_SIZE, signal_id=signal_id)
                                     _saas_dispatch(signal, "listing",
                                         LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE)
+                                    _post_to_channel(signal, "listing")
                                 elif coin.upper() not in _btc_eth:
                                     mkt = signal.get("_market", {})
                                     vol = mkt.get("quote_volume_24h", 0) if mkt else 0
@@ -745,6 +777,7 @@ def run_signal_engine():
                                             size_pct=ALT_SIZE, signal_id=signal_id)
                                         _saas_dispatch(signal, "news",
                                             dyn_lev, ALT_TP, ALT_SL, ALT_SIZE)
+                                        _post_to_channel(signal, "news")
                                 else:
                                     dyn_lev = _dynamic_leverage(signal, is_btc_eth=True)
                                     print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
@@ -753,7 +786,8 @@ def run_signal_engine():
                                         signal_id=signal_id)
                                     _saas_dispatch(signal, "news",
                                         dyn_lev, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
-            
+                                    _post_to_channel(signal, "news")
+
             if urls_changed:
                 save_processed_urls(processed_urls)
 
@@ -821,6 +855,7 @@ def run_signal_engine():
                     signal_id=signal_id)
                 _saas_dispatch(liq_sig, "liq_cascade",
                     ALT_LEVERAGE, 6.0, 2.5, round(ALT_SIZE * 0.8, 1))
+                _post_to_channel(liq_sig, "liq_cascade")
             # ──────────────────────────────────────────────────────────────────
 
             # ─── Funding Rate mean-reversion signals ───────────────────────────
@@ -848,6 +883,7 @@ def run_signal_engine():
                                   tp_pct=ALT_TP, sl_pct=ALT_SL, size_pct=fr_size,
                                   signal_id=signal_id)
                 _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, ALT_TP, ALT_SL, fr_size)
+                _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────
 
             # Пишем live intel для дашборда

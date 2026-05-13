@@ -744,6 +744,83 @@ async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCr
     return {"ok": True}
 
 
+# ─── GDPR endpoints ──────────────────────────────────────────────────────────
+@app.delete("/api/users/me")
+async def delete_account(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """GDPR: right to erasure — permanently delete account and all personal data."""
+    user = _get_user_from_token(credentials.credentials, db)
+
+    # Stop active grid/bot threads
+    try:
+        dispatcher_stop_user(user.id)
+    except Exception:
+        pass
+
+    # Delete API keys (encrypted — removing them destroys access)
+    db.query(UserApiKey).filter_by(user_id=user.id).delete()
+
+    # Anonymise trade history (keep for 2yr tax compliance, remove PII link)
+    db.query(UserTrade).filter_by(user_id=user.id).update({"user_id": None})
+    db.query(MonthlyPnl).filter_by(user_id=user.id).update({"user_id": None})
+    db.query(WeeklyPnl).filter_by(user_id=user.id).update({"user_id": None})
+
+    # Delete personal data
+    db.query(ReferralEarning).filter_by(referral_id=user.id).delete()
+    db.query(TgLinkToken).filter_by(user_id=user.id).delete()
+    db.query(AuditLog).filter_by(user_id=user.id).delete()
+
+    db.delete(user)
+    db.commit()
+    return {"ok": True, "message": "Account deleted. Personal data will be fully purged within 30 days."}
+
+
+@app.get("/api/users/me/data")
+async def export_my_data(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """GDPR: right to data portability — export all personal data as JSON."""
+    user = _get_user_from_token(credentials.credentials, db)
+
+    trades = db.query(UserTrade).filter_by(user_id=user.id).all()
+    keys   = db.query(UserApiKey).filter_by(user_id=user.id).all()
+
+    return {
+        "export_date": datetime.now(timezone.utc).isoformat(),
+        "account": {
+            "email":      user.email,
+            "username":   user.username,
+            "plan":       user.plan,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "tg_chat_id": user.tg_chat_id,
+            "ref_code":   user.ref_code,
+        },
+        "api_keys": [
+            {
+                "exchange":   k.exchange,
+                "is_testnet": k.is_testnet,
+                "created_at": k.created_at.isoformat() if k.created_at else None,
+                "note":       "Key values are encrypted and not included in this export for security.",
+            }
+            for k in keys
+        ],
+        "trades": [
+            {
+                "symbol":    t.symbol,
+                "side":      t.side,
+                "pnl_usdt":  t.pnl_usdt,
+                "source":    t.source,
+                "opened_at": t.opened_at.isoformat() if t.opened_at else None,
+                "closed_at": t.closed_at.isoformat() if t.closed_at else None,
+            }
+            for t in trades
+        ],
+    }
+
+
 # ─── Telegram bot linking (deep-link one-click flow) ─────────────────────────
 @app.post("/api/tg/link-token")
 async def create_tg_link_token(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
