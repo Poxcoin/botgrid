@@ -687,18 +687,56 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     changed = True
 
             except Exception:
-                # fetchOrder недоступний на Demo API — не видаляємо одразу,
-                # чекаємо 3 пропущені тіки щоб уникнути infinite re-placement loop
-                miss_count = entry.get("miss_count", 0) + 1
-                if miss_count < 3:
-                    entry["miss_count"] = miss_count
-                    pending[zone_str] = entry
-                    print(f"[GRID:{symbol}] ⚠️ Pending level {zone_str} відсутній ({miss_count}/3) — чекаємо")
-                else:
-                    print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — backoff {PENDING_BACKOFF_SEC}s")
+                # fetchOrder may fail on Demo API — try fetch_closed_orders as fallback
+                filled_order = None
+                try:
+                    closed = exchange.fetch_closed_orders(symbol, params={"category": "linear", "limit": 20})
+                    filled_order = next(
+                        (o for o in closed if o["id"] == order_id and float(o.get("filled") or 0) > 0),
+                        None,
+                    )
+                except Exception:
+                    pass
+
+                if filled_order:
+                    fill = float(filled_order.get("average") or filled_order.get("price") or entry["level_price"])
+                    qty  = float(filled_order.get("filled") or entry["qty"])
+                    coin = symbol.split("/")[0]
+                    ts_open = datetime.now(timezone.utc).isoformat()
+                    try:
+                        if user_id is not None:
+                            db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid",
+                                                          qty=qty, order_id=order_id, leverage=leverage)
+                        else:
+                            db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
+                    except Exception:
+                        db_trade_id = None
+                    positions[zone_str] = {
+                        "fill_price":    fill,
+                        "qty":           qty,
+                        "order_id":      order_id,
+                        "db_trade_id":   db_trade_id,
+                        "open_fee_rate": BYBIT_MAKER_FEE,
+                        "opened_at":     ts_open,
+                        "opened_ms":     now_ms,
+                        "level_price":   entry["level_price"],
+                    }
                     del pending[zone_str]
-                    state.setdefault("pending_backoff", {})[zone_str] = time.time() + PENDING_BACKOFF_SEC
-                changed = True
+                    side_str = "LONG BUY" if direction == "long" else "SHORT SELL"
+                    print(f"[GRID:{symbol}] ✅ {side_str} level {zone_str} @ {fill:.4f} (closed orders fallback)")
+                    changed = True
+                else:
+                    # Order not found in open or closed — wait up to 3 ticks before giving up
+                    miss_count = entry.get("miss_count", 0) + 1
+                    if miss_count < 3:
+                        entry["miss_count"] = miss_count
+                        pending[zone_str] = entry
+                        print(f"[GRID:{symbol}] ⚠️ Pending level {zone_str} відсутній ({miss_count}/3) — чекаємо")
+                    else:
+                        print(f"[GRID:{symbol}] 🗑️ Pending level {zone_str} відсутній 3 тіки підряд — backoff {PENDING_BACKOFF_SEC}s")
+                        del pending[zone_str]
+                        state.setdefault("pending_backoff", {})[zone_str] = time.time() + PENDING_BACKOFF_SEC
+                    changed = True
 
     if changed:
         _save_state(symbol, state, user_id)
