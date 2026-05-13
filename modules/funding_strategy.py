@@ -53,6 +53,13 @@ def _save_cooldown(coin: str, ts: float) -> None:
 POLL_INTERVAL   = 900   # перевіряємо кожні 15 хвилин
 COIN_SLEEP      = 1.5   # пауза між монетами — не спамимо API
 
+# BTC macro filter: якщо BTC 24h тренд нижче цього порогу — LONGs заблоковані
+# (altcoin squeeze не спрацьовує коли весь ринок падає)
+BTC_LONG_BLOCK_TREND  = -3.0   # BTC -3% за 24h → не відкриваємо LONG по altcoins
+BTC_SHORT_BLOCK_TREND = +3.0   # BTC +3% за 24h → не відкриваємо SHORT по altcoins
+
+_btc_trend_cache: dict = {"ts": 0.0, "trend": 0.0}   # кешуємо 15хв щоб не спамити API
+
 # Tiered funding rate пороги (% за 8 годин)
 # Tier 1 (слабкий сигнал): FR > 0.04% → size_multiplier 0.5
 # Tier 2 (нормальний):     FR > 0.06% → size_multiplier 1.0
@@ -89,6 +96,21 @@ _cooldowns:  dict[str, float]  = {}
 _fr_history: dict[str, deque]  = {}  # coin → last_signal_ts
 
 
+def _get_btc_trend() -> float:
+    """BTC 24h тренд з кешем 15 хв."""
+    now = time.time()
+    if now - _btc_trend_cache["ts"] < 900:
+        return _btc_trend_cache["trend"]
+    try:
+        btc = get_market_metrics("BTC")
+        trend = btc.get("trend_24h_percent", 0.0) if btc else 0.0
+    except Exception:
+        trend = 0.0
+    _btc_trend_cache["ts"]    = now
+    _btc_trend_cache["trend"] = trend
+    return trend
+
+
 def _calc_signal(coin: str) -> dict | None:
     market = get_market_metrics(coin)
     if not market:
@@ -101,11 +123,18 @@ def _calc_signal(coin: str) -> dict | None:
 
     score = 0.0
 
+    # ── BTC macro filter ─────────────────────────────────────────────────────
+    btc_trend = _get_btc_trend() if coin != "BTC" else trend
+
     # ── Tier-based scoring ───────────────────────────────────────────────────
     if fr > FR_SHORT_T1:
         # Лонги переплачують — потенційний SHORT
         # Блокуємо SHORT якщо RSI < 40 — ринок вже перепроданий, шортити небезпечно
         if rsi < 40:
+            return None
+        # Блокуємо SHORT якщо BTC сильно зростає — squeeze вгору вже розігнався
+        if btc_trend >= BTC_SHORT_BLOCK_TREND:
+            print(f"[FR] ⛔ {coin} SHORT заблоковано — BTC +{btc_trend:.1f}% (ринок зростає)")
             return None
         score -= (fr - 0.02) * 150          # T1(0.04%)→-3, T2(0.06%)→-6, T3(0.10%)→-12
         if rsi > RSI_OB:
@@ -117,6 +146,10 @@ def _calc_signal(coin: str) -> dict | None:
         # Шорти переплачують — потенційний LONG (squeeze)
         # Блокуємо LONG якщо RSI > 60 — squeeze вже відбувся, входимо на піку
         if rsi > 60:
+            return None
+        # Блокуємо LONG якщо BTC сильно падає — altcoin squeeze не спрацьовує в даунтренді
+        if btc_trend <= BTC_LONG_BLOCK_TREND:
+            print(f"[FR] ⛔ {coin} LONG заблоковано — BTC {btc_trend:.1f}% (ринок падає)")
             return None
         score += (abs(fr) - 0.02) * 150
         if rsi < RSI_OS:
