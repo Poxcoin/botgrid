@@ -105,7 +105,7 @@ function PlatformStats() {
         </div>
         <div>
           <div className="px-5 h-10 border-b border-kado-black flex items-center">
-            <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray">Revenue (20% fee) /</span>
+            <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-gray">Revenue (25% fee) /</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4">
             <StatBlock label="Collected"        value={r ? `$${r.collected.toFixed(2)}` : '—'} accent />
@@ -147,7 +147,7 @@ function InvoicesPanel() {
     <div className="border border-kado-black">
       <div className="px-5 h-12 border-b border-kado-black flex items-center justify-between">
         <h3 className="font-black tracking-tight text-lg">Performance Fee Invoices</h3>
-        <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">20% of profit</span>
+        <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">25% of profit</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
@@ -156,7 +156,7 @@ function InvoicesPanel() {
               <th className="text-left px-5 h-10">User</th>
               <th className="text-left px-5 h-10">Period</th>
               <th className="text-right px-5 h-10">Gross PnL</th>
-              <th className="text-right px-5 h-10">Fee (20%)</th>
+              <th className="text-right px-5 h-10">Fee (25%)</th>
               <th className="text-left px-5 h-10">Status</th>
               <th className="text-left px-5 h-10">Notified</th>
               <th className="text-left px-5 h-10">TX</th>
