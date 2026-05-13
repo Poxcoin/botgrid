@@ -212,6 +212,32 @@ def update_pnl_db(exchange) -> int:
                     close_trade(trade["id"], exit_price, pnl, pnl_pct, duration)
                     print(f"[pnl_tracker] DB закрита угода #{trade['id']} {coin} pnl={pnl:+.2f} USDT")
                     updated += 1
+                    # Синхронізуємо з user_trades для власника
+                    try:
+                        from config.settings import OWNER_USER_ID
+                        if OWNER_USER_ID:
+                            from database import SessionLocal, UserTrade
+                            from datetime import datetime, timezone as _tz
+                            _db = SessionLocal()
+                            _ut = (
+                                _db.query(UserTrade)
+                                .filter(
+                                    UserTrade.user_id == OWNER_USER_ID,
+                                    UserTrade.status == "open",
+                                    UserTrade.symbol.like(f"{coin}%"),
+                                )
+                                .order_by(UserTrade.opened_at.asc())
+                                .first()
+                            )
+                            if _ut:
+                                _ut.exit_price = exit_price
+                                _ut.pnl_usdt   = pnl
+                                _ut.status     = "closed"
+                                _ut.closed_at  = datetime.now(_tz.utc)
+                                _db.commit()
+                            _db.close()
+                    except Exception as _oe:
+                        print(f"[pnl_tracker] owner sync: {_oe}")
                 except Exception as e:
                     print(f"[pnl_tracker] close_trade error: {e}")
 

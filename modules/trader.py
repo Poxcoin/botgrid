@@ -418,6 +418,19 @@ def execute_trade(
                 mark_signal_executed(signal_id, str(real_order_id))
         except Exception as e:
             print(f"[analytics] save_trade error: {e}")
+
+        # Дублюємо угоду в user_trades для власника (OWNER_USER_ID) — щоб вона
+        # показувалась на user dashboard поруч із SaaS-юзерами
+        try:
+            from config.settings import OWNER_USER_ID
+            if OWNER_USER_ID:
+                from modules.saas_dispatcher import _log_trade as _saas_log
+                src = signal.get("source", "news")
+                _saas_log(OWNER_USER_ID, str(signal_id) if signal_id else None,
+                          src, f"{coin}/USDT:USDT", action,
+                          _lev, real_order_id, fill_price, amount, "open")
+        except Exception as _e:
+            print(f"[owner_log] {_e}")
         if action.upper() == "LONG":
             tp_price = float(exchange.price_to_precision(symbol, fill_price * (1 + _tp / 100)))
             sl_price = float(exchange.price_to_precision(symbol, fill_price * (1 - _sl / 100)))

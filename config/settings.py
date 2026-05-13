@@ -127,3 +127,7 @@ USDT_WALLET_TRC20 = os.getenv("USDT_WALLET_TRC20", "")
 # Channel ID (починається з -100...). Отримати: @userinfobot → forward з каналу
 # Залишити порожнім щоб не публікувати сигнали в канал
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
+
+# User ID власника (Poxcoin) у saas_database.sqlite — для дублювання угод системного бота
+# на user dashboard. Отримати: SELECT id FROM users WHERE email='...' у saas_database.sqlite
+OWNER_USER_ID = int(os.getenv("OWNER_USER_ID", "0") or "0")

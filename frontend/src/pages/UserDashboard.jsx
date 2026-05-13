@@ -9,10 +9,11 @@ import OnboardingModal  from '@/components/user/OnboardingModal';
 
 const BOTS = [
   { id: 'signal',  label: 'Signal'         },
+  { id: 'fr',      label: 'Funding Rate'   },
   { id: 'grid',    label: 'Grid'           },
   { id: 'cascade', label: 'Cascade'        },
-  { id: 'dex',     label: 'DEX Sniper'     },
   { id: 'listing', label: 'Listing Sniper' },
+  { id: 'dex',     label: 'DEX Sniper'     },
 ];
 const BOT_IDS = BOTS.map(b => b.id);
 

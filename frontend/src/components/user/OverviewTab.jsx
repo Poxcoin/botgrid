@@ -585,7 +585,7 @@ function Panel({ botTrades, botPositions, onClose = () => {} }) {
 /* ══════════════════════════════════════════════════════════════════
    MAIN
 ══════════════════════════════════════════════════════════════════ */
-const BOT_DB_SOURCE = { signal: 'news' };
+const BOT_DB_SOURCE = { signal: 'news', cascade: 'liq_cascade', fr: 'fr' };
 
 export default function OverviewTab({ botId = 'signal' }) {
   const dbSource = BOT_DB_SOURCE[botId] ?? botId;
