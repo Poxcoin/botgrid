@@ -33,6 +33,7 @@ from utils.email import send_verification_email, send_login_otp_email, send_welc
 from sqlalchemy.orm import Session
 
 from modules import position_closer
+from modules import position_ws
 from modules import stripe_billing
 from saas_dispatcher import start_dispatcher, get_status as dispatcher_status, sync_user as dispatcher_sync_user, stop_user as dispatcher_stop_user
 from bybit_sync import sync_user_trades as _bybit_sync_user, sync_all_users as _bybit_sync_all
@@ -132,6 +133,7 @@ async def _bybit_sync_loop():
 @app.on_event("startup")
 async def _startup():
     asyncio.create_task(position_closer.run_loop())
+    asyncio.create_task(position_ws.run_manager())
     asyncio.create_task(_bybit_sync_loop())
     asyncio.create_task(_pnl_alert_loop())
     asyncio.get_running_loop().run_in_executor(None, start_dispatcher)
