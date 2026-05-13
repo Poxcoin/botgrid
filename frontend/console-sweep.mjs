@@ -14,6 +14,8 @@ const PUBLIC_ROUTES = [
   '/auth?mode=register',
   '/legal/risk-disclosure',
   '/legal/terms',
+  '/legal/privacy',
+  '/docs',
   '/waitlist',
   '/this-route-does-not-exist',
 ];
