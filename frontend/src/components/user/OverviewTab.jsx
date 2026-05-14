@@ -230,24 +230,17 @@ function Chart({ coin, entryPrice }) {
             const parse = list => list.slice().reverse().map(k => ({
               timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
             }));
-            const fetchPage = async end => {
-              let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
+            const fetchPage = async (end, limit = 1000) => {
+              let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=${limit}`;
               if (end) url += `&end=${end}`;
               const r = await fetch(url);
               const d = await r.json();
               return parse(d.result?.list || []);
             };
             if (type === 'init') {
-              let all = [];
-              let end = undefined;
-              for (let i = 0; i < 5; i++) {
-                const page = await fetchPage(end);
-                if (!page.length) break;
-                all = [...page, ...all];
-                end = page[0].timestamp - 1;
-                if (page.length < 1000) break;
-              }
-              callback(all, { backward: false, forward: all.length >= 1000 });
+              // 300 candles — one fast request; more load on scroll via 'forward'
+              const page = await fetchPage(undefined, 300);
+              callback(page, { backward: false, forward: page.length >= 300 });
             } else {
               const page = await fetchPage(timestamp - 1);
               callback(page, { backward: false, forward: page.length >= 1000 });
@@ -620,6 +613,7 @@ export default function OverviewTab({ botId = 'signal' }) {
   const [trades,    setTrades]    = useState([]);
   const [coin,      setCoin]      = useState('BTC');
   const [heartbeat, setHeartbeat] = useState({});
+  const autoSelectDoneRef = useRef(false);
 
   const refresh = useCallback(() => {
     Promise.all([api('/api/users/bot-summary'), api('/api/users/trades?limit=500')])
@@ -654,9 +648,15 @@ export default function OverviewTab({ botId = 'signal' }) {
     return [...botCoins, ...extra];
   }, [botCoins]);
 
+  // reset auto-select flag when user switches bot tab
+  useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
+  // auto-select first bot coin only once per tab load, never override user choice after that
   useEffect(() => {
-    if (botCoins.length > 0 && !botCoins.includes(coin)) setCoin(botCoins[0]);
-  }, [botId, botCoins]);
+    if (!autoSelectDoneRef.current && botCoins.length > 0) {
+      setCoin(botCoins[0]);
+      autoSelectDoneRef.current = true;
+    }
+  }, [botCoins]);
 
   const stats = useMemo(() => {
     const cl    = botTrades.filter(t => t.closed_at);
