@@ -1459,24 +1459,29 @@ async def get_user_bot_summary(
 ):
     user = _get_user_from_token(credentials.credentials, db)
 
-    from sqlalchemy import func as _sf, case as _case
-    rows = (
-        db.query(
-            UserTrade.source,
-            _sf.count(UserTrade.id).label("n"),
-            _sf.sum(UserTrade.pnl_usdt).label("pnl"),
-            _sf.sum(_case((UserTrade.pnl_usdt > 0, 1), else_=0)).label("wins"),
-        )
+    raw_rows = (
+        db.query(UserTrade)
         .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
-        .group_by(UserTrade.source)
         .all()
     )
+    deduped = _dedup_bybit_dupes(raw_rows)
+
+    by_source: dict = {}
+    for t in deduped:
+        src = t.source or "unknown"
+        if src not in by_source:
+            by_source[src] = {"n": 0, "pnl": 0.0, "wins": 0}
+        pnl_val = float(t.pnl_usdt or 0)
+        by_source[src]["n"]    += 1
+        by_source[src]["pnl"]  += pnl_val
+        by_source[src]["wins"] += 1 if pnl_val > 0 else 0
 
     bots = []
     total_realized = 0.0
-    for source, n, pnl, wins in rows:
-        pnl = float(pnl or 0)
-        wr  = round(float(wins or 0) / n * 100, 1) if n else 0
+    for source, agg in by_source.items():
+        n   = agg["n"]
+        pnl = agg["pnl"]
+        wr  = round(agg["wins"] / n * 100, 1) if n else 0
         total_realized += pnl
         bots.append({
             "source":   source,
@@ -1516,6 +1521,47 @@ async def get_user_bot_summary(
     }
 
 
+def _dedup_bybit_dupes(rows):
+    """
+    Remove bybit_sync duplicates: rows where source='bybit' and the same
+    (coin, round_pnl) already exists from a bot-recorded source.
+
+    bybit_sync re-imports ALL closed positions from Bybit including those the
+    bot already recorded. This causes double-counting in analytics.
+
+    Also fixes bybit side display: bybit_sync stores the CLOSING order side
+    (Sell for closing a Long), so side=SHORT when the position was actually LONG.
+    We invert it here so the display is correct.
+    """
+    from bybit_sync import _normalize_coin as _nc
+    bot_keys: set = set()
+    for t in rows:
+        if t.source != "bybit":
+            coin = _nc(t.symbol or "")
+            key  = (coin, round(float(t.pnl_usdt or 0), 2))
+            bot_keys.add(key)
+
+    result = []
+    for t in rows:
+        if t.source == "bybit":
+            coin = _nc(t.symbol or "")
+            key  = (coin, round(float(t.pnl_usdt or 0), 2))
+            if key in bot_keys:
+                continue  # duplicate of a bot-recorded trade
+        result.append(t)
+    return result
+
+
+def _fix_bybit_side(side: str | None, source: str | None) -> str | None:
+    """
+    bybit_sync stores the CLOSING order side (e.g., 'Sell' to close a Long
+    is stored as 'SHORT'). Invert so the UI shows the OPENING position side.
+    """
+    if source != "bybit" or side is None:
+        return side
+    return "LONG" if side == "SHORT" else "SHORT"
+
+
 def _fetch_all_closed_pnl(ex, max_pages: int = 20):
     """Fetch all closed PnL from Bybit via cursor pagination."""
     all_items = []
@@ -1550,24 +1596,24 @@ async def get_user_closed_pnl(
     q = db.query(UserTrade).filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
     if cutoff is not None:
         q = q.filter(UserTrade.closed_at >= cutoff)
-    rows = q.order_by(UserTrade.closed_at.desc()).all()
+    rows = _dedup_bybit_dupes(q.order_by(UserTrade.closed_at.desc()).all())
 
     trades     = []
     total_pnl  = 0.0
     total_wins = 0
+    from bybit_sync import _normalize_coin
     for t in rows:
         pnl = float(t.pnl_usdt or 0)
         total_pnl += pnl
         if pnl > 0:
             total_wins += 1
         closed_ms = int(t.closed_at.timestamp() * 1000) if t.closed_at else 0
-        from bybit_sync import _normalize_coin
         trades.append({
             "symbol":      _normalize_coin(t.symbol or ""),
-            "side":        t.side or "",
+            "side":        _fix_bybit_side(t.side, t.source) or "",
             "qty":         float(t.qty or 0),
             "entry_price": float(t.entry_price or 0),
-            "exit_price":  float(t.exit_price or 0),
+            "exit_price":  float(t.exit_price or 0) if t.exit_price else None,
             "pnl":         round(pnl, 2),
             "closed_at":   str(closed_ms),
             "source":      t.source or "bybit",
@@ -1597,11 +1643,12 @@ async def get_user_analytics(
             "daily":     [], "by_coin": [], "by_source": [], "best": [], "worst": [],
         }
 
-    rows = (
+    raw_rows = (
         db.query(UserTrade)
         .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
         .all()
     )
+    rows = _dedup_bybit_dupes(raw_rows)
     if not rows:
         return _empty()
 
@@ -1618,6 +1665,7 @@ async def get_user_analytics(
         pnl    = float(t.pnl_usdt or 0)
         coin   = _normalize_coin(t.symbol or "")
         src    = t.source or "other"
+        side   = _fix_bybit_side(t.side, t.source) or ""
         closed = t.closed_at  # naive UTC from SQLite
 
         total_pnl += pnl
@@ -1652,7 +1700,7 @@ async def get_user_analytics(
             "coin":         coin,
             "pnl":          round(pnl, 2),
             "closed_at":    str(closed_ms),
-            "side":         t.side or "",
+            "side":         side,
             "source":       src,
             "result":       result,
             "duration_min": duration_min,
