@@ -3026,7 +3026,7 @@ def _fmt_trade_ws(t) -> dict:
         "id":          t.id,
         "source":      t.source,
         "symbol":      t.symbol,
-        "side":        t.side,
+        "side":        _fix_bybit_side(t.side, t.source),
         "leverage":    t.leverage,
         "entry_price": t.entry_price,
         "exit_price":  t.exit_price,
@@ -3097,6 +3097,7 @@ async def ws_live(websocket: WebSocket, token: str = Query(...)):
             .limit(500)
             .all()
         )
+        init_rows     = _dedup_bybit_dupes(init_rows)
         trades_json   = [_fmt_trade_ws(t) for t in init_rows]
         last_trade_id = init_rows[0].id if init_rows else 0
     finally:
