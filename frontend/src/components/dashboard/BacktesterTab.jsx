@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { authFetch } from '@/lib/api';
+import { useChartWidth } from '@/lib/useChartWidth';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import { format } from 'date-fns';
 import { useLang } from '@/lib/LangContext';
@@ -17,6 +18,7 @@ function SummaryCard({ label, value, sub, green, red }) {
 }
 
 function RunDetail({ runId, onBack, t }) {
+  const [chartRef, chartW] = useChartWidth();
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
 
@@ -78,9 +80,9 @@ function RunDetail({ runId, onBack, t }) {
           <div className="px-5 h-11 flex items-center border-b border-kado-black">
             <h3 className="font-black tracking-tight">{t.dashboard.backtester.equityCurve}</h3>
           </div>
-          <div className="p-4 h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={equityData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <div ref={chartRef} className="p-4 h-56">
+            {chartW > 0 && (
+              <AreaChart width={chartW} height={192} data={equityData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#111" stopOpacity={0.15} />
@@ -98,7 +100,7 @@ function RunDetail({ runId, onBack, t }) {
                 <Area type="monotone" dataKey="balance" stroke="#111" strokeWidth={1.5}
                   fill="url(#eqGrad)" dot={false} />
               </AreaChart>
-            </ResponsiveContainer>
+            )}
           </div>
         </div>
       )}

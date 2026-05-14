@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { LIVE_FACTORS, WIN_RATE_SERIES } from '@/lib/mockData';
 import { authFetch } from '@/lib/api';
+import { useChartWidth } from '@/lib/useChartWidth';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Cell,
 } from 'recharts';
 
@@ -22,6 +23,42 @@ function FactorBar({ label, value, weight, unit }) {
           W {(weight * 100).toFixed(0)}%
         </span>
       </div>
+    </div>
+  );
+}
+
+function WinRateChart() {
+  const [ref, w] = useChartWidth();
+  return (
+    <div ref={ref} className="p-5" style={{ height: 280 }}>
+      {w > 0 && (
+        <LineChart width={w} height={240} data={WIN_RATE_SERIES} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <CartesianGrid stroke="#0A0A0A" strokeOpacity={0.08} />
+          <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
+          <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[40, 80]} />
+          <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
+          <Line type="monotone" dataKey="winRate" stroke="#0A0A0A" strokeWidth={2} dot={false} />
+        </LineChart>
+      )}
+    </div>
+  );
+}
+
+function AvgScoreChart() {
+  const [ref, w] = useChartWidth();
+  return (
+    <div ref={ref} className="p-5" style={{ height: 280 }}>
+      {w > 0 && (
+        <BarChart width={w} height={240} data={WIN_RATE_SERIES} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <CartesianGrid stroke="#0A0A0A" strokeOpacity={0.08} />
+          <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
+          <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[5, 9]} />
+          <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
+          <Bar dataKey="avgScore">
+            {WIN_RATE_SERIES.map((_, i) => <Cell key={i} fill={i % 5 === 0 ? '#0047FF' : '#0A0A0A'} />)}
+          </Bar>
+        </BarChart>
+      )}
     </div>
   );
 }
@@ -90,17 +127,7 @@ export default function BotAnalyzerTab() {
             <h3 className="font-black tracking-tight text-lg">Win Rate Over Time</h3>
             <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">30 DAYS · DEMO</span>
           </div>
-          <div className="p-5" style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={WIN_RATE_SERIES} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#0A0A0A" strokeOpacity={0.08} />
-                <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
-                <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[40, 80]} />
-                <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
-                <Line type="monotone" dataKey="winRate" stroke="#0A0A0A" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <WinRateChart />
         </div>
 
         <div className="border border-kado-black">
@@ -108,19 +135,7 @@ export default function BotAnalyzerTab() {
             <h3 className="font-black tracking-tight text-lg">Avg Score per Day</h3>
             <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">30 DAYS · DEMO</span>
           </div>
-          <div className="p-5" style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={WIN_RATE_SERIES} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#0A0A0A" strokeOpacity={0.08} />
-                <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
-                <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[5, 9]} />
-                <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
-                <Bar dataKey="avgScore">
-                  {WIN_RATE_SERIES.map((_, i) => <Cell key={i} fill={i % 5 === 0 ? '#0047FF' : '#0A0A0A'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <AvgScoreChart />
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { authFetch } from '@/lib/api';
+import { useChartWidth } from '@/lib/useChartWidth';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 
 const MONO = "'Courier New','SF Mono',monospace";
@@ -211,6 +212,7 @@ const ChartTooltip = ({ active, payload }) => {
 };
 
 function PnlChart({ hasKey }) {
+  const [chartRef, chartW] = useChartWidth();
   const [days, setDays]           = useState(30);
   const [rawData, setRawData]     = useState(null);
   const [loading, setLoading]     = useState(false);
@@ -360,36 +362,38 @@ function PnlChart({ hasKey }) {
         )}
 
         {!loading && chartData.length >= 2 && (
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={isPos ? '#22c55e' : '#ef4444'} stopOpacity={0.15} />
-                  <stop offset="95%" stopColor={isPos ? '#22c55e' : '#ef4444'} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: '#444', fontSize: 9, fontFamily: MONO }}
-                tickLine={false} axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fill: '#444', fontSize: 9, fontFamily: MONO }}
-                tickLine={false} axisLine={false}
-                tickFormatter={v => `${v >= 0 ? '+' : ''}${v}`}
-                width={46}
-              />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
-              <Area
-                type="monotone" dataKey="cum"
-                stroke={isPos ? '#22c55e' : '#ef4444'} strokeWidth={1.5}
-                fill="url(#pnlGrad)" dot={false}
-                activeDot={{ r: 3, fill: isPos ? '#22c55e' : '#ef4444', strokeWidth: 0 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div ref={chartRef} style={{ width: '100%', height: 220 }}>
+            {chartW > 0 && (
+              <AreaChart width={chartW} height={220} data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={isPos ? '#22c55e' : '#ef4444'} stopOpacity={0.15} />
+                    <stop offset="95%" stopColor={isPos ? '#22c55e' : '#ef4444'} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: '#444', fontSize: 9, fontFamily: MONO }}
+                  tickLine={false} axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fill: '#444', fontSize: 9, fontFamily: MONO }}
+                  tickLine={false} axisLine={false}
+                  tickFormatter={v => `${v >= 0 ? '+' : ''}${v}`}
+                  width={46}
+                />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
+                <Area
+                  type="monotone" dataKey="cum"
+                  stroke={isPos ? '#22c55e' : '#ef4444'} strokeWidth={1.5}
+                  fill="url(#pnlGrad)" dot={false}
+                  activeDot={{ r: 3, fill: isPos ? '#22c55e' : '#ef4444', strokeWidth: 0 }}
+                />
+              </AreaChart>
+            )}
+          </div>
         )}
       </div>
     </div>
