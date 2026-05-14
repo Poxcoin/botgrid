@@ -50,22 +50,44 @@ def _coin_from_symbol(symbol: str) -> str:
 
 def _fetch_closed_pnl(api_key: str, secret: str, is_testnet: bool,
                       symbol: str, opened_ms: int) -> tuple[float, float]:
-    """REST call: fetch the most recent closed PnL entry for this symbol."""
+    """REST: fetch closed PnL + funding settlements for this symbol since opened_ms."""
     try:
         from modules.saas_dispatcher import _build_exchange
+        import time as _time
         ex = _build_exchange(api_key, secret, is_testnet)
+
+        # 1. Price-based closed PnL
         resp = ex.private_get_v5_position_closed_pnl({
             "category":  "linear",
             "symbol":    symbol,
             "startTime": opened_ms,
             "limit":     20,
         })
+        exit_price, price_pnl = 0.0, 0.0
         for item in resp.get("result", {}).get("list", []):
             if float(item.get("createdTime", 0)) >= opened_ms - 5_000:
-                return (
-                    float(item.get("avgExitPrice") or 0),
-                    float(item.get("closedPnl", 0)),
-                )
+                exit_price = float(item.get("avgExitPrice") or 0)
+                price_pnl  = float(item.get("closedPnl", 0))
+                break
+
+        # 2. Funding fees collected (SETTLEMENT type in transaction log)
+        funding = 0.0
+        try:
+            now_ms = int(_time.time() * 1000)
+            tx_resp = ex.private_get_v5_account_transaction_log({
+                "accountType": "UNIFIED",
+                "type":        "SETTLEMENT",
+                "symbol":      symbol,
+                "startTime":   opened_ms,
+                "endTime":     now_ms,
+                "limit":       50,
+            })
+            for tx in tx_resp.get("result", {}).get("list", []):
+                funding += float(tx.get("amount") or 0)
+        except Exception:
+            pass  # funding fetch is best-effort
+
+        return exit_price, round(price_pnl + funding, 4)
     except Exception:
         traceback.print_exc()
     return 0.0, 0.0

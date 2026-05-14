@@ -17,6 +17,7 @@ const BOTS = [
   { id: 'metals',  label: 'Gold'           },
   { id: 'listing', label: 'Listing Sniper' },
   { id: 'dex',     label: 'DEX Sniper'     },
+  { id: 'history', label: 'History'        },
 ];
 const BOT_IDS = BOTS.map(b => b.id);
 

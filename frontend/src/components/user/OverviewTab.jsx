@@ -866,8 +866,9 @@ const BOT_SOURCES = {
   cascade: ['liq_cascade', 'cascade'],
   fr:      ['fr'],
   grid:    ['grid'],
-  altcoin: ['listing', 'altcoin'],
+  altcoin: ['altcoin'],
   metals:  ['metals'],
+  history: ['bybit'],
 };
 
 export default function OverviewTab({ botId = 'signal' }) {
