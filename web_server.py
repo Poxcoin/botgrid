@@ -1355,6 +1355,68 @@ async def close_user_position(
         raise HTTPException(status_code=502, detail=str(e))
 
 
+@app.get("/api/users/open-orders")
+async def get_user_open_orders(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        return []
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        return []
+    try:
+        raw   = ex.private_get_v5_order_realtime({"category": "linear", "settleCoin": "USDT", "limit": 50})
+        items = raw.get("result", {}).get("list", [])
+        return [
+            {
+                "order_id":    o.get("orderId", ""),
+                "symbol":      o.get("symbol", "").replace("USDT", ""),
+                "side":        "LONG" if o.get("side") == "Buy" else "SHORT",
+                "order_type":  o.get("orderType", ""),
+                "qty":         float(o.get("qty") or 0),
+                "price":       float(o.get("price") or 0),
+                "filled_qty":  float(o.get("cumExecQty") or 0),
+                "status":      o.get("orderStatus", ""),
+                "created_at":  o.get("createdTime", ""),
+                "reduce_only": bool(o.get("reduceOnly", False)),
+            }
+            for o in items
+        ]
+    except Exception:
+        return []
+
+
+class CancelOrderRequest(BaseModel):
+    order_id: str
+    symbol: str  # coin without USDT, e.g. "ETH"
+
+@app.post("/api/users/cancel-order")
+async def cancel_user_order(
+    body: CancelOrderRequest,
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user    = _get_user_from_token(credentials.credentials, db)
+    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    if not key_row:
+        raise HTTPException(status_code=404, detail="No API keys")
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        raise HTTPException(status_code=502, detail="Cannot connect to exchange")
+    try:
+        ex.private_post_v5_order_cancel({
+            "category": "linear",
+            "symbol":   f"{body.symbol}USDT",
+            "orderId":  body.order_id,
+        })
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
 @app.get("/api/users/bot-heartbeat")
 async def get_bot_heartbeat(
     credentials: HTTPAuthorizationCredentials = Depends(security),

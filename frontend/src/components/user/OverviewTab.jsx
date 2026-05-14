@@ -497,11 +497,18 @@ function EquityCurve({ data }) {
 /* ══════════════════════════════════════════════════════════════════
    BOTTOM PANEL
 ══════════════════════════════════════════════════════════════════ */
-function Panel({ botTrades, botPositions, onClose = () => {} }) {
+function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, onCancelOrder = () => {}, filterCoin, balance }) {
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
   const open   = useMemo(() => botTrades.filter(t => !t.closed_at && t.status !== 'failed'), [botTrades]);
   const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
+
+  const filteredOrders = useMemo(() =>
+    filterCoin ? openOrders.filter(o => o.symbol === filterCoin) : openOrders,
+  [openOrders, filterCoin]);
+  const filteredPos = useMemo(() =>
+    filterCoin ? botPositions.filter(p => sym(p.symbol) === filterCoin) : botPositions,
+  [botPositions, filterCoin]);
 
   const pnlTotal = useMemo(() => closed.reduce((s, t) => s + pnl(t), 0), [closed]);
   const pnlWins  = useMemo(() => closed.filter(t => pnl(t) > 0), [closed]);
@@ -523,11 +530,12 @@ function Panel({ botTrades, botPositions, onClose = () => {} }) {
   }, [botPositions]);
 
   const TABS = [
-    { id: 'open',      label: 'Open Orders',   n: open.length },
-    { id: 'positions', label: 'Positions',     n: botPositions.length },
+    { id: 'open',      label: 'Open Orders',   n: filteredOrders.length },
+    { id: 'positions', label: 'Positions',     n: filteredPos.length },
     { id: 'history',   label: 'Trade History', n: null },
     { id: 'pnl',       label: 'P&L',           n: null },
     { id: 'equity',    label: 'Equity Curve',  n: null },
+    { id: 'assets',    label: 'Assets',        n: null },
   ];
 
   const Th = ({ v, r }) => (
@@ -570,24 +578,38 @@ function Panel({ botTrades, botPositions, onClose = () => {} }) {
 
       {/* content */}
       <div style={{ maxHeight: 260, overflowY: 'auto', overflowX: 'auto' }}>
-        {tab === 'open' && (open.length === 0 ? <Empty /> :
+        {tab === 'open' && (filteredOrders.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Size"/><Th v="Entry"/><Th v="Lev"/></tr></thead>
-            <tbody>{open.map((t, i) => (
+            <thead><tr><Th v="Time"/><Th v="Symbol"/><Th v="Side"/><Th v="Type"/><Th v="Qty"/><Th v="Price" r/><Th v="Filled" r/><Th v="Status"/><Th v="Reduce"/><Th v=""/></tr></thead>
+            <tbody>{filteredOrders.map((o, i) => (
               <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Td v={dstr(t.opened_at)}/>
-                <Td v={sym(t.symbol)} hi="var(--text-primary)"/>
-                <Td v={t.side} hi={t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
-                <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={t.leverage ? `${t.leverage}x` : '—'}/>
+                <Td v={dstr(o.created_at ? +o.created_at : null)}/>
+                <Td v={o.symbol} hi="var(--text-primary)"/>
+                <Td v={o.side} hi={o.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
+                <Td v={o.order_type}/>
+                <Td v={fix(o.qty, 3)}/>
+                <Td v={fix(o.price, 4)} r/>
+                <Td v={fix(o.filled_qty, 3)} r/>
+                <Td v={o.status}/>
+                <Td v={o.reduce_only ? 'Yes' : '—'}/>
+                <td style={{ padding: '4px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <button
+                    onClick={() => onCancelOrder(o.order_id, o.symbol)}
+                    style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,109,0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+                    Cancel
+                  </button>
+                </td>
               </tr>
             ))}</tbody>
           </table>
         )}
 
-        {tab === 'positions' && (botPositions.length === 0 ? <Empty /> :
+        {tab === 'positions' && (filteredPos.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="FR 8h"/><Th v="PnL%" r/><Th v="Unrealized" r/><Th v=""/></tr></thead>
-            <tbody>{botPositions.map((p, i) => {
+            <tbody>{filteredPos.map((p, i) => {
               const upnl   = p.unrealized_pnl ?? 0;
               const hasSL  = !!p.stop_loss;
               const hasTP  = !!p.take_profit;
@@ -668,6 +690,24 @@ function Panel({ botTrades, botPositions, onClose = () => {} }) {
           if (data.length === 0) return <Empty />;
           return <EquityCurve data={data} />;
         })()}
+
+        {tab === 'assets' && (
+          balance ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 0 }}>
+              {[
+                ['Wallet Balance', `$${(+balance.wallet).toFixed(2)}`,        true],
+                ['Equity',         `$${(+balance.equity).toFixed(2)}`,        pos(balance.equity - balance.wallet)],
+                ['Unrealized PnL', `${sign(balance.unrealized_pnl)} USDT`,   pos(balance.unrealized_pnl)],
+                ['Available',      `$${(+balance.usdt_free).toFixed(2)}`,     true],
+              ].map(([l, v, good]) => (
+                <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
+                  <div style={{ fontFamily: FM, fontSize: 20, fontWeight: 600, color: good ? 'var(--text-primary)' : 'var(--accent-red)' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          ) : <Empty />
+        )}
       </div>
     </div>
   );
@@ -681,10 +721,11 @@ const BOT_DB_SOURCE = { signal: 'news', cascade: 'liq_cascade', fr: 'fr' };
 export default function OverviewTab({ botId = 'signal' }) {
   const dbSource = BOT_DB_SOURCE[botId] ?? botId;
 
-  const [summary,   setSummary]   = useState(null);
-  const [trades,    setTrades]    = useState([]);
-  const [coin,      setCoin]      = useState('BTC');
-  const [heartbeat, setHeartbeat] = useState({});
+  const [summary,    setSummary]    = useState(null);
+  const [trades,     setTrades]     = useState([]);
+  const [openOrders, setOpenOrders] = useState([]);
+  const [coin,       setCoin]       = useState('BTC');
+  const [heartbeat,  setHeartbeat]  = useState({});
   const autoSelectDoneRef = useRef(false);
 
   const refresh = useCallback(() => {
@@ -699,6 +740,13 @@ export default function OverviewTab({ botId = 'signal' }) {
     const go = () => api('/api/users/bot-heartbeat').then(setHeartbeat).catch(() => {});
     go();
     const id = setInterval(go, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const go = () => api('/api/users/open-orders').then(d => setOpenOrders(Array.isArray(d) ? d : [])).catch(() => {});
+    go();
+    const id = setInterval(go, 10000);
     return () => clearInterval(id);
   }, []);
 
@@ -758,6 +806,21 @@ export default function OverviewTab({ botId = 'signal' }) {
       alert(`Failed to close ${symbol}: ${e.message}`);
     }
   }, [refresh]);
+
+  const handleCancelOrder = useCallback(async (orderId, symbol) => {
+    if (!confirm(`Cancel ${symbol} order?`)) return;
+    try {
+      const r = await fetch('/api/users/cancel-order', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, symbol }),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
+      setTimeout(() => api('/api/users/open-orders').then(d => setOpenOrders(Array.isArray(d) ? d : [])).catch(() => {}), 1000);
+    } catch (e) {
+      alert(`Failed to cancel order: ${e.message}`);
+    }
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -824,7 +887,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <Chart coin={coin} entryPrice={entryPrice} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
-      <Panel botTrades={botTrades} botPositions={botPos} onClose={handleClose}/>
+      <Panel botTrades={botTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
     </div>
   );
 }
