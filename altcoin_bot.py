@@ -251,6 +251,7 @@ def run_alt_engine():
                             sl_pct=LISTING_SL,
                             leverage_override=LISTING_LEVERAGE,
                             size_pct=LISTING_SIZE,
+                            bot_source="listing",
                         )
                         _trade_ok = True
                         break
