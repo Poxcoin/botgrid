@@ -323,6 +323,11 @@ def sync_cascade_from_bybit(exchange) -> int:
             duration = round((close_ms - open_ms) / 60000) if open_ms and close_ms else None
             result   = "WIN" if pnl_val > 0 else ("LOSS" if pnl_val < 0 else "BE")
 
+            # Cascade ніколи не тримає позицію >20 хв (TIME_STOP_MIN) — ігноруємо довгі угоди
+            # щоб не приписувати собі угоди сигнального/FR бота
+            if duration is not None and duration > 30:
+                continue
+
             try:
                 with _conn() as con:
                     con.execute("""
