@@ -12,7 +12,7 @@ const api = p =>
     .then(r => r.ok ? r.json() : Promise.reject(r.status));
 
 /* ── helpers ─────────────────────────────────────────────────────── */
-const sym  = s => (s || '').replace('/USDT', '').replace('USDT', '').trim();
+const sym  = s => (s || '').split('/')[0].replace(/USDT$/, '').trim();
 const pnl  = t => parseFloat(t?.pnl_usdt ?? t?.pnl ?? 0);
 const fix  = (v, d = 2) => v == null || isNaN(+v) ? '—' : (+v).toFixed(d);
 const sign = (v, d = 2) => { const n = +v; return isNaN(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(d); };
