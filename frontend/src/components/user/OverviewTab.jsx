@@ -133,7 +133,7 @@ const COL_GREEN = '#00d4aa';
 const COL_RED   = '#ff4d6d';
 const CHART_TYPE_CFG = {
   candle_solid:     { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
-  candle_up_stroke: { bar: { upColor: 'transparent', downColor: '#111111', noChangeColor: 'rgba(0,0,0,0.4)', upBorderColor: '#111111', downBorderColor: '#111111', noChangeBorderColor: 'rgba(0,0,0,0.4)', upWickColor: '#555555', downWickColor: '#555555', noChangeWickColor: 'rgba(0,0,0,0.3)' }, vol: [{ upColor: 'rgba(0,0,0,0.12)', downColor: 'rgba(0,0,0,0.3)', noChangeColor: 'rgba(0,0,0,0.2)' }] },
+  candle_up_stroke: { bar: { upColor: 'transparent', downColor: '#c8c8c8', noChangeColor: 'rgba(200,200,200,0.3)', upBorderColor: '#c8c8c8', downBorderColor: '#c8c8c8', noChangeBorderColor: 'rgba(200,200,200,0.4)', upWickColor: '#888888', downWickColor: '#888888', noChangeWickColor: 'rgba(200,200,200,0.5)' }, vol: [{ upColor: 'rgba(200,200,200,0.12)', downColor: 'rgba(200,200,200,0.3)', noChangeColor: 'rgba(200,200,200,0.2)' }] },
   candle_stroke:    { bar: { upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
   area:             { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
 };
@@ -153,13 +153,13 @@ const THEME_DARK = {
   },
 };
 const THEME_BW = {
-  bg: '#ffffff',
-  grid: { horizontal: { color: 'rgba(0,0,0,0.06)' }, vertical: { color: 'rgba(0,0,0,0.06)' } },
-  xAxis: { axisLine: { color: 'rgba(0,0,0,0.12)' }, tickLine: { color: 'rgba(0,0,0,0.12)' }, tickText: { color: 'rgba(0,0,0,0.45)' } },
-  yAxis: { axisLine: { color: 'rgba(0,0,0,0.12)' }, tickLine: { color: 'rgba(0,0,0,0.12)' }, tickText: { color: 'rgba(0,0,0,0.45)' } },
+  bg: '#000000',
+  grid: { horizontal: { color: 'rgba(255,255,255,0.04)' }, vertical: { color: 'rgba(255,255,255,0.04)' } },
+  xAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
+  yAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
   crosshair: {
-    horizontal: { line: { color: 'rgba(0,0,0,0.25)' }, text: { color: '#000', backgroundColor: '#f0f0f0', borderColor: 'rgba(0,0,0,0.2)' } },
-    vertical:   { line: { color: 'rgba(0,0,0,0.25)' }, text: { color: '#000', backgroundColor: '#f0f0f0', borderColor: 'rgba(0,0,0,0.2)' } },
+    horizontal: { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
+    vertical:   { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
   },
 };
 
@@ -1016,8 +1016,10 @@ export default function OverviewTab({ botId = 'signal' }) {
     }
   }, []);
 
+  const isBW = chartType === 'candle_up_stroke';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isBW && !isFullscreen ? { filter: 'grayscale(1)' } : {}) }}>
 
       {/* ── STATS ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>

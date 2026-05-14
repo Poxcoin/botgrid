@@ -257,6 +257,7 @@ def execute_trade(
     size_pct: float = None,
     signal_id: int = None,
     bot_source: str = "news",
+    use_maker: bool = False,
 ) -> None:
     """Execute a market order on Bybit based on the provided signal.
 
@@ -389,17 +390,52 @@ def execute_trade(
         # -------------------------------------------------
         # 4️⃣ Place market order (без TP/SL — Demo не підтримує inline)
         # -------------------------------------------------
-        order = _exchange_call(
-            exchange.create_order,
-            symbol,
-            "market",
-            side,
-            amount,
-            params={
-                "category": "linear",
-                "positionIdx": 0,
-            },
-        )
+        if use_maker and not IS_DEMO_TRADING:
+            # Try PostOnly limit at current price — saves ~0.035% taker fee
+            try:
+                limit_price = float(exchange.price_to_precision(symbol, current_price))
+                maker_ord = _exchange_call(
+                    exchange.create_order,
+                    symbol, "limit", side, amount, limit_price,
+                    params={"category": "linear", "positionIdx": 0, "timeInForce": "PostOnly"},
+                )
+                # Wait up to 3s for fill
+                order = None
+                for _ in range(6):
+                    time.sleep(0.5)
+                    o = exchange.fetch_order(maker_ord["id"], symbol, params={"category": "linear"})
+                    if float(o.get("filled") or 0) >= amount * 0.99:
+                        order = o
+                        print(f"✅ Maker fill @ {o.get('average', limit_price)} (saved taker fee)")
+                        break
+                if order is None:
+                    try:
+                        exchange.cancel_order(maker_ord["id"], symbol, params={"category": "linear"})
+                    except Exception:
+                        pass
+                    print(f"⚠️ Maker not filled in 3s — falling back to market")
+                    order = _exchange_call(
+                        exchange.create_order, symbol, "market", side, amount,
+                        params={"category": "linear", "positionIdx": 0},
+                    )
+            except Exception as _me:
+                print(f"⚠️ Maker order failed ({_me}) — using market")
+                order = _exchange_call(
+                    exchange.create_order, symbol, "market", side, amount,
+                    params={"category": "linear", "positionIdx": 0},
+                )
+        else:
+            order = _exchange_call(
+                exchange.create_order,
+                symbol,
+                "market",
+                side,
+                amount,
+                params={
+                    "category": "linear",
+                    "positionIdx": 0,
+                },
+            )
 
         real_order_id = order.get('id', 'unknown')
         print(f"✅ ОРДЕР ИСПОЛНЕН! ID: {real_order_id}")

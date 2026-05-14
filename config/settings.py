@@ -132,6 +132,9 @@ TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
 # на user dashboard. Отримати: SELECT id FROM users WHERE email='...' у saas_database.sqlite
 OWNER_USER_ID = int(os.getenv("OWNER_USER_ID", "0") or "0")
 
+# ─── Pairs Trading (BTC/ETH spread mean-reversion) ────────────────────────────
+PAIRS_TRADING = os.getenv("PAIRS_TRADING", "False").lower() == "true"
+
 # ── Metals Bot (XAU/Silver) ────────────────────────────────────────────────────
 METALS_TRADING  = os.getenv("METALS_TRADING",  "False").lower() == "true"
 METALS_LEVERAGE = int(os.getenv("METALS_LEVERAGE",  "5"))

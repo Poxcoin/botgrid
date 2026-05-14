@@ -16,6 +16,7 @@ from modules.exchange_announcements import start_announcements_monitor, ann_queu
 from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
 from modules.funding_strategy import start_funding_strategy, funding_queue
+from modules.pairs_strategy import start_pairs_strategy
 from modules.metals_strategy import on_macro_news as metals_on_news, read_macro_state
 from modules.coingecko_monitor import start_coingecko_monitor, cg_queue
 from modules.analytics_db import save_signal, init_db, DB_PATH
@@ -497,6 +498,7 @@ def run_signal_engine():
     start_dex_scanner()
     start_smart_wallet_tracker()
     start_funding_strategy()
+    start_pairs_strategy()
     start_coingecko_monitor()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
@@ -928,7 +930,8 @@ def run_signal_engine():
                 if SIGNAL_BOT_TRADING:
                     execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
                                   tp_pct=fr_tp, sl_pct=fr_sl, size_pct=fr_size,
-                                  signal_id=signal_id, bot_source="fr")
+                                  signal_id=signal_id, bot_source="fr",
+                                  use_maker=True)
                 _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, fr_tp, fr_sl, fr_size)
                 _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────
