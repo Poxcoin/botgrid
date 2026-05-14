@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { init as klInit, dispose as klDispose } from 'klinecharts';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
