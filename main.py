@@ -17,6 +17,7 @@ from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
 from modules.funding_strategy import start_funding_strategy, funding_queue
 from modules.metals_strategy import on_macro_news as metals_on_news, read_macro_state
+from modules.coingecko_monitor import start_coingecko_monitor, cg_queue
 from modules.analytics_db import save_signal, init_db, DB_PATH
 from modules.liquidation_monitor import get_liquidation_signal
 from modules.onchain_monitor import get_onchain_signal
@@ -492,6 +493,7 @@ def run_signal_engine():
     start_dex_scanner()
     start_smart_wallet_tracker()
     start_funding_strategy()
+    start_coingecko_monitor()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
 
@@ -556,7 +558,15 @@ def run_signal_engine():
                 except Exception:
                     break
 
-            # 1b2. Smart wallet moves — Alchemy WebSocket реалтайм
+            # 1b2. CoinGecko trending + new listings
+            cg_news = []
+            while not cg_queue.empty():
+                try:
+                    cg_news.append(cg_queue.get_nowait())
+                except Exception:
+                    break
+
+            # 1b3. Smart wallet moves — Alchemy WebSocket реалтайм
             smart_news = []
             while not smart_wallet_queue.empty():
                 try:
@@ -576,14 +586,16 @@ def run_signal_engine():
             tg_count    = len(tg_news)
             dex_count   = len(dex_news)
             smart_count = len(smart_news)
+            cg_count    = len(cg_news)
             print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
                   (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
                   (f" | TG: {tg_count}" if tg_count else "") +
                   (f" | DEX: {dex_count}" if dex_count else "") +
-                  (f" | 🐳 Smart: {smart_count}" if smart_count else "") + "...")
+                  (f" | 🐳 Smart: {smart_count}" if smart_count else "") +
+                  (f" | 📈 CG: {cg_count}" if cg_count else "") + "...")
 
-            # Пріоритет: Анонси > TG > Smart Wallets > DEX spikes
-            latest_news = ann_news + tg_news + smart_news + dex_news
+            # Пріоритет: Анонси > TG > Smart Wallets > DEX > CoinGecko
+            latest_news = ann_news + tg_news + smart_news + dex_news + cg_news
             
             urls_changed = False
             for news_item in latest_news:
