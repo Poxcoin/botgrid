@@ -209,28 +209,25 @@ function CoinTicker({ coins, selected, onSelect }) {
 
   useEffect(() => {
     if (!coins.length) return;
-    const load = () => {
-      Promise.all(
-        coins.map(c =>
-          fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${c}USDT`)
-            .then(r => r.json())
-            .then(d => {
-              const t = d?.result?.list?.[0];
-              if (!t) return null;
-              return [c, {
-                price: parseFloat(t.lastPrice),
-                change: parseFloat(t.price24hPcnt) * 100,
-                fr: parseFloat(t.fundingRate) * 100,
-              }];
-            })
-            .catch(() => null)
-        )
-      ).then(results => {
-        const map = {};
-        results.forEach(r => { if (r) map[r[0]] = r[1]; });
-        setTickers(map);
-      });
-    };
+    const coinSet = new Set(coins);
+    const load = () =>
+      fetch('https://api.bybit.com/v5/market/tickers?category=linear')
+        .then(r => r.json())
+        .then(d => {
+          const map = {};
+          (d?.result?.list || []).forEach(t => {
+            if (!t.symbol.endsWith('USDT')) return;
+            const c = t.symbol.slice(0, -4);
+            if (!coinSet.has(c)) return;
+            map[c] = {
+              price: parseFloat(t.lastPrice),
+              change: parseFloat(t.price24hPcnt) * 100,
+              fr: parseFloat(t.fundingRate) * 100,
+            };
+          });
+          setTickers(map);
+        })
+        .catch(() => {});
     load();
     const id = setInterval(load, 30000);
     return () => clearInterval(id);
@@ -269,96 +266,109 @@ function CoinTicker({ coins, selected, onSelect }) {
 }
 
 function Chart({ coin, entryPrice }) {
-  const elRef      = useRef(null);
-  const chartRef   = useRef(null);
-  const panesRef   = useRef({});
-  const wsSubRef   = useRef(null);
-  const entryOvRef = useRef(null);
+  const elRef       = useRef(null);
+  const chartRef    = useRef(null);
+  const panesRef    = useRef({});
+  const wsSubRef    = useRef(null);
+  const entryOvRef  = useRef(null);
+  const coinRef     = useRef(coin);
+  const tfRef       = useRef('60');
+  const prevCoinRef = useRef(coin);
+  const prevTfRef   = useRef('60');
+
   const [tf,         setTf]         = useState('60');
   const [activeTool, setActiveTool] = useState(null);
   const [activeInds, setActiveInds] = useState({});
   const [chartType,  setChartType]  = useState('candle_solid');
 
+  coinRef.current = coin;
+  tfRef.current   = tf;
+
+  const prec = c => c === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(c) ? 4 : 2;
+
+  // Init chart once — never tear down on coin/tf change
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-    let mounted = true;
-    let ro = null;
 
-    const setup = () => {
-      if (!mounted) return;
-      const { width, height } = el.getBoundingClientRect();
-      if (width === 0 || height === 0) { requestAnimationFrame(setup); return; }
+    const chart = klInit(el, { styles: CHART_STYLES, locale: 'en-US' });
+    chartRef.current = chart;
+    panesRef.current = {};
+    entryOvRef.current = null;
 
-      const chart = klInit(el, { styles: CHART_STYLES, locale: 'en-US' });
-      chartRef.current = chart;
-      panesRef.current = {};
-      entryOvRef.current = null;
+    chart.setSymbol({ shortName: `${coinRef.current}USDT`, pricePrecision: prec(coinRef.current), volumePrecision: 4 });
+    chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tfRef.current });
 
-      const pp = coin === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(coin) ? 4 : 2;
-      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
-      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
-      chart.setDataLoader({
-        getBars: async ({ type, period, timestamp, callback }) => {
-          if (type !== 'init' && type !== 'forward') { callback([], false); return; }
-          try {
-            const parse = list => list.slice().reverse().map(k => ({
-              timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-            }));
-            const fetchPage = async (end, limit = 1000) => {
-              let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=${limit}`;
-              if (end) url += `&end=${end}`;
-              const r = await fetch(url);
-              const d = await r.json();
-              return parse(d.result?.list || []);
-            };
-            if (type === 'init') {
-              // 300 candles — one fast request; more load on scroll via 'forward'
-              const page = await fetchPage(undefined, 300);
-              callback(page, { backward: false, forward: page.length >= 300 });
-            } else {
-              const page = await fetchPage(timestamp - 1);
-              callback(page, { backward: false, forward: page.length >= 1000 });
-            }
-          } catch { callback([], false); }
-        },
-        subscribeBar: ({ period, callback: cb }) => {
-          // Poll every 2s — stable, no per-trade flood that breaks klinecharts rendering
-          const poll = async () => {
-            try {
-              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
-              const d = await r.json();
-              const k = d?.result?.list?.[0];
-              if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
-            } catch {}
+    chart.setDataLoader({
+      getBars: async ({ type, period, timestamp, callback }) => {
+        if (type !== 'init' && type !== 'forward') { callback([], false); return; }
+        const c = coinRef.current;
+        try {
+          const parse = list => list.slice().reverse().map(k => ({
+            timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+          }));
+          const fetchPage = async (end, limit) => {
+            let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${c}USDT&interval=${period.text}&limit=${limit}`;
+            if (end) url += `&end=${end}`;
+            return parse((await (await fetch(url)).json()).result?.list || []);
           };
-          poll();
-          const pollId = setInterval(poll, 2000);
-          wsSubRef.current = { close: () => clearInterval(pollId) };
-        },
-        unsubscribeBar: () => {
-          if (wsSubRef.current) { wsSubRef.current.close(); wsSubRef.current = null; }
-        },
-      });
-      requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
-      ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
-      ro.observe(el);
-    };
+          if (type === 'init') {
+            const page = await fetchPage(undefined, 200);
+            callback(page, { backward: false, forward: page.length >= 200 });
+          } else {
+            const page = await fetchPage(timestamp - 1, 1000);
+            callback(page, { backward: false, forward: page.length >= 1000 });
+          }
+        } catch { callback([], false); }
+      },
+      subscribeBar: ({ period, callback: cb }) => {
+        const poll = async () => {
+          try {
+            const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coinRef.current}USDT&interval=${period.text}&limit=1`);
+            const k = (await r.json())?.result?.list?.[0];
+            if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
+          } catch {}
+        };
+        poll();
+        const id = setInterval(poll, 2000);
+        wsSubRef.current = { close: () => clearInterval(id) };
+      },
+      unsubscribeBar: () => { wsSubRef.current?.close(); wsSubRef.current = null; },
+    });
 
-    requestAnimationFrame(setup);
+    const ro = new ResizeObserver(() => { try { chart.resize(); } catch {} });
+    ro.observe(el);
 
     return () => {
-      mounted = false;
-      if (wsSubRef.current) { wsSubRef.current.close(); wsSubRef.current = null; }
-      if (ro) ro.disconnect();
+      wsSubRef.current?.close();
+      wsSubRef.current = null;
+      ro.disconnect();
       try { klDispose(el); } catch {}
       chartRef.current = null;
       panesRef.current = {};
       entryOvRef.current = null;
     };
+  }, []);
+
+  // Coin or TF changed — update in-place, reload data without teardown
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    let changed = false;
+    if (coin !== prevCoinRef.current) {
+      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: prec(coin), volumePrecision: 4 });
+      prevCoinRef.current = coin;
+      changed = true;
+    }
+    if (tf !== prevTfRef.current) {
+      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
+      prevTfRef.current = tf;
+      changed = true;
+    }
+    if (changed) chart.resetData?.();
   }, [coin, tf]);
 
-  // Entry price line — separate effect, no chart reinit
+  // Entry price line
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
