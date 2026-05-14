@@ -575,7 +575,7 @@ export default function AnalyticsTab() {
       const headers = { Authorization: `Bearer ${getToken()}` };
       const [analyticsRes, tradesRes] = await Promise.all([
         fetch('/api/users/analytics', { headers }),
-        fetch('/api/users/closed-pnl?days=90', { headers }),
+        fetch('/api/users/closed-pnl?days=0', { headers }),
       ]);
       if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
       const json = await analyticsRes.json();
@@ -740,10 +740,58 @@ export default function AnalyticsTab() {
         <CoinTable rows={by_coin} t={t} />
       </div>
 
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
         <TradesList trades={best}  title={t.dashboard.analytics.topBest}  color={S.green} />
         <TradesList trades={worst} title={t.dashboard.analytics.topWorst} color={S.red} />
       </div>
+
+      {allTrades && allTrades.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionHeader title="All Trades" right={`${allTrades.length} total`} />
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: S.mono, fontSize: 11 }}>
+              <thead>
+                <tr>
+                  {['Date', 'Symbol', 'Side', 'Entry', 'Exit', 'Qty', 'Source', 'PnL'].map((h, i) => (
+                    <th key={h} style={{
+                      textAlign: i >= 7 ? 'right' : 'left', padding: '6px 12px',
+                      borderBottom: `1px solid ${S.border}`,
+                      color: S.muted, fontWeight: 400, letterSpacing: '0.1em', fontSize: 9, textTransform: 'uppercase',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...allTrades]
+                  .sort((a, b) => parseInt(b.closed_at) - parseInt(a.closed_at))
+                  .map((tr, i) => {
+                    const closedMs = parseInt(tr.closed_at);
+                    const dateStr  = closedMs ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+                    const pnlColor = (tr.pnl ?? 0) >= 0 ? S.green : S.red;
+                    return (
+                      <tr key={i}
+                        style={{ borderBottom: `1px solid ${S.border}` }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '8px 12px', color: S.muted }}>{dateStr}</td>
+                        <td style={{ padding: '8px 12px', color: S.fg, fontWeight: 600 }}>{tr.symbol || '—'}</td>
+                        <td style={{ padding: '8px 12px', color: tr.side === 'LONG' ? S.green : S.red }}>{tr.side || '—'}</td>
+                        <td style={{ padding: '8px 12px', color: S.fg }}>{tr.entry_price ? (+tr.entry_price).toFixed(4) : '—'}</td>
+                        <td style={{ padding: '8px 12px', color: S.fg }}>{tr.exit_price  ? (+tr.exit_price ).toFixed(4) : '—'}</td>
+                        <td style={{ padding: '8px 12px', color: S.muted }}>{tr.qty ? (+tr.qty).toFixed(3) : '—'}</td>
+                        <td style={{ padding: '8px 12px', color: S.muted, fontSize: 9, letterSpacing: '0.05em' }}>{tr.source || '—'}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', color: pnlColor, fontWeight: 600 }}>
+                          {(tr.pnl ?? 0) >= 0 ? '+' : ''}{(tr.pnl ?? 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${S.border}` }}>
         <button onClick={fetchData} style={{

@@ -5,6 +5,8 @@ import AccountTab       from '@/components/user/AccountTab';
 import SecurityTab      from '@/components/user/SecurityTab';
 import ApiKeysTab       from '@/components/user/ApiKeysTab';
 import AssetsTab        from '@/components/user/AssetsTab';
+import AnalyticsTab     from '@/components/user/AnalyticsTab';
+import PnlTab           from '@/components/user/PnlTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 
 const BOTS = [
@@ -24,12 +26,14 @@ function getUser() {
 function Page({ tab }) {
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} />;
   switch (tab) {
-    case 'account':  return <AccountTab />;
-    case 'api-keys': return <ApiKeysTab />;
-    case 'security': return <SecurityTab />;
-    case 'settings': return <SettingsTab />;
-    case 'assets':   return <AssetsTab />;
-    default:         return null;
+    case 'analytics': return <AnalyticsTab />;
+    case 'pnl':       return <PnlTab />;
+    case 'account':   return <AccountTab />;
+    case 'api-keys':  return <ApiKeysTab />;
+    case 'security':  return <SecurityTab />;
+    case 'settings':  return <SettingsTab />;
+    case 'assets':    return <AssetsTab />;
+    default:          return null;
   }
 }
 
@@ -68,10 +72,12 @@ export default function UserDashboard() {
   const isBot = BOT_IDS.includes(tab);
   const allItems = [
     ...BOTS,
-    { id: 'account', label: 'Account' },
-    { id: 'api-keys', label: 'API Keys' },
-    { id: 'security', label: 'Security' },
-    { id: 'settings', label: 'Settings' },
+    { id: 'analytics', label: 'Analytics' },
+    { id: 'pnl',       label: 'PnL'       },
+    { id: 'account',   label: 'Account'   },
+    { id: 'api-keys',  label: 'API Keys'  },
+    { id: 'security',  label: 'Security'  },
+    { id: 'settings',  label: 'Settings'  },
   ];
   const pageLabel = allItems.find(x => x.id === tab)?.label ?? '';
 
@@ -144,6 +150,13 @@ export default function UserDashboard() {
           </button>
 
           {botsOpen && BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '12px 0' }}/>
+
+          {[
+            { id: 'analytics', label: 'Analytics' },
+            { id: 'pnl',       label: 'PnL'       },
+          ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '12px 0' }}/>
 
