@@ -204,6 +204,62 @@ function OrderBook({ coin }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   MINI CANDLESTICK SPARKLINE — 24 × 1h candles per coin
+══════════════════════════════════════════════════════════════════ */
+const _klineCache = {};
+
+function MiniChart({ coin }) {
+  const [candles, setCandles] = useState(_klineCache[coin] || []);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=60&limit=24`)
+        .then(r => r.json())
+        .then(d => {
+          if (!alive) return;
+          const list = (d?.result?.list || []).slice().reverse().map(k => ({
+            o: +k[1], h: +k[2], l: +k[3], c: +k[4],
+          }));
+          _klineCache[coin] = list;
+          setCandles(list);
+        })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, [coin]);
+
+  const W = 80, H = 28;
+  if (!candles.length) return <div style={{ width: W, height: H }} />;
+
+  const maxH  = Math.max(...candles.map(c => c.h));
+  const minL  = Math.min(...candles.map(c => c.l));
+  const range = maxH - minL || maxH * 0.001;
+  const n  = candles.length;
+  const cw = W / n;
+  const sy = v => ((maxH - v) / range) * H;
+
+  return (
+    <svg width={W} height={H} style={{ display: 'block' }}>
+      {candles.map((c, i) => {
+        const isUp = c.c >= c.o;
+        const col  = isUp ? '#00d4aa' : '#ff4d6d';
+        const cx   = i * cw + cw / 2;
+        const top  = sy(Math.max(c.o, c.c));
+        const bh   = Math.max(1, sy(Math.min(c.o, c.c)) - top);
+        return (
+          <g key={i}>
+            <line x1={cx} y1={sy(c.h)} x2={cx} y2={sy(c.l)} stroke={col} strokeWidth={0.8} opacity={0.45}/>
+            <rect x={Math.max(0, cx - cw * 0.38)} y={top} width={Math.max(1, cw * 0.76)} height={bh} fill={col} opacity={0.85}/>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function CoinTicker({ coins, selected, onSelect }) {
   const [tickers, setTickers] = useState({});
 
@@ -244,19 +300,20 @@ function CoinTicker({ coins, selected, onSelect }) {
         const fr = t?.fr;
         return (
           <button key={c} onClick={() => onSelect(c)} style={{
-            display: 'flex', flexDirection: 'column', gap: 2,
-            padding: '8px 12px', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', gap: 3,
+            padding: '8px 10px 6px', cursor: 'pointer',
             background: on ? 'var(--bg-elevated)' : 'transparent',
             border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
-            textAlign: 'left', minWidth: 90,
+            textAlign: 'left', minWidth: 100,
           }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{c}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{c}</span>
+              {t && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chg >= 0 ? '+' : ''}{chg?.toFixed(2)}%</span>}
+            </div>
+            <MiniChart coin={c} />
             {t ? <>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>${t.price < 1 ? t.price.toFixed(5) : t.price < 10 ? t.price.toFixed(3) : t.price.toFixed(2)}</span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chg >= 0 ? '+' : ''}{chg?.toFixed(2)}%</span>
-                {fr != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: fr > 0.05 ? 'var(--accent-red)' : fr < 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>FR {fr >= 0 ? '+' : ''}{fr?.toFixed(3)}%</span>}
-              </div>
+              {fr != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: fr > 0.05 ? 'var(--accent-red)' : fr < 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>FR {fr >= 0 ? '+' : ''}{fr?.toFixed(3)}%</span>}
             </> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>—</span>}
           </button>
         );
@@ -265,12 +322,14 @@ function CoinTicker({ coins, selected, onSelect }) {
   );
 }
 
-function Chart({ coin, entryPrice }) {
+function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
   const elRef       = useRef(null);
   const chartRef    = useRef(null);
   const panesRef    = useRef({});
   const wsSubRef    = useRef(null);
   const entryOvRef  = useRef(null);
+  const slOvRef     = useRef(null);
+  const tpOvRef     = useRef(null);
   const coinRef     = useRef(coin);
   const tfRef       = useRef('60');
   const prevCoinRef = useRef(coin);
@@ -368,18 +427,25 @@ function Chart({ coin, entryPrice }) {
     if (changed) chart.resetData?.();
   }, [coin, tf]);
 
-  // Entry price line
+  // Entry / SL / TP lines on chart
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
     try {
       if (entryOvRef.current) { chart.removeOverlay?.(entryOvRef.current); entryOvRef.current = null; }
-      if (entryPrice && entryPrice > 0) {
-        const id = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: entryPrice }], styles: { line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.85)' } }, extendData: `Entry $${entryPrice}`, lock: true });
-        entryOvRef.current = id ?? null;
+      if (slOvRef.current)    { chart.removeOverlay?.(slOvRef.current);    slOvRef.current    = null; }
+      if (tpOvRef.current)    { chart.removeOverlay?.(tpOvRef.current);    tpOvRef.current    = null; }
+      if (entryPrice > 0) {
+        entryOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: entryPrice }], styles: { line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.9)' } }, extendData: `Entry $${entryPrice}`, lock: true }) ?? null;
+      }
+      if (stopLoss > 0) {
+        slOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: stopLoss }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(255,77,109,0.9)' } }, extendData: `SL $${stopLoss}`, lock: true }) ?? null;
+      }
+      if (takeProfit > 0) {
+        tpOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: takeProfit }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(0,212,170,0.9)' } }, extendData: `TP $${takeProfit}`, lock: true }) ?? null;
       }
     } catch {}
-  }, [entryPrice]);
+  }, [entryPrice, stopLoss, takeProfit]);
 
   function applyChartType(typeId) {
     setChartType(typeId);
@@ -821,6 +887,8 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   const activePos  = botPos.find(p => sym(p.symbol) === coin);
   const entryPrice = activePos?.entry_price ?? 0;
+  const stopLoss   = activePos?.stop_loss   ?? 0;
+  const takeProfit = activePos?.take_profit ?? 0;
 
   const handleClose = useCallback(async (symbol) => {
     if (!confirm(`Close ${symbol} position?`)) return;
@@ -914,7 +982,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       )}
 
       {/* ── CHART ─────────────────────────────────────────────── */}
-      <Chart coin={coin} entryPrice={entryPrice} />
+      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={botTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
