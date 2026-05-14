@@ -1,0 +1,19 @@
+[Unit]
+Description=AI Crypto Trading Bot — Precious Metals (XAU)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=minus
+WorkingDirectory=/home/minus/bot_grid
+Environment=PATH=/home/minus/bot_grid/venv/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/home/minus/bot_grid/.env
+ExecStart=/home/minus/bot_grid/venv/bin/python metals_bot.py
+Restart=on-failure
+RestartSec=15
+StandardOutput=append:/home/minus/bot_grid/metals_bot.log
+StandardError=append:/home/minus/bot_grid/metals_bot.log
+
+[Install]
+WantedBy=multi-user.target

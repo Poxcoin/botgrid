@@ -131,3 +131,10 @@ TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
 # User ID власника (Poxcoin) у saas_database.sqlite — для дублювання угод системного бота
 # на user dashboard. Отримати: SELECT id FROM users WHERE email='...' у saas_database.sqlite
 OWNER_USER_ID = int(os.getenv("OWNER_USER_ID", "0") or "0")
+
+# ── Metals Bot (XAU/Silver) ────────────────────────────────────────────────────
+METALS_TRADING  = os.getenv("METALS_TRADING",  "False").lower() == "true"
+METALS_LEVERAGE = int(os.getenv("METALS_LEVERAGE",  "5"))
+METALS_TP       = float(os.getenv("METALS_TP",  "1.5"))
+METALS_SL       = float(os.getenv("METALS_SL",  "1.0"))
+METALS_SIZE     = float(os.getenv("METALS_SIZE", "3.0"))
