@@ -301,11 +301,11 @@ export default function LandingHeader() {
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <div style={{ padding: '0 48px', height: 62, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '0 20px', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 
           {/* Logo */}
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <span style={{ fontSize: 17, fontWeight: 900, letterSpacing: '-0.04em', fontFamily: MONO, color: '#fff' }}>KADO</span>
+            <span style={{ fontSize: 24, fontWeight: 900, letterSpacing: '-0.04em', fontFamily: MONO, color: '#fff' }}>KADO</span>
           </Link>
 
           {/* Desktop nav */}
@@ -322,8 +322,8 @@ export default function LandingHeader() {
               <Link to="/account"
                 className="hidden sm:inline-flex items-center"
                 style={{
-                  background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
-                  fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
+                  background: '#fff', color: '#000', padding: '10px 28px', borderRadius: 100,
+                  fontSize: 14, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
                 }}
                 onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
                 onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -333,7 +333,7 @@ export default function LandingHeader() {
               <>
                 <Link to="/auth?mode=login"
                   className="hidden sm:inline"
-                  style={{ fontFamily: FONT, fontSize: 13, color: '#888', textDecoration: 'none', transition: 'color 150ms' }}
+                  style={{ fontFamily: FONT, fontSize: 14, color: '#888', textDecoration: 'none', transition: 'color 150ms' }}
                   onMouseEnter={e => e.currentTarget.style.color = '#fff'}
                   onMouseLeave={e => e.currentTarget.style.color = '#888'}>
                   {t.auth.login}
@@ -341,8 +341,8 @@ export default function LandingHeader() {
                 <Link to="/auth?mode=register"
                   className="hidden sm:inline-flex items-center"
                   style={{
-                    background: '#fff', color: '#000', padding: '8px 22px', borderRadius: 100,
-                    fontSize: 12, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
+                    background: '#fff', color: '#000', padding: '10px 28px', borderRadius: 100,
+                    fontSize: 14, fontWeight: 600, fontFamily: FONT, textDecoration: 'none', transition: 'opacity 150ms',
                   }}
                   onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -367,7 +367,7 @@ export default function LandingHeader() {
                 onMouseLeave={e => { if (!settingsOpen) { e.currentTarget.style.color = '#666'; e.currentTarget.style.background = 'none'; e.currentTarget.style.border = '1px solid transparent'; } }}
               >
                 {/* Cogwheel gear icon */}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.5"/>
                 </svg>
