@@ -414,7 +414,7 @@ def execute_trade(
         try:
             from datetime import datetime, timezone
             ts_open = datetime.now(timezone.utc).isoformat()
-            save_trade(signal_id, coin, action, fill_price, ts_open)
+            save_trade(signal_id, coin, action, fill_price, ts_open, bot_source=bot_source)
             if signal_id:
                 mark_signal_executed(signal_id, str(real_order_id))
         except Exception as e:
