@@ -715,25 +715,23 @@ def run_signal_engine():
                                         print(f"⚙️ {coin}: адаптивний поріг {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не пройшов")
                                         continue
 
-                                # Safety: explicit min-score guard (синхронізовано з decision_maker)
-                                # Дані: BTC 12%WR, ETH 19%WR → підвищено до 15.0
-                                # Алти 30d: score 11-12.9 <30%WR → підвищено до 13.0
-                                _btc_eth_guard = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
+                                # Safety: explicit min-score guard
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
-                                if coin.upper() in _btc_eth_guard:
-                                    _min_safe = 15.0  # BTC/ETH: high threshold regardless of source
-                                elif _is_sm_guard:
-                                    _min_safe = 10.0  # smart wallet alts: lower threshold OK
-                                else:
-                                    _min_safe = 13.0  # regular alt signals
+                                _min_safe = 10.0 if _is_sm_guard else 13.0
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
 
                                 # Blacklist guard (синхронізовано з decision_maker._COIN_BLACKLIST)
-                                _TRADE_BLACKLIST = {"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE"}
+                                # BTC/ETH/SOL/BNB — grid/FR боти покривають, news bot не вспіває
+                                # (BTC 12%WR -$50, SOL 20%WR -$33, ETH 18.8%WR -$3)
+                                _TRADE_BLACKLIST = {
+                                    "STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE",
+                                    "BTC", "ETH", "SOL", "BNB",
+                                    "BITCOIN", "ETHEREUM", "SOLANA", "BINANCE COIN",
+                                }
                                 if coin.upper() in _TRADE_BLACKLIST:
-                                    print(f"⛔ {coin}: в чорному списку (confirmed loser) — safety guard")
+                                    print(f"⛔ {coin}: заблоковано (grid/FR покривають, news не вспіває)")
                                     continue
 
                                 # Денний ліміт угод на монету

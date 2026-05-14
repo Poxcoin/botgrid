@@ -466,11 +466,11 @@ def generate_signal(news_item: dict) -> dict | None:
 
     action = "HOLD"
 
-    btc_eth_coins = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
-    if coin_upper in btc_eth_coins:
-        # BTC/ETH: 12% WR (-$53.35 combined) — smart wallet or not, high threshold required
-        min_score = 15.0  # підняли з 13.0: навіть smart wallet ETH/BTC дають <20% WR
-    elif is_smart_wallet:
+    # BTC/ETH/SOL: фізично не вспіваємо — institutional algo прайсить за мікросекунди.
+    # Статистика: BTC 12%WR -$50, ETH 18.8%WR -$3, SOL 20%WR -$33. Grid/FR покривають.
+    if coin_upper in _NEWS_BLOCKED:
+        return None
+    if is_smart_wallet:
         min_score = 10.0  # smart money для алтів: підняли з 8.0 (занадто багато шумних угод)
     else:
         min_score = 13.0  # алти: підняли з 11.0; дані: score 11-12.9 давали <30% WR
