@@ -527,7 +527,7 @@ def run_signal_engine():
     MAX_DAILY_TRADES_ALT = 2
 
     # Лимит суммарной экспозиции: не более MAX_EXPOSURE_PCT% баланса в открытых позициях
-    MAX_EXPOSURE_PCT = 15.0
+    MAX_EXPOSURE_PCT = 20.0
 
     # Дедупликация сигналов: (coin, action) -> last_signal_ts
     # Один и тот же сигнал по одной монете не логируем чаще раз в 30 мин
@@ -543,6 +543,7 @@ def run_signal_engine():
     processed_urls = load_processed_urls()
     processed_tg_updates = set()
     last_error_tg_time = 0      # антиспам: не чаще 1 раза в 5 минут
+    last_scan_log_time = 0.0
     
     while True:
         try:
@@ -591,12 +592,19 @@ def run_signal_engine():
             dex_count   = len(dex_news)
             smart_count = len(smart_news)
             cg_count    = len(cg_news)
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
-                  (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
-                  (f" | TG: {tg_count}" if tg_count else "") +
-                  (f" | DEX: {dex_count}" if dex_count else "") +
-                  (f" | 🐳 Smart: {smart_count}" if smart_count else "") +
-                  (f" | 📈 CG: {cg_count}" if cg_count else "") + "...")
+            _has_input  = ann_count or tg_count or dex_count or smart_count or cg_count
+            _now_scan   = time.time()
+            if _has_input:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
+                      (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
+                      (f" | TG: {tg_count}" if tg_count else "") +
+                      (f" | DEX: {dex_count}" if dex_count else "") +
+                      (f" | 🐳 Smart: {smart_count}" if smart_count else "") +
+                      (f" | 📈 CG: {cg_count}" if cg_count else "") + "...")
+                last_scan_log_time = _now_scan
+            elif _now_scan - last_scan_log_time >= 60:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування...")
+                last_scan_log_time = _now_scan
 
             # Пріоритет: Анонси > TG > Smart Wallets > DEX > CoinGecko
             latest_news = ann_news + tg_news + smart_news + dex_news + cg_news
@@ -740,7 +748,7 @@ def run_signal_engine():
 
                                 # Safety: explicit min-score guard
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
-                                _min_safe = 10.0 if _is_sm_guard else 13.0
+                                _min_safe = 9.0 if _is_sm_guard else 13.0
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
