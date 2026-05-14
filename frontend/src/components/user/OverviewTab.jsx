@@ -942,11 +942,18 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   // reset auto-select flag when user switches bot tab
   useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
-  // auto-select first available coin once per tab load (botCoins > staticCoins fallback)
+  // auto-select first available coin once per tab load
+  // Prefer botCoins (actual trades) but DON'T lock if we only have staticCoins fallback —
+  // wait for WS trades to arrive so botCoins takes priority over the static watchlist.
   useEffect(() => {
     if (autoSelectDoneRef.current) return;
-    const first = botCoins[0] ?? staticCoins[0];
-    if (first) { setCoin(first); autoSelectDoneRef.current = true; }
+    if (botCoins.length > 0) {
+      setCoin(botCoins[0]);
+      autoSelectDoneRef.current = true;
+    } else if (staticCoins.length > 0) {
+      setCoin(staticCoins[0]);
+      // Don't lock yet — botCoins may still arrive from WS
+    }
   }, [botCoins, staticCoins.join(',')]);
 
   // auto-switch chart to coin when a new position opens for this bot
