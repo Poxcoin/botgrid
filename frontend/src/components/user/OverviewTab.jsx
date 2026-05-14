@@ -255,14 +255,36 @@ function Chart({ coin, entryPrice }) {
           } catch { callback([], false); }
         },
         subscribeBar: ({ period, callback: cb }) => {
+          let currentBar = null;
+
+          // seed from REST so tickers can update immediately
+          fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`)
+            .then(r => r.json())
+            .then(d => {
+              const k = d?.result?.list?.[0];
+              if (k) currentBar = { timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] };
+            }).catch(() => {});
+
           const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-          ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${period.text}.${coin}USDT`] }));
+          ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [
+            `kline.${period.text}.${coin}USDT`,
+            `tickers.${coin}USDT`,
+          ]}));
           ws.onmessage = e => {
             try {
               const msg = JSON.parse(e.data);
+
+              if (msg.topic === `tickers.${coin}USDT` && currentBar && msg.data?.lastPrice) {
+                const price = parseFloat(msg.data.lastPrice);
+                currentBar = { ...currentBar, close: price, high: Math.max(currentBar.high, price), low: Math.min(currentBar.low, price) };
+                cb(currentBar);
+                return;
+              }
+
               if (!msg.data?.[0] || !msg.topic?.startsWith('kline')) return;
               const k = msg.data[0];
-              cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
+              currentBar = { timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume };
+              cb(currentBar);
             } catch {}
           };
           ws.onerror = ws.onclose = () => {};

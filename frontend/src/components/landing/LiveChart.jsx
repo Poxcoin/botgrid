@@ -52,14 +52,15 @@ async function fetchLastPrice(symbol) {
 }
 
 export default function LiveChart() {
-  const containerRef = useRef(null);
-  const chartRef     = useRef(null);
-  const seriesRef    = useRef(null);
-  const wsRef        = useRef(null);
+  const containerRef  = useRef(null);
+  const chartRef      = useRef(null);
+  const seriesRef     = useRef(null);
+  const wsRef         = useRef(null);
+  const currentBarRef = useRef(null);
 
-  const [pair,        setPair]        = useState('BTCUSDT');
-  const [activeIv,    setActiveIv]    = useState('60');
-  const [ticker,      setTicker]      = useState(null);
+  const [pair,     setPair]     = useState('BTCUSDT');
+  const [activeIv, setActiveIv] = useState('60');
+  const [ticker,   setTicker]   = useState(null);
 
   // Init chart once
   useEffect(() => {
@@ -85,10 +86,13 @@ export default function LiveChart() {
   // Load data + WebSocket on pair/interval change
   useEffect(() => {
     if (!seriesRef.current) return;
+    currentBarRef.current = null;
 
     fetchKlines(pair, activeIv).then(data => {
       seriesRef.current.setData(data);
       chartRef.current.timeScale().fitContent();
+      // seed currentBar from last historical candle
+      if (data.length) currentBarRef.current = { ...data[data.length - 1] };
     }).catch(() => {});
 
     fetchLastPrice(pair).then(setTicker).catch(() => {});
@@ -106,21 +110,35 @@ export default function LiveChart() {
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
+
+        // tickers → update price display + move current candle close/high/low
         if (msg.topic === `tickers.${pair}` && msg.data?.lastPrice) {
-          setTicker(prev => prev
-            ? { ...prev, price: parseFloat(msg.data.lastPrice) }
-            : null);
+          const price = parseFloat(msg.data.lastPrice);
+          setTicker(prev => prev ? { ...prev, price } : null);
+          if (currentBarRef.current) {
+            currentBarRef.current = {
+              ...currentBarRef.current,
+              close: price,
+              high:  Math.max(currentBarRef.current.high, price),
+              low:   Math.min(currentBarRef.current.low,  price),
+            };
+            seriesRef.current?.update(currentBarRef.current);
+          }
           return;
         }
+
+        // kline → candle confirmed or new candle opened
         if (!msg.data || !msg.topic?.startsWith('kline')) return;
         msg.data.forEach(k => {
-          seriesRef.current?.update({
+          const bar = {
             time:  Math.floor(k.start / 1000),
             open:  parseFloat(k.open),
             high:  parseFloat(k.high),
             low:   parseFloat(k.low),
             close: parseFloat(k.close),
-          });
+          };
+          currentBarRef.current = bar;
+          seriesRef.current?.update(bar);
         });
       } catch {}
     };
