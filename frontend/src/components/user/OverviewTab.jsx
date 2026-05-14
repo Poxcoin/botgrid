@@ -710,14 +710,13 @@ export default function OverviewTab({ botId = 'signal' }) {
             <button key={c} onClick={() => setCoin(c)} style={{
               fontFamily: FM, fontSize: 11, padding: '4px 10px',
               background: on ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${on ? 'var(--border-strong)' : isBot ? 'rgba(0,212,170,0.3)' : 'var(--border-default)'}`,
-              color: on ? 'var(--text-primary)' : isBot ? 'var(--accent-green)' : 'var(--text-muted)',
-              cursor: 'pointer', position: 'relative',
+              border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
+              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+              cursor: 'pointer',
             }}
             onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
-            onMouseLeave={e => { if (!on) { e.currentTarget.style.color = isBot ? 'var(--accent-green)' : 'var(--text-muted)'; e.currentTarget.style.borderColor = isBot ? 'rgba(0,212,170,0.3)' : 'var(--border-default)'; } }}>
+            onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}>
               {c}
-              {hp && <span style={{ position: 'absolute', top: 2, right: 2, width: 3, height: 3, borderRadius: '50%', background: 'var(--accent-green)' }}/>}
             </button>
           );
         })}
