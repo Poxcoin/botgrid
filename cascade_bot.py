@@ -1,12 +1,15 @@
 """
-cascade_bot.py — Cascade Bot для BTC/ETH/SOL.
+cascade_bot.py — Cascade Bot.
 
 Стратегія: входимо В МОМЕНТ ліквідаційного каскаду, не після новин.
 
 Сигнал: Binance WebSocket (!forceOrder@arr) — реалтайм, затримка <500ms.
-  BTC  $5M+ ліквідовано за 60 сек → входимо в напрямку каскаду
-  ETH  $2M+ ліквідовано за 60 сек → входимо в напрямку каскаду
+  BTC  $5M+   ліквідовано за 60 сек → входимо в напрямку каскаду
+  ETH  $2M+   ліквідовано за 60 сек → входимо в напрямку каскаду
   SOL  $500K+ ліквідовано за 60 сек → входимо в напрямку каскаду
+  XRP  $300K+ ліквідовано за 60 сек → входимо в напрямку каскаду
+  DOGE $300K+ ліквідовано за 60 сек → входимо в напрямку каскаду
+  LINK $250K+ ліквідовано за 60 сек → входимо в напрямку каскаду
 
 Логіка напрямку:
   Шорти ліквідуються (BUY order) → LONG  (шорт-сквіз продовжується)
@@ -47,16 +50,16 @@ from config.settings import (
 
 # ─── Конфіг ───────────────────────────────────────────────────────────────────
 
-WATCHLIST = ["BTC", "ETH", "SOL"]
+WATCHLIST = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK"]
 
 TP_PCT    = 1.5   # %
 SL_PCT    = 0.6   # %
 LEVERAGE  = 5
-SIZE_PCT  = 0.5   # % від вільного балансу (малий розмір для збору статистики)
+SIZE_PCT  = 2.0   # % від вільного балансу
 
-MAX_POSITIONS      = 1        # одна позиція одночасно (BTC/ETH/SOL корелюють ~1:1)
-COOLDOWN_SEC       = 30 * 60  # 30 хв cooldown на монету після сигналу
-TIME_STOP_MIN      = 20       # закрити якщо TP/SL не спрацював за 20 хв
+MAX_POSITIONS      = 2        # 2 позиції одночасно (дозволяє паралельно торгувати некорельовані пари)
+COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу
+TIME_STOP_MIN      = 15       # каскадний momentum згасає за 10-15 хв
 DAILY_LOSS_LIMIT   = 0.03     # зупинити день якщо PnL < -3% від балансу
 POSITION_CHECK_SEC = 30       # перевірка позицій кожні 30 сек
 
@@ -64,9 +67,12 @@ BYBIT_TAKER_FEE = 0.00055
 
 # Пороги ліквідацій — 1-хвилинне вікно
 LIQ_THRESHOLD = {
-    "BTC": 5_000_000,
-    "ETH": 2_000_000,
-    "SOL":   500_000,
+    "BTC":  5_000_000,
+    "ETH":  2_000_000,
+    "SOL":    500_000,
+    "XRP":    300_000,   # висока роздрібна участь → часті ліквідаційні сплески
+    "DOGE":   300_000,   # мем-волатильність → різкі каскади
+    "LINK":   250_000,   # змішана інституційна + роздрібна база
 }
 LIQ_WINDOW_SEC = 60   # 1 хвилина rolling window
 LIQ_RATIO      = 2.5  # одна сторона має бути в 2.5× більша
@@ -535,8 +541,10 @@ def _ws_thread() -> None:
         print("[CASCADE/WS] з'єднання закрито — реконект через 10с")
 
     def on_open(ws):
-        coins_str = " | ".join(f"{c} ${LIQ_THRESHOLD[c]/1e6:.1f}M" if c != "SOL"
-                                else f"{c} $500K" for c in WATCHLIST)
+        def _fmt(c):
+            t = LIQ_THRESHOLD[c]
+            return f"{c} ${t/1e6:.1f}M" if t >= 1_000_000 else f"{c} ${t/1000:.0f}K"
+        coins_str = " | ".join(_fmt(c) for c in WATCHLIST)
         print(f"[CASCADE/WS] ✅ Підключено — {coins_str} / 1хв")
 
     while _running:
@@ -567,13 +575,17 @@ def run_cascade_bot() -> None:
     else:
         mode_tag = "[DEMO via IS_DEMO_TRADING]"
 
-    print("=" * 55)
+    def _fmt_thresh(c):
+        t = LIQ_THRESHOLD[c]
+        return f"{c} ${t/1e6:.1f}M" if t >= 1_000_000 else f"{c} ${t/1000:.0f}K"
+    thresholds_str = " | ".join(_fmt_thresh(c) for c in WATCHLIST)
+    print("=" * 60)
     print(f"  CASCADE BOT {mode_tag}  —  {', '.join(WATCHLIST)}")
     print(f"  TP {TP_PCT}% | SL {SL_PCT}% | LEV {LEVERAGE}x | SIZE {SIZE_PCT}%")
     print(f"  Break-even WR: ~29%")
-    print(f"  Пороги: BTC $5M | ETH $2M | SOL $500K / хвилину")
+    print(f"  Пороги: {thresholds_str} / хвилину")
     print(f"  Max позицій: {MAX_POSITIONS} | Time stop: {TIME_STOP_MIN}хв | Денний стоп: {DAILY_LOSS_LIMIT*100:.0f}%")
-    print("=" * 55)
+    print("=" * 60)
 
     _running = True
 
@@ -593,7 +605,7 @@ def run_cascade_bot() -> None:
         f"🚀 <b>Cascade Bot запущено {mode_tag}</b>\n"
         f"Монети: {', '.join(WATCHLIST)}\n"
         f"TP: {TP_PCT}% | SL: {SL_PCT}% | {LEVERAGE}x | {SIZE_PCT}% балансу\n"
-        f"Пороги: BTC $5M | ETH $2M | SOL $500K / хвилину\n"
+        f"Max позицій: {MAX_POSITIONS} | Cooldown: {COOLDOWN_SEC//60}хв | Time stop: {TIME_STOP_MIN}хв\n"
         f"Break-even WR: ~29% | Денний стоп: {DAILY_LOSS_LIMIT*100:.0f}%\n"
         f"Баланс: ${_daily_start_bal:.2f} USDT",
         TG_CHAT_ID,
