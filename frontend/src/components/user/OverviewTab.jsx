@@ -843,9 +843,13 @@ export default function OverviewTab({ botId = 'signal' }) {
   const botTrades    = useMemo(() => trades.filter(t => dbSources.includes(t.source || '')), [trades, dbSources.join(',')]);
 
   const botCoins = useMemo(() => {
-    const s = new Set();
-    botTrades.forEach(t => { const c = sym(t.symbol); if (c) s.add(c); });
-    return [...s].sort();
+    const seen = new Set();
+    const result = [];
+    for (const t of botTrades) {
+      const c = sym(t.symbol);
+      if (c && !seen.has(c)) { seen.add(c); result.push(c); }
+    }
+    return result.slice(0, 30); // most-recently-traded first, max 30
   }, [botTrades]);
 
   // show only bot-traded coins; fall back to static watchlist, then popular list
@@ -866,7 +870,9 @@ export default function OverviewTab({ botId = 'signal' }) {
     if (botCoins.length > 0) return botCoins;
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
   }, [botCoins, staticCoins.join(',')]);
-  const analyzerCoins = staticCoins.length > 0 ? staticCoins : botCoins;
+  // Prioritise actually-traded coins so the CoinTicker reflects reality.
+  // Signal bot is dynamic (any alt); staticCoins is only a fallback when no trades yet.
+  const analyzerCoins = botCoins.length > 0 ? botCoins : staticCoins;
 
   // reset auto-select flag when user switches bot tab
   useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
