@@ -6,11 +6,11 @@ const MONO = "'Courier New','SF Mono',monospace";
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMsg: '' };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMsg: String(error?.message || error) };
   }
 
   componentDidCatch(error, info) {
@@ -48,6 +48,11 @@ export default class ErrorBoundary extends React.Component {
           <div style={{ fontSize: 16, lineHeight: 1.55, color: '#cbd5e1', marginBottom: 28 }}>
             {STR.body}
           </div>
+          {this.state.errorMsg && (
+            <div style={{ fontFamily: MONO, fontSize: 11, color: '#ff4d6d', marginBottom: 20, wordBreak: 'break-all', textAlign: 'left', background: 'rgba(255,77,109,0.07)', padding: '10px 14px' }}>
+              {this.state.errorMsg}
+            </div>
+          )}
           <button
             onClick={() => window.location.reload()}
             style={{
