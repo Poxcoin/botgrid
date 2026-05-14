@@ -250,38 +250,36 @@ function Chart({ coin, entryPrice }) {
         subscribeBar: ({ period, callback: cb }) => {
           let currentBar = null;
 
-          // seed from REST so tickers can update immediately
-          fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`)
-            .then(r => r.json())
-            .then(d => {
+          // Poll REST every 2s — guaranteed to work regardless of WS timing issues
+          const poll = async () => {
+            try {
+              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
+              const d = await r.json();
               const k = d?.result?.list?.[0];
-              if (k) currentBar = { timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] };
-            }).catch(() => {});
+              if (k) {
+                currentBar = { timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] };
+                cb(currentBar);
+              }
+            } catch {}
+          };
+          poll(); // immediate first update
+          const pollId = setInterval(poll, 2000);
 
+          // WS publicTrade for sub-second price animation between polls
           const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-          ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [
-            `kline.${period.text}.${coin}USDT`,
-            `publicTrade.${coin}USDT`,
-          ]}));
+          ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`publicTrade.${coin}USDT`] }));
           ws.onmessage = e => {
             try {
               const msg = JSON.parse(e.data);
-
               if (msg.topic === `publicTrade.${coin}USDT` && Array.isArray(msg.data) && currentBar) {
                 const price = parseFloat(msg.data[msg.data.length - 1].p);
                 currentBar = { ...currentBar, close: price, high: Math.max(currentBar.high, price), low: Math.min(currentBar.low, price) };
                 cb(currentBar);
-                return;
               }
-
-              if (!msg.data?.[0] || !msg.topic?.startsWith('kline')) return;
-              const k = msg.data[0];
-              currentBar = { timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume };
-              cb(currentBar);
             } catch {}
           };
           ws.onerror = ws.onclose = () => {};
-          wsSubRef.current = ws;
+          wsSubRef.current = { close: () => { clearInterval(pollId); ws.close(); } };
         },
         unsubscribeBar: () => {
           if (wsSubRef.current) { wsSubRef.current.close(); wsSubRef.current = null; }
