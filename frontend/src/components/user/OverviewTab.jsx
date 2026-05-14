@@ -802,6 +802,8 @@ const BOT_SOURCES = {
   signal:  ['news'],
   cascade: ['liq_cascade', 'cascade'],
   fr:      ['fr'],
+  grid:    ['grid'],
+  altcoin: ['altcoin'],
 };
 
 export default function OverviewTab({ botId = 'signal' }) {

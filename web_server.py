@@ -1447,6 +1447,9 @@ _BOT_LABELS = {
     "listing":     "CEX Sniper",
     "whale":       "Whale Tracker",
     "liq_cascade": "Liq Cascade",
+    "cascade":     "Cascade Bot",
+    "bybit":       "Bybit Import",
+    "altcoin":     "Altcoin Bot",
 }
 
 @app.get("/api/users/bot-summary")
@@ -1641,13 +1644,24 @@ async def get_user_analytics(
             daily_stats[closed.strftime("%Y-%m-%d")]["pnl"]    += pnl
             daily_stats[closed.strftime("%Y-%m-%d")]["trades"] += 1
 
-        closed_ms = int(closed.timestamp() * 1000) if closed else 0
-        trade_list.append({"coin": coin, "pnl": round(pnl, 2),
-                           "closed_at": str(closed_ms), "side": t.side or ""})
+        closed_ms    = int(closed.timestamp() * 1000) if closed else 0
+        opened_at    = t.opened_at
+        duration_min = round((closed - opened_at).total_seconds() / 60) if closed and opened_at else None
+        result       = "WIN" if pnl > 0 else ("LOSS" if pnl < 0 else "BE")
+        trade_list.append({
+            "coin":         coin,
+            "pnl":          round(pnl, 2),
+            "closed_at":    str(closed_ms),
+            "side":         t.side or "",
+            "source":       src,
+            "result":       result,
+            "duration_min": duration_min,
+        })
 
     def _agg(stats_dict):
         return sorted([{
             "source":   k,
+            "label":    _BOT_LABELS.get(k, k),
             "trades":   v["trades"],
             "pnl":      round(v["pnl"], 2),
             "wins":     v["wins"],

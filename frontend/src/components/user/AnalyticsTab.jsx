@@ -122,7 +122,7 @@ function BotTable({ rows, t }) {
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
-                <td style={{ padding: '9px 12px', color: S.fg, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{r.source || '—'}</td>
+                <td style={{ padding: '9px 12px', color: S.fg, letterSpacing: '0.06em' }}>{r.label || r.source || '—'}</td>
                 <td style={{ padding: '9px 12px', textAlign: 'right', color: S.fg }}>{r.trades}</td>
                 <td style={{ padding: '9px 12px', textAlign: 'right', color: S.fg }}>{wr}</td>
                 <td style={{ padding: '9px 12px', textAlign: 'right', color: pnlColor, fontWeight: 600 }}>
@@ -341,9 +341,13 @@ function TradesList({ trades, title, color }) {
               <div>
                 <span style={{ fontFamily: S.mono, fontSize: 11, color: S.fg, fontWeight: 600 }}>{tr.coin}</span>
                 <span style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {tr.side === 'Buy' ? 'LONG' : 'SHORT'}
+                  {tr.side === 'LONG' ? 'LONG' : 'SHORT'}
                 </span>
-                <div style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginTop: 2 }}>{dateStr}</div>
+                <div style={{ fontFamily: S.mono, fontSize: 9, color: S.muted, marginTop: 2 }}>
+                  {dateStr}
+                  {tr.duration_min != null && <span style={{ marginLeft: 6 }}>{tr.duration_min}m</span>}
+                  {tr.source && <span style={{ marginLeft: 6, opacity: 0.6 }}>{tr.source}</span>}
+                </div>
               </div>
               <div style={{ fontFamily: S.mono, fontSize: 13, fontWeight: 700, color }}>
                 {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
@@ -448,7 +452,7 @@ function CoinChart({ coins, allTrades }) {
 
     const markers = [];
     coinTrades.forEach(tr => {
-      const ts = tr.closed_at ? new Date(tr.closed_at) : null;
+      const ts = tr.closed_at ? new Date(parseInt(tr.closed_at)) : null;
       if (!ts || isNaN(ts)) return;
       const dateStr = ts.toISOString().slice(0, 10);
       const isLong  = tr.side === 'LONG';
