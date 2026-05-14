@@ -144,15 +144,15 @@ function OrderBook({ coin }) {
     const load = () =>
       fetch(`https://api.bybit.com/v5/market/orderbook?category=linear&symbol=${coin}USDT&limit=12`)
         .then(r => r.json())
-        .then(d => { if (alive && d.result) setBook(d.result); })
+        .then(d => { if (alive && d.result && Array.isArray(d.result.b)) setBook(d.result); })
         .catch(() => {});
     load();
     const t = setInterval(load, 1500);
     return () => { alive = false; clearInterval(t); };
   }, [coin]);
 
-  const bids = book.b.slice(0, 12);
-  const asks = book.a.slice(0, 12);
+  const bids = (book.b || []).slice(0, 12);
+  const asks = (book.a || []).slice(0, 12);
   const maxSize = Math.max(...[...bids, ...asks].map(r => +r[1]), 1);
   const spread  = bids[0] && asks[0] ? (+asks[0][0] - +bids[0][0]).toFixed(2) : null;
 
