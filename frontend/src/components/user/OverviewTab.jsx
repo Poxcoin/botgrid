@@ -73,6 +73,15 @@ function Trades({ coin }) {
 
 const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
 
+const BOT_COINS = {
+  signal:  [],  // dynamic — any alt, use trade history
+  fr:      ['BTC','ETH','SOL','BNB','XRP','DOGE','LINK','ARB'],
+  grid:    ['BTC','ETH','SOL'],
+  listing: [],  // dynamic — any new listing
+  dex:     [],
+  cascade: ['XRP','ADA','DOGE','AVAX','DOT','LINK','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
+};
+
 const CHART_STYLES = {
   grid: {
     horizontal: { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
@@ -189,6 +198,70 @@ function OrderBook({ coin }) {
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {bids.map(([p, s], i) => <OBRow key={i} price={p} size={s} side="bid" />)}
       </div>
+    </div>
+  );
+}
+
+function CoinTicker({ coins, selected, onSelect }) {
+  const [tickers, setTickers] = useState({});
+
+  useEffect(() => {
+    if (!coins.length) return;
+    const load = () => {
+      Promise.all(
+        coins.map(c =>
+          fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${c}USDT`)
+            .then(r => r.json())
+            .then(d => {
+              const t = d?.result?.list?.[0];
+              if (!t) return null;
+              return [c, {
+                price: parseFloat(t.lastPrice),
+                change: parseFloat(t.price24hPcnt) * 100,
+                fr: parseFloat(t.fundingRate) * 100,
+              }];
+            })
+            .catch(() => null)
+        )
+      ).then(results => {
+        const map = {};
+        results.forEach(r => { if (r) map[r[0]] = r[1]; });
+        setTickers(map);
+      });
+    };
+    load();
+    const id = setInterval(load, 30000);
+    return () => clearInterval(id);
+  }, [coins.join(',')]);
+
+  if (!coins.length) return null;
+
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {coins.map(c => {
+        const t = tickers[c];
+        const on = c === selected;
+        const chg = t?.change;
+        const fr = t?.fr;
+        return (
+          <button key={c} onClick={() => onSelect(c)} style={{
+            display: 'flex', flexDirection: 'column', gap: 2,
+            padding: '8px 12px', cursor: 'pointer',
+            background: on ? 'var(--bg-elevated)' : 'transparent',
+            border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
+            textAlign: 'left', minWidth: 90,
+          }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{c}</span>
+            {t ? <>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>${t.price < 1 ? t.price.toFixed(5) : t.price < 10 ? t.price.toFixed(3) : t.price.toFixed(2)}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chg >= 0 ? '+' : ''}{chg?.toFixed(2)}%</span>
+                {fr != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: fr > 0.05 ? 'var(--accent-red)' : fr < 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>FR {fr >= 0 ? '+' : ''}{fr?.toFixed(3)}%</span>}
+              </div>
+            </> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>—</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -641,8 +714,13 @@ export default function OverviewTab({ botId = 'signal' }) {
     return [...s].sort();
   }, [botTrades]);
 
-  // show only bot-traded coins; fall back to popular list only when bot has zero history
-  const coins = useMemo(() => botCoins.length > 0 ? botCoins : POP_COINS, [botCoins]);
+  // show only bot-traded coins; fall back to static watchlist, then popular list
+  const staticCoins = BOT_COINS[botId] ?? [];
+  const coins = useMemo(() => {
+    if (botCoins.length > 0) return botCoins;
+    return staticCoins.length > 0 ? staticCoins : POP_COINS;
+  }, [botCoins, staticCoins.join(',')]);
+  const analyzerCoins = staticCoins.length > 0 ? staticCoins : botCoins;
 
   // reset auto-select flag when user switches bot tab
   useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
@@ -718,27 +796,29 @@ export default function OverviewTab({ botId = 'signal' }) {
       )}
 
       {/* ── COINS ─────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
-        {coins.map(c => {
-          const on = coin === c;
-          const isBot = botCoins.includes(c);
-          const hp    = botPos.some(p => sym(p.symbol) === c);
-          return (
-            <button key={c} onClick={() => setCoin(c)} style={{
-              fontFamily: FM, fontSize: 11, padding: '4px 10px',
-              background: on ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
-              color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-              cursor: 'pointer',
-            }}
-            onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
-            onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}>
-              {c}
-            </button>
-          );
-        })}
-      </div>
+      <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} />
+
+      {analyzerCoins.length === 0 && (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
+          {coins.map(c => {
+            const on = coin === c;
+            return (
+              <button key={c} onClick={() => setCoin(c)} style={{
+                fontFamily: FM, fontSize: 11, padding: '4px 10px',
+                background: on ? 'var(--bg-elevated)' : 'transparent',
+                border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
+                color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
+              onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}>
+                {c}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── CHART ─────────────────────────────────────────────── */}
       <Chart coin={coin} entryPrice={entryPrice} />

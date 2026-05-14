@@ -45,7 +45,7 @@ from modules.tg_notifier import send_telegram_message
 from modules import daily_guard
 from modules.market_data import get_btc_2h_change
 from modules.analytics_db import save_trade, close_trade, save_user_trade, close_user_trade
-from config.settings import TG_CHAT_ID, IS_DEMO_TRADING
+from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OWNER_USER_ID
 
 
 class BybitKeyInvalidError(Exception):
@@ -322,7 +322,8 @@ def _close_all_positions(exchange, symbol: str, positions: dict,
                         pnl_pct = round((fill / entry["fill_price"] - 1) * 100, 2) if entry["fill_price"] else 0
                     opened_ms = entry.get("opened_ms", 0)
                     duration  = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
-                    if user_id is not None:
+                    effective_uid = user_id if user_id is not None else OWNER_USER_ID
+                    if effective_uid is not None:
                         close_user_trade(db_trade_id, fill, net_pnl)
                     else:
                         close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
@@ -417,9 +418,10 @@ def _open_long(exchange, symbol: str, level_price: float, level_idx: int,
         )
         coin = symbol.split("/")[0]
         ts_open = datetime.now(timezone.utc).isoformat()
+        effective_uid = user_id if user_id is not None else OWNER_USER_ID
         try:
-            if user_id is not None:
-                db_trade_id = save_user_trade(user_id, coin, "LONG", fill, "grid",
+            if effective_uid is not None:
+                db_trade_id = save_user_trade(effective_uid, coin, "LONG", fill, "grid",
                                               qty=qty, order_id=order.get("id"), leverage=leverage)
             else:
                 db_trade_id = save_trade(None, coin, "LONG", fill, ts_open)
@@ -464,7 +466,8 @@ def _close_long(exchange, symbol: str, entry: dict, level_idx: int, leverage: in
                 pnl_pct  = round((fill / entry["fill_price"] - 1) * 100, 2) if entry["fill_price"] else 0
                 opened_ms = entry.get("opened_ms", 0)
                 duration  = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
-                if user_id is not None:
+                effective_uid = user_id if user_id is not None else OWNER_USER_ID
+                if effective_uid is not None:
                     close_user_trade(db_trade_id, fill, net_pnl)
                 else:
                     close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
@@ -499,9 +502,10 @@ def _open_short(exchange, symbol: str, level_price: float, level_idx: int,
         )
         coin = symbol.split("/")[0]
         ts_open = datetime.now(timezone.utc).isoformat()
+        effective_uid = user_id if user_id is not None else OWNER_USER_ID
         try:
-            if user_id is not None:
-                db_trade_id = save_user_trade(user_id, coin, "SHORT", fill, "grid",
+            if effective_uid is not None:
+                db_trade_id = save_user_trade(effective_uid, coin, "SHORT", fill, "grid",
                                               qty=qty, order_id=order.get("id"), leverage=leverage)
             else:
                 db_trade_id = save_trade(None, coin, "SHORT", fill, ts_open)
@@ -546,7 +550,8 @@ def _close_short(exchange, symbol: str, entry: dict, level_idx: int, leverage: i
                 pnl_pct   = round((entry["fill_price"] / fill - 1) * 100, 2) if fill else 0
                 opened_ms  = entry.get("opened_ms", 0)
                 duration   = max(0, round((datetime.now(timezone.utc).timestamp() * 1000 - opened_ms) / 60000)) if opened_ms else 0
-                if user_id is not None:
+                effective_uid = user_id if user_id is not None else OWNER_USER_ID
+                if effective_uid is not None:
                     close_user_trade(db_trade_id, fill, net_pnl)
                 else:
                     close_trade(db_trade_id, fill, net_pnl, pnl_pct, duration)
@@ -677,9 +682,10 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     qty  = filled if filled > 0 else entry["qty"]
                     coin = symbol.split("/")[0]
                     ts_open = datetime.now(timezone.utc).isoformat()
+                    effective_uid = user_id if user_id is not None else OWNER_USER_ID
                     try:
-                        if user_id is not None:
-                            db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid",
+                        if effective_uid is not None:
+                            db_trade_id = save_user_trade(effective_uid, coin, direction.upper(), fill, "grid",
                                                           qty=qty, order_id=order_id, leverage=leverage)
                         else:
                             db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
@@ -722,9 +728,10 @@ def _check_pending_orders(exchange, symbol: str, pending: dict, positions: dict,
                     qty  = float(filled_order.get("filled") or entry["qty"])
                     coin = symbol.split("/")[0]
                     ts_open = datetime.now(timezone.utc).isoformat()
+                    effective_uid = user_id if user_id is not None else OWNER_USER_ID
                     try:
-                        if user_id is not None:
-                            db_trade_id = save_user_trade(user_id, coin, direction.upper(), fill, "grid",
+                        if effective_uid is not None:
+                            db_trade_id = save_user_trade(effective_uid, coin, direction.upper(), fill, "grid",
                                                           qty=qty, order_id=order_id, leverage=leverage)
                         else:
                             db_trade_id = save_trade(None, coin, direction.upper(), fill, ts_open)
@@ -773,6 +780,7 @@ def _run_single(cfg: dict) -> None:
     size_usd_min = cfg.get("size_usd_min", 10.0)
 
     user_id    = cfg.get("user_id")       # None for owner's bot
+    effective_uid = user_id if user_id is not None else OWNER_USER_ID
     _api_key   = cfg.get("api_key")
     _api_secret = cfg.get("api_secret")
     _is_demo   = cfg.get("is_demo", False)
