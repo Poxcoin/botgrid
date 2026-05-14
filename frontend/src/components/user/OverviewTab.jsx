@@ -248,38 +248,18 @@ function Chart({ coin, entryPrice }) {
           } catch { callback([], false); }
         },
         subscribeBar: ({ period, callback: cb }) => {
-          let currentBar = null;
-
-          // Poll REST every 2s — guaranteed to work regardless of WS timing issues
+          // Poll every 2s — stable, no per-trade flood that breaks klinecharts rendering
           const poll = async () => {
             try {
               const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
               const d = await r.json();
               const k = d?.result?.list?.[0];
-              if (k) {
-                currentBar = { timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] };
-                cb(currentBar);
-              }
+              if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
             } catch {}
           };
-          poll(); // immediate first update
+          poll();
           const pollId = setInterval(poll, 2000);
-
-          // WS publicTrade for sub-second price animation between polls
-          const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-          ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`publicTrade.${coin}USDT`] }));
-          ws.onmessage = e => {
-            try {
-              const msg = JSON.parse(e.data);
-              if (msg.topic === `publicTrade.${coin}USDT` && Array.isArray(msg.data) && currentBar) {
-                const price = parseFloat(msg.data[msg.data.length - 1].p);
-                currentBar = { ...currentBar, close: price, high: Math.max(currentBar.high, price), low: Math.min(currentBar.low, price) };
-                cb(currentBar);
-              }
-            } catch {}
-          };
-          ws.onerror = ws.onclose = () => {};
-          wsSubRef.current = { close: () => { clearInterval(pollId); ws.close(); } };
+          wsSubRef.current = { close: () => clearInterval(pollId) };
         },
         unsubscribeBar: () => {
           if (wsSubRef.current) { wsSubRef.current.close(); wsSubRef.current = null; }
