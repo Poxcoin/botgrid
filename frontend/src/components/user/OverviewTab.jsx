@@ -1023,7 +1023,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
         {[
           { label: 'Balance',    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `equity $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
-          { label: 'Unrealized', value: totalUnreal != null ? `${sign(totalUnreal)} USDT` : '—', sub: positions.length ? `${positions.length} open position${positions.length !== 1 ? 's' : ''}` : 'no open positions', good: positions.length ? pos(totalUnreal ?? 0) : null },
+          { label: 'Unrealized', value: `${sign(botUnreal)} USDT`, sub: botPos.length ? `${botPos.length} open position${botPos.length !== 1 ? 's' : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
           { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
           { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
         ].map((s, i) => (
