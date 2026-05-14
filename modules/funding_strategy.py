@@ -1,26 +1,25 @@
 """
-Funding Rate Mean Reversion Strategy.
-Чиста математична стратегія — без новин, без Claude.
+Funding Rate Collection Strategy.
 
-Логіка:
-  FR > +0.06% + RSI > 65 + trend вже pumped → SHORT
-    (лонги переплачують → ринок перегрітий → скоро розворот вниз)
+Edge: входимо за ≤60 хв до funding payment (00:00 / 08:00 / 16:00 UTC),
+      збираємо funding ≥ 0.10% + потенційний price squeeze.
 
-  FR < -0.06% + RSI < 35 + trend вже dumped → LONG
-    (шорти переплачують → squeeze ризик → скоро розворот вгору)
+За даними BitMEX 9-річного дослідження, основна частина прибутку FR
+стратегії — це сам funding payment, а не цінова реверсія.
+Tight TP/SL (3%/2%) мінімізує час під ризиком.
 
-Запускається як daemon-поток, кладе готові сигнали в funding_queue.
-main.py читає funding_queue і викликає execute_trade напряму.
+Фільтри:
+  LONG : |FR| ≥ 0.10% (negative) + EMA50 > EMA200 (4h) + RSI < 60 + BTC macro OK
+  SHORT: |FR| ≥ 0.10% (positive) + RSI > 45 + BTC macro OK
 """
 import json
 import os
 import time
 import threading
 import queue
-from collections import deque
 from datetime import datetime, timezone
 
-from modules.market_data import get_market_metrics
+from modules.market_data import get_market_metrics, exchange as _binance_ex
 
 funding_queue: queue.Queue = queue.Queue()
 
@@ -50,50 +49,66 @@ def _save_cooldown(coin: str, ts: float) -> None:
     except Exception:
         pass
 
-POLL_INTERVAL   = 900   # перевіряємо кожні 15 хвилин
-COIN_SLEEP      = 1.5   # пауза між монетами — не спамимо API
 
-# BTC macro filter: якщо BTC 24h тренд нижче цього порогу — LONGs заблоковані
-# (altcoin squeeze не спрацьовує коли весь ринок падає)
-BTC_LONG_BLOCK_TREND  = -1.5   # BTC -1.5% за 24h → не відкриваємо LONG по altcoins
-BTC_SHORT_BLOCK_TREND = +1.5   # BTC +1.5% за 24h → не відкриваємо SHORT по altcoins
+# ── Таймінги ──────────────────────────────────────────────────────────────────
+POLL_INTERVAL    = 300    # 5 хвилин — треба надійно ловити 60-хв вікно
+COIN_SLEEP       = 1.5    # пауза між монетами
+COIN_COOLDOWN_SEC = 4 * 3600  # 4h — не торгуємо ту саму монету в одному funding-циклі
+ENTRY_WINDOW_MIN  = 60    # входимо тільки якщо до наступного funding ≤ 60 хв
 
-_btc_trend_cache: dict = {"ts": 0.0, "trend": 0.0}   # кешуємо 15хв щоб не спамити API
+# ── FR пороги ─────────────────────────────────────────────────────────────────
+FR_MIN  = 0.10   # мінімальний |FR| (статистично значущий рівень, MDPI 2026)
+FR_HIGH = 0.20   # підвищений FR → size_multiplier 1.5
 
-# Tiered funding rate пороги (% за 8 годин)
-# Tier 1 (слабкий сигнал): FR > 0.04% → size_multiplier 0.5
-# Tier 2 (нормальний):     FR > 0.06% → size_multiplier 1.0
-# Tier 3 (сильний):        FR > 0.10% → size_multiplier 1.5
-FR_SHORT_T1 = 0.04
-FR_SHORT_T2 = 0.06
-FR_SHORT_T3 = 0.10
-FR_LONG_T1  = -0.04
-FR_LONG_T2  = -0.06
-FR_LONG_T3  = -0.10
+# ── Допоміжні фільтри ──────────────────────────────────────────────────────────
+RSI_LONG_MAX  = 60   # LONG: не входимо коли RSI > 60 (squeeze вже стався)
+RSI_SHORT_MIN = 45   # SHORT: не входимо коли RSI < 45 (ринок вже падає)
 
-RSI_OB = 65
-RSI_OS = 35
-TREND_CONFIRM    = 3.0
-SIGNAL_THRESHOLD = 7.0   # tier-1 сигнали (FR 0.04%, size_mult=0.5) відфільтровані
-FR_TREND_BONUS   = 1.5   # бонус якщо FR зростає 3 цикли підряд
+BTC_LONG_BLOCK_TREND  = -1.5   # BTC < -1.5% за 24h → LONG по altcoins заблоковано
+BTC_SHORT_BLOCK_TREND = +1.5   # BTC > +1.5% за 24h → SHORT по altcoins заблоковано
 
-COIN_COOLDOWN_SEC = 4 * 3600
+# ── Watchlist (8 найліквідніших, стабільний FR) ────────────────────────────────
+WATCHLIST = ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "LINK", "ARB"]
 
-# SOL видалено: покрито Grid ботом, FR WR 20% (-$33.35, 35 угод)
-# Видалено confirmed losers: OP 0%WR, ATOM 0%WR, TRX 0%WR, AAVE 0%WR
-# Видалено: LTC, ZETA, STX (низький WR, підтверджені збитки)
-WATCHLIST = [
-    "BTC",  "ETH",  "BNB",  "XRP",
-    "ADA",  "DOGE", "AVAX", "DOT",  "LINK",
-    "INJ",  "SUI",  "APT",  "ARB",
-    "NEAR", "FET",  "TON",
-    "UNI",  "LDO",  "CRV",  "RUNE",
-    "WLD",  "JUP",  "PENDLE", "ONDO",
-]
+# ── TP/SL для funding-collection ──────────────────────────────────────────────
+FR_TP = 3.0   # TP 3% (tight — забираємо funding + невеликий price move)
+FR_SL = 2.0   # SL 2% (R:R = 1.5:1, break-even WR ≈ 40%)
 
-_cooldowns:  dict[str, float]  = {}
-# FR trend: зберігаємо останні 3 значення FR на монету
-_fr_history: dict[str, deque]  = {}  # coin → last_signal_ts
+# ── BTC trend cache ────────────────────────────────────────────────────────────
+_btc_trend_cache: dict = {"ts": 0.0, "trend": 0.0}
+
+# ── EMA cache (4h EMA50 / EMA200) ─────────────────────────────────────────────
+_ema_cache: dict[str, dict] = {}
+_EMA_TTL = 900  # 15 хв — оновлюємо раз на POLL_INTERVAL
+
+
+def _ema(closes: list, period: int) -> float:
+    if len(closes) < period:
+        return closes[-1] if closes else 0.0
+    k = 2 / (period + 1)
+    val = sum(closes[:period]) / period
+    for price in closes[period:]:
+        val = price * k + val * (1 - k)
+    return val
+
+
+def _get_ema_trend(coin: str) -> tuple[float | None, float | None]:
+    """Returns (ema50_4h, ema200_4h). Cached 15 хв."""
+    now = time.time()
+    cached = _ema_cache.get(coin)
+    if cached and now - cached["ts"] < _EMA_TTL:
+        return cached["ema50"], cached["ema200"]
+    try:
+        ohlcv = _binance_ex.fetch_ohlcv(f"{coin}/USDT", "4h", limit=250)
+        closes = [c[4] for c in ohlcv]
+        if len(closes) < 200:
+            return None, None
+        ema50  = _ema(closes, 50)
+        ema200 = _ema(closes, 200)
+        _ema_cache[coin] = {"ts": now, "ema50": ema50, "ema200": ema200}
+        return ema50, ema200
+    except Exception:
+        return None, None
 
 
 def _get_btc_trend() -> float:
@@ -111,7 +126,23 @@ def _get_btc_trend() -> float:
     return trend
 
 
+def _minutes_to_next_funding() -> int:
+    """Хвилин до наступного funding payment (Bybit: 00:00, 08:00, 16:00 UTC)."""
+    now  = datetime.now(timezone.utc)
+    mins = now.hour * 60 + now.minute
+    for slot in (0, 480, 960, 1440):
+        if mins < slot:
+            return slot - mins
+    return 1440 - mins
+
+
 def _calc_signal(coin: str) -> dict | None:
+    # 1. Timing gate — тільки у вікні до funding payment
+    mins_to_funding = _minutes_to_next_funding()
+    if mins_to_funding > ENTRY_WINDOW_MIN:
+        return None
+
+    # 2. Ринкові дані
     market = get_market_metrics(coin)
     if not market:
         return None
@@ -121,128 +152,115 @@ def _calc_signal(coin: str) -> dict | None:
     trend = market.get("trend_24h_percent", 0.0)
     price = market.get("current_price", 0.0)
 
-    score = 0.0
-
-    # ── BTC macro filter ─────────────────────────────────────────────────────
-    btc_trend = _get_btc_trend() if coin != "BTC" else trend
-
-    # ── Tier-based scoring ───────────────────────────────────────────────────
-    if fr > FR_SHORT_T1:
-        # Лонги переплачують — потенційний SHORT
-        # Блокуємо SHORT якщо RSI < 40 — ринок вже перепроданий, шортити небезпечно
-        if rsi < 40:
-            return None
-        # Блокуємо SHORT якщо BTC сильно зростає — squeeze вгору вже розігнався
-        if btc_trend >= BTC_SHORT_BLOCK_TREND:
-            print(f"[FR] ⛔ {coin} SHORT заблоковано — BTC +{btc_trend:.1f}% (ринок зростає)")
-            return None
-        score -= (fr - 0.02) * 150          # T1(0.04%)→-3, T2(0.06%)→-6, T3(0.10%)→-12
-        if rsi > RSI_OB:
-            score -= (rsi - RSI_OB) * 0.15
-        if trend > TREND_CONFIRM:
-            score -= min(trend * 0.4, 3.0)
-
-    elif fr < FR_LONG_T1:
-        # Шорти переплачують — потенційний LONG (squeeze)
-        # Блокуємо LONG якщо RSI > 60 — squeeze вже відбувся, входимо на піку
-        if rsi > 60:
-            return None
-        # Блокуємо LONG якщо BTC сильно падає — altcoin squeeze не спрацьовує в даунтренді
-        if btc_trend <= BTC_LONG_BLOCK_TREND:
-            print(f"[FR] ⛔ {coin} LONG заблоковано — BTC {btc_trend:.1f}% (ринок падає)")
-            return None
-        score += (abs(fr) - 0.02) * 150
-        if rsi < RSI_OS:
-            score += (RSI_OS - rsi) * 0.15
-        if trend < -TREND_CONFIRM:
-            score += min(abs(trend) * 0.4, 3.0)
-
-    # ── FR trend bonus: FR зростає 3 цикли підряд → сигнал посилюється ──────
-    hist = _fr_history.setdefault(coin, deque(maxlen=3))
-    hist.append(fr)
-    if len(hist) == 3:
-        h = list(hist)
-        if h[0] < h[1] < h[2] and fr > FR_SHORT_T1:   # FR зростає → SHORT сильніший
-            score -= FR_TREND_BONUS
-        elif h[0] > h[1] > h[2] and fr < FR_LONG_T1:  # FR падає → LONG сильніший
-            score += FR_TREND_BONUS
-
-    if abs(score) < SIGNAL_THRESHOLD:
+    # 3. FR threshold — мінімальний значущий рівень
+    abs_fr = abs(fr)
+    if abs_fr < FR_MIN:
         return None
 
-    action = "SHORT" if score < 0 else "LONG"
+    # 4. Напрямок: отримуємо funding від сторони що переплачує
+    action = "LONG" if fr < 0 else "SHORT"
 
-    # ── Tiered size multiplier ────────────────────────────────────────────────
-    abs_fr = abs(fr)
-    if abs_fr >= abs(FR_SHORT_T3):
-        size_mult = 1.5
-    elif abs_fr >= abs(FR_SHORT_T2):
-        size_mult = 1.0
-    else:
-        size_mult = 0.5
+    # 5. BTC macro filter
+    btc_trend = _get_btc_trend() if coin != "BTC" else trend
 
-    trend_flag = " 📈趨" if len(hist) == 3 and list(hist)[0] < list(hist)[1] < list(hist)[2] else ""
-    reason_parts = [f"FR={fr:+.4f}%{trend_flag}", f"RSI={rsi:.0f}", f"trend={trend:+.1f}%"]
-    if action == "SHORT":
-        reason_parts.append("лонги перегріті → розворот вниз")
-    else:
-        reason_parts.append("шорти перегріті → squeeze вгору")
+    # 6. Напрямок-специфічні фільтри
+    if action == "LONG":
+        if rsi > RSI_LONG_MAX:
+            return None  # squeeze вже стався, не входимо після відскоку
+        if btc_trend <= BTC_LONG_BLOCK_TREND:
+            print(f"[FR] ⛔ {coin} LONG — BTC {btc_trend:.1f}% (ринок падає)")
+            return None
+        # EMA50 < EMA200 → макро-даунтренд → hard block
+        ema50, ema200 = _get_ema_trend(coin)
+        if ema50 is not None and ema200 is not None and ema50 < ema200:
+            print(f"[FR] ⛔ {coin} LONG — EMA50({ema50:.2f}) < EMA200({ema200:.2f}) даунтренд")
+            return None
+
+    elif action == "SHORT":
+        if rsi < RSI_SHORT_MIN:
+            return None  # ринок вже продали, momentum закінчився
+        if btc_trend >= BTC_SHORT_BLOCK_TREND:
+            print(f"[FR] ⛔ {coin} SHORT — BTC +{btc_trend:.1f}% (ринок росте)")
+            return None
+
+    # 7. Size: більший FR → більша позиція
+    size_mult = 1.5 if abs_fr >= FR_HIGH else 1.0
+
+    reason = (
+        f"FR={fr:+.4f}% | RSI={rsi:.0f} | trend={trend:+.1f}% | "
+        f"funding через {mins_to_funding}хв"
+    )
+    qualifier = "шорти переплачують → отримуємо funding" if action == "LONG" \
+                else "лонги переплачують → отримуємо funding"
 
     return {
-        "coin":            coin,
-        "action":          action,
-        "total_score":     round(score, 1),
-        "confidence":      min(int(abs(score) * 7), 100),
-        "size_multiplier": size_mult,
-        "source":          "Funding Rate Strategy",
-        "news_title":      f"[FR Strategy] {coin} {action}: {', '.join(reason_parts)}",
-        "bot_tag":         "📊",
+        "coin":             coin,
+        "action":           action,
+        "total_score":      round(abs_fr * 100, 1),  # сумісність з main.py
+        "confidence":       min(int(abs_fr * 500), 100),
+        "size_multiplier":  size_mult,
+        "tp_pct":           FR_TP,
+        "sl_pct":           FR_SL,
+        "source":           "FR Collection",
+        "news_title":       f"[FR] {coin} {action}: {reason} — {qualifier}",
+        "bot_tag":          "💰",
         "is_funding_signal": True,
         "components": {
-            "funding_rate": fr,
-            "rsi":          rsi,
-            "trend_24h":    trend,
-            "current_price": price,
+            "funding_rate":    fr,
+            "rsi":             rsi,
+            "trend_24h":       trend,
+            "current_price":   price,
+            "mins_to_funding": mins_to_funding,
         },
     }
 
 
 def _strategy_loop():
     print(
-        f"[FR] 📊 Funding Rate Strategy запущена | "
-        f"{len(WATCHLIST)} монет | інтервал {POLL_INTERVAL//60} хв"
+        f"[FR] 💰 Funding Collection Strategy запущена | "
+        f"{len(WATCHLIST)} монет | вікно {ENTRY_WINDOW_MIN}хв до funding | "
+        f"мін FR={FR_MIN}%"
     )
+    _cooldowns: dict[str, float] = {}
+
     while True:
         try:
+            mins_to_funding = _minutes_to_next_funding()
             now_ts = time.time()
-            # Load cooldowns from disk each cycle so restarts don't reset them
-            _cooldowns.update(_load_cooldowns())
-            fired  = 0
-            for coin in WATCHLIST:
-                last_ts = _cooldowns.get(coin, 0)
-                if now_ts - last_ts < COIN_COOLDOWN_SEC:
-                    time.sleep(0.1)
-                    continue
-                try:
-                    sig = _calc_signal(coin)
-                    if sig:
-                        sig["timestamp"] = datetime.now(timezone.utc).isoformat()
-                        _cooldowns[coin]  = now_ts
-                        _save_cooldown(coin, now_ts)   # persist immediately
-                        funding_queue.put_nowait(sig)
-                        print(
-                            f"[FR] 🎯 {sig['action']} {coin} | "
-                            f"score={sig['total_score']} | "
-                            f"FR={sig['components']['funding_rate']:+.4f}% | "
-                            f"RSI={sig['components']['rsi']:.0f}"
-                        )
-                        fired += 1
-                except Exception as e:
-                    print(f"[FR] помилка {coin}: {e}")
-                time.sleep(COIN_SLEEP)
 
-            if fired:
-                print(f"[FR] ✅ Цикл завершено — {fired} сигналів")
+            # Завантажуємо cooldowns тільки якщо ми у вікні (економія IO)
+            if mins_to_funding <= ENTRY_WINDOW_MIN:
+                _cooldowns.update(_load_cooldowns())
+                fired = 0
+
+                for coin in WATCHLIST:
+                    if now_ts - _cooldowns.get(coin, 0) < COIN_COOLDOWN_SEC:
+                        time.sleep(0.1)
+                        continue
+                    try:
+                        sig = _calc_signal(coin)
+                        if sig:
+                            sig["timestamp"] = datetime.now(timezone.utc).isoformat()
+                            _cooldowns[coin]  = now_ts
+                            _save_cooldown(coin, now_ts)
+                            funding_queue.put_nowait(sig)
+                            print(
+                                f"[FR] 💰 {sig['action']} {coin} | "
+                                f"FR={sig['components']['funding_rate']:+.4f}% | "
+                                f"RSI={sig['components']['rsi']:.0f} | "
+                                f"funding через {sig['components']['mins_to_funding']}хв"
+                            )
+                            fired += 1
+                    except Exception as e:
+                        print(f"[FR] помилка {coin}: {e}")
+                    time.sleep(COIN_SLEEP)
+
+                if fired:
+                    print(f"[FR] ✅ {fired} сигналів надіслано в чергу")
+            else:
+                # Поза вікном — тихий лог раз на годину
+                next_slot_h = (datetime.now(timezone.utc).hour // 8 + 1) * 8 % 24
+                print(f"[FR] 💤 Наступний funding о {next_slot_h:02d}:00 UTC ({mins_to_funding}хв)")
 
         except Exception as e:
             print(f"[FR] помилка циклу: {e}")

@@ -879,15 +879,18 @@ def run_signal_engine():
                 _coin_cooldown[coin] = now_ts
                 save_cooldown(_coin_cooldown)
                 fr_size   = round(ALT_SIZE * fr_sig.get("size_multiplier", 1.0), 1)
+                fr_tp     = fr_sig.get("tp_pct", ALT_TP)
+                fr_sl     = fr_sig.get("sl_pct", ALT_SL)
                 signal_id = save_signal(fr_sig, executed=False)
-                print(f"\n[FR] 🎯 {coin} {fr_sig['action']} | score={fr_sig['total_score']} "
-                      f"FR={fr_sig['components']['funding_rate']:+.4f}%")
+                mins_left = fr_sig.get("components", {}).get("mins_to_funding", "?")
+                print(f"\n[FR] 💰 {coin} {fr_sig['action']} | "
+                      f"FR={fr_sig['components']['funding_rate']:+.4f}% | "
+                      f"TP={fr_tp}% SL={fr_sl}% | funding через {mins_left}хв")
                 if SIGNAL_BOT_TRADING:
                     execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
-                                  tp_pct=ALT_TP, sl_pct=ALT_SL, size_pct=fr_size,
+                                  tp_pct=fr_tp, sl_pct=fr_sl, size_pct=fr_size,
                                   signal_id=signal_id, bot_source="fr")
-                if fr_sig.get("size_multiplier", 1.0) >= 0.7:
-                    _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, ALT_TP, ALT_SL, fr_size)
+                _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, fr_tp, fr_sl, fr_size)
                 _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────
 
