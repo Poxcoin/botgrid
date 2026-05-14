@@ -268,14 +268,14 @@ function Chart({ coin, entryPrice }) {
           const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
           ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [
             `kline.${period.text}.${coin}USDT`,
-            `tickers.${coin}USDT`,
+            `publicTrade.${coin}USDT`,
           ]}));
           ws.onmessage = e => {
             try {
               const msg = JSON.parse(e.data);
 
-              if (msg.topic === `tickers.${coin}USDT` && currentBar && msg.data?.lastPrice) {
-                const price = parseFloat(msg.data.lastPrice);
+              if (msg.topic === `publicTrade.${coin}USDT` && Array.isArray(msg.data) && currentBar) {
+                const price = parseFloat(msg.data[msg.data.length - 1].p);
                 currentBar = { ...currentBar, close: price, high: Math.max(currentBar.high, price), low: Math.min(currentBar.low, price) };
                 cb(currentBar);
                 return;

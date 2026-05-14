@@ -104,16 +104,16 @@ export default function LiveChart() {
     ws.onopen = () => {
       ws.send(JSON.stringify({ op: 'subscribe', args: [
         `kline.${activeIv}.${pair}`,
-        `tickers.${pair}`,
+        `publicTrade.${pair}`,
       ]}));
     };
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
 
-        // tickers → update price display + move current candle close/high/low
-        if (msg.topic === `tickers.${pair}` && msg.data?.lastPrice) {
-          const price = parseFloat(msg.data.lastPrice);
+        // publicTrade → fires on every trade, updates candle + price display
+        if (msg.topic === `publicTrade.${pair}` && Array.isArray(msg.data) && msg.data.length) {
+          const price = parseFloat(msg.data[msg.data.length - 1].p);
           setTicker(prev => prev ? { ...prev, price } : null);
           if (currentBarRef.current) {
             currentBarRef.current = {
