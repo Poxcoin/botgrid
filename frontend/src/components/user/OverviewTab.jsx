@@ -641,10 +641,8 @@ export default function OverviewTab({ botId = 'signal' }) {
     return [...s].sort();
   }, [botTrades, botPos]);
 
-  const coins = useMemo(() => {
-    const extra = POP_COINS.filter(c => !botCoins.includes(c));
-    return [...botCoins, ...extra];
-  }, [botCoins]);
+  // show only bot-traded coins; fall back to popular list only when bot has zero history
+  const coins = useMemo(() => botCoins.length > 0 ? botCoins : POP_COINS, [botCoins]);
 
   // reset auto-select flag when user switches bot tab
   useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
