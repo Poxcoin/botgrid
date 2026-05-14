@@ -775,13 +775,18 @@ export default function OverviewTab({ botId = 'signal' }) {
   // show only bot-traded coins; fall back to static watchlist, then popular list
   const staticCoins = BOT_COINS[botId] ?? [];
 
-  // filter positions to this bot's coin watchlist for per-bot unrealized PnL
-  // listing/dex/whale have no static watchlist → show all positions
-  const botWatchSet = useMemo(() => new Set(staticCoins), [staticCoins.join(',')]);
-  const botPos      = useMemo(() =>
-    botWatchSet.size > 0 ? positions.filter(p => botWatchSet.has(sym(p.symbol))) : positions,
-  [positions, botWatchSet]);
-  const botUnreal   = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
+  // Match Bybit positions to this bot's OPEN user_trades (most accurate ownership signal).
+  // Fallback to staticCoins watchlist when no open trades recorded yet.
+  // Empty result for dynamic bots (listing/dex) with no open trades → no false positives.
+  const botPos = useMemo(() => {
+    const openCoins = new Set(
+      botTrades.filter(t => !t.closed_at && t.status !== 'failed').map(t => sym(t.symbol)).filter(Boolean)
+    );
+    if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
+    if (staticCoins.length > 0) return positions.filter(p => new Set(staticCoins).has(sym(p.symbol)));
+    return [];
+  }, [positions, botTrades, staticCoins.join(',')]);
+  const botUnreal = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
   const coins = useMemo(() => {
     if (botCoins.length > 0) return botCoins;
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
