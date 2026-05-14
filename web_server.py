@@ -346,8 +346,9 @@ class BillingCheckoutRequest(BaseModel):
 # ─── Health check (public, no auth, no rate limit) ────────────────────────────
 @app.get("/api/health")
 async def health_check(db: Session = Depends(get_db)):
+    from sqlalchemy import text
     try:
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         return {"status": "ok", "timestamp": datetime.utcnow().isoformat() + "Z"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
