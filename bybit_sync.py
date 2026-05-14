@@ -133,7 +133,7 @@ def sync_user_trades(user_id: int) -> int:
             already_exists = False
             for t in trades_by_coin.get(coin, []):
                 if t.source != "bybit" and t.entry_price and entry_p:
-                    if abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.001:
+                    if abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.008:
                         already_exists = True
                         # If the existing trade is still open, close it with real PnL
                         if t.status == "open":
