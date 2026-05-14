@@ -79,6 +79,7 @@ const BOT_COINS = {
   signal:  ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
   fr:      ['BTC','ETH','SOL','BNB','XRP','DOGE','LINK','ARB'],
   grid:    ['BTC','ETH','SOL'],
+  metals:  ['XAU'],
   listing: [],  // dynamic — any new listing
   dex:     [],  // dynamic — DEX volume spikes, any coin
   // cascade_bot.py (BTC/ETH/SOL) + main.py liq_cascade (22 alts)
@@ -836,10 +837,10 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           balance ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 0 }}>
               {[
-                ['Wallet Balance', `$${(+balance.wallet).toFixed(2)}`,        true],
-                ['Equity',         `$${(+balance.equity).toFixed(2)}`,        pos(balance.equity - balance.wallet)],
-                ['Unrealized PnL', `${sign(balance.unrealized_pnl)} USDT`,   pos(balance.unrealized_pnl)],
-                ['Available',      `$${(+balance.usdt_free).toFixed(2)}`,     true],
+                ['Wallet Balance', `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}`, true],
+                ['Equity',         `$${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}`, true],
+                ['Unrealized PnL', `${sign(balance.unrealized_pnl)} USDT`, pos(balance.unrealized_pnl)],
+                ['Available',      `$${(+(balance.usdt_free ?? 0)).toFixed(2)}`, true],
               ].map(([l, v, good]) => (
                 <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
@@ -865,6 +866,7 @@ const BOT_SOURCES = {
   fr:      ['fr'],
   grid:    ['grid'],
   altcoin: ['altcoin'],
+  metals:  ['metals'],
 };
 
 export default function OverviewTab({ botId = 'signal' }) {
@@ -1013,7 +1015,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       {/* ── STATS ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
         {[
-          { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—', sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
+          { label: 'Balance',    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `equity $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
           { label: 'Unrealized', value: totalUnreal != null ? `${sign(totalUnreal)} USDT` : '—', sub: positions.length ? `${positions.length} open position${positions.length !== 1 ? 's' : ''}` : 'no open positions', good: positions.length ? pos(totalUnreal ?? 0) : null },
           { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
           { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },

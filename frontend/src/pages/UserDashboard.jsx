@@ -14,6 +14,7 @@ const BOTS = [
   { id: 'fr',      label: 'Funding Rate'   },
   { id: 'grid',    label: 'Grid'           },
   { id: 'cascade', label: 'Cascade'        },
+  { id: 'metals',  label: 'Gold'           },
   { id: 'listing', label: 'Listing Sniper' },
   { id: 'dex',     label: 'DEX Sniper'     },
 ];
