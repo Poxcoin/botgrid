@@ -58,8 +58,9 @@ export default function LiveChart() {
   const wsRef        = useRef(null);
 
   const [pair,        setPair]        = useState('BTCUSDT');
-  const [activeIv,    setActiveIv]    = useState('240');
+  const [activeIv,    setActiveIv]    = useState('60');
   const [ticker,      setTicker]      = useState(null);
+  const [live,        setLive]        = useState(false);
 
   // Init chart once
   useEffect(() => {
@@ -93,27 +94,40 @@ export default function LiveChart() {
 
     fetchLastPrice(pair).then(setTicker).catch(() => {});
 
+    setLive(false);
     if (wsRef.current) { wsRef.current.close(); }
     const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${activeIv}.${pair}`] }));
+      ws.send(JSON.stringify({ op: 'subscribe', args: [
+        `kline.${activeIv}.${pair}`,
+        `tickers.${pair}`,
+      ]}));
+      setLive(true);
     };
     ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (!msg.data || !msg.topic?.startsWith('kline')) return;
-      msg.data.forEach(k => {
-        seriesRef.current?.update({
-          time:  Math.floor(k.start / 1000),
-          open:  parseFloat(k.open),
-          high:  parseFloat(k.high),
-          low:   parseFloat(k.low),
-          close: parseFloat(k.close),
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.topic === `tickers.${pair}` && msg.data?.lastPrice) {
+          setTicker(prev => prev
+            ? { ...prev, price: parseFloat(msg.data.lastPrice) }
+            : null);
+          return;
+        }
+        if (!msg.data || !msg.topic?.startsWith('kline')) return;
+        msg.data.forEach(k => {
+          seriesRef.current?.update({
+            time:  Math.floor(k.start / 1000),
+            open:  parseFloat(k.open),
+            high:  parseFloat(k.high),
+            low:   parseFloat(k.low),
+            close: parseFloat(k.close),
+          });
         });
-        setTicker(prev => prev ? { ...prev, price: parseFloat(k.close) } : null);
-      });
+      } catch {}
     };
+    ws.onclose = () => setLive(false);
 
     return () => { ws.close(); };
   }, [pair, activeIv]);
@@ -170,6 +184,15 @@ export default function LiveChart() {
             <span style={{ fontFamily: MONO, fontSize: 11, color: ticker.pct >= 0 ? 'rgba(34,197,94,0.85)' : 'rgba(239,68,68,0.8)' }}>
               {ticker.pct >= 0 ? '+' : ''}{ticker.pct.toFixed(2)}%
             </span>
+          )}
+          {live && (
+            <>
+              <style>{`@keyframes kado-live{0%,100%{opacity:1}50%{opacity:0.25}}`}</style>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(34,197,94,0.9)', animation: 'kado-live 1.4s ease-in-out infinite', display: 'inline-block' }} />
+                <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.15em', color: 'rgba(34,197,94,0.6)', textTransform: 'uppercase' }}>live</span>
+              </span>
+            </>
           )}
         </div>
       </div>
