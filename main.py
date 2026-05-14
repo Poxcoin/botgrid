@@ -423,7 +423,7 @@ def start_rss_archiver():
             try:
                 articles = get_aggregated_news(limit_per_source=15)
                 for item in articles:
-                    archive_news({
+                    news_item = {
                         "title":        item["title"],
                         "link":         item["link"],
                         "source":       item["source"],
@@ -431,7 +431,11 @@ def start_rss_archiver():
                         "description":  item.get("description", ""),
                         "published":    item.get("published_dt") or item.get("published", ""),
                         "image_url":    item.get("image_url"),
-                    })
+                        "category":     item.get("cat", "OTHER"),
+                    }
+                    inserted = archive_news(news_item)
+                    if inserted and item.get("cat") in ("MACRO", "GEOPOLITICS", "COMMODITIES"):
+                        metals_on_news(news_item)
             except Exception as e:
                 print(f"[rss_archiver] error: {e}")
             time.sleep(300)  # 5 min

@@ -40,13 +40,15 @@ WATCHLIST = [
 ]
 
 _MACRO_KW = frozenset({
-    "cpi", "inflation", "federal reserve", "fed rate", "fomc",
-    "rate cut", "rate hike", "interest rate", "powell", "yellen",
+    "cpi", "ppi", "inflation", "federal reserve", "fed rate", "fomc",
+    "rate cut", "rate hike", "interest rate", "powell", "yellen", "warsh",
     "nuclear", "invasion", "war declared", "military strike", "world war",
     "recession", "banking crisis", "financial crisis", "bank run",
     "gold rally", "gold surge", "gold hits", "gold record",
     "silver rally", "dollar weakens", "safe haven", "geopolit",
-    "tariff", "sanctions", "trade war",
+    "tariff", "tariff pause", "sanctions", "trade war", "trade deal",
+    "trade agreement", "us-china", "debt ceiling", "treasury yield",
+    "fed chair", "retail sales", "jobs report", "nonfarm",
 })
 
 _macro_ts: float = 0.0  # GIL-safe single float

@@ -64,8 +64,17 @@ PENDING_ORDER_TIMEOUT  = 1800   # скасувати незаповнений li
 # ─── Конфігурація сіток ───────────────────────────────────────────────────────
 
 GRID_CONFIGS = [
-    # SOL removed: 88/91 trades were instant-close (LONG↔SHORT oscillation around EMA50).
-    # Re-enable only after adding flip-hysteresis to trend detection.
+    {
+        "symbol":        "SOL/USDT:USDT",
+        "levels":        6,
+        "size_pct":      2.0,
+        "size_usd_min":  15.0,
+        "leverage":      2,
+        "auto_range":    True,
+        "upper_manual":  280.0,
+        "lower_manual":  180.0,
+        "max_positions": 3,
+    },
     {
         "symbol":        "ETH/USDT:USDT",
         "levels":        8,        # зменшено з 15
@@ -97,6 +106,7 @@ MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від бала�
 ATR_RANGE_PERIODS      = 10     # тісніші кроки → частіші fills
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
 SHORT_CONFIRM_TICKS    = 9999   # SHORT режим ВИМКНЕНО — тільки LONG (grid накопичує позицію)
+LONG_CONFIRM_TICKS     = 3      # short→long: потребує 3 послідовних LONG-читань (≈1.5h)
 SHORT_EMA_MARGIN       = 0.94   # не використовується поки SHORT_CONFIRM_TICKS=9999
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
@@ -961,6 +971,7 @@ def _run_single(cfg: dict) -> None:
     rebuild_day       = datetime.now(timezone.utc).date()
     trend_check_tick  = 0
     _trend_short_count = 0  # кількість послідовних SHORT-читань (для підтвердження)
+    _trend_long_count  = 0  # кількість послідовних LONG-читань (для short→long flip)
     _rsi_4h           = 50.0  # кешований RSI(14,4h), оновлюється разом з трендом
     _ema20_4h         = 0.0   # EMA20(4h) — trend filter для LONG BUY
     _ema50_4h         = 0.0   # EMA50(4h) — trend filter для LONG BUY
@@ -1000,16 +1011,17 @@ def _run_single(cfg: dict) -> None:
                 except Exception:
                     pass
 
-                # Лічильник підтвердження SHORT: long→short потребує SHORT_CONFIRM_TICKS
-                # послідовних SHORT-читань; short→long перемикається негайно
+                # Hysteresis для обох напрямків: запобігає осциляції на SOL/ETH при флуктуаціях EMA
                 if new_direction == "short":
                     _trend_short_count = min(_trend_short_count + 1, SHORT_CONFIRM_TICKS)
+                    _trend_long_count  = 0
                 else:
+                    _trend_long_count  = min(_trend_long_count + 1, LONG_CONFIRM_TICKS)
                     _trend_short_count = 0
 
                 _should_flip = (
                     (direction == "long"  and new_direction == "short" and _trend_short_count >= SHORT_CONFIRM_TICKS) or
-                    (direction == "short" and new_direction == "long")
+                    (direction == "short" and new_direction == "long"  and _trend_long_count  >= LONG_CONFIRM_TICKS)
                 )
 
                 if _should_flip:
@@ -1023,6 +1035,7 @@ def _run_single(cfg: dict) -> None:
                     state["positions"] = {}
                     direction = new_direction
                     _trend_short_count = 0
+                    _trend_long_count  = 0
                     state["direction"] = direction
                     _save_state(symbol, state, user_id)
                     send_telegram_message(
