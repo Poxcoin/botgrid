@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from 'react';
 
-const FF = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
+const FF   = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
+const MONO = "'Courier New','SF Mono',monospace";
+const CONSENT_KEY = 'kado_consent_v1';
 
 const API = (path, opts = {}) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
@@ -43,6 +45,72 @@ const STRATEGIES = [
     desc: 'Exploits funding rate anomalies between long and short positions. Works in any market direction.',
   },
 ];
+
+// ── Terms step (step 0) ───────────────────────────────────────────────────────
+function TermsStep({ onNext }) {
+  const [tosOk, setTosOk] = useState(false);
+  const [ageOk, setAgeOk] = useState(false);
+  const [busy,  setBusy]  = useState(false);
+
+  async function handleAccept() {
+    if (!tosOk || !ageOk) return;
+    setBusy(true);
+    try {
+      localStorage.setItem(CONSENT_KEY, JSON.stringify({ legal: true, cookies: true, ts: new Date().toISOString() }));
+      localStorage.setItem('kado_cookie_consent', 'accepted');
+    } catch {}
+    try { await API('/api/users/accept-terms'); } catch {}
+    setBusy(false);
+    onNext();
+  }
+
+  const checkRow = (checked, onChange, label) => (
+    <label style={{ display: 'flex', gap: 12, alignItems: 'flex-start', cursor: 'pointer', padding: '12px 14px', background: '#0d0d0d', border: `1px solid ${checked ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 8, marginBottom: 10, transition: 'border-color 0.15s' }}>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
+        style={{ marginTop: 2, cursor: 'pointer', accentColor: '#fff', width: 15, height: 15, flexShrink: 0 }} />
+      <span style={{ fontSize: 13, color: '#bbb', lineHeight: 1.55 }}>{label}</span>
+    </label>
+  );
+
+  return (
+    <div>
+      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>Review &amp; accept terms</div>
+      <p style={{ color: '#666', fontSize: 13, lineHeight: 1.6, margin: '0 0 22px' }}>
+        Before activating automated trading, please read and confirm the following.
+      </p>
+
+      {checkRow(tosOk, setTosOk,
+        <span>
+          I have read and accept the{' '}
+          <a href="/legal/terms" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>Terms of Service</a>,{' '}
+          <a href="/legal/risk-disclosure" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>Risk Disclosure</a>, and{' '}
+          <a href="/legal/privacy" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>Privacy Policy</a>.
+          I understand that cryptocurrency trading carries significant risk, including total loss of capital.
+        </span>
+      )}
+
+      {checkRow(ageOk, setAgeOk,
+        'I am at least 18 years old and legally eligible to use this service in my jurisdiction.'
+      )}
+
+      <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 22, padding: '10px 14px', background: '#080808', borderRadius: 6, border: '1px solid #111' }}>
+        KADO charges a <strong style={{ color: '#666' }}>25% performance fee</strong> on net monthly profits under a high-water-mark policy.
+        A <strong style={{ color: '#666' }}>5% referral bonus</strong> applies when you invite other traders.
+        No fee is charged in losing months.
+      </div>
+
+      <button onClick={handleAccept} disabled={!tosOk || !ageOk || busy} style={{
+        ...btnPrimary,
+        width: '100%', textAlign: 'center',
+        background: tosOk && ageOk ? '#fff' : '#191919',
+        color: tosOk && ageOk ? '#000' : '#444',
+        cursor: tosOk && ageOk ? 'pointer' : 'not-allowed',
+      }}>
+        {busy ? 'Saving…' : 'I Agree — Continue →'}
+      </button>
+    </div>
+  );
+}
 
 // ── Step components ────────────────────────────────────────────────────────────
 function WelcomeStep({ username, onNext }) {
@@ -224,36 +292,31 @@ function ProgressDots({ step, total }) {
 
 // ── Main modal ─────────────────────────────────────────────────────────────────
 export default function OnboardingModal({ username, onClose, onGoToKeys }) {
-  const [step, setStep] = useState(0);
-  const STEPS = 4;
+  // step 0 = Terms (skip if already accepted)
+  // step 1 = Welcome, 2 = API Key, 3 = Strategy, 4 = Telegram, 5+ = Success
+  const needsTerms = (() => {
+    try { return JSON.parse(localStorage.getItem(CONSENT_KEY) || '{}')?.legal !== true; } catch { return true; }
+  })();
+  const [step, setStep] = useState(needsTerms ? 0 : 1);
+  const STEPS = 5;
 
   const advance = useCallback(async (nextStep) => {
     const s = nextStep ?? step + 1;
     if (s >= STEPS) {
-      // mark completed
-      try {
-        await API('/api/onboarding/step', { method: 'POST', body: JSON.stringify({ step: 3 }) });
-      } catch { /* silent */ }
-      setStep(STEPS); // success screen
+      try { await API('/api/onboarding/step', { method: 'POST', body: JSON.stringify({ step: 4 }) }); } catch {}
+      setStep(STEPS);
     } else {
       setStep(s);
-      if (s > 0) {
-        try {
-          await API('/api/onboarding/step', { method: 'POST', body: JSON.stringify({ step: s }) });
-        } catch { /* silent */ }
+      if (s >= 2) {
+        try { await API('/api/onboarding/step', { method: 'POST', body: JSON.stringify({ step: s - 1 }) }); } catch {}
       }
     }
   }, [step]);
 
-  const handleClose = () => {
-    // mark completed when closing from success screen
-    onClose();
-  };
-
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.85)',
+      background: 'rgba(0,0,0,0.88)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       padding: '20px',
     }}>
@@ -264,12 +327,13 @@ export default function OnboardingModal({ username, onClose, onGoToKeys }) {
         fontFamily: FF, color: '#fff',
         maxHeight: '90vh', overflowY: 'auto',
       }}>
-        {step < STEPS && step > 0 && <ProgressDots step={step - 1} total={STEPS - 1} />}
-        {step === 0 && <WelcomeStep username={username} onNext={() => advance(1)} />}
-        {step === 1 && <ApiKeyStep onNext={() => advance(2)} onGoToKeys={() => { onGoToKeys(); }} />}
-        {step === 2 && <StrategyStep onNext={() => advance(3)} />}
-        {step === 3 && <TelegramStep onNext={() => advance(4)} onSkip={() => advance(4)} />}
-        {step >= STEPS && <SuccessStep onClose={handleClose} />}
+        {step >= 2 && step < STEPS && <ProgressDots step={step - 2} total={STEPS - 2} />}
+        {step === 0 && <TermsStep   onNext={() => advance(1)} />}
+        {step === 1 && <WelcomeStep username={username} onNext={() => advance(2)} />}
+        {step === 2 && <ApiKeyStep  onNext={() => advance(3)} onGoToKeys={onGoToKeys} />}
+        {step === 3 && <StrategyStep onNext={() => advance(4)} />}
+        {step === 4 && <TelegramStep onNext={() => advance(5)} onSkip={() => advance(5)} />}
+        {step >= STEPS && <SuccessStep onClose={onClose} />}
       </div>
     </div>
   );

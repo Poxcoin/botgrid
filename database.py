@@ -68,6 +68,9 @@ class User(Base):
     onboarding_completed = Column(Boolean, default=False)
     onboarding_step      = Column(Integer, default=0)
 
+    # Legal consent
+    terms_accepted_at = Column(DateTime, nullable=True)
+
     # Referral
     ref_code       = Column(String, unique=True, nullable=True, index=True)   # e.g. "KADO-X9KM2R"
     referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
@@ -315,6 +318,8 @@ def _migrate_columns():
             ))
         if "onboarding_step" not in user_cols:
             conn.execute(text("ALTER TABLE users ADD COLUMN onboarding_step INTEGER DEFAULT 0"))
+        if "terms_accepted_at" not in user_cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME"))
 
 
 _migrate_columns()

@@ -773,6 +773,7 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "totp_enabled": bool(user.totp_enabled),
         "onboarding_completed": bool(user.onboarding_completed),
         "onboarding_step": user.onboarding_step or 0,
+        "terms_accepted_at": user.terms_accepted_at.isoformat() if user.terms_accepted_at else None,
     }
 
 @app.put("/api/users/me")
@@ -880,6 +881,18 @@ async def update_onboarding_step(
         user.onboarding_completed = True
     db.commit()
     return {"ok": True, "onboarding_completed": bool(user.onboarding_completed), "onboarding_step": user.onboarding_step}
+
+
+@app.post("/api/users/accept-terms")
+async def accept_terms(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    user = _get_user_from_token(credentials.credentials, db)
+    if not user.terms_accepted_at:
+        user.terms_accepted_at = datetime.now(timezone.utc)
+        db.commit()
+    return {"ok": True, "terms_accepted_at": user.terms_accepted_at.isoformat()}
 
 
 # ─── Telegram bot linking (deep-link one-click flow) ─────────────────────────
