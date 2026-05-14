@@ -866,7 +866,7 @@ const BOT_SOURCES = {
   cascade: ['liq_cascade', 'cascade'],
   fr:      ['fr'],
   grid:    ['grid'],
-  altcoin: ['altcoin'],
+  altcoin: ['listing', 'altcoin'],
   metals:  ['metals'],
 };
 
@@ -880,6 +880,7 @@ export default function OverviewTab({ botId = 'signal' }) {
   const [coin,      setCoin]      = useState('BTC');
   const [isBW,      setIsBW]      = useState(false);
   const [heartbeat, setHeartbeat] = useState({});
+  const [period,    setPeriod]    = useState('30d');
   const autoSelectDoneRef = useRef(false);
   const prevPosCoinSetRef = useRef(null);
 
@@ -974,12 +975,24 @@ export default function OverviewTab({ botId = 'signal' }) {
     prevPosCoinSetRef.current = new Set(currentCoins);
   }, [botPos]);
 
+  const periodTrades = useMemo(() => {
+    if (period === 'all') return botTrades;
+    const now = Date.now();
+    const cutoff = period === '1d'  ? now - 86_400_000
+                 : period === '7d'  ? now - 7 * 86_400_000
+                 : /* 30d */          now - 30 * 86_400_000;
+    return botTrades.filter(t => {
+      const d = t.closed_at || t.opened_at;
+      return d && new Date(d).getTime() >= cutoff;
+    });
+  }, [botTrades, period]);
+
   const stats = useMemo(() => {
-    const cl    = botTrades.filter(t => t.closed_at);
+    const cl    = periodTrades.filter(t => t.closed_at);
     const total = cl.reduce((s, t) => s + pnl(t), 0);
     const wins  = cl.filter(t => pnl(t) > 0).length;
     return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
-  }, [botTrades]);
+  }, [periodTrades]);
 
   // Search ALL Bybit positions for the selected coin (not just this bot's subset)
   // so entry/SL/TP lines always appear when a position exists, matching Bybit UX
@@ -1020,6 +1033,25 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isBW ? { filter: 'grayscale(1)' } : {}) }}>
+
+      {/* ── PERIOD FILTER ─────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Period</span>
+        {[['1d','Today'],['7d','7D'],['30d','30D'],['all','All']].map(([v,label]) => {
+          const on = period === v;
+          return (
+            <button key={v} onClick={() => setPeriod(v)} style={{
+              fontFamily: FM, fontSize: 10, padding: '3px 9px',
+              background: on ? 'var(--bg-elevated)' : 'transparent',
+              border: `1px solid ${on ? 'var(--accent-green)' : 'var(--border-default)'}`,
+              color: on ? 'var(--accent-green)' : 'var(--text-muted)',
+              cursor: 'pointer', letterSpacing: '0.05em',
+            }}>
+              {label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* ── STATS ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
@@ -1095,7 +1127,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
-      <Panel botTrades={botTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
+      <Panel botTrades={periodTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
     </div>
   );
 }
