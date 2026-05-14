@@ -28,8 +28,7 @@ RSS_SOURCES = [
      "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
     {"url": "https://www.federalreserve.gov/feeds/press_all.xml",
      "weight": 1.0,  "crypto_only": False, "cat": "MACRO"},
-    {"url": "https://dlnews.com/arc/outboundfeeds/rss/",
-     "weight": 0.95, "crypto_only": False, "cat": "MACRO"},
+    # Видалено (exec_avg_score=-8.0): dlnews.com
 
     # ── COMMODITIES ─────────────────────────────────────────────────────────
     {"url": "https://feeds.reuters.com/reuters/globalcoverage/commodities",
@@ -52,8 +51,7 @@ RSS_SOURCES = [
      "weight": 1.0,  "crypto_only": True,  "cat": "CRYPTO"},
     {"url": "https://www.coindesk.com/arc/outboundfeeds/rss/?category=markets",
      "weight": 0.95, "crypto_only": True,  "cat": "CRYPTO"},
-    {"url": "https://theblock.co/rss.xml",
-     "weight": 1.0,  "crypto_only": True,  "cat": "CRYPTO"},
+    # Видалено (exec_avg_score=-2.7): theblock.co
     {"url": "https://cointelegraph.com/rss",
      "weight": 0.95, "crypto_only": True,  "cat": "CRYPTO"},
     {"url": "https://decrypt.co/feed",

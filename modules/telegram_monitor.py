@@ -16,15 +16,13 @@ tg_news_event: threading.Event = threading.Event()
 # Каналы для мониторинга (публичные, проверенные)
 # Добавляй/убирай по своему усмотрению — только username без @
 MONITOR_CHANNELS = [
-    # --- Найшвидші (breaking news) ---
-    "WatcherGuru",           # Breaking crypto news, репостить топ твіти
-    # --- On-chain / Whale ---
-    "lookonchain",           # On-chain аналітика, whale рухи — WLD/ARB/JUP profits came from here
-    # --- Crypto aggregator ---
-    "crypto",                # Великий крипто агрегатор
-    # Видалено (підтверджені збитки):
-    # "whale_alert_io"       — 0% WR, -$9.18 (4 trades)
-    # "cointelegraph"        — 14% WR, -$19.87 (7 trades, старі новини)
+    # --- Crypto aggregator (exec_avg_score=+12.0) ---
+    "crypto",                # Великий крипто агрегатор — кращий залишений канал
+    # Видалено (підтверджені збитки / негативний exec_avg_score):
+    # "WatcherGuru"          — exec_avg_score=-3.7 (3 exec, SHORT сигнали програють)
+    # "lookonchain"          — exec_avg_score=-1.5 (8 exec, on-chain але AI читає навпаки)
+    # "whale_alert_io"       — exec_avg_score=-3.0, 0%WR -$9.18
+    # "cointelegraph"        — exec_avg_score=+7.4 але 14%WR -$19.87 (старі новини)
     # "wublockchainenglish"  — ZETA -$35.68, total -$54.88
 ]
 
