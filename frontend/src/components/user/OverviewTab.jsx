@@ -870,9 +870,12 @@ export default function OverviewTab({ botId = 'signal' }) {
     if (botCoins.length > 0) return botCoins;
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
   }, [botCoins, staticCoins.join(',')]);
-  // Prioritise actually-traded coins so the CoinTicker reflects reality.
-  // Signal bot is dynamic (any alt); staticCoins is only a fallback when no trades yet.
-  const analyzerCoins = botCoins.length > 0 ? botCoins : staticCoins;
+  // grid has a fixed coin set — always show all configured coins regardless of trade history.
+  // Other bots: prioritise actually-traded coins; fall back to static watchlist.
+  const analyzerCoins = useMemo(() => {
+    if (botId === 'grid') return [...new Set([...staticCoins, ...botCoins])];
+    return botCoins.length > 0 ? botCoins : staticCoins;
+  }, [botCoins, staticCoins.join(','), botId]);
 
   // reset auto-select flag when user switches bot tab
   useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
