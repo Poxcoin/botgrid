@@ -19,7 +19,7 @@ dex_queue: queue.Queue = queue.Queue()
 _SESSION = requests.Session()
 _SESSION.headers.update({"User-Agent": "BotGrid/1.0", "Accept": "application/json"})
 
-POLL_INTERVAL   = 300        # 5 хвилин між перевірками
+POLL_INTERVAL   = 90         # 90 сек між перевірками
 MIN_LIQUIDITY   = 200_000    # $200k — відсіює rug pull пули
 MAX_VOL_24H     = 100_000_000  # $100M — якщо більше, вже мейнстрім і CEX не здивує
 VOL_SPIKE_RATIO = 5.0        # h1 в 5x+ від середнього h6/6
@@ -86,7 +86,7 @@ def _fetch_trending() -> list[dict]:
 
 
 def _scan_loop():
-    print("[DEX] 🔍 DEX Volume Scanner запущен (GeckoTerminal, інтервал 5 хв)")
+    print("[DEX] 🔍 DEX Volume Scanner запущен (GeckoTerminal, інтервал 90 сек)")
     while True:
         try:
             now_ts  = time.time()
