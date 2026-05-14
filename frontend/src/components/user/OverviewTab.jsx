@@ -197,7 +197,7 @@ function Chart({ coin, entryPrice }) {
   const elRef      = useRef(null);
   const chartRef   = useRef(null);
   const panesRef   = useRef({});
-  const timerRef   = useRef(null);
+  const wsSubRef   = useRef(null);
   const entryOvRef = useRef(null);
   const [tf,         setTf]         = useState('60');
   const [activeTool, setActiveTool] = useState(null);
@@ -255,17 +255,21 @@ function Chart({ coin, entryPrice }) {
           } catch { callback([], false); }
         },
         subscribeBar: ({ period, callback: cb }) => {
-          timerRef.current = setInterval(async () => {
+          const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+          ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`kline.${period.text}.${coin}USDT`] }));
+          ws.onmessage = e => {
             try {
-              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
-              const d = await r.json();
-              const k = d?.result?.list?.[0];
-              if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
+              const msg = JSON.parse(e.data);
+              if (!msg.data?.[0] || !msg.topic?.startsWith('kline')) return;
+              const k = msg.data[0];
+              cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
             } catch {}
-          }, 5000);
+          };
+          ws.onerror = ws.onclose = () => {};
+          wsSubRef.current = ws;
         },
         unsubscribeBar: () => {
-          if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+          if (wsSubRef.current) { wsSubRef.current.close(); wsSubRef.current = null; }
         },
       });
       requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
@@ -277,7 +281,7 @@ function Chart({ coin, entryPrice }) {
 
     return () => {
       mounted = false;
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (wsSubRef.current) { wsSubRef.current.close(); wsSubRef.current = null; }
       if (ro) ro.disconnect();
       try { klDispose(el); } catch {}
       chartRef.current = null;

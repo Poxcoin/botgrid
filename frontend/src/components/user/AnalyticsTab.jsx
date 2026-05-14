@@ -375,24 +375,28 @@ function CoinChart({ coins, allTrades }) {
 
   useEffect(() => {
     if (!selectedCoin) return;
-    setKlineLoading(true);
-    setKlines([]);
-    fetch(`https://api.bybit.com/v5/market/kline?symbol=${selectedCoin}USDT&interval=D&limit=90`)
-      .then(r => r.json())
-      .then(json => {
-        const list = json?.result?.list;
-        if (!list) return;
-        const candles = [...list].reverse().map(row => ({
-          time: Math.floor(parseInt(row[0]) / 1000),
-          open:  parseFloat(row[1]),
-          high:  parseFloat(row[2]),
-          low:   parseFloat(row[3]),
-          close: parseFloat(row[4]),
-        }));
-        setKlines(candles);
-      })
-      .catch(() => {})
-      .finally(() => setKlineLoading(false));
+    const load = (initial = false) => {
+      if (initial) { setKlineLoading(true); setKlines([]); }
+      fetch(`https://api.bybit.com/v5/market/kline?symbol=${selectedCoin}USDT&interval=D&limit=90`)
+        .then(r => r.json())
+        .then(json => {
+          const list = json?.result?.list;
+          if (!list) return;
+          const candles = [...list].reverse().map(row => ({
+            time: Math.floor(parseInt(row[0]) / 1000),
+            open:  parseFloat(row[1]),
+            high:  parseFloat(row[2]),
+            low:   parseFloat(row[3]),
+            close: parseFloat(row[4]),
+          }));
+          setKlines(candles);
+        })
+        .catch(() => {})
+        .finally(() => { if (initial) setKlineLoading(false); });
+    };
+    load(true);
+    const id = setInterval(() => load(false), 60000);
+    return () => clearInterval(id);
   }, [selectedCoin]);
 
   useEffect(() => {
