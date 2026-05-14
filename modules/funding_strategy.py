@@ -67,8 +67,16 @@ RSI_SHORT_MIN = 45   # SHORT: не входимо коли RSI < 45 (ринок 
 BTC_LONG_BLOCK_TREND  = -1.5   # BTC < -1.5% за 24h → LONG по altcoins заблоковано
 BTC_SHORT_BLOCK_TREND = +1.5   # BTC > +1.5% за 24h → SHORT по altcoins заблоковано
 
-# ── Watchlist (8 найліквідніших, стабільний FR) ────────────────────────────────
-WATCHLIST = ["BTC", "ETH", "SOL", "BNB", "XRP", "DOGE", "LINK", "ARB"]
+# ── Watchlist ─────────────────────────────────────────────────────────────────
+# Критерії: >$50M добового обсягу на Bybit, є на Binance perps, EMA200 доступна
+WATCHLIST = [
+    # Tier 1 — найвища ліквідність
+    "BTC", "ETH", "SOL", "BNB", "XRP", "DOGE",
+    # Tier 2 — активні DeFi/L1
+    "LINK", "ARB", "AVAX", "ADA", "SUI", "TON",
+    # Tier 3 — висока FR-активність у волатильні фази
+    "HYPE", "INJ", "NEAR",
+]
 
 # ── TP/SL для funding-collection ──────────────────────────────────────────────
 FR_TP = 3.0   # TP 3% (tight — забираємо funding + невеликий price move)
