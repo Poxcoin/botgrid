@@ -4,6 +4,7 @@ import KadoButton from '@/components/shared/KadoButton';
 import { useLang } from '@/lib/LangContext';
 import { trackCompleteRegistration } from '@/lib/metaPixel';
 import { usePageTitle } from '@/lib/usePageTitle';
+import { isLegalAccepted } from '@/components/global/CookieBanner';
 
 // ── Password strength ────────────────────────────────────────────────────────
 function checkStrength(pw) {
@@ -478,6 +479,10 @@ export default function Auth() {
     if (!form.email || !form.password) { setError(t.auth.errAllFields); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError(t.auth.errEmail); return; }
     if (mode === 'register') {
+      if (!isLegalAccepted()) {
+        setError('To register, please accept the Terms of Service and Risk Disclosure first.');
+        return;
+      }
       if (!form.username) { setError(t.auth.errUsername); return; }
       const { score } = checkStrength(form.password);
       if (score < 4) { setError(t.auth.errPwWeak); return; }

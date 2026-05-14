@@ -95,7 +95,19 @@ const TERMS_EN = {
       p: 'We may update these Terms from time to time. Material changes will be communicated by email to your registered address and through a dashboard notice at least 7 days before the effective date.',
     },
     {
-      h: '12. Governing law',
+      h: '12. Intellectual property and copyright',
+      p: 'The KADO platform -- including but not limited to its software source code, trading algorithms, signal logic, bot architecture, user interface design, brand identity, marketing materials, documentation, and underlying business concepts -- is the exclusive intellectual property of KADO and its operators, protected under applicable copyright, trade secret, and intellectual property laws. No part of the platform may be reproduced, copied, distributed, reverse-engineered, decompiled, or used to create derivative works without explicit prior written permission. Any person or entity found to have misappropriated, replicated, or commercially exploited any element of the KADO platform will be subject to civil and criminal legal action, including claims for damages, disgorgement of profits, injunctive relief, and full recovery of legal costs. KADO actively monitors for unauthorised copies and will pursue all available legal remedies without prior warning.',
+    },
+    {
+      h: '13. Confidentiality and proprietary data',
+      p: 'All information accessible through the KADO platform -- including trading signals, strategy logic, performance data, system architecture, pricing models, and platform configurations -- is confidential and proprietary to KADO. You agree not to disclose, reproduce, or commercially exploit this information. Scraping, automated extraction, or systematic copying of any platform data is strictly prohibited and constitutes a breach of these Terms and applicable law. User account data is personal data governed by our Privacy Policy and may not be transferred, sold, or disclosed to third parties.',
+    },
+    {
+      h: '14. Administrative rights',
+      p: 'KADO and its authorised administrators reserve the right to: (a) suspend, restrict, or terminate any user account at any time for violation of these Terms or at their sole discretion with reasonable notice; (b) modify, update, or discontinue any feature, strategy, or bot without prior notice; (c) adjust performance fee rates, referral rates, and plan structures with 30 days notice; (d) access user account data for support, compliance, fraud prevention, or legal obligation purposes -- such access is logged and restricted to authorised personnel; (e) cooperate fully with law enforcement, regulatory authorities, and courts in any investigation or legal proceeding; (f) freeze accounts suspected of fraudulent activity, market manipulation, or money laundering pending investigation.',
+    },
+    {
+      h: '15. Governing law',
       p: 'These Terms are governed by the laws applicable to the operating entity of KADO. Any dispute that cannot be resolved informally within 30 days shall be submitted to the competent courts of that jurisdiction. You waive any right to a class action or jury trial to the extent permitted by applicable law.',
     },
   ],
