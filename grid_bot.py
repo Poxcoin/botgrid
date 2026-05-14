@@ -66,35 +66,46 @@ PENDING_ORDER_TIMEOUT  = 1800   # скасувати незаповнений li
 GRID_CONFIGS = [
     {
         "symbol":        "SOL/USDT:USDT",
+        "levels":        8,         # 6→8: крок 3.5%→2.6%, більше fills
+        "size_pct":      2.0,
+        "size_usd_min":  15.0,
+        "leverage":      3,         # 2→3: SOL найволатильніший (ATR 3.6%), виправдано
+        "auto_range":    True,
+        "upper_manual":  130.0,     # оновлено під поточну ціну ~$93
+        "lower_manual":   70.0,
+        "max_positions": 4,         # 3→4: більше рівнів → більше одночасних позицій
+    },
+    {
+        "symbol":        "ETH/USDT:USDT",
+        "levels":        8,
+        "size_pct":      2.5,
+        "size_usd_min":  15.0,
+        "leverage":      2,
+        "auto_range":    True,
+        "upper_manual":  3200.0,    # оновлено: ціна $2297, старий lower $2500 був вище ціни
+        "lower_manual":  1800.0,
+        "max_positions": 4,
+    },
+    {
+        "symbol":        "BTC/USDT:USDT",
+        "levels":        7,         # 5→7: крок ~2.4%, більше trades в $73k-$90k діапазоні
+        "size_pct":      1.5,
+        "size_usd_min":  15.0,
+        "leverage":      2,
+        "auto_range":    True,
+        "upper_manual":  110000.0,  # оновлено під поточну ціну ~$81k
+        "lower_manual":   65000.0,
+        "max_positions": 4,         # 3→4
+    },
+    {
+        "symbol":        "AVAX/USDT:USDT",
         "levels":        6,
         "size_pct":      2.0,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
-        "upper_manual":  280.0,
-        "lower_manual":  180.0,
-        "max_positions": 3,
-    },
-    {
-        "symbol":        "ETH/USDT:USDT",
-        "levels":        8,        # зменшено з 15
-        "size_pct":      2.5,
-        "size_usd_min":  15.0,
-        "leverage":      2,
-        "auto_range":    True,
-        "upper_manual":  4000.0,
-        "lower_manual":  2500.0,
-        "max_positions": 4,
-    },
-    {
-        "symbol":        "BTC/USDT:USDT",
-        "levels":        5,        # зменшено з 10
-        "size_pct":      1.5,
-        "size_usd_min":  15.0,
-        "leverage":      2,
-        "auto_range":    True,
-        "upper_manual":  100000.0,
-        "lower_manual":   80000.0,
+        "upper_manual":  18.0,      # AVAX зараз ~$10, поблизу циклових мінімумів
+        "lower_manual":   7.0,
         "max_positions": 3,
     },
 ]
