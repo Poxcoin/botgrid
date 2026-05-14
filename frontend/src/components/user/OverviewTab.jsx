@@ -383,6 +383,45 @@ function Chart({ coin, entryPrice }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   EQUITY CURVE — isolated component to avoid recharts ResizeObserver
+   setState-during-render (React error #310) in React 18 concurrent mode
+══════════════════════════════════════════════════════════════════ */
+function EquityCurve({ data }) {
+  const wrapRef = useRef(null);
+  const [w, setW] = useState(0);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    setW(wrapRef.current.offsetWidth);
+    const ro = new ResizeObserver(entries => setW(entries[0].contentRect.width));
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const isPos = data[data.length - 1]?.v >= 0;
+  const h = 216;
+
+  return (
+    <div ref={wrapRef} style={{ padding: '12px 4px', height: h + 24 }}>
+      {w > 0 && (
+        <AreaChart width={w} height={h} data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="eq_grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0.25}/>
+              <stop offset="95%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+          <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`}/>
+          <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} formatter={v => [`$${v}`, 'Cumulative PnL']} labelStyle={{ color: 'rgba(240,242,245,0.5)', fontSize: 9 }}/>
+          <Area type="monotone" dataKey="v" stroke={isPos ? '#00d4aa' : '#ff4d6d'} strokeWidth={1.5} fill="url(#eq_grad)" dot={false} activeDot={{ r: 3 }}/>
+        </AreaChart>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    BOTTOM PANEL
 ══════════════════════════════════════════════════════════════════ */
 function Panel({ botTrades, botPositions, onClose = () => {} }) {
@@ -554,25 +593,7 @@ function Panel({ botTrades, botPositions, onClose = () => {} }) {
             return { t: dstr(t.closed_at), v: parseFloat(cum.toFixed(2)) };
           });
           if (data.length === 0) return <Empty />;
-          const isPos = data[data.length - 1]?.v >= 0;
-          return (
-            <div style={{ padding: '12px 4px', height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="eq_grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-                  <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`}/>
-                  <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} formatter={v => [`$${v}`, 'Cumulative PnL']} labelStyle={{ color: 'rgba(240,242,245,0.5)', fontSize: 9 }}/>
-                  <Area type="monotone" dataKey="v" stroke={isPos ? '#00d4aa' : '#ff4d6d'} strokeWidth={1.5} fill="url(#eq_grad)" dot={false} activeDot={{ r: 3 }}/>
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          );
+          return <EquityCurve data={data} />;
         })()}
       </div>
     </div>

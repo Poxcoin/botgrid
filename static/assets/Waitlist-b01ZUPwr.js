@@ -1,0 +1,1 @@
+import{b as e}from"./recharts-lib-CZ1wgTrf.js";import{d as r}from"./index-DSTmgNH5.js";function s(){const t=r();return e.useEffect(()=>{t("/auth?mode=register",{replace:!0})},[]),null}export{s as default};
