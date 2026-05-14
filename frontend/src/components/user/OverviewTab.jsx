@@ -859,9 +859,8 @@ export default function OverviewTab({ botId = 'signal' }) {
       botTrades.filter(t => !t.closed_at && t.status !== 'failed').map(t => sym(t.symbol)).filter(Boolean)
     );
     if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
-    if (staticCoins.length > 0) return positions.filter(p => new Set(staticCoins).has(sym(p.symbol)));
     return [];
-  }, [positions, botTrades, staticCoins.join(',')]);
+  }, [positions, botTrades]);
   const botUnreal = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
   const coins = useMemo(() => {
     if (botCoins.length > 0) return botCoins;
