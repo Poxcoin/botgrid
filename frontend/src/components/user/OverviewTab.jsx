@@ -646,10 +646,10 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           </table>
         )}
 
-        {tab === 'history' && (filteredClosed.length === 0 ? <Empty /> :
+        {tab === 'history' && (closed.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Exit"/><Th v="PnL" r/></tr></thead>
-            <tbody>{filteredClosed.slice(0, 200).map((t, i) => {
+            <tbody>{closed.slice(0, 200).map((t, i) => {
               const p = pnl(t);
               return (
                 <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -681,7 +681,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
         )}
 
         {tab === 'equity' && (() => {
-          const sorted = [...filteredClosed]
+          const sorted = [...closed]
             .filter(t => t.pnl_usdt != null)
             .sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
           let cum = 0;
@@ -756,7 +756,6 @@ export default function OverviewTab({ botId = 'signal' }) {
   const balance      = summary?.balance;
   const totalUnreal  = summary?.total_unrealized ?? null;
   const botTrades    = useMemo(() => trades.filter(t => (t.source || '') === dbSource), [trades, dbSource]);
-  const botPos       = positions; // all open positions come from same Bybit account
 
   const botCoins = useMemo(() => {
     const s = new Set();
@@ -766,6 +765,14 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   // show only bot-traded coins; fall back to static watchlist, then popular list
   const staticCoins = BOT_COINS[botId] ?? [];
+
+  // filter positions to this bot's coin watchlist for per-bot unrealized PnL
+  // listing/dex/whale have no static watchlist → show all positions
+  const botWatchSet = useMemo(() => new Set(staticCoins), [staticCoins.join(',')]);
+  const botPos      = useMemo(() =>
+    botWatchSet.size > 0 ? positions.filter(p => botWatchSet.has(sym(p.symbol))) : positions,
+  [positions, botWatchSet]);
+  const botUnreal   = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
   const coins = useMemo(() => {
     if (botCoins.length > 0) return botCoins;
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
@@ -828,7 +835,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
         {[
           { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—', sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
-          { label: 'Unrealized', value: totalUnreal != null ? `${sign(totalUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open positions` : 'no open positions', good: totalUnreal != null ? pos(totalUnreal) : null },
+          { label: 'Unrealized', value: `${sign(botUnreal)} USDT`, sub: botPos.length ? `${botPos.length} pos${positions.length > botPos.length ? ` · all: ${sign(totalUnreal ?? 0)} USDT` : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
           { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
           { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
         ].map((s, i) => (
