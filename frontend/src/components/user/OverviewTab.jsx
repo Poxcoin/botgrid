@@ -77,7 +77,7 @@ const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON
 const BOT_COINS = {
   // signal: excludes _TRADE_BLACKLIST (STX/TRX/ATOM/OP/AAVE/BTC/ETH/SOL/BNB)
   signal:  ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
-  fr:      ['BTC','ETH','SOL','BNB','XRP','DOGE','LINK','ARB'],
+  fr:      ['INJ','ONDO','PENDLE','WLD','JUP','ARB','UNI','LDO','LINK'],
   grid:    ['BTC','ETH','SOL'],
   metals:  ['XAU'],
   listing: [],  // dynamic — any new listing
@@ -919,20 +919,20 @@ export default function OverviewTab({ botId = 'signal' }) {
       botTrades.filter(t => !t.closed_at && t.status !== 'failed').map(t => sym(t.symbol)).filter(Boolean)
     );
     if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
-    // Fallback: filter by static watchlist if available
+    // Fallback: filter by static watchlist (only for bots that continuously hold positions)
     if (staticCoins.length > 0) {
       const s = new Set(staticCoins);
-      const byStatic = positions.filter(p => s.has(sym(p.symbol)));
-      if (byStatic.length > 0) return byStatic;
+      return positions.filter(p => s.has(sym(p.symbol)));
     }
-    // Final fallback: all account positions (better than empty)
-    return positions;
+    return [];
   }, [positions, botTrades, staticCoins.join(',')]);
   const botUnreal = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
   const coins = useMemo(() => {
+    // grid always shows all configured pairs regardless of trade history
+    if (botId === 'grid') return [...new Set([...staticCoins, ...botCoins])];
     if (botCoins.length > 0) return botCoins;
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
-  }, [botCoins, staticCoins.join(',')]);
+  }, [botCoins, staticCoins.join(','), botId]);
   // grid has a fixed coin set — always show all configured coins regardless of trade history.
   // Other bots: prioritise actually-traded coins; fall back to static watchlist.
   const analyzerCoins = useMemo(() => {
