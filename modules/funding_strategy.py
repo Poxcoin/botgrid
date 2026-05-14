@@ -55,8 +55,8 @@ COIN_SLEEP      = 1.5   # пауза між монетами — не спами
 
 # BTC macro filter: якщо BTC 24h тренд нижче цього порогу — LONGs заблоковані
 # (altcoin squeeze не спрацьовує коли весь ринок падає)
-BTC_LONG_BLOCK_TREND  = -3.0   # BTC -3% за 24h → не відкриваємо LONG по altcoins
-BTC_SHORT_BLOCK_TREND = +3.0   # BTC +3% за 24h → не відкриваємо SHORT по altcoins
+BTC_LONG_BLOCK_TREND  = -1.5   # BTC -1.5% за 24h → не відкриваємо LONG по altcoins
+BTC_SHORT_BLOCK_TREND = +1.5   # BTC +1.5% за 24h → не відкриваємо SHORT по altcoins
 
 _btc_trend_cache: dict = {"ts": 0.0, "trend": 0.0}   # кешуємо 15хв щоб не спамити API
 
@@ -74,7 +74,7 @@ FR_LONG_T3  = -0.10
 RSI_OB = 65
 RSI_OS = 35
 TREND_CONFIRM    = 3.0
-SIGNAL_THRESHOLD = 5.5   # підняли з 4.0: tier-1 сигнали (0.04% FR) були занадто слабкі
+SIGNAL_THRESHOLD = 7.0   # tier-1 сигнали (FR 0.04%, size_mult=0.5) відфільтровані
 FR_TREND_BONUS   = 1.5   # бонус якщо FR зростає 3 цикли підряд
 
 COIN_COOLDOWN_SEC = 4 * 3600

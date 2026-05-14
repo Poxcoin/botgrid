@@ -886,7 +886,8 @@ def run_signal_engine():
                     execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
                                   tp_pct=ALT_TP, sl_pct=ALT_SL, size_pct=fr_size,
                                   signal_id=signal_id, bot_source="fr")
-                _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, ALT_TP, ALT_SL, fr_size)
+                if fr_sig.get("size_multiplier", 1.0) >= 0.7:
+                    _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, ALT_TP, ALT_SL, fr_size)
                 _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────
 

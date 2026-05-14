@@ -19,6 +19,12 @@ from utils.crypto import decrypt_field, encrypt_field
 # Max parallel user executions per signal
 _EXECUTOR = ThreadPoolExecutor(max_workers=20)
 
+# In-memory per-user-symbol lock: prevents stacking if same symbol dispatched twice
+# before DB write completes. Key: (user_id, symbol)
+import threading
+_opening_lock = threading.Lock()
+_opening_now: set[tuple] = set()
+
 # Bots available per plan
 PLAN_BOTS = {
     "trial":       {"grid"},
@@ -129,6 +135,13 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
     tp_pct   = signal.get("tp_pct",  10.0)
     sl_pct   = signal.get("sl_pct",   4.0)
 
+    _lock_key = (uid, symbol)
+    with _opening_lock:
+        if _lock_key in _opening_now:
+            print(f"[DISPATCHER] SKIP user={uid} {symbol} — вже відкривається (in-memory lock)")
+            return False
+        _opening_now.add(_lock_key)
+
     try:
         # Guard: check existing open positions in DB before touching the exchange
         _db = SessionLocal()
@@ -200,6 +213,9 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
                    None, None, None, "failed", err)
         print(f"[DISPATCHER] ❌ user={uid} {symbol} — {err}")
         return False
+    finally:
+        with _opening_lock:
+            _opening_now.discard(_lock_key)
 
 
 def dispatch(signal: dict) -> dict:
