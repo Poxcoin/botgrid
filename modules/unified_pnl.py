@@ -61,20 +61,28 @@ def init_all_trades_table() -> None:
         """)
 
 
+def _is_demo_exchange(exchange) -> bool:
+    try:
+        return "demo" in str(exchange.urls.get("api", "")).lower()
+    except Exception:
+        return False
+
+
 def _fetch_closed_pnl(exchange, symbol: str, since_ms: int) -> list:
     try:
         params = {"category": "linear", "symbol": symbol, "limit": 200}
-        # startTime не підтримується на demo — пробуємо з ним, фолбек без нього
-        try:
-            resp = exchange.private_get_v5_position_closed_pnl(
-                {**params, "startTime": str(since_ms)}
-            )
-            rows = resp.get("result", {}).get("list", [])
-            if rows:
-                return rows
-        except Exception:
-            pass
-        # Фолбек: без startTime — деду через bybit_key
+        # On demo API startTime causes double requests and triggers rate-limit 401s —
+        # skip it entirely; bybit_key dedup handles duplicates regardless.
+        if not _is_demo_exchange(exchange):
+            try:
+                resp = exchange.private_get_v5_position_closed_pnl(
+                    {**params, "startTime": str(since_ms)}
+                )
+                rows = resp.get("result", {}).get("list", [])
+                if rows:
+                    return rows
+            except Exception:
+                pass
         resp = exchange.private_get_v5_position_closed_pnl(params)
         return resp.get("result", {}).get("list", [])
     except Exception as e:
@@ -128,11 +136,14 @@ def sync_from_bybit(exchange) -> int:
     since_ms = int(since_dt.timestamp() * 1000)
     new_count = 0
 
+    _demo = _is_demo_exchange(exchange)
+    _sleep = 1.2 if _demo else 0.3
+
     for coin in _ALL_COINS:
         symbol = f"{coin}USDT"
         entries = _fetch_closed_pnl(exchange, symbol, since_ms)
         if not entries:
-            time.sleep(0.2)
+            time.sleep(_sleep)
             continue
 
         for e in entries:
@@ -171,7 +182,7 @@ def sync_from_bybit(exchange) -> int:
             except Exception as err:
                 print(f"[unified_pnl] insert {symbol}: {err}")
 
-        time.sleep(0.3)
+        time.sleep(_sleep)
 
     if new_count:
         print(f"[unified_pnl] ✅ Синк завершено — {new_count} нових угод")
@@ -299,11 +310,14 @@ def sync_cascade_from_bybit(exchange) -> int:
     since_ms  = int(since_dt.timestamp() * 1000)
     new_count = 0
 
+    _demo = _is_demo_exchange(exchange)
+    _sleep = 1.2 if _demo else 0.3
+
     for coin in _CASCADE_COINS:
         symbol  = f"{coin}USDT"
         entries = _fetch_closed_pnl(exchange, symbol, since_ms)
         if not entries:
-            time.sleep(0.2)
+            time.sleep(_sleep)
             continue
 
         for e in entries:
@@ -344,7 +358,7 @@ def sync_cascade_from_bybit(exchange) -> int:
             except Exception as err:
                 print(f"[cascade_pnl] insert {symbol}: {err}")
 
-        time.sleep(0.3)
+        time.sleep(_sleep)
 
     if new_count:
         print(f"[cascade_pnl] ✅ {new_count} нових угод cascade синкронізовано")
