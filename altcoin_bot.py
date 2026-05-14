@@ -179,6 +179,7 @@ def run_alt_engine():
     ledger          = load_ledger()
     processed_urls  = load_processed_urls()
     last_error_tg   = 0
+    last_scan_log   = 0.0
     # coin -> timestamp: блокуємо повторну угоду по тій самій монеті 30 хвилин
     traded_coins: dict = {}
     COIN_TTL = 30 * 60
@@ -195,8 +196,11 @@ def run_alt_engine():
                 except Exception:
                     break
 
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 LISTING сканування..." +
-                  (f" | 🔔 {len(ann_news)} анонсів" if ann_news else ""))
+            if ann_news:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 LISTING | 🔔 {len(ann_news)} анонсів")
+            elif now_ts - last_scan_log >= 60:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 LISTING сканування...")
+                last_scan_log = now_ts
 
             urls_changed = False
             for item in ann_news:
@@ -278,7 +282,7 @@ def run_alt_engine():
             if urls_changed:
                 save_processed_urls(processed_urls)
 
-            time.sleep(10)
+            time.sleep(2)
 
         except KeyboardInterrupt:
             print("\nALT бот остановлен.")

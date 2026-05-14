@@ -29,6 +29,7 @@ _SESSION.headers.update({
 _LISTING_KEYWORDS = [
     "will list", "will add", "listing", "lists ", "new listing",
     "spot trading", "perpetual contract", "new pairs",
+    "adds ", "opens trading", "available for trading",
 ]
 
 
@@ -108,6 +109,42 @@ def _poll_binance() -> list[dict]:
         return []
 
 
+def _poll_okx() -> list[dict]:
+    """OKX New Listings announcements."""
+    try:
+        resp = _SESSION.get(
+            "https://www.okx.com/priapi/v1/operate/article",
+            params={"t": 0, "category": "New Listings", "page": 1, "pageSize": 10},
+            timeout=4,
+        )
+        if resp.status_code != 200:
+            return []
+        data = resp.json().get("data", {})
+        articles = data.get("articles", []) if isinstance(data, dict) else []
+        new_items = []
+        for article in articles:
+            item_id = f"okx_{article.get('id', '')}"
+            with _seen_lock:
+                if item_id in _seen_ids:
+                    continue
+                _seen_ids.add(item_id)
+            title = article.get("title", "").strip()
+            if not title:
+                continue
+            item = _make_item(
+                title=title,
+                item_id=item_id,
+                source="OKX Announcements",
+                ts_ms=article.get("publishTime", int(time.time() * 1000)),
+            )
+            new_items.append(item)
+            print(f"[ANN] 🔔 OKX: {title}")
+        return new_items
+    except Exception as e:
+        print(f"[ANN] OKX помилка: {type(e).__name__}")
+        return []
+
+
 def _poll_bybit() -> list[dict]:
     try:
         resp = _SESSION.get(
@@ -149,12 +186,13 @@ def _monitor_loop():
     # Перший запуск — тільки заповнюємо seen_ids, не торгуємо по старих новинах
     _poll_binance()
     _poll_bybit()
+    _poll_okx()
     _save_seen()
-    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit, кожні 10 сек)")
+    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit + OKX, кожні 10 сек)")
 
     while _running:
         time.sleep(10)
-        fresh = _poll_binance() + _poll_bybit()
+        fresh = _poll_binance() + _poll_bybit() + _poll_okx()
         if fresh:
             for item in fresh:
                 ann_queue.put(item)
