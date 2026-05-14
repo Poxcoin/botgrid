@@ -2917,6 +2917,196 @@ async def webapp_pause(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  LIVE WEBSOCKET  — real-time positions / balance / orders / trades per user
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Per-user Bybit data cache shared across WebSocket connections for that user.
+# Prevents calling Bybit more often than _LIVE_CACHE_TTL seconds regardless of
+# how many browser tabs the user has open.
+_live_cache:      dict = {}          # user_id → {positions, balance, orders, ts}
+_live_cache_lock: _threading.Lock = _threading.Lock()
+_LIVE_CACHE_TTL   = 1.8             # seconds
+
+
+def _refresh_live_cache(user_id: int, ex) -> dict:
+    """Return fresh Bybit snapshot, re-fetching only when TTL has expired."""
+    now    = time.time()
+    cached = _live_cache.get(user_id, {})
+    if now - cached.get("ts", 0.0) < _LIVE_CACHE_TTL:
+        return cached
+
+    try:
+        positions = _bybit_positions(ex)
+    except Exception:
+        positions = cached.get("positions", [])
+
+    try:
+        raw_bal = _bybit_balance(ex)
+    except Exception:
+        raw_bal = cached.get("balance", None)
+
+    try:
+        raw_orders = ex.private_get_v5_order_realtime({
+            "category": "linear", "settleCoin": "USDT", "limit": 50,
+        })
+        orders = [
+            {
+                "order_id":   o.get("orderId", ""),
+                "symbol":     o.get("symbol", "").replace("USDT", ""),
+                "side":       "LONG" if o.get("side") == "Buy" else "SHORT",
+                "order_type": o.get("orderType", ""),
+                "qty":        float(o.get("qty") or 0),
+                "price":      float(o.get("price") or 0),
+                "filled_qty": float(o.get("cumExecQty") or 0),
+                "status":     o.get("orderStatus", ""),
+                "created_at": o.get("createdTime", ""),
+                "reduce_only": bool(o.get("reduceOnly", False)),
+            }
+            for o in raw_orders.get("result", {}).get("list", [])
+        ]
+    except Exception:
+        orders = cached.get("orders", [])
+
+    entry = {"positions": positions, "balance": raw_bal, "orders": orders, "ts": now}
+    with _live_cache_lock:
+        _live_cache[user_id] = entry
+    return entry
+
+
+def _fmt_trade_ws(t) -> dict:
+    return {
+        "id":          t.id,
+        "source":      t.source,
+        "symbol":      t.symbol,
+        "side":        t.side,
+        "leverage":    t.leverage,
+        "entry_price": t.entry_price,
+        "exit_price":  t.exit_price,
+        "qty":         t.qty,
+        "pnl_usdt":    t.pnl_usdt,
+        "status":      t.status,
+        "opened_at":   t.opened_at.isoformat() if t.opened_at else None,
+        "closed_at":   t.closed_at.isoformat() if t.closed_at else None,
+    }
+
+
+@app.websocket("/ws/live")
+async def ws_live(websocket: WebSocket, token: str = Query(...)):
+    """
+    Live feed for the user dashboard.
+    Sends 'init' snapshot on connect, then 'update' diff every 2 s.
+    Auth: JWT passed as ?token=<jwt> query param.
+    Close codes: 4001 auth, 4002 no API key, 4003 internal.
+    """
+    # ── auth ──────────────────────────────────────────────────────────────────
+    ip = websocket.client.host if websocket.client else "unknown"
+    if not _check_rate_limit(f"ws:{ip}", window=60, max_hits=30):
+        await websocket.close(code=4029)
+        return
+
+    from database import SessionLocal as _SL
+    payload = decode_token(token)
+    if not payload:
+        await websocket.close(code=4001)
+        return
+
+    db = _SL()
+    try:
+        user = db.query(User).filter(User.id == int(payload["sub"])).first()
+        if not user or not user.is_active:
+            await websocket.close(code=4001)
+            db.close()
+            return
+        key_row = (
+            db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+        )
+        if not key_row:
+            await websocket.close(code=4002)
+            db.close()
+            return
+        user_id = user.id
+    except Exception:
+        await websocket.close(code=4003)
+        db.close()
+        return
+    finally:
+        db.close()
+
+    ex = _init_user_exchange(key_row)
+    if not ex:
+        await websocket.close(code=4003)
+        return
+
+    await websocket.accept()
+
+    # ── initial trades load ───────────────────────────────────────────────────
+    db2 = _SL()
+    try:
+        init_rows = (
+            db2.query(UserTrade)
+            .filter(UserTrade.user_id == user_id)
+            .order_by(UserTrade.opened_at.desc())
+            .limit(500)
+            .all()
+        )
+        trades_json   = [_fmt_trade_ws(t) for t in init_rows]
+        last_trade_id = init_rows[0].id if init_rows else 0
+    finally:
+        db2.close()
+
+    # ── init snapshot ─────────────────────────────────────────────────────────
+    loop  = asyncio.get_running_loop()
+    cache = await loop.run_in_executor(None, lambda: _refresh_live_cache(user_id, ex))
+
+    try:
+        await websocket.send_json({
+            "type":      "init",
+            "positions": cache["positions"],
+            "balance":   cache["balance"],
+            "orders":    cache["orders"],
+            "trades":    trades_json,
+            "ts":        time.time(),
+        })
+    except Exception:
+        return
+
+    # ── streaming loop ────────────────────────────────────────────────────────
+    try:
+        while True:
+            await asyncio.sleep(2)
+
+            cache = await loop.run_in_executor(None, lambda: _refresh_live_cache(user_id, ex))
+
+            db3 = _SL()
+            try:
+                new_rows = (
+                    db3.query(UserTrade)
+                    .filter(UserTrade.user_id == user_id, UserTrade.id > last_trade_id)
+                    .order_by(UserTrade.id.asc())
+                    .all()
+                )
+                new_trades_json = [_fmt_trade_ws(t) for t in new_rows]
+                if new_rows:
+                    last_trade_id = new_rows[-1].id
+            finally:
+                db3.close()
+
+            await websocket.send_json({
+                "type":       "update",
+                "positions":  cache["positions"],
+                "balance":    cache["balance"],
+                "orders":     cache["orders"],
+                "new_trades": new_trades_json,
+                "ts":         time.time(),
+            })
+
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  SPA CATCH-ALL  — MUST BE LAST — иначе перехватывает все /api/* маршруты
 # ══════════════════════════════════════════════════════════════════════════════
 

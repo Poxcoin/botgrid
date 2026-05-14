@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { init as klInit, dispose as klDispose } from 'klinecharts';
 import { AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
+import { useLiveStream } from '@/lib/useLiveStream';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
@@ -870,22 +871,15 @@ export default function OverviewTab({ botId = 'signal' }) {
   const dbSources = BOT_SOURCES[botId] ?? [botId];
   const dbSource  = dbSources[0]; // primary key for heartbeat + labels
 
-  const [summary,    setSummary]    = useState(null);
-  const [trades,     setTrades]     = useState([]);
-  const [openOrders, setOpenOrders] = useState([]);
-  const [coin,       setCoin]       = useState('BTC');
-  const [heartbeat,  setHeartbeat]  = useState({});
-  const autoSelectDoneRef  = useRef(false);
-  const prevPosCoinSetRef  = useRef(null);
+  // ── Real-time WebSocket feed ──────────────────────────────────────────────
+  const { positions, balance, openOrders, trades, connected } = useLiveStream();
 
-  const refresh = useCallback(() => {
-    Promise.all([api('/api/users/bot-summary'), api('/api/users/trades?limit=500')])
-      .then(([s, td]) => { setSummary(s); setTrades(Array.isArray(td) ? td : (td?.trades ?? [])); })
-      .catch(() => {});
-  }, []);
+  const [coin,      setCoin]      = useState('BTC');
+  const [heartbeat, setHeartbeat] = useState({});
+  const autoSelectDoneRef = useRef(false);
+  const prevPosCoinSetRef = useRef(null);
 
-  useEffect(() => { refresh(); const id = setInterval(refresh, 5000); return () => clearInterval(id); }, [refresh]);
-
+  // heartbeat is low-frequency metadata — keep as a 30s REST poll
   useEffect(() => {
     const go = () => api('/api/users/bot-heartbeat').then(setHeartbeat).catch(() => {});
     go();
@@ -893,16 +887,13 @@ export default function OverviewTab({ botId = 'signal' }) {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const go = () => api('/api/users/open-orders').then(d => setOpenOrders(Array.isArray(d) ? d : [])).catch(() => {});
-    go();
-    const id = setInterval(go, 10000);
-    return () => clearInterval(id);
-  }, []);
+  // close-position REST call — triggers a manual WS refresh via reconnect
+  const refresh = useCallback(() => {}, []);
 
-  const positions    = summary?.positions ?? [];
-  const balance      = summary?.balance;
-  const totalUnreal  = summary?.total_unrealized ?? null;
+  const totalUnreal = useMemo(
+    () => positions.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0),
+    [positions],
+  );
   const botTrades    = useMemo(() => trades.filter(t => dbSources.includes(t.source || '')), [trades, dbSources.join(',')]);
 
   const botCoins = useMemo(() => {
@@ -995,11 +986,11 @@ export default function OverviewTab({ botId = 'signal' }) {
         body: JSON.stringify({ symbol }),
       });
       if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
-      setTimeout(refresh, 1000);
+      // WS update arrives automatically within 2s — no manual poll needed
     } catch (e) {
       alert(`Failed to close ${symbol}: ${e.message}`);
     }
-  }, [refresh]);
+  }, []);
 
   const handleCancelOrder = useCallback(async (orderId, symbol) => {
     if (!confirm(`Cancel ${symbol} order?`)) return;
@@ -1010,7 +1001,7 @@ export default function OverviewTab({ botId = 'signal' }) {
         body: JSON.stringify({ order_id: orderId, symbol }),
       });
       if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
-      setTimeout(() => api('/api/users/open-orders').then(d => setOpenOrders(Array.isArray(d) ? d : [])).catch(() => {}), 1000);
+      // WS update arrives automatically within 2s
     } catch (e) {
       alert(`Failed to cancel order: ${e.message}`);
     }
@@ -1035,22 +1026,34 @@ export default function OverviewTab({ botId = 'signal' }) {
         ))}
       </div>
 
-      {/* ── HEARTBEAT ─────────────────────────────────────────── */}
-      {heartbeat[dbSource] != null && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {(() => {
-            const h = heartbeat[dbSource];
-            const ago = h?.last_trade_min_ago;
-            const fresh = ago != null && ago < 240;
-            return <>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: fresh ? 'var(--accent-green)' : 'var(--accent-red)', display: 'inline-block', flexShrink: 0 }}/>
+      {/* ── STATUS BAR: live feed indicator + heartbeat ───────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* WebSocket connection status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
+            background: connected ? 'var(--accent-green)' : 'var(--accent-red)',
+            boxShadow: connected ? '0 0 6px var(--accent-green)' : 'none',
+          }}/>
+          <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+            {connected ? 'LIVE' : 'RECONNECTING…'}
+          </span>
+        </div>
+        {/* Bot heartbeat */}
+        {heartbeat[dbSource] != null && (() => {
+          const h = heartbeat[dbSource];
+          const ago = h?.last_trade_min_ago;
+          const fresh = ago != null && ago < 240;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: fresh ? 'var(--accent-green)' : 'var(--text-muted)', display: 'inline-block', flexShrink: 0 }}/>
               <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
                 Last trade {ago != null ? (ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`) : '—'}
               </span>
-            </>;
-          })()}
-        </div>
-      )}
+            </div>
+          );
+        })()}
+      </div>
 
       {/* ── COINS ─────────────────────────────────────────────── */}
       <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} />
