@@ -74,12 +74,14 @@ function Trades({ coin }) {
 const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
 
 const BOT_COINS = {
-  signal:  ['WLD','JUP','ARB','STX','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','TRX','ATOM','OP','SUI','AAVE','CRV'],
+  // signal: excludes _TRADE_BLACKLIST (STX/TRX/ATOM/OP/AAVE/BTC/ETH/SOL/BNB)
+  signal:  ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
   fr:      ['BTC','ETH','SOL','BNB','XRP','DOGE','LINK','ARB'],
   grid:    ['BTC','ETH','SOL'],
   listing: [],  // dynamic — any new listing
-  dex:     [],
-  cascade: ['XRP','ADA','DOGE','AVAX','DOT','LINK','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
+  dex:     [],  // dynamic — DEX volume spikes, any coin
+  // cascade_bot.py (BTC/ETH/SOL) + main.py liq_cascade (22 alts)
+  cascade: ['BTC','ETH','SOL','XRP','ADA','DOGE','AVAX','DOT','LINK','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
 };
 
 const CHART_STYLES = {
@@ -718,10 +720,17 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 /* ══════════════════════════════════════════════════════════════════
    MAIN
 ══════════════════════════════════════════════════════════════════ */
-const BOT_DB_SOURCE = { signal: 'news', cascade: 'liq_cascade', fr: 'fr' };
+// Maps botId → one or more source values stored in user_trades.source
+// cascade_bot.py saves 'cascade', main.py liq pipeline saves 'liq_cascade'
+const BOT_SOURCES = {
+  signal:  ['news'],
+  cascade: ['liq_cascade', 'cascade'],
+  fr:      ['fr'],
+};
 
 export default function OverviewTab({ botId = 'signal' }) {
-  const dbSource = BOT_DB_SOURCE[botId] ?? botId;
+  const dbSources = BOT_SOURCES[botId] ?? [botId];
+  const dbSource  = dbSources[0]; // primary key for heartbeat + labels
 
   const [summary,    setSummary]    = useState(null);
   const [trades,     setTrades]     = useState([]);
@@ -755,7 +764,7 @@ export default function OverviewTab({ botId = 'signal' }) {
   const positions    = summary?.positions ?? [];
   const balance      = summary?.balance;
   const totalUnreal  = summary?.total_unrealized ?? null;
-  const botTrades    = useMemo(() => trades.filter(t => (t.source || '') === dbSource), [trades, dbSource]);
+  const botTrades    = useMemo(() => trades.filter(t => dbSources.includes(t.source || '')), [trades, dbSources.join(',')]);
 
   const botCoins = useMemo(() => {
     const s = new Set();
