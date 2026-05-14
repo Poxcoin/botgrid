@@ -657,7 +657,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
       </div>
 
       {/* content */}
-      <div style={{ maxHeight: 260, overflowY: 'auto', overflowX: 'auto' }}>
+      <div style={{ maxHeight: tab === 'equity' ? 'none' : 260, overflowY: tab === 'equity' ? 'visible' : 'auto', overflowX: tab === 'equity' ? 'visible' : 'auto' }}>
         {tab === 'open' && (filteredOrders.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr><Th v="Time"/><Th v="Symbol"/><Th v="Side"/><Th v="Type"/><Th v="Qty"/><Th v="Price" r/><Th v="Filled" r/><Th v="Status"/><Th v="Reduce"/><Th v=""/></tr></thead>

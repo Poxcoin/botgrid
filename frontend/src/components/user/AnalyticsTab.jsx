@@ -408,7 +408,7 @@ function CoinChart({ coins, allTrades }) {
     }
 
     const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
+      autoSize: true,
       height: 280,
       layout: {
         background: { color: '#060606' },
@@ -443,13 +443,15 @@ function CoinChart({ coins, allTrades }) {
     series.setData(klines);
 
     const coinTrades = (allTrades || []).filter(
-      t => (t.symbol || t.coin || '') === selectedCoin
+      t => (t.symbol || '').split('/')[0].replace('USDT', '') === selectedCoin
     );
 
     const markers = [];
     coinTrades.forEach(tr => {
-      const dateStr = new Date(parseInt(tr.closed_at)).toISOString().slice(0, 10);
-      const isLong  = tr.side === 'Buy';
+      const ts = tr.closed_at ? new Date(tr.closed_at) : null;
+      if (!ts || isNaN(ts)) return;
+      const dateStr = ts.toISOString().slice(0, 10);
+      const isLong  = tr.side === 'LONG';
 
       markers.push({
         time:     dateStr,
@@ -471,17 +473,9 @@ function CoinChart({ coins, allTrades }) {
     markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
     if (markers.length) series.setMarkers(markers);
 
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
-    };
-    window.addEventListener('resize', handleResize);
-
     chartRef.current = chart;
 
     return () => {
-      window.removeEventListener('resize', handleResize);
       chart.remove();
       chartRef.current = null;
     };
