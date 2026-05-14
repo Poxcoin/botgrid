@@ -638,9 +638,8 @@ export default function OverviewTab({ botId = 'signal' }) {
   const botCoins = useMemo(() => {
     const s = new Set();
     botTrades.forEach(t => { const c = sym(t.symbol); if (c) s.add(c); });
-    botPos.forEach(p => { const c = sym(p.symbol); if (c) s.add(c); });
     return [...s].sort();
-  }, [botTrades, botPos]);
+  }, [botTrades]);
 
   // show only bot-traded coins; fall back to popular list only when bot has zero history
   const coins = useMemo(() => botCoins.length > 0 ? botCoins : POP_COINS, [botCoins]);
