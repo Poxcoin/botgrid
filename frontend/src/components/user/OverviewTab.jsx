@@ -885,7 +885,9 @@ export default function OverviewTab({ botId = 'signal' }) {
     return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
   }, [botTrades]);
 
-  const activePos  = botPos.find(p => sym(p.symbol) === coin);
+  // Search ALL Bybit positions for the selected coin (not just this bot's subset)
+  // so entry/SL/TP lines always appear when a position exists, matching Bybit UX
+  const activePos  = positions.find(p => sym(p.symbol) === coin);
   const entryPrice = activePos?.entry_price ?? 0;
   const stopLoss   = activePos?.stop_loss   ?? 0;
   const takeProfit = activePos?.take_profit ?? 0;
