@@ -565,6 +565,99 @@ def generate_signal(news_item: dict) -> dict | None:
     }
 
 
+# ETH-ecosystem alts: beneficiaries when smart money accumulates ETH.
+# AAVE excluded (in _COIN_BLACKLIST). Sorted by typical liquidity on Bybit.
+_ETH_ECOSYSTEM_ALTS = ["LDO", "LINK", "UNI", "PENDLE", "ONDO", "RUNE", "CRV"]
+
+
+def generate_smart_wallet_signal(news_item: dict) -> dict | None:
+    """
+    Fast-path for smart wallet ETH accumulation signals.
+    Bypasses AI — market data is the confirmation.
+
+    Logic: smart money accumulates ETH → bullish for ETH-ecosystem alts.
+    Scans _ETH_ECOSYSTEM_ALTS, returns the best-scoring one.
+    Threshold: 10.0 (lower than news 13.0, smart wallet = higher signal quality).
+    """
+    sw = news_item.get("smart_wallet_data", {})
+    eth_value = float(sw.get("eth_value", 0))
+    direction = sw.get("direction", "accumulating")
+    wallet    = sw.get("wallet", "SmartMoney")
+
+    # Only act on accumulation (ignore outflows)
+    if direction not in ("accumulating", "buying via DEX"):
+        return None
+    if eth_value < 30:
+        return None
+
+    # Base score: 30 ETH → 4.0 | 100 ETH → 6.0 | 300 ETH → 8.0 (cap)
+    base_score = min(8.0, max(4.0, eth_value / 50.0))
+
+    best_signal = None
+    best_score  = 0.0
+
+    for coin in _ETH_ECOSYSTEM_ALTS:
+        market_data = get_market_metrics(coin)
+        if not market_data:
+            continue
+
+        score = base_score
+
+        # Volume spike: if coin already sees unusual DEX/CEX volume → confirm
+        vol_mult = market_data.get("volume_multiplier", 1)
+        if vol_mult > 2:
+            score += min(vol_mult - 1, 3.0)
+
+        # Trend: rising with ETH → extra confidence
+        trend = market_data.get("trend_24h_percent", 0)
+        if trend > 1.5:
+            score += 1.5
+        elif trend < -4:
+            score -= 1.5
+
+        # RSI: don't enter overbought
+        rsi = market_data.get("rsi", 50)
+        if rsi > 72:
+            score -= 2.5
+        elif rsi < 35:
+            score += 1.0
+
+        # Funding: long-side overheated → risky
+        fr = market_data.get("funding_rate", 0)
+        if fr > 0.08:
+            score -= 2.0
+        elif fr < -0.04:
+            score += 1.0
+
+        if score > best_score:
+            best_score  = score
+            best_signal = {
+                "coin":           coin,
+                "action":         "LONG",
+                "total_score":    round(score, 1),
+                "ai_score":       0,
+                "confidence":     72,
+                "size_multiplier": 0.7,
+                "reason": (
+                    f"Smart money {wallet} accumulated {eth_value:.0f} ETH "
+                    f"→ {coin} ETH-ecosystem LONG"
+                ),
+                "news_title":    news_item.get("title", ""),
+                "source":        news_item.get("source", ""),
+                "source_weight": 0.95,
+                "bot_tag":       "🐳",
+                "is_smart_wallet": True,
+                "_market":       {"quote_volume_24h": market_data.get("quote_volume_24h", 0)},
+            }
+
+    if best_signal:
+        print(
+            f"   🐳 SmartWallet→{best_signal['coin']} score={best_score:.1f} "
+            f"(ETH={eth_value:.0f}, wallet={wallet})"
+        )
+    return best_signal
+
+
 if __name__ == "__main__":
     import json
 

@@ -2,7 +2,7 @@ import time
 import json
 import os
 from datetime import datetime, timezone
-from modules.decision_maker import generate_signal, generate_whale_signal
+from modules.decision_maker import generate_signal, generate_whale_signal, generate_smart_wallet_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker, unified_pnl
@@ -617,6 +617,9 @@ def run_signal_engine():
                 elif news_item.get("is_whale_alert"):
                     print(f"   🐋 Whale Alert: {news_item['title'][:60]}...")
                     signal = generate_whale_signal(news_item)
+                elif news_item.get("is_smart_wallet"):
+                    # Smart wallet ETH accumulation → scan ETH-ecosystem alts, bypass AI
+                    signal = generate_smart_wallet_signal(news_item)
                 else:
                     print(f"   Анализ: {news_item['title'][:60]}...")
                     signal = generate_signal(news_item)
