@@ -345,7 +345,7 @@ function CoinTicker({ coins, selected, onSelect }) {
   );
 }
 
-function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
+function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange }) {
   const elRef       = useRef(null);
   const chartRef    = useRef(null);
   const panesRef    = useRef({});
@@ -487,6 +487,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
 
   function applyChartType(typeId) {
     setChartType(typeId);
+    onTypeChange?.(typeId);
     const cfg   = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
     const theme = typeId === 'candle_up_stroke' ? THEME_BW : THEME_DARK;
     setChartBg(theme.bg);
@@ -877,6 +878,7 @@ export default function OverviewTab({ botId = 'signal' }) {
   const { positions, balance, openOrders, trades, connected } = useLiveStream();
 
   const [coin,      setCoin]      = useState('BTC');
+  const [isBW,      setIsBW]      = useState(false);
   const [heartbeat, setHeartbeat] = useState({});
   const autoSelectDoneRef = useRef(false);
   const prevPosCoinSetRef = useRef(null);
@@ -1016,10 +1018,8 @@ export default function OverviewTab({ botId = 'signal' }) {
     }
   }, []);
 
-  const isBW = chartType === 'candle_up_stroke';
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isBW && !isFullscreen ? { filter: 'grayscale(1)' } : {}) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isBW ? { filter: 'grayscale(1)' } : {}) }}>
 
       {/* ── STATS ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
@@ -1092,7 +1092,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       )}
 
       {/* ── CHART ─────────────────────────────────────────────── */}
-      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} />
+      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={botTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
