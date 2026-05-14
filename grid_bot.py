@@ -103,7 +103,7 @@ MIN_GRID_LEVELS        = 3      # мінімальна кількість рів
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
 RSI_OB_BUY             = 72    # RSI(14,4h) > 72 → не розміщуємо нові BUY ордери
 BOUNDARY_SL_PCT        = 0.03  # 3% нижче нижньої межі сітки → жорсткий стоп
-EMA_BLOCK_MIN_GAP      = 0.01  # блокуємо LONG тільки якщо EMA20 < EMA50 * (1 - 1%) — фільтр шуму
+EMA_BLOCK_MIN_GAP      = 0.02  # блокуємо LONG тільки якщо EMA20 < EMA50 * (1 - 2%) — фільтр шуму
 MIN_ORDER_SPREAD       = 0.002 # 0.2% мінімальний спред між limit та market — PostOnly safe
 
 # ─── State ───────────────────────────────────────────────────────────────────
