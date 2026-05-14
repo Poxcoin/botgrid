@@ -131,7 +131,7 @@ const COL_GREEN = '#00d4aa';
 const COL_RED   = '#ff4d6d';
 const CHART_TYPE_CFG = {
   candle_solid:     { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
-  candle_up_stroke: { bar: { upColor: 'transparent', downColor: 'rgba(255,255,255,0.85)', noChangeColor: 'rgba(255,255,255,0.4)', upBorderColor: 'rgba(255,255,255,0.85)', downBorderColor: 'rgba(255,255,255,0.85)', noChangeBorderColor: 'rgba(255,255,255,0.4)', upWickColor: 'rgba(255,255,255,0.55)', downWickColor: 'rgba(255,255,255,0.55)', noChangeWickColor: 'rgba(255,255,255,0.3)' }, vol: [{ upColor: 'rgba(255,255,255,0.18)', downColor: 'rgba(255,255,255,0.09)', noChangeColor: 'rgba(255,255,255,0.12)' }] },
+  candle_up_stroke: { bar: { upColor: 'transparent', downColor: '#111111', noChangeColor: 'rgba(0,0,0,0.4)', upBorderColor: '#111111', downBorderColor: '#111111', noChangeBorderColor: 'rgba(0,0,0,0.4)', upWickColor: '#555555', downWickColor: '#555555', noChangeWickColor: 'rgba(0,0,0,0.3)' }, vol: [{ upColor: 'rgba(0,0,0,0.12)', downColor: 'rgba(0,0,0,0.3)', noChangeColor: 'rgba(0,0,0,0.2)' }] },
   candle_stroke:    { bar: { upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
   area:             { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
 };
@@ -139,6 +139,27 @@ const CHART_TYPE_CFG = {
 const INDS_CANDLE = ['MA', 'EMA', 'BOLL'];
 const INDS_PANE   = ['VOL', 'MACD', 'RSI'];
 const ALL_INDS    = [...INDS_CANDLE, ...INDS_PANE];
+
+const THEME_DARK = {
+  bg: 'var(--bg-base)',
+  grid: { horizontal: { color: 'rgba(255,255,255,0.04)' }, vertical: { color: 'rgba(255,255,255,0.04)' } },
+  xAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
+  yAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
+  crosshair: {
+    horizontal: { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
+    vertical:   { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
+  },
+};
+const THEME_BW = {
+  bg: '#ffffff',
+  grid: { horizontal: { color: 'rgba(0,0,0,0.06)' }, vertical: { color: 'rgba(0,0,0,0.06)' } },
+  xAxis: { axisLine: { color: 'rgba(0,0,0,0.12)' }, tickLine: { color: 'rgba(0,0,0,0.12)' }, tickText: { color: 'rgba(0,0,0,0.45)' } },
+  yAxis: { axisLine: { color: 'rgba(0,0,0,0.12)' }, tickLine: { color: 'rgba(0,0,0,0.12)' }, tickText: { color: 'rgba(0,0,0,0.45)' } },
+  crosshair: {
+    horizontal: { line: { color: 'rgba(0,0,0,0.25)' }, text: { color: '#000', backgroundColor: '#f0f0f0', borderColor: 'rgba(0,0,0,0.2)' } },
+    vertical:   { line: { color: 'rgba(0,0,0,0.25)' }, text: { color: '#000', backgroundColor: '#f0f0f0', borderColor: 'rgba(0,0,0,0.2)' } },
+  },
+};
 
 const DRAW_TOOLS = [
   { id: null,                     icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l4 10 2-4 4-2L2 2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>, title: 'Default cursor' },
@@ -335,10 +356,12 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
   const prevCoinRef = useRef(coin);
   const prevTfRef   = useRef('60');
 
-  const [tf,         setTf]         = useState('60');
-  const [activeTool, setActiveTool] = useState(null);
-  const [activeInds, setActiveInds] = useState({});
-  const [chartType,  setChartType]  = useState('candle_solid');
+  const [tf,           setTf]           = useState('60');
+  const [activeTool,   setActiveTool]   = useState(null);
+  const [activeInds,   setActiveInds]   = useState({});
+  const [chartType,    setChartType]    = useState('candle_solid');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [chartBg,      setChartBg]      = useState('var(--bg-base)');
 
   coinRef.current = coin;
   tfRef.current   = tf;
@@ -447,10 +470,34 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
     } catch {}
   }, [entryPrice, stopLoss, takeProfit]);
 
+  // ESC exits fullscreen
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') setIsFullscreen(false); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  // Resize chart after fullscreen toggle
+  React.useEffect(() => {
+    const t = setTimeout(() => { try { chartRef.current?.resize(); } catch {} }, 60);
+    return () => clearTimeout(t);
+  }, [isFullscreen]);
+
   function applyChartType(typeId) {
     setChartType(typeId);
-    const cfg = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
-    try { chartRef.current?.setStyles({ candle: { type: typeId, bar: cfg.bar }, indicator: { bars: cfg.vol } }); } catch {}
+    const cfg   = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
+    const theme = typeId === 'candle_up_stroke' ? THEME_BW : THEME_DARK;
+    setChartBg(theme.bg);
+    try {
+      chartRef.current?.setStyles({
+        candle:    { type: typeId, bar: cfg.bar },
+        indicator: { bars: cfg.vol },
+        grid:      theme.grid,
+        xAxis:     theme.xAxis,
+        yAxis:     theme.yAxis,
+        crosshair: theme.crosshair,
+      });
+    } catch {}
   }
 
   function selectTool(toolId) {
@@ -492,7 +539,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 480, border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 480, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', minHeight: '100vh' } : {}) }}>
 
       {/* Top toolbar: chart type + indicators + TF */}
       <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
@@ -512,6 +559,19 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
         {['1','5','15','60','240','D'].map(t => (
           <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{{ '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' }[t]}</button>
         ))}
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        <button
+          onClick={() => setIsFullscreen(v => !v)}
+          title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+          style={{ height: 22, width: 22, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isFullscreen ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${isFullscreen ? 'var(--border-strong)' : 'transparent'}`, color: isFullscreen ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0, flexShrink: 0 }}
+          onMouseEnter={e => { if (!isFullscreen) e.currentTarget.style.color = 'var(--text-primary)'; }}
+          onMouseLeave={e => { if (!isFullscreen) e.currentTarget.style.color = 'var(--text-muted)'; }}
+        >
+          {isFullscreen
+            ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 1H1v3M8 1h3v3M4 11H1V8M8 11h3V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 4V1h3M8 1h3v3M1 8v3h3M8 11h3V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          }
+        </button>
       </div>
 
       {/* Chart area */}
@@ -524,7 +584,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0 }) {
         </div>
         {/* Canvas */}
         <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
-          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: 'var(--bg-base)' }} />
+          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: chartBg }} />
         </div>
         {/* Order book */}
         <OrderBook coin={coin} />
@@ -815,7 +875,8 @@ export default function OverviewTab({ botId = 'signal' }) {
   const [openOrders, setOpenOrders] = useState([]);
   const [coin,       setCoin]       = useState('BTC');
   const [heartbeat,  setHeartbeat]  = useState({});
-  const autoSelectDoneRef = useRef(false);
+  const autoSelectDoneRef  = useRef(false);
+  const prevPosCoinSetRef  = useRef(null);
 
   const refresh = useCallback(() => {
     Promise.all([api('/api/users/bot-summary'), api('/api/users/trades?limit=500')])
@@ -865,8 +926,15 @@ export default function OverviewTab({ botId = 'signal' }) {
       botTrades.filter(t => !t.closed_at && t.status !== 'failed').map(t => sym(t.symbol)).filter(Boolean)
     );
     if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
-    return [];
-  }, [positions, botTrades]);
+    // Fallback: filter by static watchlist if available
+    if (staticCoins.length > 0) {
+      const s = new Set(staticCoins);
+      const byStatic = positions.filter(p => s.has(sym(p.symbol)));
+      if (byStatic.length > 0) return byStatic;
+    }
+    // Final fallback: all account positions (better than empty)
+    return positions;
+  }, [positions, botTrades, staticCoins.join(',')]);
   const botUnreal = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
   const coins = useMemo(() => {
     if (botCoins.length > 0) return botCoins;
@@ -887,6 +955,22 @@ export default function OverviewTab({ botId = 'signal' }) {
     const first = botCoins[0] ?? staticCoins[0];
     if (first) { setCoin(first); autoSelectDoneRef.current = true; }
   }, [botCoins, staticCoins.join(',')]);
+
+  // auto-switch chart to coin when a new position opens for this bot
+  useEffect(() => {
+    const currentCoins = botPos.map(p => sym(p.symbol)).filter(Boolean);
+    if (prevPosCoinSetRef.current === null) {
+      prevPosCoinSetRef.current = new Set(currentCoins);
+      return;
+    }
+    for (const c of currentCoins) {
+      if (!prevPosCoinSetRef.current.has(c)) {
+        setCoin(c);
+        break;
+      }
+    }
+    prevPosCoinSetRef.current = new Set(currentCoins);
+  }, [botPos]);
 
   const stats = useMemo(() => {
     const cl    = botTrades.filter(t => t.closed_at);
@@ -939,7 +1023,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
         {[
           { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—', sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
-          { label: 'Unrealized', value: `${sign(botUnreal)} USDT`, sub: botPos.length ? `${botPos.length} pos${positions.length > botPos.length ? ` · all: ${sign(totalUnreal ?? 0)} USDT` : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
+          { label: 'Unrealized', value: totalUnreal != null ? `${sign(totalUnreal)} USDT` : '—', sub: positions.length ? `${positions.length} open position${positions.length !== 1 ? 's' : ''}` : 'no open positions', good: positions.length ? pos(totalUnreal ?? 0) : null },
           { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
           { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
         ].map((s, i) => (
