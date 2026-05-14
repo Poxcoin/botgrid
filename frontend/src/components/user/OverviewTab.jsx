@@ -74,7 +74,7 @@ function Trades({ coin }) {
 const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI'];
 
 const BOT_COINS = {
-  signal:  [],  // dynamic — any alt, use trade history
+  signal:  ['WLD','JUP','ARB','STX','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','TRX','ATOM','OP','SUI','AAVE','CRV'],
   fr:      ['BTC','ETH','SOL','BNB','XRP','DOGE','LINK','ARB'],
   grid:    ['BTC','ETH','SOL'],
   listing: [],  // dynamic — any new listing
