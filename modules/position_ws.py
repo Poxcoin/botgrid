@@ -100,6 +100,12 @@ def _close_trades(user_id: int, api_key: str, secret: str,
             if trade.order_id:
                 update_trade_closed(trade.order_id, exit_price, pnl_usdt)
             else:
+                # No order_id: update user_trades directly then sync analytics
+                trade.status     = "closed"
+                trade.exit_price = exit_price or trade.exit_price
+                trade.pnl_usdt   = pnl_usdt
+                trade.closed_at  = datetime.now(timezone.utc)
+                db.commit()
                 close_user_trade(trade.id, exit_price, pnl_usdt)
             print(
                 f"[WS] user={user_id} closed {bybit_symbol} "
