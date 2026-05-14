@@ -500,7 +500,6 @@ function EquityCurve({ data }) {
 function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, onCancelOrder = () => {}, filterCoin, balance }) {
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
-  const open   = useMemo(() => botTrades.filter(t => !t.closed_at && t.status !== 'failed'), [botTrades]);
   const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
 
   const filteredOrders = useMemo(() =>
@@ -509,11 +508,14 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
   const filteredPos = useMemo(() =>
     filterCoin ? botPositions.filter(p => sym(p.symbol) === filterCoin) : botPositions,
   [botPositions, filterCoin]);
+  const filteredClosed = useMemo(() =>
+    filterCoin ? closed.filter(t => sym(t.symbol) === filterCoin) : closed,
+  [closed, filterCoin]);
 
-  const pnlTotal = useMemo(() => closed.reduce((s, t) => s + pnl(t), 0), [closed]);
-  const pnlWins  = useMemo(() => closed.filter(t => pnl(t) > 0), [closed]);
-  const pnlLoss  = useMemo(() => closed.filter(t => pnl(t) < 0), [closed]);
-  const pnlWr    = closed.length ? Math.round(pnlWins.length / closed.length * 100) : 0;
+  const pnlTotal = useMemo(() => filteredClosed.reduce((s, t) => s + pnl(t), 0), [filteredClosed]);
+  const pnlWins  = useMemo(() => filteredClosed.filter(t => pnl(t) > 0), [filteredClosed]);
+  const pnlLoss  = useMemo(() => filteredClosed.filter(t => pnl(t) < 0), [filteredClosed]);
+  const pnlWr    = filteredClosed.length ? Math.round(pnlWins.length / filteredClosed.length * 100) : 0;
 
   useEffect(() => {
     if (!botPositions.length) return;
@@ -644,10 +646,10 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           </table>
         )}
 
-        {tab === 'history' && (closed.length === 0 ? <Empty /> :
+        {tab === 'history' && (filteredClosed.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Exit"/><Th v="PnL" r/></tr></thead>
-            <tbody>{closed.slice(0, 200).map((t, i) => {
+            <tbody>{filteredClosed.slice(0, 200).map((t, i) => {
               const p = pnl(t);
               return (
                 <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
@@ -662,13 +664,13 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           </table>
         )}
 
-        {tab === 'pnl' && (closed.length === 0 ? <Empty /> :
+        {tab === 'pnl' && (filteredClosed.length === 0 ? <Empty /> :
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
             {[
-              ['Total PnL', `${sign(pnlTotal)} USDT`,                        pos(pnlTotal)],
-              ['Win Rate',  `${pnlWr}%`,                                      pnlWr >= 50],
-              ['Trades',    String(closed.length),                            true],
-              ['W / L',     `${pnlWins.length} / ${pnlLoss.length}`,         true],
+              ['Total PnL', `${sign(pnlTotal)} USDT`,                              pos(pnlTotal)],
+              ['Win Rate',  `${pnlWr}%`,                                            pnlWr >= 50],
+              ['Trades',    String(filteredClosed.length),                          true],
+              ['W / L',     `${pnlWins.length} / ${pnlLoss.length}`,               true],
             ].map(([l, v, good]) => (
               <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
@@ -679,8 +681,8 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
         )}
 
         {tab === 'equity' && (() => {
-          const sorted = [...botTrades]
-            .filter(t => t.closed_at && t.pnl_usdt != null)
+          const sorted = [...filteredClosed]
+            .filter(t => t.pnl_usdt != null)
             .sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
           let cum = 0;
           const data = sorted.map(t => {
@@ -772,13 +774,12 @@ export default function OverviewTab({ botId = 'signal' }) {
 
   // reset auto-select flag when user switches bot tab
   useEffect(() => { autoSelectDoneRef.current = false; }, [botId]);
-  // auto-select first bot coin only once per tab load, never override user choice after that
+  // auto-select first available coin once per tab load (botCoins > staticCoins fallback)
   useEffect(() => {
-    if (!autoSelectDoneRef.current && botCoins.length > 0) {
-      setCoin(botCoins[0]);
-      autoSelectDoneRef.current = true;
-    }
-  }, [botCoins]);
+    if (autoSelectDoneRef.current) return;
+    const first = botCoins[0] ?? staticCoins[0];
+    if (first) { setCoin(first); autoSelectDoneRef.current = true; }
+  }, [botCoins, staticCoins.join(',')]);
 
   const stats = useMemo(() => {
     const cl    = botTrades.filter(t => t.closed_at);
@@ -786,8 +787,6 @@ export default function OverviewTab({ botId = 'signal' }) {
     const wins  = cl.filter(t => pnl(t) > 0).length;
     return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
   }, [botTrades]);
-
-  const openN = botTrades.filter(t => !t.closed_at && t.status !== 'failed').length;
 
   const activePos  = botPos.find(p => sym(p.symbol) === coin);
   const entryPrice = activePos?.entry_price ?? 0;
