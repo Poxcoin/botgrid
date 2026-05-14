@@ -244,13 +244,22 @@ def _ws_thread():
         except Exception:
             pass
 
+    _onchain_backoff = [600]  # list для мутабельності в closure
+
     def on_error(ws, err):
-        # Не логируем err напрямую — websocket-client включает URL (с API key) в текст ошибки
-        print(f"[ONCHAIN] WebSocket ошибка: {type(err).__name__}")
+        err_str = str(err)
+        if "429" in err_str:
+            _onchain_backoff[0] = 3600
+            print("[ONCHAIN] WebSocket 429 capacity exceeded — reconnect in 60 min")
+        else:
+            _onchain_backoff[0] = 600
+            print(f"[ONCHAIN] WebSocket ошибка: {type(err).__name__}")
 
     def on_close(ws, *args):
-        print("[ONCHAIN] WebSocket закрыт — переподключение через 15 сек...")
-        time.sleep(15)
+        backoff = _onchain_backoff[0]
+        _onchain_backoff[0] = 600
+        print(f"[ONCHAIN] WebSocket закрыт — reconnect через {backoff//60} хв")
+        time.sleep(backoff)
         if _running:
             _connect()
 
@@ -262,7 +271,7 @@ def _ws_thread():
             on_error=on_error,
             on_close=on_close,
         )
-        ws.run_forever(ping_interval=30, ping_timeout=10)
+        ws.run_forever(ping_interval=120, ping_timeout=15)
 
     _connect()
 

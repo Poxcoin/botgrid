@@ -147,12 +147,22 @@ def _on_message(ws, message):
         print(f"[SMART] parse error: {e}")
 
 
+_smart_backoff = 600  # змінюється при 429
+
+
 def _on_error(ws, error):
-    print(f"[SMART] WebSocket error: {error}")
+    global _smart_backoff
+    error_str = str(error)
+    if "429" in error_str:
+        _smart_backoff = 3600  # 429 = місячний ліміт — чекаємо 1 год
+        print(f"[SMART] WebSocket error: 429 capacity exceeded — reconnect in 60 min")
+    else:
+        _smart_backoff = 600
+        print(f"[SMART] WebSocket error: {type(error).__name__}")
 
 
 def _on_close(ws, *args):
-    print("[SMART] WebSocket closed — reconnect in 30s")
+    print(f"[SMART] WebSocket closed — reconnect in {_smart_backoff//60} хв")
 
 
 def _on_open(ws):
@@ -170,6 +180,7 @@ def _on_open(ws):
 
 
 def _ws_loop():
+    global _smart_backoff
     while True:
         try:
             url = f"wss://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
@@ -180,10 +191,13 @@ def _ws_loop():
                 on_error=_on_error,
                 on_close=_on_close,
             )
-            ws.run_forever(ping_interval=60, ping_timeout=10)
+            ws.run_forever(ping_interval=120, ping_timeout=15)
         except Exception as e:
-            print(f"[SMART] connection error: {e}")
-        time.sleep(30)
+            print(f"[SMART] connection error: {type(e).__name__}")
+        backoff = _smart_backoff
+        _smart_backoff = 600  # reset для наступної спроби
+        print(f"[SMART] sleeping {backoff//60} хв перед reconnect...")
+        time.sleep(backoff)
 
 
 def start_smart_wallet_tracker() -> threading.Thread:
