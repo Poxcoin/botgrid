@@ -25,3 +25,4 @@ cryptography==46.0.5       # Fernet encryption for API keys
 bcrypt==5.0.0              # bcrypt backend
 pyotp==2.9.0               # TOTP 2FA
 qrcode==8.2                # QR code generation
+yfinance==0.2.55           # DXY + HSI market data for metals strategy (no auth)
