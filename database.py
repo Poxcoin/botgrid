@@ -1,4 +1,7 @@
+import glob
 import os
+import shutil
+import sqlite3
 from datetime import datetime, timezone
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float,
@@ -6,16 +9,80 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
-_DB_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{_DB_DIR}/saas_database.sqlite"
+_DB_DIR  = os.path.dirname(os.path.abspath(__file__))
+_DB_PATH = os.path.join(_DB_DIR, "saas_database.sqlite")
+DATABASE_URL = f"sqlite:///{_DB_PATH}"
+
+
+def _find_latest_backup() -> str | None:
+    patterns = [
+        os.path.join(_DB_DIR, "backups", "hourly",  "*.sqlite"),
+        os.path.join(_DB_DIR, "backups", "daily",   "*.sqlite"),
+        os.path.join(_DB_DIR, "backups", "weekly",  "*.sqlite"),
+        os.path.join(_DB_DIR, "backups", "monthly", "*.sqlite"),
+    ]
+    candidates = []
+    for pat in patterns:
+        candidates.extend(glob.glob(pat))
+    return max(candidates, key=os.path.getmtime) if candidates else None
+
+
+def _ensure_db_healthy() -> None:
+    """Check DB integrity on startup; auto-restore from backup if corrupted."""
+    if not os.path.exists(_DB_PATH):
+        return  # fresh install — SQLAlchemy will create it
+
+    try:
+        conn = sqlite3.connect(_DB_PATH, timeout=5)
+        result = conn.execute("PRAGMA integrity_check").fetchone()
+        conn.close()
+        if result and result[0] == "ok":
+            return
+        print(f"[DB] ⚠️  integrity_check: {result[0]} — відновлення з бекапу...")
+    except sqlite3.DatabaseError as e:
+        print(f"[DB] ⚠️  DB corrupted ({e}) — відновлення з бекапу...")
+
+    for ext in (".wal", ".shm"):
+        p = _DB_PATH + ext
+        if os.path.exists(p):
+            os.remove(p)
+
+    backup = _find_latest_backup()
+    if not backup:
+        print("[DB] ❌ Бекапів не знайдено — стартуємо з порожньою DB")
+        os.remove(_DB_PATH)
+        return
+
+    print(f"[DB] 🔄 Відновлення з {os.path.basename(backup)} ...")
+    try:
+        src = sqlite3.connect(backup, timeout=10)
+        dst = sqlite3.connect(_DB_PATH, timeout=10)
+        src.backup(dst)
+        dst.close()
+        src.close()
+        print("[DB] ✅ DB відновлено успішно")
+    except Exception as e:
+        print(f"[DB] ❌ Відновлення не вдалося: {e} — видаляємо, SQLAlchemy відтворить схему")
+        try:
+            os.remove(_DB_PATH)
+        except Exception:
+            pass
+
+
+_ensure_db_healthy()
+
 
 def _enable_wal(dbapi_conn, _connection_record):
     dbapi_conn.execute("PRAGMA journal_mode=WAL")
     dbapi_conn.execute("PRAGMA synchronous=NORMAL")
 
+
 from sqlalchemy import event as _sa_event
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False, "timeout": 30},
+)
 _sa_event.listen(engine, "connect", _enable_wal)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
