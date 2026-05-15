@@ -17,12 +17,13 @@ tg_news_event: threading.Event = threading.Event()
 # Добавляй/убирай по своему усмотрению — только username без @
 MONITOR_CHANNELS = [
     # --- Crypto aggregator (exec_avg_score=+12.0) ---
-    "crypto",                # Великий крипто агрегатор — кращий залишений канал
+    "crypto",                # Великий крипто агрегатор
+    # --- Повернено (найвищий exec_avg_score серед усіх) ---
+    "cointelegraph",         # exec_avg_score=+7.4 | 14%WR | -$19.87 total (старі новини — але з порогом 11.0 краще)
     # Видалено (підтверджені збитки / негативний exec_avg_score):
     # "WatcherGuru"          — exec_avg_score=-3.7 (3 exec, SHORT сигнали програють)
     # "lookonchain"          — exec_avg_score=-1.5 (8 exec, on-chain але AI читає навпаки)
     # "whale_alert_io"       — exec_avg_score=-3.0, 0%WR -$9.18
-    # "cointelegraph"        — exec_avg_score=+7.4 але 14%WR -$19.87 (старі новини)
     # "wublockchainenglish"  — ZETA -$35.68, total -$54.88
 ]
 
