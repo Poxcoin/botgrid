@@ -234,7 +234,7 @@ export default function UserDashboard() {
         </div>
 
         {/* content */}
-        <div style={{ flex: 1, overflow: isBot ? 'hidden' : 'auto', padding: '28px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '28px', display: 'flex', flexDirection: 'column' }}>
           <Page tab={tab} />
         </div>
       </div>
