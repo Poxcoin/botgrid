@@ -315,7 +315,7 @@ function CoinTicker({ coins, selected, onSelect }) {
   if (!coins.length) return null;
 
   return (
-    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', flexShrink: 0, maxHeight: 110, overflowY: 'auto', scrollbarWidth: 'none' }}>
       {coins.map(c => {
         const t = tickers[c];
         const on = c === selected;
@@ -542,7 +542,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange })
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 340px)', minHeight: 460, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', minHeight: '100vh' } : {}) }}>
 
       {/* Top toolbar: chart type + indicators + TF */}
       <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
@@ -692,7 +692,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
   );
 
   return (
-    <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden' }}>
+    <div style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden', flexShrink: 0, maxHeight: '32vh', display: 'flex', flexDirection: 'column' }}>
       {/* tabs */}
       <div style={{ display: 'flex', height: 40, borderBottom: '1px solid var(--border-subtle)', overflowX: 'auto', scrollbarWidth: 'none' }}>
         {TABS.map(t => {
@@ -1038,10 +1038,10 @@ export default function OverviewTab({ botId = 'signal' }) {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isBW ? { filter: 'grayscale(1)' } : {}) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minHeight: 0, overflow: 'hidden', ...(isBW ? { filter: 'grayscale(1)' } : {}) }}>
 
       {/* ── PERIOD FILTER ─────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
         <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Period</span>
         {[['1d','Today'],['7d','7D'],['30d','30D'],['all','All']].map(([v,label]) => {
           const on = period === v;
@@ -1060,7 +1060,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       </div>
 
       {/* ── STATS ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
         {[
           { label: 'Balance',    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `equity $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
           { label: 'Unrealized', value: botPos.length > 0 ? `${sign(botUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open position${botPos.length !== 1 ? 's' : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
@@ -1076,7 +1076,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       </div>
 
       {/* ── STATUS BAR: live feed indicator + heartbeat ───────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
         {/* WebSocket connection status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
@@ -1108,7 +1108,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} />
 
       {analyzerCoins.length === 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
           <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
           {coins.map(c => {
             const on = coin === c;
