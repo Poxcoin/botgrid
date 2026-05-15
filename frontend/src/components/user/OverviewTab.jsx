@@ -923,13 +923,15 @@ export default function OverviewTab({ botId = 'signal' }) {
       botTrades.filter(t => !t.closed_at && t.status !== 'failed').map(t => sym(t.symbol)).filter(Boolean)
     );
     if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
-    // Fallback: filter by static watchlist (only for bots that continuously hold positions)
-    if (staticCoins.length > 0) {
+    // Static fallback only for bots that hold positions without explicit open-trade records.
+    // grid/fr are always-on — they hold perpetual positions even when all DB trades are closed.
+    // All other bots (cascade, metals, listing, dex, signal): no open trades = no positions.
+    if ((botId === 'grid' || botId === 'fr') && staticCoins.length > 0) {
       const s = new Set(staticCoins);
       return positions.filter(p => s.has(sym(p.symbol)));
     }
     return [];
-  }, [positions, botTrades, staticCoins.join(',')]);
+  }, [positions, botTrades, staticCoins.join(','), botId]);
   const botUnreal = useMemo(() => botPos.reduce((s, p) => s + (p.unrealized_pnl ?? 0), 0), [botPos]);
   const coins = useMemo(() => {
     // grid always shows all configured pairs regardless of trade history
@@ -937,11 +939,14 @@ export default function OverviewTab({ botId = 'signal' }) {
     if (botCoins.length > 0) return botCoins;
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
   }, [botCoins, staticCoins.join(','), botId]);
-  // grid has a fixed coin set — always show all configured coins regardless of trade history.
-  // Other bots: prioritise actually-traded coins; fall back to static watchlist.
+  // grid: always show full configured set.
+  // Bots with actual trades: show traded coins.
+  // Bots with no trades: show static watchlist (market monitoring only — no PnL in CoinTicker).
+  // listing/dex have empty staticCoins so they return [] naturally.
   const analyzerCoins = useMemo(() => {
     if (botId === 'grid') return [...new Set([...staticCoins, ...botCoins])];
-    return botCoins.length > 0 ? botCoins : staticCoins;
+    if (botCoins.length > 0) return botCoins;
+    return staticCoins;
   }, [botCoins, staticCoins.join(','), botId]);
 
   // reset auto-select flag when user switches bot tab
@@ -1058,9 +1063,9 @@ export default function OverviewTab({ botId = 'signal' }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)' }}>
         {[
           { label: 'Balance',    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `equity $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
-          { label: 'Unrealized', value: `${sign(botUnreal)} USDT`, sub: botPos.length ? `${botPos.length} open position${botPos.length !== 1 ? 's' : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
-          { label: 'Realized',   value: `${sign(stats.total)} USDT`, sub: `${stats.n} closed trades`, good: stats.n > 0 ? pos(stats.total) : null },
-          { label: 'Win Rate',   value: `${stats.wr}%`, sub: `${stats.wins}W / ${stats.n - stats.wins}L`, good: stats.n > 0 ? stats.wr >= 50 : null },
+          { label: 'Unrealized', value: botPos.length > 0 ? `${sign(botUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open position${botPos.length !== 1 ? 's' : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
+          { label: 'Realized',   value: stats.n > 0 ? `${sign(stats.total)} USDT` : '—', sub: stats.n > 0 ? `${stats.n} closed trades` : 'no trades yet', good: stats.n > 0 ? pos(stats.total) : null },
+          { label: 'Win Rate',   value: stats.n > 0 ? `${stats.wr}%` : '—', sub: stats.n > 0 ? `${stats.wins}W / ${stats.n - stats.wins}L` : '—', good: stats.n > 0 ? stats.wr >= 50 : null },
         ].map((s, i) => (
           <div key={s.label} style={{ padding: '20px 20px', borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
             <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{s.label}</div>
