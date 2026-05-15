@@ -74,12 +74,12 @@ def run_metals_engine() -> None:
                     print(f"[METALS] ⏳ Cooldown {name}: ще {remaining} хв")
                     continue
 
-                if not daily_guard.can_trade():
+                if not daily_guard.check(start_bal):
                     print(f"[METALS] 🛑 Daily limit — skip {name}")
                     continue
 
                 _cooldowns[name] = now
-                change = sig["components"]["change_5m_pct"]
+                change = sig["components"].get("change_5m_pct") or sig["components"].get("range_size_pct", 0.0)
 
                 print(f"\n[METALS] {'='*40}")
                 print(f"🥇 {sig['action']} {name} | {change:+.2f}% за 5хв | "

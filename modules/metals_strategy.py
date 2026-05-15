@@ -121,6 +121,7 @@ def _get_dxy_change() -> float:
     try:
         df = yf.download("^DXY", period="1d", interval="5m", progress=False, auto_adjust=True)
         if df is None or len(df) < 8:
+            cache["ts"] = time.time()
             return 0.0
         closes = df["Close"].values.flatten()
         change = (closes[-1] - closes[-7]) / closes[-7] * 100
@@ -128,6 +129,7 @@ def _get_dxy_change() -> float:
         cache["change"] = round(float(change), 3)
         return cache["change"]
     except Exception:
+        cache["ts"] = time.time()  # не стукаємо API при помилці
         return 0.0
 
 
@@ -141,6 +143,7 @@ def _get_hsi_change() -> float:
     try:
         df = yf.download("^HSI", period="5d", interval="1d", progress=False, auto_adjust=True)
         if df is None or len(df) < 2:
+            cache["ts"] = time.time()
             return 0.0
         closes = df["Close"].values.flatten()
         change = (closes[-1] - closes[-2]) / closes[-2] * 100
@@ -148,6 +151,7 @@ def _get_hsi_change() -> float:
         cache["change"] = round(float(change), 3)
         return cache["change"]
     except Exception:
+        cache["ts"] = time.time()  # не стукаємо API при помилці
         return 0.0
 
 
