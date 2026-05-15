@@ -51,21 +51,21 @@ def _save_cooldown(coin: str, ts: float) -> None:
 
 
 # ── Таймінги ──────────────────────────────────────────────────────────────────
-POLL_INTERVAL    = 300    # 5 хвилин — треба надійно ловити 60-хв вікно
+POLL_INTERVAL    = 60     # 1 хвилина — треба надійно ловити 20-хв вікно
 COIN_SLEEP       = 1.5    # пауза між монетами
 COIN_COOLDOWN_SEC = 4 * 3600  # 4h — не торгуємо ту саму монету в одному funding-циклі
-ENTRY_WINDOW_MIN  = 60    # входимо тільки якщо до наступного funding ≤ 60 хв
+ENTRY_WINDOW_MIN  = 20    # входимо тільки якщо до наступного funding ≤ 20 хв
 
 # ── FR пороги ─────────────────────────────────────────────────────────────────
-FR_MIN  = 0.18   # підвищено 0.10→0.18: при 0.10% комісія ~0.10% з'їдає весь profit
-FR_HIGH = 0.25   # підвищено 0.20→0.25: size_multiplier 1.5 тільки для справді великих FR
+FR_MIN  = 0.18   # мінімум: комісія ~0.10% → net ≥ 0.08% за угоду
+FR_HIGH = 0.30   # size_multiplier 1.5 тільки для справді великих FR
 
-# ── Допоміжні фільтри ──────────────────────────────────────────────────────────
-RSI_LONG_MAX  = 60   # LONG: не входимо коли RSI > 60 (squeeze вже стався)
-RSI_SHORT_MIN = 45   # SHORT: не входимо коли RSI < 45 (ринок вже падає)
+# ── Допоміжні фільтри (спрощені — чиста колекція не потребує напрямкових фільтрів) ──
+RSI_LONG_MAX  = 75   # блокуємо тільки явний перегрів
+RSI_SHORT_MIN = 25   # блокуємо тільки явний перепродаж
 
-BTC_LONG_BLOCK_TREND  = -1.5   # BTC < -1.5% за 24h → LONG по altcoins заблоковано
-BTC_SHORT_BLOCK_TREND = +1.5   # BTC > +1.5% за 24h → SHORT по altcoins заблоковано
+BTC_LONG_BLOCK_TREND  = -3.0   # блокуємо тільки при сильному обвалі BTC
+BTC_SHORT_BLOCK_TREND = +3.0   # блокуємо тільки при сильному ралі BTC
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
 # Критерії: >$50M добового обсягу на Bybit, є на Binance perps, EMA200 доступна
@@ -79,8 +79,11 @@ WATCHLIST = [
 ]
 
 # ── TP/SL для funding-collection ──────────────────────────────────────────────
-FR_TP = 3.0   # TP 3% (tight — забираємо funding + невеликий price move)
-FR_SL = 2.0   # SL 2% (R:R = 1.5:1, break-even WR ≈ 40%)
+# Варіант А — чиста колекція: тримаємо тільки до funding payment (~20хв), потім виходимо.
+# TP/SL є страховкою на випадок різкого руху поки чекаємо funding.
+FR_TP = 0.4   # TP 0.4% — бонус якщо ціна одразу пішла в наш бік
+FR_SL = 0.8   # SL 0.8% — захист від різкого руху за 20хв; 0.8% > FR_MIN = свідомий ліміт
+# close_after_min додається динамічно до кожного сигналу (mins_to_funding + 3)
 
 # ── BTC trend cache ────────────────────────────────────────────────────────────
 _btc_trend_cache: dict = {"ts": 0.0, "trend": 0.0}
@@ -209,6 +212,7 @@ def _calc_signal(coin: str) -> dict | None:
         "size_multiplier":  size_mult,
         "tp_pct":           FR_TP,
         "sl_pct":           FR_SL,
+        "close_after_min":  mins_to_funding + 3,  # закрити через 3 хв після funding payment
         "source":           "FR Collection",
         "news_title":       f"[FR] {coin} {action}: {reason} — {qualifier}",
         "bot_tag":          "💰",

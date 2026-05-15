@@ -258,6 +258,7 @@ def execute_trade(
     signal_id: int = None,
     bot_source: str = "news",
     use_maker: bool = False,
+    close_after_min: int | None = None,
 ) -> None:
     """Execute a market order on Bybit based on the provided signal.
 
@@ -597,7 +598,8 @@ def execute_trade(
         # -------------------------------------------------
         # 4.5️⃣ Track position for position monitor
         # -------------------------------------------------
-        position_monitor.track_open(symbol=symbol, action=action, entry_price=fill_price)
+        position_monitor.track_open(symbol=symbol, action=action, entry_price=fill_price,
+                                    close_after_min=close_after_min)
 
         # Сохраняем рыночный контекст для post-trade анализатора
         try:

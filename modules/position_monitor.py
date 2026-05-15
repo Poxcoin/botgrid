@@ -57,14 +57,18 @@ def _save_tracked(data: dict) -> None:
         print(f"[monitor] Ошибка записи трекера: {e}")
 
 
-def track_open(symbol: str, action: str, entry_price: float) -> None:
+def track_open(symbol: str, action: str, entry_price: float,
+               close_after_min: int | None = None) -> None:
     """Записать позицию при открытии. Вызывается из trader.py."""
     data = _load_tracked()
-    data[symbol] = {
+    entry: dict = {
         "opened_at": datetime.now(timezone.utc).isoformat(),
         "action":    action,
         "entry":     entry_price,
     }
+    if close_after_min is not None:
+        entry["close_after_min"] = close_after_min
+    data[symbol] = entry
     _save_tracked(data)
 
 
@@ -78,6 +82,14 @@ def untrack(symbol: str) -> None:
 def get_tracked_count() -> int:
     """Количество позиций в трекере (для лимита параллельных позиций)."""
     return len(_load_tracked())
+
+
+def _is_expired(info: dict, now: datetime) -> bool:
+    opened = datetime.fromisoformat(info["opened_at"])
+    cam = info.get("close_after_min")
+    if cam is not None:
+        return (now - opened) > timedelta(minutes=cam)
+    return (now - opened) > timedelta(hours=MAX_AGE_HOURS)
 
 
 # ─── Фоновый поток ───────────────────────────────────────────────────────────
@@ -100,7 +112,7 @@ def _monitor_loop(
             now   = datetime.now(timezone.utc)
             stale = {
                 sym: info for sym, info in tracked.items()
-                if (now - datetime.fromisoformat(info["opened_at"])) > timedelta(hours=MAX_AGE_HOURS)
+                if _is_expired(info, now)
             }
 
             # ── Hard loss cap: close any position whose unrealized loss > MAX_TRADE_LOSS_USDT ──

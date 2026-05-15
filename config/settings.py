@@ -63,6 +63,10 @@ MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм що�
 # Вмикати тільки після накопичення 100+ угод з WR > 35%
 SIGNAL_BOT_TRADING = os.getenv("SIGNAL_BOT_TRADING", "False").lower() == "true"
 
+# FR Trading — незалежний від SIGNAL_BOT_TRADING
+# Варіант А: чиста funding collection (вхід за 20хв, вихід через 3хв після funding)
+FR_TRADING = os.getenv("FR_TRADING", "False").lower() == "true"
+
 # ─── Cascade bot — незалежне управління ──────────────────────────────────────
 # CASCADE_TRADING: вмикає реальне виконання угод каскадним ботом.
 # Незалежний від SIGNAL_BOT_TRADING — можна вмикати/вимикати окремо.

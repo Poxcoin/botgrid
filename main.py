@@ -32,7 +32,7 @@ from config.settings import (
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
     LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
     LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE,
-    SIGNAL_BOT_TRADING, TELEGRAM_CHANNEL_ID,
+    SIGNAL_BOT_TRADING, FR_TRADING, TELEGRAM_CHANNEL_ID,
 )
 import ccxt
 
@@ -923,15 +923,17 @@ def run_signal_engine():
                 fr_tp     = fr_sig.get("tp_pct", ALT_TP)
                 fr_sl     = fr_sig.get("sl_pct", ALT_SL)
                 signal_id = save_signal(fr_sig, executed=False)
-                mins_left = fr_sig.get("components", {}).get("mins_to_funding", "?")
+                mins_left      = fr_sig.get("components", {}).get("mins_to_funding", "?")
+                close_after    = fr_sig.get("close_after_min")
                 print(f"\n[FR] 💰 {coin} {fr_sig['action']} | "
                       f"FR={fr_sig['components']['funding_rate']:+.4f}% | "
-                      f"TP={fr_tp}% SL={fr_sl}% | funding через {mins_left}хв")
-                if SIGNAL_BOT_TRADING:
+                      f"TP={fr_tp}% SL={fr_sl}% | funding через {mins_left}хв | "
+                      f"вихід через {close_after}хв")
+                if FR_TRADING:
                     execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
                                   tp_pct=fr_tp, sl_pct=fr_sl, size_pct=fr_size,
                                   signal_id=signal_id, bot_source="fr",
-                                  use_maker=True)
+                                  use_maker=True, close_after_min=close_after)
                 _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, fr_tp, fr_sl, fr_size)
                 _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────
