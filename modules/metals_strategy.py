@@ -40,15 +40,28 @@ WATCHLIST = [
 ]
 
 _MACRO_KW = frozenset({
+    # US macro / Fed
     "cpi", "ppi", "inflation", "federal reserve", "fed rate", "fomc",
     "rate cut", "rate hike", "interest rate", "powell", "yellen", "warsh",
+    "debt ceiling", "treasury yield", "fed chair", "retail sales", "jobs report", "nonfarm",
+    # Geopolitics / crisis
     "nuclear", "invasion", "war declared", "military strike", "world war",
     "recession", "banking crisis", "financial crisis", "bank run",
+    "sanctions", "trade war", "trade deal", "trade agreement", "geopolit",
+    # Gold / safe haven
     "gold rally", "gold surge", "gold hits", "gold record",
-    "silver rally", "dollar weakens", "safe haven", "geopolit",
-    "tariff", "tariff pause", "sanctions", "trade war", "trade deal",
-    "trade agreement", "us-china", "debt ceiling", "treasury yield",
-    "fed chair", "retail sales", "jobs report", "nonfarm",
+    "silver rally", "dollar weakens", "safe haven",
+    # US-China trade
+    "tariff", "tariff pause", "us-china",
+    # Chinese market (PBoC policy + demand = biggest gold driver after USD)
+    "pboc", "people's bank of china", "china rate", "china pmi",
+    "shanghai composite", "csi 300", "hang seng", "shenzhen",
+    "yuan devaluation", "yuan weakens", "renminbi", "rmb",
+    "chinese demand", "china gold", "chinese gold",
+    "china gdp", "china growth", "china slowdown",
+    # Asian session / broader Asia
+    "nikkei", "asia market", "asia open", "asian stocks",
+    "bank of japan", "boj", "japan inflation",
 })
 
 _macro_ts: float = 0.0  # GIL-safe single float
