@@ -483,7 +483,7 @@ def execute_trade(
             "takeProfit": str(tp_price),
             "stopLoss": str(sl_price),
             "tpTriggerBy": "LastPrice",
-            "slTriggerBy": "LastPrice",
+            "slTriggerBy": "MarkPrice",   # MarkPrice стабільніший — менше слiпажу при різких рухах
         }
         if use_partial_tp:
             _tp_params["tpslMode"] = "Partial"
@@ -509,7 +509,7 @@ def execute_trade(
                     "takeProfit": str(tp_price),
                     "stopLoss": str(sl_price),
                     "tpTriggerBy": "LastPrice",
-                    "slTriggerBy": "LastPrice",
+                    "slTriggerBy": "MarkPrice",
                 }
                 try:
                     exchange.private_post_v5_position_trading_stop(_plain_params)
@@ -525,7 +525,7 @@ def execute_trade(
                                 "positionIdx": 0,
                                 "takeProfit": "0",
                                 "stopLoss": str(sl_price),
-                                "slTriggerBy": "LastPrice",
+                                "slTriggerBy": "MarkPrice",
                             })
                             print(f"⚠️ TP скіпнуто (30208 — ціна поза межею), SL={sl_price} встановлено")
                             _tp_sl_set = True
