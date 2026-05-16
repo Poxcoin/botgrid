@@ -1565,6 +1565,23 @@ def _dedup_bybit_dupes(rows):
     return result
 
 
+def _filter_ghost_closes(rows):
+    """
+    Remove ghost-close records from stats: trades where position_closer gave up
+    waiting for Bybit PnL and closed with pnl=0 / exit=entry.
+    Identified by: pnl_usdt=0 AND exit_price ≈ entry_price (within 0.01%).
+    """
+    result = []
+    for t in rows:
+        pnl = float(t.pnl_usdt or 0)
+        ep  = float(t.exit_price or 0)
+        enp = float(t.entry_price or 0)
+        if pnl == 0 and ep > 0 and enp > 0 and abs(ep - enp) / enp < 0.0001:
+            continue
+        result.append(t)
+    return result
+
+
 def _fix_bybit_side(side: str | None, source: str | None) -> str | None:
     """
     bybit_sync stores the CLOSING order side (e.g., 'Sell' to close a Long
@@ -1609,7 +1626,7 @@ async def get_user_closed_pnl(
     q = db.query(UserTrade).filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
     if cutoff is not None:
         q = q.filter(UserTrade.closed_at >= cutoff)
-    rows = _dedup_bybit_dupes(q.order_by(UserTrade.closed_at.desc()).all())
+    rows = _filter_ghost_closes(_dedup_bybit_dupes(q.order_by(UserTrade.closed_at.desc()).all()))
 
     trades     = []
     total_pnl  = 0.0
@@ -1661,7 +1678,7 @@ async def get_user_analytics(
         .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
         .all()
     )
-    rows = _dedup_bybit_dupes(raw_rows)
+    rows = _filter_ghost_closes(_dedup_bybit_dupes(raw_rows))
     if not rows:
         return _empty()
 

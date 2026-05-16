@@ -178,12 +178,15 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             if existing:
                 print(f"[DISPATCHER] SKIP user={uid} {symbol} — вже відкрита позиція (id={existing.id})")
                 return False
+            # Grid trades are managed by grid_bot directly — exclude from signal limit.
+            # Each signal-type bot has a 5-position budget of its own.
             open_count = _db.query(UserTrade).filter(
                 UserTrade.user_id == uid,
                 UserTrade.status == "open",
+                UserTrade.source != "grid",
             ).count()
             if open_count >= 5:
-                print(f"[DISPATCHER] SKIP user={uid} — ліміт {open_count}/5 відкритих позицій")
+                print(f"[DISPATCHER] SKIP user={uid} — ліміт {open_count}/5 сигнальних позицій")
                 return False
         finally:
             _db.close()
