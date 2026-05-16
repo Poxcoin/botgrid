@@ -1,0 +1,19 @@
+[Unit]
+Description=MetaTrader 5 via Wine (Macro Bot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Environment=DISPLAY=:99
+Environment=WINEPREFIX=/root/.wine
+ExecStartPre=/usr/bin/Xvfb :99 -screen 0 1024x768x16 -nolisten tcp &
+ExecStart=/usr/bin/wine "/root/.wine/drive_c/Program Files/MetaTrader 5/terminal64.exe" /portable
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

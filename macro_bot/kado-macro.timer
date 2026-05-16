@@ -1,0 +1,11 @@
+[Unit]
+Description=Start Macro Bot when Forex market opens (Sun 22:00 UTC)
+
+[Timer]
+# Forex відкривається неділя 22:00 UTC
+OnCalendar=Sun *-*-* 22:05:00 UTC
+# Запасний старт при перезавантаженні сервера
+Persistent=true
+
+[Install]
+WantedBy=timers.target

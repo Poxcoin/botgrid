@@ -1,0 +1,19 @@
+[Unit]
+Description=Kado Macro Trading Bot
+After=network-online.target kado-macro-mt5.service
+Wants=network-online.target
+Requires=kado-macro-mt5.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/botgrid/macro_bot
+ExecStart=/opt/botgrid/venv/bin/python3 bot.py
+Restart=on-failure
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+EnvironmentFile=/opt/botgrid/.env
+
+[Install]
+WantedBy=multi-user.target
