@@ -81,6 +81,54 @@ void ProcessOrder(string json)
                   ",\"eurusd_bid\":" + DoubleToString(tick.bid,5) +
                   ",\"eurusd_ask\":" + DoubleToString(tick.ask,5) + "}");
    }
+   else if(action == "calendar")
+   {
+      GetCalendarEvents();
+   }
+}
+
+void GetCalendarEvents()
+{
+   // Fetch upcoming USD high-impact events from MT5 built-in calendar
+   MqlCalendarValue values[];
+   MqlCalendarEvent events[];
+   MqlCalendarCountry countries[];
+
+   datetime from = TimeCurrent();
+   datetime to   = from + 86400; // next 24 hours
+
+   int count = CalendarValueHistory(values, from, to, "USD");
+
+   string result = "[";
+   bool first = true;
+
+   for(int i = 0; i < count; i++)
+   {
+      MqlCalendarEvent ev;
+      if(!CalendarEventById(values[i].event_id, ev)) continue;
+      if(ev.importance != CALENDAR_IMPORTANCE_HIGH) continue;
+
+      // Format time as ISO string
+      string dt = TimeToString(values[i].time, TIME_DATE|TIME_MINUTES);
+      StringReplace(dt, ".", "-");
+
+      // Forecast and actual (may be EMPTY_VALUE)
+      string forecast = (values[i].forecast_value == EMPTY_VALUE) ? "" :
+                        DoubleToString(values[i].forecast_value, 3);
+      string actual   = (values[i].actual_value   == EMPTY_VALUE) ? "" :
+                        DoubleToString(values[i].actual_value,   3);
+
+      if(!first) result += ",";
+      first = false;
+
+      result += "{\"name\":\"" + ev.name + "\"" +
+                ",\"time_utc\":\"" + dt + "\"" +
+                ",\"forecast\":\"" + forecast + "\"" +
+                ",\"actual\":\"" + actual + "\"}";
+   }
+
+   result += "]";
+   WriteResult("{\"status\":\"ok\",\"events\":" + result + "}");
 }
 
 void OpenTrade(string symbol, string direction, double volume, double sl_pips, double tp_pips)

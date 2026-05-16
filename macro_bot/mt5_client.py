@@ -132,6 +132,13 @@ class MT5Client:
             log.error("Close failed: %s", result)
         return ok
 
+    def get_calendar(self) -> list:
+        """Returns today's high-impact USD events from MT5 built-in calendar."""
+        result = self._send({"action": "calendar"})
+        if not result or result.get("status") != "ok":
+            return []
+        return result.get("events", [])
+
     def calculate_volume(
         self,
         balance: float,

@@ -23,8 +23,8 @@ from config import (
     TG_BOT_TOKEN, TG_CHAT_ID,
 )
 from mt5_client import MT5Client
-from data_fetcher import ForexFactoryCalendar, BLSFetcher, FREDFetcher
-from signal_engine import generate_signal, parse_forecast
+from data_fetcher import BLSFetcher, FREDFetcher
+from signal_engine import generate_signal, parse_forecast, EVENT_CONFIG
 from notifier import send_telegram, fmt_signal, fmt_close
 from trade_logger import log_open, log_close, init_db
 
@@ -56,11 +56,9 @@ def parse_event_time(date_str: str, time_str: str) -> Optional[datetime]:
 
 class MacroBot:
     def __init__(self):
-        self.mt5      = MT5Client()
-        self.calendar = ForexFactoryCalendar()
-        self.bls      = BLSFetcher(BLS_API_KEY)
-        self.fred     = FREDFetcher(FRED_API_KEY) if FRED_API_KEY else None
-        # ticket → {event, opened_at, direction, volume}
+        self.mt5  = MT5Client()
+        self.bls  = BLSFetcher(BLS_API_KEY)
+        self.fred = FREDFetcher(FRED_API_KEY) if FRED_API_KEY else None
         self.open_trades: dict[int, dict] = {}
 
     async def notify(self, text: str):
@@ -75,6 +73,7 @@ class MacroBot:
     # ── Data fetching ────────────────────────────────────────────────────────
 
     async def fetch_actual(self, event_name: str) -> Optional[float]:
+        # Try BLS API first (most reliable for CPI/NFP/PPI)
         bls_map = {
             "CPI m/m":                    "cpi",
             "Core CPI m/m":               "cpi",
@@ -88,12 +87,44 @@ class MacroBot:
             if data:
                 return data.get("mom_pct") or data.get("value")
 
-        events = await self.calendar.fetch_today()
+        # Fallback: MT5 built-in calendar (actual value when released)
+        events = await self._mt5_call(self.mt5.get_calendar)
         for ev in events:
-            if ev["name"] == event_name and ev.get("actual"):
+            if ev.get("name") == event_name and ev.get("actual"):
                 return parse_forecast(ev["actual"])
 
         return None
+
+    async def fetch_calendar(self) -> list:
+        """Get today's events from MT5 built-in calendar."""
+        events = await self._mt5_call(self.mt5.get_calendar)
+        result = []
+        for ev in events:
+            name = ev.get("name", "")
+            if name not in EVENT_CONFIG:
+                continue
+            result.append({
+                "name":     name,
+                "time_et":  self._utc_to_et_str(ev.get("time_utc", "")),
+                "forecast": ev.get("forecast", ""),
+                "actual":   ev.get("actual", "") or None,
+            })
+        return result
+
+    def _utc_to_et_str(self, utc_str: str) -> str:
+        """Convert '2026-05-16 08:30' UTC to ET time string like '8:30am'."""
+        if not utc_str:
+            return ""
+        try:
+            naive = datetime.strptime(utc_str, "%Y-%m-%d %H:%M")
+            utc_dt = naive.replace(tzinfo=timezone.utc)
+            et_dt  = utc_dt.astimezone(ET)
+            hour   = et_dt.hour % 12 or 12
+            minute = et_dt.strftime("%M")
+            ampm   = "am" if et_dt.hour < 12 else "pm"
+            return f"{hour}:{minute}{ampm}"
+        except Exception:
+            return ""
 
     # ── Trade management ──────────────────────────────────────────────────────
 
@@ -217,7 +248,7 @@ class MacroBot:
                     processed_today.clear()
                     log.info("Fetching today's economic calendar...")
 
-                raw_events = await self.calendar.fetch_today()
+                raw_events = await self.fetch_calendar()
                 upcoming = []
                 for ev in raw_events:
                     event_key = f"{today_str}:{ev['name']}"
