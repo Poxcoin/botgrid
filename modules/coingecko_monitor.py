@@ -101,7 +101,7 @@ def _trending_loop():
                         f"Market cap rank: #{rank}. "
                         f"Usually precedes increased CEX volume and potential listing."
                     ),
-                    "link":         f"cg://trending/{symbol}",
+                    "link":         f"cg://trending/{symbol}/{int(time.time() // 3600)}",
                     "published":    datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
                     "published_dt": datetime.now(timezone.utc).isoformat(),
                     "source":       "CoinGecko Trending",
