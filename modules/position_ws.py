@@ -119,6 +119,15 @@ def _close_trades(user_id: int, api_key: str, secret: str,
             exit_price, pnl_usdt = _fetch_closed_pnl(
                 api_key, secret, is_testnet, bybit_symbol, opened_ms
             )
+            _notify_data = {
+                "symbol":     trade.symbol,
+                "side":       trade.side,
+                "pnl_usdt":   pnl_usdt,
+                "exit_price": exit_price,
+                "opened_at":  trade.opened_at,
+            }
+            _notify_uid = trade.user_id
+
             if trade.order_id:
                 update_trade_closed(trade.order_id, exit_price, pnl_usdt)
             else:
@@ -133,6 +142,11 @@ def _close_trades(user_id: int, api_key: str, secret: str,
                 f"[WS] user={user_id} closed {bybit_symbol} "
                 f"exit={exit_price} pnl={pnl_usdt:+.2f}"
             )
+            try:
+                from modules.tg_notifier import notify_user_trade
+                notify_user_trade(_notify_uid, "close", _notify_data)
+            except Exception:
+                pass
     except Exception:
         traceback.print_exc()
     finally:

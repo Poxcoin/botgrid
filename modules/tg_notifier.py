@@ -11,6 +11,15 @@ Admin command polling (get_telegram_updates) → admin bot (TG_BOT_TOKEN)
 import requests
 from config.settings import TG_BOT_TOKEN, USERBOT_TOKEN
 
+_SOURCE_LABELS = {
+    "news":        "Signal",
+    "fr":          "Funding Rate",
+    "grid":        "Grid",
+    "liq_cascade": "Cascade",
+    "listing":     "CEX Sniper",
+    "altcoin":     "Altcoin",
+}
+
 
 def send_telegram_message(text, chat_id):
     """Send a message via @KADO_c_BOT to any chat_id."""
@@ -39,6 +48,71 @@ def send_telegram_message(text, chat_id):
         # Не логируем e напрямую — requests может включить URL (с токеном) в строку ошибки
         print(f"❌ Ошибка сети при отправке в TG: {type(e).__name__}")
         return False
+
+
+def notify_user_trade(user_id: int, event: str, trade_data: dict) -> None:
+    """
+    Send a personal trade notification to the user's Telegram chat.
+
+    event: "open" | "close"
+    trade_data keys (open):  symbol, side, leverage, entry_price, source
+    trade_data keys (close): symbol, side, pnl_usdt, exit_price, opened_at
+    """
+    try:
+        from database import SessionLocal, User
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == user_id).first()
+            chat_id = user.tg_chat_id if user else None
+        finally:
+            db.close()
+
+        if not chat_id:
+            return
+
+        symbol      = trade_data.get("symbol", "")
+        coin        = symbol.split("/")[0].replace("USDT", "") or symbol
+        side        = trade_data.get("side", "")
+        side_emoji  = "🟢" if side == "LONG" else "🔴"
+
+        if event == "open":
+            lev    = trade_data.get("leverage", "")
+            price  = trade_data.get("entry_price", 0)
+            source = trade_data.get("source", "")
+            label  = _SOURCE_LABELS.get(source, source.capitalize())
+            text = (
+                f"{side_emoji} <b>{coin} {side} x{lev}</b> відкрито\n"
+                f"@ {price} | {label}"
+            )
+
+        elif event == "close":
+            pnl      = trade_data.get("pnl_usdt", 0) or 0
+            exit_p   = trade_data.get("exit_price", 0)
+            opened   = trade_data.get("opened_at")
+            duration = ""
+            if opened:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                if not opened.tzinfo:
+                    opened = opened.replace(tzinfo=timezone.utc)
+                secs = int((now - opened).total_seconds())
+                if secs >= 3600:
+                    duration = f" | {secs // 3600}г {(secs % 3600) // 60}хв"
+                else:
+                    duration = f" | {secs // 60}хв"
+            pnl_emoji = "✅" if pnl >= 0 else "❌"
+            text = (
+                f"{pnl_emoji} <b>{coin} {side}</b> закрито\n"
+                f"PnL: <b>{pnl:+.2f} USDT</b>{duration}"
+            )
+
+        else:
+            return
+
+        send_telegram_message(text, chat_id)
+
+    except Exception as e:
+        print(f"[NOTIFIER] notify_user_trade error: {type(e).__name__}: {e}")
 
 
 def get_telegram_updates(offset: int = None):

@@ -223,6 +223,15 @@ def _check_user(user: dict) -> int:
                 continue  # too young, retry next poll
             print(f"[CLOSER] ghost user={user_id} {trade.symbol} ({age_sec/3600:.0f}h) → close pnl=0")
 
+        _notify_data = {
+            "symbol":    trade.symbol,
+            "side":      trade.side,
+            "pnl_usdt":  pnl_usdt,
+            "exit_price": exit_price,
+            "opened_at": trade.opened_at,
+        }
+        _notify_uid = trade.user_id
+
         if trade.order_id:
             update_trade_closed(trade.order_id, exit_price, pnl_usdt)
         else:
@@ -231,6 +240,12 @@ def _check_user(user: dict) -> int:
         closed += 1
         print(f"[CLOSER] user={user_id} closed {trade.symbol} "
               f"exit={exit_price} pnl={pnl_usdt:+.2f}")
+
+        try:
+            from modules.tg_notifier import notify_user_trade
+            notify_user_trade(_notify_uid, "close", _notify_data)
+        except Exception:
+            pass
 
     return closed
 

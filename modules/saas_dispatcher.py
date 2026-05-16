@@ -232,6 +232,18 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
                    order.get("id"), fill, qty, "open")
         print(f"[DISPATCHER] ✅ user={uid} {side} {symbol} qty={qty} fill={fill:.4f}")
 
+        try:
+            from modules.tg_notifier import notify_user_trade
+            notify_user_trade(uid, "open", {
+                "symbol":      symbol,
+                "side":        side,
+                "leverage":    leverage,
+                "entry_price": fill,
+                "source":      source,
+            })
+        except Exception:
+            pass
+
         # FR strategy: auto-close after the funding-collection window
         if close_after_min and close_after_min > 0:
             _schedule_fr_close(user, symbol, side, qty, close_after_min)
