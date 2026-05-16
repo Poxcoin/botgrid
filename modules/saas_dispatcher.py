@@ -21,9 +21,31 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=20)
 
 # In-memory per-user-symbol lock: prevents stacking if same symbol dispatched twice
 # before DB write completes. Key: (user_id, symbol)
+import time
 import threading
 _opening_lock = threading.Lock()
 _opening_now: set[tuple] = set()
+
+
+def _schedule_fr_close(user: dict, symbol: str, side: str, qty: float,
+                        delay_min: float) -> None:
+    """Daemon thread: sleeps delay_min then issues a reduce-only market close for a FR position."""
+    def _run():
+        time.sleep(delay_min * 60)
+        try:
+            ex = _build_exchange(user["api_key"], user["secret"], user["is_testnet"])
+            order_side = "sell" if side == "LONG" else "buy"
+            ex.create_order(symbol, "market", order_side, qty, params={
+                "category":    "linear",
+                "positionIdx": 0,
+                "reduceOnly":  True,
+            })
+            print(f"[DISPATCHER] ⏱ FR scheduled close {side} {symbol} qty={qty} "
+                  f"after {delay_min:.0f}min")
+        except Exception as _e:
+            print(f"[DISPATCHER] ⚠️ FR scheduled close error {symbol}: {_e}")
+
+    threading.Thread(target=_run, daemon=True, name=f"fr-close-{symbol}").start()
 
 # Bots available per plan
 PLAN_BOTS = {
@@ -126,14 +148,15 @@ def _log_trade(user_id: int, signal_id: str, source: str, symbol: str,
 
 def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
     """Execute one signal for one user — fully isolated."""
-    uid      = user["user_id"]
-    source   = signal.get("source", "news")
-    symbol   = signal["symbol"]
-    side     = signal["side"]           # LONG | SHORT
-    leverage = signal.get("leverage", 3)
-    size_pct = signal.get("size_pct", 3.0)
-    tp_pct   = signal.get("tp_pct",  10.0)
-    sl_pct   = signal.get("sl_pct",   4.0)
+    uid             = user["user_id"]
+    source          = signal.get("source", "news")
+    symbol          = signal["symbol"]
+    side            = signal["side"]           # LONG | SHORT
+    leverage        = signal.get("leverage", 3)
+    size_pct        = signal.get("size_pct", 3.0)
+    tp_pct          = signal.get("tp_pct",  10.0)
+    sl_pct          = signal.get("sl_pct",   4.0)
+    close_after_min = signal.get("close_after_min")
 
     _lock_key = (uid, symbol)
     with _opening_lock:
@@ -205,6 +228,12 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    order.get("id"), fill, qty, "open")
         print(f"[DISPATCHER] ✅ user={uid} {side} {symbol} qty={qty} fill={fill:.4f}")
+
+        # FR strategy: auto-close after the funding-collection window
+        if close_after_min and close_after_min > 0:
+            _schedule_fr_close(user, symbol, side, qty, close_after_min)
+            print(f"[DISPATCHER] ⏱ FR close scheduled in {close_after_min:.0f}min")
+
         return True
 
     except Exception as e:

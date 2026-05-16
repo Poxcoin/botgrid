@@ -76,13 +76,14 @@ def _saas_dispatch(signal: dict, source: str, leverage: int,
     """Fan signal out to all active SaaS subscribers — never raises."""
     try:
         saas_dispatch({
-            "source":   source,
-            "symbol":   f"{signal['coin']}/USDT:USDT",
-            "side":     signal["action"],
-            "leverage": leverage,
-            "size_pct": size_pct,
-            "tp_pct":   tp_pct,
-            "sl_pct":   sl_pct,
+            "source":          source,
+            "symbol":          f"{signal['coin']}/USDT:USDT",
+            "side":            signal["action"],
+            "leverage":        leverage,
+            "size_pct":        size_pct,
+            "tp_pct":          tp_pct,
+            "sl_pct":          sl_pct,
+            "close_after_min": signal.get("close_after_min"),
         })
     except Exception as e:
         print(f"[SAAS] dispatch error: {e}")

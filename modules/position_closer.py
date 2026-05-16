@@ -20,6 +20,10 @@ from utils.crypto import decrypt_field
 POLL_INTERVAL    = 300   # seconds between polls
 MIN_AGE_SECS     = 120   # skip trades younger than 2 min (may not be filled yet)
 GHOST_HOURS      = 8     # close with pnl=0 if still "open" after this many hours
+FR_MAX_HOLD_SEC  = 45 * 60  # FR strategy target is 20 min; force-close at 45 min
+
+# Trade IDs where we already sent a force-close order this process lifetime
+_fr_close_attempted: set[int] = set()
 
 
 def _get_users_with_open_trades() -> list[dict]:
@@ -108,32 +112,64 @@ def _check_user(user: dict) -> int:
         except Exception:
             continue
 
+        # FR strategy: force-close if held past the funding-collection window
+        if (trade.source == "fr"
+                and age_sec > FR_MAX_HOLD_SEC
+                and mkt_id in open_market_ids
+                and trade.id not in _fr_close_attempted):
+            _fr_close_attempted.add(trade.id)
+            pos_qty = None
+            for p in positions:
+                try:
+                    if ex.market_id(p["symbol"]) == mkt_id and float(p.get("contracts") or 0) > 0:
+                        pos_qty = float(p["contracts"])
+                        break
+                except Exception:
+                    pass
+            if pos_qty:
+                try:
+                    order_side = "sell" if trade.side == "LONG" else "buy"
+                    ex.create_order(trade.symbol, "market", order_side, pos_qty, params={
+                        "category":    "linear",
+                        "positionIdx": 0,
+                        "reduceOnly":  True,
+                    })
+                    print(f"[CLOSER] ⏱ FR force-close user={user_id} {trade.symbol} "
+                          f"qty={pos_qty} ({age_sec/60:.0f}min open) — next poll records PnL")
+                except Exception as _fc_err:
+                    print(f"[CLOSER] ⚠️ FR force-close failed {trade.symbol}: {_fc_err}")
+            continue  # PnL will be fetched on next 5-min poll when position shows closed
+
         # Symbol still open on exchange — nothing to do
         if mkt_id in open_market_ids:
             continue
 
         # Fetch closed PnL for this symbol from Bybit (V5 API)
+        # Try twice: first with startTime (fast path), then without (catches delayed records)
         exit_price = float(trade.entry_price or 0)
         pnl_usdt   = 0.0
         opened_ms  = int(opened_ts.timestamp() * 1000)
         pnl_found  = False
-        try:
-            resp  = ex.private_get_v5_position_closed_pnl({
-                "category":  "linear",
-                "symbol":    mkt_id,
-                "startTime": opened_ms,
-                "limit":     20,
-            })
-            items = resp.get("result", {}).get("list", [])
-            for item in items:
-                # 5s tolerance for Bybit timestamp vs local clock skew
-                if float(item.get("createdTime", 0)) >= opened_ms - 5000:
-                    exit_price = float(item.get("avgExitPrice") or exit_price)
-                    pnl_usdt   = float(item.get("closedPnl", 0))
-                    pnl_found  = True
-                    break
-        except Exception:
-            pass
+        for pnl_params in [
+            {"category": "linear", "symbol": mkt_id, "startTime": opened_ms, "limit": 50},
+            {"category": "linear", "symbol": mkt_id, "limit": 50},  # fallback: no time filter
+        ]:
+            if pnl_found:
+                break
+            try:
+                resp  = ex.private_get_v5_position_closed_pnl(pnl_params)
+                items = resp.get("result", {}).get("list", [])
+                for item in items:
+                    # 5s tolerance for Bybit timestamp vs local clock skew
+                    if float(item.get("createdTime", 0)) >= opened_ms - 5000:
+                        ep = float(item.get("avgExitPrice") or 0)
+                        if ep > 0:
+                            exit_price = ep
+                            pnl_usdt   = float(item.get("closedPnl", 0))
+                            pnl_found  = True
+                            break
+            except Exception:
+                pass
 
         # No PnL record found — only close if old enough to be a ghost
         if not pnl_found:
