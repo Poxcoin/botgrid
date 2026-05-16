@@ -116,9 +116,9 @@ MAX_REBUILDS_DAY       = 2      # макс перебудов сітки за д
 MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
 ATR_RANGE_PERIODS      = 10     # тісніші кроки → частіші fills
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
-SHORT_CONFIRM_TICKS    = 9999   # SHORT режим ВИМКНЕНО — тільки LONG (grid накопичує позицію)
+SHORT_CONFIRM_TICKS    = 2      # 2 послідовних SHORT-читань (≈1h) → фліп в SHORT
 LONG_CONFIRM_TICKS     = 3      # short→long: потребує 3 послідовних LONG-читань (≈1.5h)
-SHORT_EMA_MARGIN       = 0.94   # не використовується поки SHORT_CONFIRM_TICKS=9999
+SHORT_EMA_MARGIN       = 0.97   # SHORT якщо ціна < EMA50*0.97 (3% нижче, агресивніше)
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
