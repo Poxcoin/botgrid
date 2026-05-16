@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 import ccxt
 
 from database import SessionLocal, User, UserApiKey, UserTrade
-from modules.saas_dispatcher import _build_exchange, update_trade_closed
+from modules.saas_dispatcher import _build_exchange, update_trade_closed, _get_free_usdt
 from modules.analytics_db import close_user_trade
 from utils.crypto import decrypt_field
 
@@ -21,7 +21,7 @@ POLL_INTERVAL    = 300   # seconds between polls
 MIN_AGE_SECS     = 120   # skip trades younger than 2 min (may not be filled yet)
 GHOST_HOURS      = 8     # close with pnl=0 if still "open" after this many hours
 FR_MAX_HOLD_SEC  = 45 * 60  # FR strategy target is 20 min; force-close at 45 min
-GRID_AGG_SL_USDT = -500.0  # close all grid positions if combined unrealized < this
+GRID_AGG_SL_PCT  = 0.15    # close all grid positions if combined unrealized < -15% of free balance
 
 # Trade IDs where we already sent a force-close order this process lifetime
 _fr_close_attempted: set[int] = set()
@@ -113,9 +113,13 @@ def _check_user(user: dict) -> int:
             except Exception:
                 pass
 
-        if grid_to_close and grid_unrealized < GRID_AGG_SL_USDT:
+        balance       = _get_free_usdt(ex) if grid_to_close else 0.0
+        grid_sl_limit = -(balance * GRID_AGG_SL_PCT) if balance > 0 else -9999.0
+
+        if grid_to_close and grid_unrealized < grid_sl_limit:
             print(f"[CLOSER] 🔴 GRID AGG SL user={user_id}: "
-                  f"unrealized={grid_unrealized:.2f} < {GRID_AGG_SL_USDT}")
+                  f"unrealized={grid_unrealized:.2f} < {grid_sl_limit:.2f} "
+                  f"({GRID_AGG_SL_PCT*100:.0f}% of ${balance:.0f})")
             for sym, qty, side in grid_to_close:
                 try:
                     order_side = "sell" if side == "LONG" else "buy"
@@ -130,7 +134,8 @@ def _check_user(user: dict) -> int:
                 from config.settings import TG_CHAT_ID
                 send_telegram_message(
                     f"🔴 <b>Grid Aggregate SL</b>\n"
-                    f"User {user_id} | loss: {grid_unrealized:.2f} USDT\n"
+                    f"User {user_id} | loss: {grid_unrealized:.2f} USDT "
+                    f"({abs(grid_unrealized/balance*100):.1f}% of ${balance:.0f})\n"
                     f"Closed {len(grid_to_close)} grid position(s)",
                     TG_CHAT_ID,
                 )

@@ -827,8 +827,22 @@ def _run_single(cfg: dict) -> None:
     _set_leverage(exchange, symbol, leverage)
 
     _balance = get_free_usdt(exchange)
+
+    # Minimum balance gate — grid requires headroom to DCA safely
+    if _balance < 100.0:
+        _log(f"[GRID:{symbol}] ⚠️ Баланс ${_balance:.0f} < $100 — grid пропущено")
+        return
+
     size_usd = max(round(_balance * size_pct / 100.0, 2), size_usd_min)
     _log(f"[GRID:{symbol}] size_usd=${size_usd:.2f} ({size_pct}% від ${_balance:.2f})")
+
+    # Cap max_positions so total margin per symbol ≤ 8% of balance.
+    # Prevents over-leveraging small accounts (e.g. $500 → max 2 entries not 4).
+    _max_pos_budget = max(1, int(_balance * 0.08 / size_usd)) if size_usd > 0 else max_pos
+    if _max_pos_budget < max_pos:
+        _log(f"[GRID:{symbol}] ⚠️ max_pos {max_pos}→{_max_pos_budget} "
+             f"(${_balance:.0f} * 8% / ${size_usd:.0f})")
+        max_pos = _max_pos_budget
 
     # Визначаємо поточний тренд
     direction = _detect_trend(exchange, symbol)
