@@ -471,9 +471,9 @@ def generate_signal(news_item: dict) -> dict | None:
     if coin_upper in _NEWS_BLOCKED:
         return None
     if is_smart_wallet:
-        min_score = 10.0  # smart money для алтів: підняли з 8.0 (занадто багато шумних угод)
+        min_score = 8.5   # demo mode: знижено з 10.0 для більшої активності
     else:
-        min_score = 13.0  # алти: підняли з 11.0; дані: score 11-12.9 давали <30% WR
+        min_score = 11.0  # demo mode: знижено з 13.0 для більшої активності
 
     if total_score >= min_score and confidence >= 60:
         action = "LONG"
