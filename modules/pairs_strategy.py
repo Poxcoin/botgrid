@@ -214,13 +214,20 @@ def _fetch_leg_pnl(symbol: str) -> float:
 
 def _calc_leg_qty(free_usdt: float, price: float) -> float:
     """Calculate position size in base currency for one leg."""
+    import math
     usdt_per_leg = free_usdt * SIZE_PCT / 100.0
     notional = usdt_per_leg * LEVERAGE
     qty = notional / price
     market = _exchange.market(BTC_SYMBOL if price > 1000 else ETH_SYMBOL)
     min_qty = float((market.get("limits") or {}).get("amount", {}).get("min") or 0.001)
     precision = market.get("precision", {}).get("amount", 3)
-    qty = round(qty, int(precision) if isinstance(precision, (int, float)) else 3)
+    # Bybit returns precision as a step size float (e.g. 0.01), not decimal places.
+    # int(0.01) == 0 which would round qty to 0. Use step-floor instead.
+    if isinstance(precision, float) and 0 < precision < 1:
+        qty = math.floor(qty / precision) * precision
+        qty = round(qty, 8)
+    else:
+        qty = round(qty, int(precision) if isinstance(precision, (int, float)) else 3)
     return max(qty, min_qty)
 
 
