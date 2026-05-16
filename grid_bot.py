@@ -181,18 +181,51 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
 
 
 def _detect_trend(exchange, symbol: str) -> str:
-    """Повертає 'long' або 'short' на основі EMA50 на 4h свічках.
+    """Multi-factor trend detection on 4h candles.
 
-    long  = ціна > EMA50 (висхідний або sideways тренд)
-    short = ціна < EMA50 (низхідний тренд)
+    Scoring system — кожен індикатор голосує:
+      price < EMA50            → bearish +2  (ціна нижче середньотермінового тренду)
+      EMA50 < EMA200           → bearish +2  (macro downtrend підтверджено)
+      EMA20 < EMA50            → bearish +1  (короткостроковий momentum вниз)
+      price > EMA50            → bullish +2
+      EMA50 > EMA200           → bullish +1
+      EMA20 > EMA50            → bullish +1
+    SHORT якщо bearish > bullish, LONG якщо bullish >= bearish.
     """
     try:
-        ohlcv  = exchange.fetch_ohlcv(symbol, "4h", limit=60)
+        ohlcv  = exchange.fetch_ohlcv(symbol, "4h", limit=210)
         closes = [c[4] for c in ohlcv]
-        ema50  = _calc_ema(closes, 50)
         price  = closes[-1]
-        direction = "long" if price >= ema50 * SHORT_EMA_MARGIN else "short"
-        _log(f"[GRID:{symbol}] Тренд: ціна=${price:.4f} EMA50=${ema50:.4f} threshold=${ema50 * SHORT_EMA_MARGIN:.4f} → {direction.upper()}")
+        ema20  = _calc_ema(closes, 20)
+        ema50  = _calc_ema(closes, 50)
+        ema200 = _calc_ema(closes, 200) if len(closes) >= 200 else 0.0
+
+        bearish = 0
+        bullish = 0
+
+        if price < ema50:
+            bearish += 2
+        else:
+            bullish += 2
+
+        if ema200 > 0:
+            if ema50 < ema200:
+                bearish += 2
+            else:
+                bullish += 1
+
+        if ema20 > 0:
+            if ema20 < ema50:
+                bearish += 1
+            else:
+                bullish += 1
+
+        direction = "short" if bearish > bullish else "long"
+        _log(
+            f"[GRID:{symbol}] Тренд: ${price:.2f} | "
+            f"EMA20={ema20:.2f} EMA50={ema50:.2f} EMA200={ema200:.2f} | "
+            f"score bearish={bearish} bullish={bullish} → {direction.upper()}"
+        )
         return direction
     except Exception as e:
         _log(f"[GRID:{symbol}] Trend detection error: {e} — defaulting to long")
