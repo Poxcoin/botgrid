@@ -21,6 +21,7 @@ POLL_INTERVAL    = 300   # seconds between polls
 MIN_AGE_SECS     = 120   # skip trades younger than 2 min (may not be filled yet)
 GHOST_HOURS      = 8     # close with pnl=0 if still "open" after this many hours
 FR_MAX_HOLD_SEC  = 45 * 60  # FR strategy target is 20 min; force-close at 45 min
+GRID_AGG_SL_USDT = -500.0  # close all grid positions if combined unrealized < this
 
 # Trade IDs where we already sent a force-close order this process lifetime
 _fr_close_attempted: set[int] = set()
@@ -95,6 +96,46 @@ def _check_user(user: dict) -> int:
     except Exception:
         traceback.print_exc()
         return 0
+
+    # Grid aggregate SL — close all grid positions if combined loss exceeds threshold
+    grid_trades = [t for t in trades if t.source == "grid"]
+    if grid_trades:
+        grid_unrealized = 0.0
+        grid_to_close: list[tuple[str, float, str]] = []
+        for t in grid_trades:
+            try:
+                mkt = ex.market_id(t.symbol)
+                for p in positions:
+                    if ex.market_id(p["symbol"]) == mkt and float(p.get("contracts") or 0) > 0:
+                        grid_unrealized += float(p.get("unrealizedPnl") or 0)
+                        grid_to_close.append((t.symbol, float(p["contracts"]), t.side))
+                        break
+            except Exception:
+                pass
+
+        if grid_to_close and grid_unrealized < GRID_AGG_SL_USDT:
+            print(f"[CLOSER] 🔴 GRID AGG SL user={user_id}: "
+                  f"unrealized={grid_unrealized:.2f} < {GRID_AGG_SL_USDT}")
+            for sym, qty, side in grid_to_close:
+                try:
+                    order_side = "sell" if side == "LONG" else "buy"
+                    ex.create_order(sym, "market", order_side, qty, params={
+                        "category": "linear", "positionIdx": 0, "reduceOnly": True,
+                    })
+                    print(f"[CLOSER] 🔴 GRID AGG SL closed {sym} qty={qty}")
+                except Exception as _e:
+                    print(f"[CLOSER] ⚠️ GRID AGG SL close error {sym}: {_e}")
+            try:
+                from modules.tg_notifier import send_telegram_message
+                from config.settings import TG_CHAT_ID
+                send_telegram_message(
+                    f"🔴 <b>Grid Aggregate SL</b>\n"
+                    f"User {user_id} | loss: {grid_unrealized:.2f} USDT\n"
+                    f"Closed {len(grid_to_close)} grid position(s)",
+                    TG_CHAT_ID,
+                )
+            except Exception:
+                pass
 
     now = datetime.now(timezone.utc)
     closed = 0

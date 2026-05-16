@@ -6,7 +6,7 @@ Dedup by (user_id, order_id) — safe to run multiple times.
 """
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import ccxt
 
@@ -129,11 +129,16 @@ def sync_user_trades(user_id: int) -> int:
             qty       = float(it.get("qty") or 0)
 
             # Skip if we already have a trade for this coin+entry_price combo (any source/status)
-            # This prevents bybit_sync from duplicating trades already logged by the dispatcher
+            # Tolerance widened to 2% (was 0.8%) to handle rounding and partial fills.
+            # Time check: Bybit close must be after our trade opened (±10 min slack).
             already_exists = False
             for t in trades_by_coin.get(coin, []):
                 if t.source != "bybit" and t.entry_price and entry_p:
-                    if abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.008:
+                    price_match = abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.02
+                    time_ok = closed_dt is None or t.opened_at is None or closed_dt >= (
+                        t.opened_at.replace(tzinfo=None) - timedelta(minutes=10)
+                    )
+                    if price_match and time_ok:
                         already_exists = True
                         # If the existing trade is still open, close it with real PnL
                         if t.status == "open":
