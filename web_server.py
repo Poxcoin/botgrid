@@ -48,6 +48,12 @@ except Exception as _liq_import_err:
 
 app = FastAPI(title="Kado — AI Signal Intelligence", docs_url=None, redoc_url=None)
 
+try:
+    from macro_bot.macro_api import router as macro_router
+    app.include_router(macro_router, prefix="/api/macro")
+except Exception:
+    pass
+
 
 # {user_id: [(unix_ts, unrealized_pnl), ...]}  — in-process ring buffer
 _pnl_history: dict = {}
