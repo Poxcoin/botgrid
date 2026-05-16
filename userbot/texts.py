@@ -39,8 +39,28 @@ UNKNOWN_COMMAND = (
     "Не знаю такой команды. Используй /menu, чтобы посмотреть что я умею."
 )
 
-MENU_PLACEHOLDER = (
-    "📊 <b>Меню</b>\n\n"
-    "Скоро здесь будут команды для проверки баланса, PnL и позиций.\n"
-    "Пока что бот шлёт уведомления — следи за чатом."
+MENU = (
+    "📊 <b>KADO Bot</b>\n\n"
+    "/positions — відкриті позиції\n"
+    "/pnl — статистика по закритих угодах\n"
+    "/help — ця довідка\n\n"
+    "Сайт: kadoclub.net"
+)
+
+NOT_LINKED = (
+    "❌ Цей чат не прив'язаний до KADO-акаунту.\n"
+    "Відкрий kadoclub.net → Settings → Telegram."
+)
+
+PNL_STATS = (
+    "📈 <b>PnL — всього</b>\n\n"
+    "Угод: {total}  ✅ {wins}W  ❌ {losses}L  WR {win_rate}%\n"
+    "Сумарно: <b>{total_pnl:+.2f} USDT</b>"
+)
+
+POSITIONS_EMPTY = "Відкритих позицій немає."
+
+POSITIONS_LIST = (
+    "📋 <b>Відкриті позиції ({count})</b>\n\n"
+    "{items}"
 )

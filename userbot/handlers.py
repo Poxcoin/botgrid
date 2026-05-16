@@ -8,7 +8,7 @@ from aiogram import Router
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.types import Message
 
-from database import SessionLocal, User, TgLinkToken
+from database import SessionLocal, User, TgLinkToken, UserTrade
 from userbot import texts
 
 router = Router()
@@ -77,11 +77,90 @@ async def cmd_start_plain(message: Message):
         db.close()
 
 
+def _linked_user(chat_id: str):
+    """Return (User, db) or (None, db) for the given chat_id."""
+    db = SessionLocal()
+    user = db.query(User).filter(User.tg_chat_id == chat_id).first()
+    return user, db
+
+
 @router.message(Command("menu"))
-async def cmd_menu(message: Message):
-    await message.answer(texts.MENU_PLACEHOLDER, parse_mode="HTML")
-
-
 @router.message(Command("help"))
-async def cmd_help(message: Message):
-    await message.answer(texts.MENU_PLACEHOLDER, parse_mode="HTML")
+async def cmd_menu(message: Message):
+    await message.answer(texts.MENU, parse_mode="HTML")
+
+
+@router.message(Command("pnl"))
+async def cmd_pnl(message: Message):
+    user, db = _linked_user(str(message.chat.id))
+    try:
+        if not user:
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            return
+
+        trades = (
+            db.query(UserTrade)
+            .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
+            .all()
+        )
+        # Exclude ghost closes (pnl=0, exit≈entry)
+        trades = [
+            t for t in trades
+            if not (
+                float(t.pnl_usdt or 0) == 0
+                and float(t.exit_price or 0) > 0
+                and float(t.entry_price or 0) > 0
+                and abs(float(t.exit_price) - float(t.entry_price)) / float(t.entry_price) < 0.0001
+            )
+        ]
+
+        total     = len(trades)
+        total_pnl = sum(float(t.pnl_usdt or 0) for t in trades)
+        wins      = sum(1 for t in trades if float(t.pnl_usdt or 0) > 0)
+        losses    = total - wins
+        win_rate  = round(wins / total * 100, 1) if total else 0.0
+
+        await message.answer(
+            texts.PNL_STATS.format(
+                total=total, wins=wins, losses=losses,
+                win_rate=win_rate, total_pnl=total_pnl,
+            ),
+            parse_mode="HTML",
+        )
+    finally:
+        db.close()
+
+
+@router.message(Command("positions"))
+async def cmd_positions(message: Message):
+    user, db = _linked_user(str(message.chat.id))
+    try:
+        if not user:
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            return
+
+        trades = (
+            db.query(UserTrade)
+            .filter(UserTrade.user_id == user.id, UserTrade.status == "open")
+            .order_by(UserTrade.opened_at.desc())
+            .all()
+        )
+
+        if not trades:
+            await message.answer(texts.POSITIONS_EMPTY, parse_mode="HTML")
+            return
+
+        lines = []
+        for t in trades:
+            coin = (t.symbol or "").split("/")[0].replace("USDT", "") or "?"
+            icon = "🟢" if t.side == "LONG" else "🔴"
+            lev  = f"x{t.leverage}" if t.leverage else ""
+            ep   = f"@ {float(t.entry_price):.4f}" if t.entry_price else ""
+            lines.append(f"{icon} <b>{coin}</b> {t.side} {lev} {ep}  [{t.source}]")
+
+        await message.answer(
+            texts.POSITIONS_LIST.format(count=len(trades), items="\n".join(lines)),
+            parse_mode="HTML",
+        )
+    finally:
+        db.close()

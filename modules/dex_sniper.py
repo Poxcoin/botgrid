@@ -814,15 +814,25 @@ def run_sniper():
                 try:
                     current_block = w3.eth.block_number
                     if current_block > last_block:
-                        events = factory.events.PairCreated.get_logs(
-                            from_block=last_block,
-                            to_block=current_block,
-                        )
-                        for event in events:
+                        # Chunk into ≤500-block windows to avoid 413 on QuikNode
+                        CHUNK = 500
+                        chunk_start = last_block
+                        while chunk_start <= current_block:
+                            chunk_end = min(chunk_start + CHUNK - 1, current_block)
                             try:
-                                _handle_new_pair(w3, account, event)
-                            except Exception as exc:
-                                logger.error("_handle_new_pair error: %s", exc)
+                                events = factory.events.PairCreated.get_logs(
+                                    from_block=chunk_start,
+                                    to_block=chunk_end,
+                                )
+                                for event in events:
+                                    try:
+                                        _handle_new_pair(w3, account, event)
+                                    except Exception as exc:
+                                        logger.error("_handle_new_pair error: %s", exc)
+                            except Exception as chunk_exc:
+                                logger.warning("get_logs chunk %d-%d error: %s",
+                                               chunk_start, chunk_end, chunk_exc)
+                            chunk_start = chunk_end + 1
                         last_block = current_block + 1
 
                     if len(_active_snipes) > 0:
