@@ -771,9 +771,24 @@ def run_sniper():
         w3 = None
         try:
             logger.info("Підключення до BSC: %s", BSC_WSS_URL)
-            # web3.py v7 — використовуємо HTTP замість WebSocket для синхронного коду
             http_url = BSC_WSS_URL.replace("wss://", "https://").replace("ws://", "http://")
             w3 = Web3(Web3.HTTPProvider(http_url))
+
+            import requests as _rpc_req
+            _rpc_id = 0
+
+            def _rpc_get_logs(from_b: int, to_b: int, address: str, topic: str) -> list:
+                """Raw JSON-RPC eth_getLogs — bypasses web3.py HTTPProvider which
+                adds headers/middleware that QuikNode rejects with 413."""
+                nonlocal _rpc_id
+                _rpc_id += 1
+                resp = _rpc_req.post(http_url, json={
+                    "jsonrpc": "2.0", "method": "eth_getLogs", "id": _rpc_id,
+                    "params": [{"fromBlock": hex(from_b), "toBlock": hex(to_b),
+                                "address": address, "topics": [topic]}],
+                }, timeout=10)
+                resp.raise_for_status()
+                return resp.json().get("result", [])
 
             if not w3.is_connected():
                 raise ConnectionError("WebSocket не підключено")
@@ -826,12 +841,10 @@ def run_sniper():
                         while chunk_start <= current_block:
                             chunk_end = min(chunk_start + CHUNK - 1, current_block)
                             try:
-                                raw_logs = w3.eth.get_logs({
-                                    "fromBlock": chunk_start,
-                                    "toBlock":   chunk_end,
-                                    "address":   Web3.to_checksum_address(PANCAKE_FACTORY_V2),
-                                    "topics":    [PAIR_CREATED_TOPIC],
-                                })
+                                raw_logs = _rpc_get_logs(
+                                    chunk_start, chunk_end,
+                                    PANCAKE_FACTORY_V2, PAIR_CREATED_TOPIC,
+                                )
                                 for raw_log in raw_logs:
                                     try:
                                         event = factory.events.PairCreated().process_log(raw_log)
