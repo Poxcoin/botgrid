@@ -1272,6 +1272,8 @@ def _run_single(cfg: dict) -> None:
                         _log(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
                     elif _ema200_4h > 0 and _ema50_4h < _ema200_4h:
                         _log(f"[GRID:{symbol}] 🚫 EMA50({_ema50_4h:.2f}) < EMA200({_ema200_4h:.2f}) — LONG BUY заблоковано (macro downtrend)")
+                    elif _ema50_4h > 0 and price < _ema50_4h * 0.99:
+                        _log(f"[GRID:{symbol}] 🚫 ціна ${price:.2f} < EMA50*0.99 ${_ema50_4h*0.99:.2f} — LONG BUY заблоковано (нижче EMA50)")
                     elif _ema20_4h > 0 and _ema20_4h < _ema50_4h * (1 - EMA_BLOCK_MIN_GAP):
                         _log(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
