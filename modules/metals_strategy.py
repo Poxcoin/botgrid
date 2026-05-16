@@ -30,11 +30,28 @@ from datetime import datetime, timezone
 
 import ccxt
 
-try:
-    import yfinance as yf
-    _YF_AVAILABLE = True
-except ImportError:
-    _YF_AVAILABLE = False
+import requests as _requests
+
+_YF_AVAILABLE = True  # використовуємо прямий HTTP замість yfinance
+
+
+def _yahoo_closes(ticker: str, interval: str, range_: str) -> list:
+    """Пряме звернення до Yahoo Finance chart API без yfinance."""
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0 Safari/537.36"
+        ),
+        "Accept": "application/json",
+    }
+    params = {"interval": interval, "range": range_}
+    r = _requests.get(url, headers=headers, params=params, timeout=15)
+    r.raise_for_status()
+    result = r.json()["chart"]["result"][0]
+    closes = result["indicators"]["quote"][0]["close"]
+    return [c for c in closes if c is not None]
 
 metals_signal_queue: queue.Queue = queue.Queue()
 
@@ -113,45 +130,39 @@ def on_macro_news(news_item: dict) -> None:
 
 def _get_dxy_change() -> float:
     """DXY 30-хв зміна %. Positive = USD strengthens = bearish for gold."""
-    if not _YF_AVAILABLE:
-        return 0.0
     cache = _dxy_cache
-    if time.time() - cache["ts"] < 300:  # 5-хв кеш
+    if time.time() - cache["ts"] < 1800:  # 30-хв кеш
         return cache["change"]
     try:
-        df = yf.download("^DXY", period="1d", interval="5m", progress=False, auto_adjust=True)
-        if df is None or len(df) < 8:
+        closes = _yahoo_closes("^DXY", "5m", "1d")
+        if len(closes) < 8:
             cache["ts"] = time.time()
             return 0.0
-        closes = df["Close"].values.flatten()
         change = (closes[-1] - closes[-7]) / closes[-7] * 100
         cache["ts"] = time.time()
         cache["change"] = round(float(change), 3)
         return cache["change"]
     except Exception:
-        cache["ts"] = time.time()  # не стукаємо API при помилці
+        cache["ts"] = time.time()
         return 0.0
 
 
 def _get_hsi_change() -> float:
     """Hang Seng денна зміна %. Negative = risk-off = позитив для золота."""
-    if not _YF_AVAILABLE:
-        return 0.0
     cache = _hsi_cache
-    if time.time() - cache["ts"] < 900:  # 15-хв кеш
+    if time.time() - cache["ts"] < 14400:  # 4-год кеш (HSI оновлюється раз на день)
         return cache["change"]
     try:
-        df = yf.download("^HSI", period="5d", interval="1d", progress=False, auto_adjust=True)
-        if df is None or len(df) < 2:
+        closes = _yahoo_closes("^HSI", "1d", "5d")
+        if len(closes) < 2:
             cache["ts"] = time.time()
             return 0.0
-        closes = df["Close"].values.flatten()
         change = (closes[-1] - closes[-2]) / closes[-2] * 100
         cache["ts"] = time.time()
         cache["change"] = round(float(change), 3)
         return cache["change"]
     except Exception:
-        cache["ts"] = time.time()  # не стукаємо API при помилці
+        cache["ts"] = time.time()
         return 0.0
 
 
