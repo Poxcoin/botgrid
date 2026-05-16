@@ -776,13 +776,14 @@ def run_sniper():
 
             import requests as _rpc_req
             _rpc_id = 0
+            # QuikNode free plan limits eth_getLogs to 5-block ranges.
+            # publicnode.com is a free public BSC node with no such limit.
+            _LOGS_RPC_URL = "https://bsc.publicnode.com"
 
             def _rpc_get_logs(from_b: int, to_b: int, address: str, topic: str) -> list:
-                """Raw JSON-RPC eth_getLogs — bypasses web3.py HTTPProvider which
-                adds headers/middleware that QuikNode rejects with 413."""
                 nonlocal _rpc_id
                 _rpc_id += 1
-                resp = _rpc_req.post(http_url, json={
+                resp = _rpc_req.post(_LOGS_RPC_URL, json={
                     "jsonrpc": "2.0", "method": "eth_getLogs", "id": _rpc_id,
                     "params": [{"fromBlock": hex(from_b), "toBlock": hex(to_b),
                                 "address": address, "topics": [topic]}],
