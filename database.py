@@ -35,14 +35,26 @@ def _ensure_db_healthy() -> None:
     try:
         conn = sqlite3.connect(_DB_PATH, timeout=5)
         result = conn.execute("PRAGMA integrity_check").fetchone()
-        conn.close()
         if result and result[0] == "ok":
-            return
-        print(f"[DB] ⚠️  integrity_check: {result[0]} — відновлення з бекапу...")
+            # Main DB healthy — also checkpoint WAL to catch malformed WAL files
+            try:
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                conn.close()
+                return
+            except sqlite3.DatabaseError as wal_err:
+                conn.close()
+                print(f"[DB] ⚠️  WAL malformed ({wal_err}) — clearing WAL files")
+                for ext in ("-wal", "-shm"):
+                    p = _DB_PATH + ext
+                    if os.path.exists(p):
+                        os.remove(p)
+                return
+        conn.close()
+        print(f"[DB] ⚠️  integrity_check: {result[0] if result else '?'} — відновлення з бекапу...")
     except sqlite3.DatabaseError as e:
         print(f"[DB] ⚠️  DB corrupted ({e}) — відновлення з бекапу...")
 
-    for ext in (".wal", ".shm"):
+    for ext in ("-wal", "-shm"):
         p = _DB_PATH + ext
         if os.path.exists(p):
             os.remove(p)
