@@ -203,8 +203,10 @@ def _cleanup_liq(coin: str, now: float) -> None:
 def _on_ws_message(ws, raw: str) -> None:
     global _ws_msg_count, _ws_msg_last_log
     try:
-        msg    = json.loads(raw)
-        order  = msg.get("o", {})
+        msg = json.loads(raw)
+        # /stream endpoint wraps in {"stream":..., "data":{...}}; /ws/STREAM has data at top level
+        data = msg.get("data", msg)
+        order  = data.get("o", {})
         symbol = order.get("s", "")
         if not symbol.endswith("USDT"):
             return
@@ -559,6 +561,12 @@ def _ws_thread() -> None:
         print("[CASCADE/WS] з'єднання закрито — реконект через 10с")
 
     def on_open(ws):
+        # Use /stream endpoint + explicit SUBSCRIBE — /ws/STREAM_NAME URL stopped delivering data
+        ws.send(json.dumps({
+            "method": "SUBSCRIBE",
+            "params": ["!forceOrder@arr"],
+            "id": 1,
+        }))
         def _fmt(c):
             t = LIQ_THRESHOLD[c]
             return f"{c} ${t/1e6:.1f}M" if t >= 1_000_000 else f"{c} ${t/1000:.0f}K"
@@ -568,7 +576,7 @@ def _ws_thread() -> None:
     while _running:
         try:
             ws = websocket.WebSocketApp(
-                "wss://fstream.binance.com/ws/!forceOrder@arr",
+                "wss://fstream.binance.com/stream",
                 on_message=_on_ws_message,
                 on_error=on_error,
                 on_close=on_close,
