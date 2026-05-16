@@ -52,10 +52,10 @@ from config.settings import (
 
 WATCHLIST = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK"]
 
-TP_PCT    = 1.5   # %
+TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
 LEVERAGE  = 5
-SIZE_PCT  = 2.0   # % від вільного балансу
+SIZE_PCT  = 5.0   # % від вільного балансу — було 2.0, demo account aggressive
 
 MAX_POSITIONS      = 2        # 2 позиції одночасно (дозволяє паралельно торгувати некорельовані пари)
 COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу
@@ -67,15 +67,15 @@ BYBIT_TAKER_FEE = 0.00055
 
 # Пороги ліквідацій — 1-хвилинне вікно
 LIQ_THRESHOLD = {
-    "BTC":  1_500_000,  # було 5M — занадто рідко спрацьовував
-    "ETH":    700_000,  # було 2M
-    "SOL":    175_000,  # було 500K
-    "XRP":    100_000,  # було 300K
-    "DOGE":   100_000,  # було 300K
-    "LINK":    75_000,  # було 250K
+    "BTC":   800_000,  # було 1.5M → знижено для demo $15k challenge
+    "ETH":   300_000,  # було 700K
+    "SOL":    80_000,  # було 175K
+    "XRP":    50_000,  # було 100K
+    "DOGE":   50_000,  # було 100K
+    "LINK":   40_000,  # було 75K
 }
 LIQ_WINDOW_SEC = 60   # 1 хвилина rolling window
-LIQ_RATIO      = 2.0  # було 2.5 — знизили щоб брати реальні каскади
+LIQ_RATIO      = 1.5  # було 2.0 — знизили щоб легше тригерити
 
 # Funding rate фільтр (% за 8h, Bybit)
 FR_CONFIRM_THRESHOLD = 0.06   # |FR| > 0.06% в напрямку сигналу → size × 1.5
