@@ -913,6 +913,12 @@ def _run_single(cfg: dict) -> None:
             _old_pending   = state.get("pending_orders", {})
             if _old_pending:
                 _cancel_all_pending(exchange, symbol, _old_pending)
+            # Also sweep any orphaned orders not tracked in state
+            try:
+                exchange.cancel_all_orders(symbol, params={"category": "linear"})
+                _log(f"[GRID:{symbol}] 🧹 Orphaned orders sweep on direction flip")
+            except Exception:
+                pass
             _restart_price = _get_current_price(exchange, symbol)
             _restart_pnl   = _sync_close_all(
                 exchange, symbol, _old_positions, leverage, _restart_price, saved_direction, user_id)
