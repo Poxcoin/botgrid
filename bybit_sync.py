@@ -128,28 +128,41 @@ def sync_user_trades(user_id: int) -> int:
             exit_p    = float(it.get("avgExitPrice") or 0)
             qty       = float(it.get("qty") or 0)
 
-            # Skip if we already have a trade for this coin+entry_price combo (any source/status)
-            # Tolerance widened to 2% (was 0.8%) to handle rounding and partial fills.
-            # Time check: Bybit close must be after our trade opened (±10 min slack).
+            # Skip if we already have a trade for this coin+entry_price combo.
+            # Two cases:
+            #   1. source != "bybit": bot already recorded this trade canonically — skip
+            #      insertion and update open→closed if needed.
+            #   2. source == "bybit": a previous bybit_sync run already imported this
+            #      trade (e.g. orderId changed between API calls) — skip to avoid dupes.
+            # Tolerance: 2% on entry price. Time check: close time must be after open
+            # time (with 10 min slack for clock skew).
             already_exists = False
             for t in trades_by_coin.get(coin, []):
-                if t.source != "bybit" and t.entry_price and entry_p:
-                    price_match = abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.02
-                    time_ok = closed_dt is None or t.opened_at is None or closed_dt >= (
-                        t.opened_at.replace(tzinfo=None) - timedelta(minutes=10)
-                    )
-                    if price_match and time_ok:
-                        already_exists = True
-                        # If the existing trade is still open, close it with real PnL
-                        if t.status == "open":
-                            t.exit_price = exit_p
-                            t.pnl_usdt   = pnl
-                            t.status     = "closed"
-                            t.closed_at  = closed_dt
-                        break
+                if not (t.entry_price and entry_p):
+                    continue
+                price_match = abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.02
+                if not price_match:
+                    continue
+                time_ok = closed_dt is None or t.opened_at is None or closed_dt >= (
+                    t.opened_at.replace(tzinfo=None) - timedelta(minutes=10)
+                )
+                if not time_ok:
+                    continue
+                # Existing bybit row → pure duplicate, skip silently
+                if t.source == "bybit":
+                    already_exists = True
+                    break
+                # Bot-recorded trade → this is the canonical record
+                already_exists = True
+                # If the existing trade is still open, close it with real PnL from Bybit
+                if t.status == "open":
+                    t.exit_price = exit_p
+                    t.pnl_usdt   = pnl
+                    t.status     = "closed"
+                    t.closed_at  = closed_dt
+                break
             if already_exists:
                 existing_order_ids.add(order_id)
-                new_count += 1
                 continue
 
             # Try to match an existing open trade to update (for cases without entry_price match)
