@@ -806,7 +806,11 @@ def run_sniper():
                 abi=FACTORY_ABI,
             )
 
-            # web3.py v7 — використовуємо get_logs замість create_filter
+            # PairCreated(address,address,address,uint256) topic0
+            PAIR_CREATED_TOPIC = Web3.keccak(
+                text="PairCreated(address,address,address,uint256)"
+            ).hex()
+
             last_block = w3.eth.block_number
             logger.info("Слухаємо PairCreated на PancakeSwap V2 Factory (від блоку %d)...", last_block)
 
@@ -814,18 +818,23 @@ def run_sniper():
                 try:
                     current_block = w3.eth.block_number
                     if current_block > last_block:
-                        # Chunk into ≤500-block windows to avoid 413 on QuikNode
-                        CHUNK = 500
+                        # Use w3.eth.get_logs directly — avoids large web3.py
+                        # contract-abstraction payload that triggers 413 on QuikNode.
+                        # Chunk into ≤200-block windows as extra safety margin.
+                        CHUNK = 200
                         chunk_start = last_block
                         while chunk_start <= current_block:
                             chunk_end = min(chunk_start + CHUNK - 1, current_block)
                             try:
-                                events = factory.events.PairCreated.get_logs(
-                                    from_block=chunk_start,
-                                    to_block=chunk_end,
-                                )
-                                for event in events:
+                                raw_logs = w3.eth.get_logs({
+                                    "fromBlock": chunk_start,
+                                    "toBlock":   chunk_end,
+                                    "address":   Web3.to_checksum_address(PANCAKE_FACTORY_V2),
+                                    "topics":    [PAIR_CREATED_TOPIC],
+                                })
+                                for raw_log in raw_logs:
                                     try:
+                                        event = factory.events.PairCreated().process_log(raw_log)
                                         _handle_new_pair(w3, account, event)
                                     except Exception as exc:
                                         logger.error("_handle_new_pair error: %s", exc)
