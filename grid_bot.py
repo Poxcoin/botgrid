@@ -112,7 +112,7 @@ GRID_CONFIGS = [
 
 POLL_INTERVAL          = 30     # секунд між перевірками
 RANGE_BUFFER           = 0.02   # 2% буфер по краях ATR-діапазону
-MAX_REBUILDS_DAY       = 4      # макс перебудов сітки за день
+MAX_REBUILDS_DAY       = 2      # макс перебудов сітки за день
 MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
 ATR_RANGE_PERIODS      = 10     # тісніші кроки → частіші fills
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
@@ -1000,13 +1000,15 @@ def _run_single(cfg: dict) -> None:
     _rsi_4h           = 50.0  # кешований RSI(14,4h), оновлюється разом з трендом
     _ema20_4h         = 0.0   # EMA20(4h) — trend filter для LONG BUY
     _ema50_4h         = 0.0   # EMA50(4h) — trend filter для LONG BUY
+    _ema200_4h        = 0.0   # EMA200(4h) — macro trend: LONG BUY blocked if EMA50 < EMA200
     try:
-        _ohlcv_rsi_init = exchange.fetch_ohlcv(symbol, "4h", limit=60)
+        _ohlcv_rsi_init = exchange.fetch_ohlcv(symbol, "4h", limit=210)
         _closes_init    = [c[4] for c in _ohlcv_rsi_init[:-1]]
         _rsi_4h         = _calc_rsi(_closes_init)
         _ema20_4h       = _calc_ema(_closes_init, 20)
         _ema50_4h       = _calc_ema(_closes_init, 50)
-        _log(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
+        _ema200_4h      = _calc_ema(_closes_init, 200) if len(_closes_init) >= 200 else 0.0
+        _log(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f}")
     except Exception:
         pass
 
@@ -1027,12 +1029,13 @@ def _run_single(cfg: dict) -> None:
                 trend_check_tick = 0
                 new_direction = _detect_trend(exchange, symbol)
                 try:
-                    _ohlcv_rsi  = exchange.fetch_ohlcv(symbol, "4h", limit=60)
+                    _ohlcv_rsi  = exchange.fetch_ohlcv(symbol, "4h", limit=210)
                     _closes_rsi = [c[4] for c in _ohlcv_rsi[:-1]]  # exclude live candle
                     _rsi_4h     = _calc_rsi(_closes_rsi)
                     _ema20_4h   = _calc_ema(_closes_rsi, 20)
                     _ema50_4h   = _calc_ema(_closes_rsi, 50)
-                    _log(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f}")
+                    _ema200_4h  = _calc_ema(_closes_rsi, 200) if len(_closes_rsi) >= 200 else _ema200_4h
+                    _log(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f}")
                 except Exception:
                     pass
 
@@ -1267,6 +1270,8 @@ def _run_single(cfg: dict) -> None:
                         _log(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
                     elif not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
                         _log(f"[GRID:{symbol}] 🚫 BTC {_btc_chg:.1f}% за 2h — LONG BUY призупинено")
+                    elif _ema200_4h > 0 and _ema50_4h < _ema200_4h:
+                        _log(f"[GRID:{symbol}] 🚫 EMA50({_ema50_4h:.2f}) < EMA200({_ema200_4h:.2f}) — LONG BUY заблоковано (macro downtrend)")
                     elif _ema20_4h > 0 and _ema20_4h < _ema50_4h * (1 - EMA_BLOCK_MIN_GAP):
                         _log(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
