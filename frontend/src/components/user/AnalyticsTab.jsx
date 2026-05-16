@@ -370,6 +370,7 @@ function CoinChart({ coins, allTrades }) {
   const [klineLoading, setKlineLoading] = useState(false);
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
+  const seriesRef = useRef(null);
 
   useEffect(() => {
     if (!coins || !coins.length) return;
@@ -403,86 +404,51 @@ function CoinChart({ coins, allTrades }) {
     return () => clearInterval(id);
   }, [selectedCoin]);
 
+  // Create chart and series once — never destroy on data updates
   useEffect(() => {
-    if (!chartContainerRef.current || klines.length === 0) return;
-
-    if (chartRef.current) {
-      chartRef.current.remove();
-      chartRef.current = null;
-    }
-
+    if (!chartContainerRef.current) return;
     const chart = createChart(chartContainerRef.current, {
       autoSize: true,
       height: 280,
-      layout: {
-        background: { color: '#060606' },
-        textColor: '#555',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255,255,255,0.04)' },
-        horzLines: { color: 'rgba(255,255,255,0.04)' },
-      },
-      crosshair: {
-        vertLine: { color: 'rgba(255,255,255,0.2)' },
-        horzLine: { color: 'rgba(255,255,255,0.2)' },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255,255,255,0.06)',
-      },
-      timeScale: {
-        borderColor: 'rgba(255,255,255,0.06)',
-        timeVisible: true,
-      },
+      layout: { background: { color: '#060606' }, textColor: '#555' },
+      grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+      crosshair: { vertLine: { color: 'rgba(255,255,255,0.2)' }, horzLine: { color: 'rgba(255,255,255,0.2)' } },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.06)' },
+      timeScale: { borderColor: 'rgba(255,255,255,0.06)', timeVisible: true },
     });
-
     const series = chart.addCandlestickSeries({
-      upColor:        '#22c55e',
-      downColor:      '#ef4444',
-      borderUpColor:  '#22c55e',
-      borderDownColor:'#ef4444',
-      wickUpColor:    '#22c55e',
-      wickDownColor:  '#ef4444',
+      upColor: '#22c55e', downColor: '#ef4444',
+      borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
     });
+    chartRef.current = chart;
+    seriesRef.current = series;
+    return () => {
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
+  }, []);
 
-    series.setData(klines);
+  // Update data without recreating chart
+  useEffect(() => {
+    if (!seriesRef.current || klines.length === 0) return;
+    seriesRef.current.setData(klines);
 
     const coinTrades = (allTrades || []).filter(
       t => (t.symbol || '').split('/')[0].replace('USDT', '') === selectedCoin
     );
-
     const markers = [];
     coinTrades.forEach(tr => {
       const ts = tr.closed_at ? new Date(parseInt(tr.closed_at)) : null;
       if (!ts || isNaN(ts)) return;
       const dateStr = ts.toISOString().slice(0, 10);
       const isLong  = tr.side === 'LONG';
-
-      markers.push({
-        time:     dateStr,
-        position: 'belowBar',
-        color:    isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)',
-        shape:    'arrowUp',
-        text:     isLong ? '▲ Entry' : '▼ Entry',
-      });
-
-      markers.push({
-        time:     dateStr,
-        position: 'aboveBar',
-        color:    isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)',
-        shape:    'arrowDown',
-        text:     'Exit',
-      });
+      markers.push({ time: dateStr, position: 'belowBar', color: isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)', shape: 'arrowUp', text: isLong ? '▲ Entry' : '▼ Entry' });
+      markers.push({ time: dateStr, position: 'aboveBar', color: isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)', shape: 'arrowDown', text: 'Exit' });
     });
-
     markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
-    if (markers.length) series.setMarkers(markers);
-
-    chartRef.current = chart;
-
-    return () => {
-      chart.remove();
-      chartRef.current = null;
-    };
+    seriesRef.current.setMarkers(markers);
   }, [klines, allTrades, selectedCoin]);
 
   if (!coins || !coins.length) return null;

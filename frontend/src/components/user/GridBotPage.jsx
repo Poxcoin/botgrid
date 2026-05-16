@@ -384,17 +384,34 @@ function KlineChart({ coin, tf }) {
           } catch { callback([], false); }
         },
         subscribeBar: ({ period, callback: cb }) => {
-          timerRef.current = setInterval(async () => {
-            try {
-              const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1`);
-              const d = await r.json();
-              const k = d?.result?.list?.[0];
-              if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
-            } catch {}
-          }, 5000);
+          const topic = `kline.${period.text}.${coin}USDT`;
+          let closed = false;
+          const tryConnect = () => {
+            if (closed) return;
+            const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+            ws.onopen = () => {
+              if (closed) { ws.close(); return; }
+              ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+            };
+            ws.onmessage = e => {
+              if (closed) return;
+              try {
+                const m = JSON.parse(e.data);
+                if (m.topic === topic && Array.isArray(m.data) && m.data[0]) {
+                  const k = m.data[0];
+                  cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
+                }
+              } catch {}
+            };
+            ws.onclose = () => { if (!closed) setTimeout(tryConnect, 3000); };
+            ws.onerror = () => {};
+            timerRef.current = { close: () => { closed = true; ws.close(); } };
+          };
+          tryConnect();
         },
         unsubscribeBar: () => {
-          if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+          timerRef.current?.close?.();
+          timerRef.current = null;
         },
       });
 
@@ -408,7 +425,8 @@ function KlineChart({ coin, tf }) {
 
     return () => {
       mounted = false;
-      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      timerRef.current?.close?.();
+      timerRef.current = null;
       if (ro) ro.disconnect();
       try { dispose(el); } catch {}
       chartRef.current = null;

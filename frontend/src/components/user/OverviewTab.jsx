@@ -406,16 +406,31 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange })
         } catch { callback([], false); }
       },
       subscribeBar: ({ period, callback: cb }) => {
-        const poll = async () => {
-          try {
-            const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coinRef.current}USDT&interval=${period.text}&limit=1`);
-            const k = (await r.json())?.result?.list?.[0];
-            if (k) cb({ timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5] });
-          } catch {}
+        const sym = coinRef.current;
+        const topic = `kline.${period.text}.${sym}USDT`;
+        let closed = false;
+        const tryConnect = () => {
+          if (closed) return;
+          const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+          ws.onopen = () => {
+            if (closed) { ws.close(); return; }
+            ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+          };
+          ws.onmessage = e => {
+            if (closed) return;
+            try {
+              const m = JSON.parse(e.data);
+              if (m.topic === topic && Array.isArray(m.data) && m.data[0]) {
+                const k = m.data[0];
+                cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
+              }
+            } catch {}
+          };
+          ws.onclose = () => { if (!closed) setTimeout(tryConnect, 3000); };
+          ws.onerror = () => {};
+          wsSubRef.current = { close: () => { closed = true; ws.close(); } };
         };
-        poll();
-        const id = setInterval(poll, 2000);
-        wsSubRef.current = { close: () => clearInterval(id) };
+        tryConnect();
       },
       unsubscribeBar: () => { wsSubRef.current?.close(); wsSubRef.current = null; },
     });
@@ -449,7 +464,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange })
       prevTfRef.current = tf;
       changed = true;
     }
-    if (changed) chart.resetData?.();
+    // setSymbol/setPeriod already call resetData internally — no extra call needed
   }, [coin, tf]);
 
   // Entry / SL / TP lines on chart
