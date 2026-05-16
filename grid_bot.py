@@ -45,6 +45,7 @@ from modules.tg_notifier import send_telegram_message
 from modules import daily_guard
 from modules.market_data import get_btc_2h_change
 from modules.analytics_db import save_trade, close_trade, save_user_trade, close_user_trade
+from modules.orderflow_engine import calc_vwap
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OWNER_USER_ID
 
 
@@ -219,6 +220,17 @@ def _detect_trend(exchange, symbol: str) -> str:
                 bearish += 1
             else:
                 bullish += 1
+
+        # VWAP tie-breaker: якщо рахунок однаковий або різниця ≤1 — VWAP вирішує
+        try:
+            vwap = calc_vwap(symbol, hours=8)
+            if vwap > 0:
+                if price < vwap:
+                    bearish += 1
+                else:
+                    bullish += 1
+        except Exception:
+            pass
 
         direction = "short" if bearish > bullish else "long"
         _log(

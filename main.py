@@ -28,6 +28,7 @@ from modules.post_trade_analyzer import (
 )
 from modules.session_monitor import start_session_monitor, get_session_bias
 from modules.saas_dispatcher import dispatch as saas_dispatch
+from modules.orderflow_engine import fetch_oi_delta
 from config.settings import (
     BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
@@ -767,6 +768,23 @@ def run_signal_engine():
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
+
+                                # OI delta filter: якщо OI падає — позиції закриваються,
+                                # momentum слабкий → знижуємо score або блокуємо
+                                try:
+                                    _oi_sym = f"{coin.upper()}/USDT:USDT"
+                                    _oi_delta = fetch_oi_delta(_oi_sym)
+                                    if _oi_delta < -0.3:
+                                        signal["total_score"] -= 1.5
+                                        print(f"📉 {coin}: OI delta {_oi_delta:+.3f}% (позиції закриваються) → score {signal['total_score']:.1f}")
+                                        if abs(signal["total_score"]) < _min_safe:
+                                            print(f"⛔ {coin}: після OI filter score {signal['total_score']:.1f} < min {_min_safe} — пропускаємо")
+                                            continue
+                                    elif _oi_delta > 0.3:
+                                        signal["total_score"] = min(signal["total_score"] + 0.5, 15.0)
+                                        print(f"📈 {coin}: OI delta {_oi_delta:+.3f}% (нові позиції) → score {signal['total_score']:.1f}")
+                                except Exception:
+                                    pass  # OI недоступний для цієї монети — продовжуємо без фільтру
 
                                 # Blacklist guard (синхронізовано з decision_maker._COIN_BLACKLIST)
                                 # BTC/ETH/SOL/BNB — grid/FR боти покривають, news bot не вспіває
