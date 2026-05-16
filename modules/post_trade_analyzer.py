@@ -159,14 +159,14 @@ def _handle_close(coin: str, action: str, ctx: dict, pnl_pct: float,
                 _apply_adaptation(coin, score_boost=0, paused=True, hours=6,
                                    reason="Серия потерь: монета приостановлена на 6h")
             elif len(reasons) >= 2:
-                _apply_adaptation(coin, score_boost=1.5, paused=False, hours=4,
-                                   reason=f"2+ причин потери: порог +1.5 на 4h")
+                _apply_adaptation(coin, score_boost=0.5, paused=False, hours=4,
+                                   reason=f"2+ причин потери: порог +0.5 на 4h")
             elif "WEAK_SIGNAL" in reason_codes:
-                _apply_adaptation(coin, score_boost=1.0, paused=False, hours=4,
-                                   reason="Слабый сигнал: порог +1.0 на 4h")
+                _apply_adaptation(coin, score_boost=0.5, paused=False, hours=4,
+                                   reason="Слабый сигнал: порог +0.5 на 4h")
             elif "OLD_NEWS" in reason_codes or "FUNDING_HIGH" in reason_codes or "FUNDING_LOW" in reason_codes:
-                _apply_adaptation(coin, score_boost=0.5, paused=False, hours=3,
-                                   reason="Рыночный контекст против: порог +0.5 на 3h")
+                _apply_adaptation(coin, score_boost=0.3, paused=False, hours=3,
+                                   reason="Рыночный контекст против: порог +0.3 на 3h")
 
         # TG отчёт (только при потере)
         reasons_text = "\n".join(f"  • {desc}" for _, desc in reasons) if reasons else "  • Причина не установлена"
