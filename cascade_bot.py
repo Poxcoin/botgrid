@@ -86,6 +86,8 @@ FR_SIZE_BONUS        = 1.5
 
 _liq_data: dict = defaultdict(deque)   # coin → [(ts, side, usd)]
 _liq_lock  = threading.Lock()
+_ws_msg_count = 0          # total liquidation events received above $50K
+_ws_msg_last_log = 0.0     # last time we printed the summary
 
 _cooldowns: dict[str, float] = {}
 
@@ -199,6 +201,7 @@ def _cleanup_liq(coin: str, now: float) -> None:
 
 
 def _on_ws_message(ws, raw: str) -> None:
+    global _ws_msg_count, _ws_msg_last_log
     try:
         msg    = json.loads(raw)
         order  = msg.get("o", {})
@@ -216,9 +219,24 @@ def _on_ws_message(ws, raw: str) -> None:
         if usd_value < 50_000:               # ігноруємо < $50K
             return
 
+        _ws_msg_count += 1
+        print(f"[CASCADE/LIQ] #{_ws_msg_count} {coin} {side} ${usd_value:,.0f}")
+
         now = datetime.now(timezone.utc).timestamp()
         with _liq_lock:
             _liq_data[coin].append((now, side, usd_value))
+
+        # Print running totals every 10 events
+        if _ws_msg_count % 10 == 0:
+            with _liq_lock:
+                for c in WATCHLIST:
+                    _cleanup_liq(c, now)
+                    entries = list(_liq_data.get(c, []))
+                    if entries:
+                        long_liq = sum(v for _, s, v in entries if s == "SELL")
+                        short_liq = sum(v for _, s, v in entries if s == "BUY")
+                        thr = LIQ_THRESHOLD.get(c, 500_000)
+                        print(f"[CASCADE/TOTALS] {c}: LONG_LIQ=${long_liq:,.0f} SHORT_LIQ=${short_liq:,.0f} threshold=${thr:,.0f}")
 
         _check_cascade_signal(coin)
 
