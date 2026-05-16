@@ -101,16 +101,20 @@ def generate_whale_signal(news_item: dict) -> dict | None:
         return None
     score = 8.0 if action == "LONG" else -8.0
     return {
-        "coin":           coin,
-        "action":         action,
-        "total_score":    score,
-        "ai_score":       0,
-        "confidence":     70,
-        "size_multiplier": 0.8,
-        "reason":         f"Whale Alert: {news_item.get('title', '')[:80]}",
-        "news_title":     news_item.get("title", ""),
-        "bot_tag":        "🐋",
-        "is_whale_alert": True,
+        "coin":              coin,
+        "action":            action,
+        "total_score":       score,
+        "ai_score":          0,
+        "confidence":        70,
+        "size_multiplier":   0.8,
+        "reason":            f"Whale Alert: {news_item.get('title', '')[:80]}",
+        "news_title":        news_item.get("title", ""),
+        "news_description":  news_item.get("description", ""),
+        "news_link":         news_item.get("link", ""),
+        "news_image_url":    news_item.get("image_url"),
+        "source":            news_item.get("source", "Whale Alert"),
+        "bot_tag":           "🐋",
+        "is_whale_alert":    True,
     }
 
 
@@ -557,8 +561,11 @@ def generate_signal(news_item: dict) -> dict | None:
         },
         "macro_event":   macro_reason if macro_reason else None,
         "funding_event": funding_info["name"] if funding_info else None,
-        "news_title": news_item["title"],
-        "source": news_item.get("source", "Unknown"),
+        "news_title":       news_item["title"],
+        "news_description": news_item.get("description", ""),
+        "news_link":        news_item.get("link", ""),
+        "news_image_url":   news_item.get("image_url"),
+        "source":           news_item.get("source", "Unknown"),
         "news_age_minutes": age_min,
         "groq": gemini if gemini else {},
         "_market": {"quote_volume_24h": market_data.get("quote_volume_24h", 0)},
@@ -642,12 +649,15 @@ def generate_smart_wallet_signal(news_item: dict) -> dict | None:
                     f"Smart money {wallet} accumulated {eth_value:.0f} ETH "
                     f"→ {coin} ETH-ecosystem LONG"
                 ),
-                "news_title":    news_item.get("title", ""),
-                "source":        news_item.get("source", ""),
-                "source_weight": 0.95,
-                "bot_tag":       "🐳",
-                "is_smart_wallet": True,
-                "_market":       {"quote_volume_24h": market_data.get("quote_volume_24h", 0)},
+                "news_title":       news_item.get("title", ""),
+                "news_description": news_item.get("description", ""),
+                "news_link":        news_item.get("link", ""),
+                "news_image_url":   news_item.get("image_url"),
+                "source":           news_item.get("source", ""),
+                "source_weight":    0.95,
+                "bot_tag":          "🐳",
+                "is_smart_wallet":  True,
+                "_market":          {"quote_volume_24h": market_data.get("quote_volume_24h", 0)},
             }
 
     if best_signal:

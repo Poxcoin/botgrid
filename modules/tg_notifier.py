@@ -50,6 +50,25 @@ def send_telegram_message(text, chat_id):
         return False
 
 
+def send_telegram_photo_or_text(chat_id, caption: str, photo_url: str | None = None) -> bool:
+    """Send photo with caption to a channel. Falls back to plain text if photo fails."""
+    if not chat_id:
+        return False
+    if photo_url and USERBOT_TOKEN:
+        url = f"https://api.telegram.org/bot{USERBOT_TOKEN}/sendPhoto"
+        cap = caption[:1020] + "…" if len(caption) > 1024 else caption
+        try:
+            r = requests.post(url, json={
+                "chat_id": chat_id, "photo": photo_url,
+                "caption": cap, "parse_mode": "HTML",
+            }, timeout=10)
+            if r.status_code == 200:
+                return True
+        except Exception:
+            pass
+    return send_telegram_message(caption, chat_id)
+
+
 def notify_user_trade(user_id: int, event: str, trade_data: dict) -> None:
     """
     Send a personal trade notification to the user's Telegram chat.

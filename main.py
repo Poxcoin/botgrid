@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timezone
 from modules.decision_maker import generate_signal, generate_whale_signal, generate_smart_wallet_signal
 from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
-from modules.tg_notifier import send_telegram_message, get_telegram_updates
+from modules.tg_notifier import send_telegram_message, send_telegram_photo_or_text, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker, unified_pnl
 from modules.tg_commander import start_commander
 from modules.news_archive import archive_news
@@ -47,28 +47,95 @@ _channel_cooldown: dict[str, float] = {}
 _CHANNEL_COOLDOWN_SEC = 4 * 3600
 
 
+def _strip_html(text: str) -> str:
+    import re
+    return re.sub(r"<[^>]+>", "", text).strip()
+
+
 def _post_to_channel(signal: dict, source: str) -> None:
-    """Publish signal to public Telegram channel. Never raises."""
+    """Publish signal to public Telegram channel in news-channel style. Never raises."""
     if not TELEGRAM_CHANNEL_ID:
         return
     try:
-        coin   = signal.get("coin", "?")
-        action = signal.get("action", "?")
-        score  = signal.get("total_score", 0)
+        coin      = signal.get("coin", "?")
+        action    = signal.get("action", "?")
+        score     = signal.get("total_score", 0)
+        conf      = signal.get("confidence", 0)
+        title     = signal.get("news_title", "") or signal.get("title", "")
+        desc      = _strip_html(signal.get("news_description", "") or signal.get("description", ""))
+        link      = signal.get("news_link", "") or signal.get("link", "")
+        image_url = signal.get("news_image_url") or signal.get("image_url")
+        src_name  = signal.get("source", "")
+
         now_ts = time.time()
         if now_ts - _channel_cooldown.get(coin, 0) < _CHANNEL_COOLDOWN_SEC:
             return
         _channel_cooldown[coin] = now_ts
-        src_label = {"news": "News Signal", "fr": "Funding Rate", "liq_cascade": "Liquidation", "listing": "New Listing"}.get(source, source.upper())
-        emoji     = "🟢" if action == "BUY" else "🔴"
-        text = (
-            f"📊 <b>KADO Signal</b>\n\n"
-            f"{emoji} <b>{coin}</b> — {action}\n"
-            f"⚡ Score: {score}\n"
-            f"📈 Strategy: {src_label}\n\n"
-            f"Trade smarter 👉 @KADO_c_BOT"
-        )
-        send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+
+        d_emoji  = "🟢" if action in ("BUY", "LONG") else "🔴"
+        d_label  = "LONG" if action in ("BUY", "LONG") else "SHORT"
+
+        if source in ("news", "listing", "dex", "fr_listing"):
+            headline = (title[:180] + "…" if len(title) > 180 else title).upper()
+            snippet  = (desc[:280] + "…" if len(desc) > 280 else desc) if desc else ""
+            conf_str = f" · {conf}%" if conf else ""
+            is_real_link = link and not link.startswith(("cg://", "liq://", "dex://", "sw://"))
+
+            text  = f"📰 <b>{headline}</b>\n\n"
+            if snippet:
+                text += f"{snippet}\n\n"
+            text += "━━━━━━━━━━━━━━━\n"
+            text += f"{d_emoji} <b>{coin}</b> · {d_label}{conf_str}\n"
+            if src_name:
+                text += f"📡 {src_name}\n"
+            if is_real_link:
+                text += f"\n🔗 <a href=\"{link}\">Full article ↗</a>\n"
+            text += f"\n📲 @KADO_c_BOT"
+
+            send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, image_url)
+
+        elif source == "liq_cascade":
+            cascade_m = signal.get("cascade_usd", 0) / 1_000_000
+            side_text = "shorts liquidated" if action in ("BUY", "LONG") else "longs liquidated"
+            momentum  = "bullish continuation" if action in ("BUY", "LONG") else "bearish continuation"
+            text = (
+                f"💥 <b>LIQUIDATION CASCADE</b>\n\n"
+                f"<b>${cascade_m:.0f}M</b> in <b>{coin}</b> {side_text} — {momentum}\n\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"{d_emoji} <b>{coin}</b> · {d_label} · <b>${cascade_m:.0f}M</b> cascade\n\n"
+                f"📲 @KADO_c_BOT"
+            )
+            send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+
+        elif source == "fr":
+            comp = signal.get("components", {})
+            fr   = comp.get("funding_rate", 0)
+            mins = comp.get("mins_to_funding", "?")
+            if action in ("BUY", "LONG"):
+                detail = f"shorts paying {abs(fr):.4f}% → long-side premium incoming"
+            else:
+                detail = f"longs paying {abs(fr):.4f}% → market overheated, short-side edge"
+            text = (
+                f"💰 <b>FUNDING RATE OPPORTUNITY</b>\n\n"
+                f"<b>{coin}</b> · FR <b>{fr:+.4f}%</b>\n"
+                f"{detail}\n"
+                f"Funding settlement in <b>{mins} min</b>\n\n"
+                f"━━━━━━━━━━━━━━━\n"
+                f"{d_emoji} <b>{coin}</b> · {d_label}\n\n"
+                f"📲 @KADO_c_BOT"
+            )
+            send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+
+        else:
+            headline = (title[:120] if title else f"{coin} market signal").upper()
+            text = (
+                f"📊 <b>{headline}</b>\n\n"
+                f"{d_emoji} <b>{coin}</b> · {d_label}\n"
+                f"📡 {src_name or source.upper()}\n\n"
+                f"📲 @KADO_c_BOT"
+            )
+            send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+
     except Exception:
         pass
 
