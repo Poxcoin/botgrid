@@ -67,7 +67,7 @@ GRID_CONFIGS = [
     {
         "symbol":        "SOL/USDT:USDT",
         "levels":        8,         # 6→8: крок 3.5%→2.6%, більше fills
-        "size_pct":      2.0,
+        "size_pct":      4.0,
         "size_usd_min":  15.0,
         "leverage":      3,         # 2→3: SOL найволатильніший (ATR 3.6%), виправдано
         "auto_range":    True,
@@ -78,7 +78,7 @@ GRID_CONFIGS = [
     {
         "symbol":        "ETH/USDT:USDT",
         "levels":        8,
-        "size_pct":      2.5,
+        "size_pct":      4.0,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
@@ -89,7 +89,7 @@ GRID_CONFIGS = [
     {
         "symbol":        "BTC/USDT:USDT",
         "levels":        7,         # 5→7: крок ~2.4%, більше trades в $73k-$90k діапазоні
-        "size_pct":      1.5,
+        "size_pct":      3.0,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
@@ -100,7 +100,7 @@ GRID_CONFIGS = [
     {
         "symbol":        "AVAX/USDT:USDT",
         "levels":        6,
-        "size_pct":      2.0,
+        "size_pct":      4.0,
         "size_usd_min":  15.0,
         "leverage":      2,
         "auto_range":    True,
