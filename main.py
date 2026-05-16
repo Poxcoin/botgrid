@@ -763,7 +763,7 @@ def run_signal_engine():
 
                                 # Safety: explicit min-score guard
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
-                                _min_safe = 8.0 if _is_sm_guard else (11.0 if coin.upper() in _btc_eth_local else 9.5)
+                                _min_safe = 7.0 if _is_sm_guard else (9.0 if coin.upper() in _btc_eth_local else 7.5)
                                 if abs(signal['total_score']) < _min_safe:
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
