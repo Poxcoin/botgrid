@@ -26,6 +26,7 @@ from modules.market_data import get_btc_2h_change
 from modules.post_trade_analyzer import (
     start_analyzer, get_score_threshold_boost, is_coin_paused
 )
+from modules.session_monitor import start_session_monitor, get_session_bias
 from modules.saas_dispatcher import dispatch as saas_dispatch
 from config.settings import (
     BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
@@ -502,6 +503,7 @@ def run_signal_engine():
     start_pairs_strategy()
     start_coingecko_monitor()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
+    start_session_monitor(send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
 
     sources = "Binance/Bybit Announcements + Telegram"
@@ -748,6 +750,16 @@ def run_signal_engine():
                                     if abs(signal["total_score"]) < _base_min + _score_boost:
                                         print(f"⚙️ {coin}: адаптивний поріг {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не пройшов")
                                         continue
+
+                                # Session bias modifier
+                                _bias = get_session_bias()
+                                if _bias["value"] != "neutral" and time.time() - _bias["updated_at"] < 14400:
+                                    if _bias["value"] == "bearish" and signal.get("action") == "LONG":
+                                        signal["total_score"] -= 1.0
+                                        print(f"🌐 {coin}: session bearish ({_bias['session']}) → score {signal['total_score']:.1f}")
+                                    elif _bias["value"] == "bullish" and signal.get("action") == "LONG":
+                                        signal["total_score"] = min(signal["total_score"] + 0.5, 15.0)
+                                        print(f"🌐 {coin}: session bullish ({_bias['session']}) → score {signal['total_score']:.1f}")
 
                                 # Safety: explicit min-score guard
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
