@@ -113,6 +113,32 @@ _MACRO_KW = frozenset({
 _macro_ts: float = 0.0
 _dxy_cache: dict = {"ts": 0.0, "change": 0.0}
 _hsi_cache: dict = {"ts": 0.0, "change": 0.0}
+_ohlcv_cache: dict = {}   # key → {"ts": float, "data": list}
+_ticker_cache: dict = {}  # symbol → {"ts": float, "price": float}
+
+OHLCV_1M_TTL  = 45   # seconds — re-fetch 1m bars no more than once per cycle
+OHLCV_1H_TTL  = 1800 # seconds — asian range doesn't change fast
+TICKER_TTL    = 20   # seconds
+
+
+def _cached_ohlcv(symbol: str, timeframe: str, limit: int, ttl: int) -> list:
+    key = f"{symbol}:{timeframe}:{limit}"
+    c = _ohlcv_cache.get(key, {})
+    if time.time() - c.get("ts", 0) < ttl:
+        return c["data"]
+    data = _bybit_pub.fetch_ohlcv(symbol, timeframe, limit=limit)
+    _ohlcv_cache[key] = {"ts": time.time(), "data": data}
+    return data
+
+
+def _cached_ticker_price(symbol: str) -> float:
+    c = _ticker_cache.get(symbol, {})
+    if time.time() - c.get("ts", 0) < TICKER_TTL:
+        return c["price"]
+    ticker = _bybit_pub.fetch_ticker(symbol)
+    price = ticker["last"]
+    _ticker_cache[symbol] = {"ts": time.time(), "price": price}
+    return price
 
 
 def on_macro_news(news_item: dict) -> None:
@@ -214,7 +240,7 @@ def _dxy_blocks(action: str) -> bool:
 def _get_asian_range(symbol: str) -> tuple[float, float]:
     """High/low Asian session (00:00-07:00 UTC) for the current day."""
     try:
-        bars = _bybit_pub.fetch_ohlcv(symbol, "1h", limit=24)
+        bars = _cached_ohlcv(symbol, "1h", 24, OHLCV_1H_TTL)
         if not bars:
             return 0.0, 0.0
         now_utc = datetime.now(timezone.utc)
@@ -243,8 +269,7 @@ def _check_london_breakout(symbol: str, item: dict) -> dict | None:
         return None
 
     try:
-        ticker = _bybit_pub.fetch_ticker(symbol)
-        price = ticker["last"]
+        price = _cached_ticker_price(symbol)
     except Exception:
         return None
 
@@ -318,7 +343,7 @@ def _ema(closes: list[float], period: int) -> float:
 
 def _get_momentum(symbol: str) -> tuple[float, float, str | None]:
     """(price, 5m_change_pct, action_or_None)"""
-    bars = _bybit_pub.fetch_ohlcv(symbol, "1m", limit=22)
+    bars = _cached_ohlcv(symbol, "1m", 22, OHLCV_1M_TTL)
     if len(bars) < 7:
         return 0.0, 0.0, None
 
