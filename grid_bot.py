@@ -97,17 +97,6 @@ GRID_CONFIGS = [
         "lower_manual":   65000.0,
         "max_positions": 4,         # 3→4
     },
-    {
-        "symbol":        "AVAX/USDT:USDT",
-        "levels":        6,
-        "size_pct":      4.0,
-        "size_usd_min":  15.0,
-        "leverage":      2,
-        "auto_range":    True,
-        "upper_manual":  18.0,      # AVAX зараз ~$10, поблизу циклових мінімумів
-        "lower_manual":   7.0,
-        "max_positions": 3,
-    },
 ]
 
 POLL_INTERVAL          = 30     # секунд між перевірками
