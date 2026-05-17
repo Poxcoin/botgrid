@@ -17,7 +17,6 @@ from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
 from modules.funding_strategy import start_funding_strategy, funding_queue
 from modules.pairs_strategy import start_pairs_strategy
-from modules.metals_strategy import on_macro_news as metals_on_news, read_macro_state
 from modules.coingecko_monitor import start_coingecko_monitor, cg_queue
 from modules.analytics_db import save_signal, init_db, DB_PATH
 from modules.liquidation_monitor import get_liquidation_signal
@@ -504,9 +503,7 @@ def start_rss_archiver():
                         "image_url":    item.get("image_url"),
                         "category":     item.get("cat", "OTHER"),
                     }
-                    inserted = archive_news(news_item)
-                    if inserted and item.get("cat") in ("MACRO", "GEOPOLITICS", "COMMODITIES"):
-                        metals_on_news(news_item)
+                    archive_news(news_item)
             except Exception as e:
                 print(f"[rss_archiver] error: {e}")
             time.sleep(300)  # 5 min
@@ -694,8 +691,6 @@ def run_signal_engine():
                 archive_news(news_item)
 
                 # 3. Аналіз — fast-path або повний pipeline
-                # Передаємо всі новини в metals_strategy для macro boost
-                metals_on_news(news_item)
 
                 if news_item.get("is_listing"):
                     continue  # лістинги обробляє crypto-alt (уникаємо double-trade)
@@ -875,14 +870,6 @@ def run_signal_engine():
                                 if _dc["count"] >= _max_daily:
                                     print(f"📅 {coin}: денний ліміт {_max_daily} угод вичерпано — пропускаємо")
                                     continue
-
-                                # Metals macro boost: якщо XAU рухався в останні 20 хв
-                                # → підсилюємо score alt-сигналів на 20%
-                                _metals = read_macro_state()
-                                if _metals:
-                                    _old_score = signal["total_score"]
-                                    signal["total_score"] = round(_old_score * 1.2, 1)
-                                    print(f"[METALS] ⚡ Macro boost ×1.2: {coin} score {_old_score:.1f}→{signal['total_score']:.1f} (XAU {_metals['action']} {_metals['change']:+.2f}%)")
 
                                 # Всі фільтри пройдено — тільки тепер ставимо cooldown і рахуємо
                                 _coin_cooldown[coin] = now_ts

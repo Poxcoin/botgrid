@@ -139,12 +139,6 @@ OWNER_USER_ID = int(os.getenv("OWNER_USER_ID", "0") or "0")
 # ─── Pairs Trading (BTC/ETH spread mean-reversion) ────────────────────────────
 PAIRS_TRADING = os.getenv("PAIRS_TRADING", "False").lower() == "true"
 
-# ── Metals Bot (XAU/Silver) ────────────────────────────────────────────────────
-METALS_TRADING  = os.getenv("METALS_TRADING",  "False").lower() == "true"
-METALS_LEVERAGE = int(os.getenv("METALS_LEVERAGE",  "5"))
-METALS_TP       = float(os.getenv("METALS_TP",  "1.5"))
-METALS_SL       = float(os.getenv("METALS_SL",  "1.0"))
-METALS_SIZE     = float(os.getenv("METALS_SIZE", "3.0"))
 
 # ── Orderflow Bot (BTC/ETH/SOL) ───────────────────────────────────────────────
 ORDERFLOW_TRADING = os.getenv("ORDERFLOW_TRADING", "False").lower() == "true"

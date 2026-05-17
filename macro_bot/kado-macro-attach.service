@@ -1,0 +1,16 @@
+[Unit]
+Description=Attach MacroBridgeEA to MT5 chart on startup
+After=kado-macro-mt5.service
+Requires=kado-macro-mt5.service
+
+[Service]
+Type=oneshot
+User=root
+Environment=DISPLAY=:99
+ExecStart=/bin/bash /opt/botgrid/macro_bot/attach_ea.sh
+StandardOutput=append:/opt/botgrid/macro_bot/attach_ea.log
+StandardError=append:/opt/botgrid/macro_bot/attach_ea.log
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

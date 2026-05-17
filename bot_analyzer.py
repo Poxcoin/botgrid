@@ -279,33 +279,7 @@ def listing_bot_stats() -> dict:
     }
 
 
-def metals_bot_stats() -> dict:
-    con = _conn(DB)
-    if not con:
-        return {"trades": 0}
-    r = con.execute("""
-        SELECT COUNT(*) total,
-               SUM(CASE WHEN result='WIN' THEN 1 ELSE 0 END) wins,
-               SUM(pnl_usdt) pnl
-        FROM all_trades WHERE bot_source='metals'
-    """).fetchone()
-    con.close()
 
-    # Also check metals_macro_state.json
-    state_file = ROOT / "metals_macro_state.json"
-    macro_state = {}
-    if state_file.exists():
-        try:
-            macro_state = json.loads(state_file.read_text())
-        except Exception:
-            pass
-
-    return {
-        "total":       r["total"] or 0,
-        "wins":        r["wins"] or 0,
-        "pnl":         r["pnl"] or 0.0,
-        "macro_state": macro_state,
-    }
 
 
 def macro_bot_stats() -> dict:
@@ -439,13 +413,12 @@ def report(as_json: bool = False):
     now = datetime.now(timezone.utc)
 
     # Fetch all data
-    tickers    = bybit_tickers("BTC", "ETH", "SOL", "XRP", "DOGE", "XAUUSD")
+    tickers    = bybit_tickers("BTC", "ETH", "SOL", "XRP", "DOGE")
     intel      = load_live_intel()
     sig_stats  = signal_bot_stats()
     grid_stats = grid_bot_stats()
     casc_stats = cascade_bot_stats()
     list_stats = listing_bot_stats()
-    met_stats  = metals_bot_stats()
     macro_stats = macro_bot_stats()
     log_status = parse_bot_log_status()
     macro_status = parse_macro_log_status()
@@ -462,7 +435,6 @@ def report(as_json: bool = False):
 
     signal_on   = env.get("SIGNAL_BOT_TRADING", "False").lower() == "true"
     cascade_on  = env.get("CASCADE_TRADING", "False").lower() == "true"
-    metals_on   = env.get("METALS_TRADING", "False").lower() == "true"
     is_demo     = env.get("IS_DEMO_TRADING", "True").lower() == "true"
     fr_on       = env.get("FR_TRADING", "False").lower() == "true"
 
@@ -474,7 +446,6 @@ def report(as_json: bool = False):
             "grid_bot": grid_stats,
             "cascade_bot": casc_stats,
             "listing_bot": list_stats,
-            "metals_bot": met_stats,
             "macro_bot": macro_stats,
         }, default=str, indent=2))
         return
@@ -633,29 +604,7 @@ def report(as_json: bool = False):
         print(f"  Trades:    {dim('0 — waiting for next exchange listing announcement')}")
         print(f"  {dim('Note: triggers on Binance/Bybit announcement monitor (ann_queue)')}")
 
-    # ─── 5. METALS BOT ──────────────────────────────────────────────────────
-    section("5.  METALS BOT  (metals_bot.py / crypto-metals.service)")
-    xau = tickers.get("XAUUSD", {})
-    bot_header(
-        "Metals Bot", "metals_bot.py", "crypto-metals.service",
-        f"XAU/USDT momentum  (5x, TP 1.5%, SL 1.0%, 3% balance)",
-        trading_on=metals_on, demo=is_demo,
-    )
-    print()
-    m = met_stats
-    if xau:
-        xau_chg = xau['change24h']
-        print(f"  XAU/USDT:  ${xau['price']:,.2f}  {ok(f'+{xau_chg:.2f}%') if xau_chg>=0 else bad(f'{xau_chg:.2f}%')} 24h")
-    if m["total"]:
-        print(f"  All-time:  {m['total']} trades  WR={wr_str(m['wins'], m['total'])}  PnL={pnl_clr(m['pnl'])}")
-    else:
-        print(f"  Trades:    {dim('0 — price momentum signals not yet triggered')}")
-        print(f"  {dim('Note: also writes metals_macro_state.json → +20% boost to alt-signals')}")
-    if m["macro_state"]:
-        ms = m["macro_state"]
-        print(f"  Macro state: {json.dumps(ms, ensure_ascii=False)[:100]}")
-
-    # ─── 6. MACRO BOT ───────────────────────────────────────────────────────
+    # ─── 5. MACRO BOT ───────────────────────────────────────────────────────
     section("6.  MACRO BOT  (macro_bot/ / kado-macro.service)")
     bot_header(
         "Macro Bot", "macro_bot/bot.py", "kado-macro.service",
@@ -705,17 +654,15 @@ def report(as_json: bool = False):
         (sig_stats.get("trade_pnl") or 0) +
         (casc_stats.get("pnl") or 0) +
         (list_stats.get("pnl") or 0) +
-        (met_stats.get("pnl") or 0) +
         (macro_stats.get("pnl") or 0)
     )
 
     rows = [
-        ("Signal Bot",   signal_on,  sig_stats.get("trade_total",0),  sig_stats.get("trade_wins",0),  sig_stats.get("trade_pnl", 0)),
-        ("Grid Bot",     True,       grid_stats.get("total",0),        grid_stats.get("wins",0),        grid_stats.get("pnl",0)),
-        ("Cascade Bot",  cascade_on, casc_stats.get("total",0),        casc_stats.get("wins",0),        casc_stats.get("pnl",0)),
-        ("Listing Bot",  True,       list_stats.get("total",0),        list_stats.get("wins",0),        list_stats.get("pnl",0)),
-        ("Metals Bot",   metals_on,  met_stats.get("total",0),         met_stats.get("wins",0),         met_stats.get("pnl",0)),
-        ("Macro Bot",    True,       macro_stats.get("closed_total",0), macro_stats.get("wins",0),       macro_stats.get("pnl",0)),
+        ("Signal Bot",   signal_on,  sig_stats.get("trade_total",0),   sig_stats.get("trade_wins",0),  sig_stats.get("trade_pnl", 0)),
+        ("Grid Bot",     True,       grid_stats.get("total",0),         grid_stats.get("wins",0),        grid_stats.get("pnl",0)),
+        ("Cascade Bot",  cascade_on, casc_stats.get("total",0),         casc_stats.get("wins",0),        casc_stats.get("pnl",0)),
+        ("Listing Bot",  True,       list_stats.get("total",0),         list_stats.get("wins",0),        list_stats.get("pnl",0)),
+        ("Macro Bot",    True,       macro_stats.get("closed_total",0),  macro_stats.get("wins",0),       macro_stats.get("pnl",0)),
     ]
     print(f"\n  {'Bot':<14} {'Trade':>6} {'On':>5} {'WR':>8}  {'PnL':>12}")
     print(f"  {sep('─', 52)}")

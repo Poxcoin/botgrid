@@ -1,0 +1,82 @@
+{
+  "run_at": "2026-05-17T04:59:02.607132",
+  "params": {
+    "capital": 10000,
+    "alloc_per_pair": 0.25,
+    "taker_fee": 0.00055,
+    "borrow_rate_8h": 0.0
+  },
+  "sweep": [
+    {
+      "entry_pct": 0.01,
+      "exit_pct": 0.003,
+      "total_ret": -27.33080000000001,
+      "monthly": -0.6832700000000003,
+      "funding": 1963.4399999999996,
+      "fees": 4696.52,
+      "max_dd": 42.66,
+      "trades": 981
+    },
+    {
+      "entry_pct": 0.015,
+      "exit_pct": 0.0045,
+      "total_ret": 10.933199999999998,
+      "monthly": 0.27332999999999996,
+      "funding": 1289.36,
+      "fees": 196.02999999999997,
+      "max_dd": 0.77,
+      "trades": 34
+    },
+    {
+      "entry_pct": 0.02,
+      "exit_pct": 0.006,
+      "total_ret": 10.52379999999999,
+      "monthly": 0.26309499999999975,
+      "funding": 1236.63,
+      "fees": 184.25,
+      "max_dd": 0.81,
+      "trades": 32
+    },
+    {
+      "entry_pct": 0.025,
+      "exit_pct": 0.0075,
+      "total_ret": 2.427299999999996,
+      "monthly": 0.060682499999999896,
+      "funding": 762.59,
+      "fees": 519.86,
+      "max_dd": 2.58,
+      "trades": 94
+    },
+    {
+      "entry_pct": 0.03,
+      "exit_pct": 0.009,
+      "total_ret": 2.4620999999999915,
+      "monthly": 0.06155249999999979,
+      "funding": 706.38,
+      "fees": 460.16999999999996,
+      "max_dd": 2.3,
+      "trades": 83
+    },
+    {
+      "entry_pct": 0.04,
+      "exit_pct": 0.012,
+      "total_ret": 1.865,
+      "monthly": 0.046625,
+      "funding": 534.48,
+      "fees": 347.96999999999997,
+      "max_dd": 1.72,
+      "trades": 63
+    },
+    {
+      "entry_pct": 0.05,
+      "exit_pct": 0.015,
+      "total_ret": 1.0645999999999913,
+      "monthly": 0.026614999999999785,
+      "funding": 366.69,
+      "fees": 260.22999999999996,
+      "max_dd": 0.66,
+      "trades": 47
+    }
+  ],
+  "best_entry_pct": 0.015
+}
