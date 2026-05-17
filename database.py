@@ -36,19 +36,19 @@ def _ensure_db_healthy() -> None:
         conn = sqlite3.connect(_DB_PATH, timeout=5)
         result = conn.execute("PRAGMA integrity_check").fetchone()
         if result and result[0] == "ok":
-            # Main DB healthy — also checkpoint WAL to catch malformed WAL files
+            # Main DB healthy — flush WAL to main file and remove stale -shm
             try:
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                conn.close()
-                return
             except sqlite3.DatabaseError as wal_err:
-                conn.close()
-                print(f"[DB] ⚠️  WAL malformed ({wal_err}) — clearing WAL files")
-                for ext in ("-wal", "-shm"):
-                    p = _DB_PATH + ext
-                    if os.path.exists(p):
-                        os.remove(p)
-                return
+                print(f"[DB] ⚠️  WAL checkpoint failed ({wal_err}) — clearing WAL files")
+            conn.close()
+            # Remove -shm after checkpoint — stale shared-memory state causes
+            # "malformed" errors on next open when WAL mode re-initialises it
+            for ext in ("-wal", "-shm"):
+                p = _DB_PATH + ext
+                if os.path.exists(p) and os.path.getsize(p) == 0:
+                    os.remove(p)
+            return
         conn.close()
         print(f"[DB] ⚠️  integrity_check: {result[0] if result else '?'} — відновлення з бекапу...")
     except sqlite3.DatabaseError as e:
@@ -87,6 +87,7 @@ _ensure_db_healthy()
 def _enable_wal(dbapi_conn, _connection_record):
     dbapi_conn.execute("PRAGMA journal_mode=WAL")
     dbapi_conn.execute("PRAGMA synchronous=NORMAL")
+    dbapi_conn.execute("PRAGMA wal_autocheckpoint=200")  # flush WAL every 200 pages (not default 1000)
 
 
 from sqlalchemy import event as _sa_event
