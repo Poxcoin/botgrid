@@ -557,7 +557,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange })
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 580px)', minHeight: 320, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 440px)', minHeight: 320, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
 
       {/* Top toolbar: chart type + indicators + TF */}
       <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
@@ -877,14 +877,27 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 // Maps botId → one or more source values stored in user_trades.source
 // cascade_bot.py saves 'cascade', main.py liq pipeline saves 'liq_cascade'
 const BOT_SOURCES = {
-  signal:  ['news'],
+  signal:  ['news', 'dex'],
   cascade: ['liq_cascade', 'cascade'],
   fr:      ['fr'],
   grid:    ['grid'],
   altcoin: ['altcoin'],
   metals:  ['metals'],
+  listing: ['listing'],
+  dex:     ['dex'],
   history: ['bybit'],
 };
+
+const ALL_BOTS_CONFIG = [
+  { id: 'signal',  label: 'Signal',  source: BOT_SOURCES.signal[0] },
+  { id: 'cascade', label: 'Cascade', source: BOT_SOURCES.cascade[0] },
+  { id: 'fr',      label: 'Funding', source: BOT_SOURCES.fr[0] },
+  { id: 'grid',    label: 'Grid',    source: BOT_SOURCES.grid[0] },
+  { id: 'altcoin', label: 'Alt',     source: BOT_SOURCES.altcoin[0] },
+  { id: 'metals',  label: 'Metals',  source: BOT_SOURCES.metals[0] },
+  { id: 'listing', label: 'Listing', source: BOT_SOURCES.listing[0] },
+  { id: 'dex',     label: 'DEX',     source: BOT_SOURCES.dex[0] },
+];
 
 export default function OverviewTab({ botId = 'signal' }) {
   const dbSources = BOT_SOURCES[botId] ?? [botId];
@@ -952,6 +965,8 @@ export default function OverviewTab({ botId = 'signal' }) {
     // grid always shows all configured pairs regardless of trade history
     if (botId === 'grid') return [...new Set([...staticCoins, ...botCoins])];
     if (botCoins.length > 0) return botCoins;
+    // dynamic bots (listing/dex): no static coins, no POP_COINS fallback — wait for real signals
+    if (botId === 'listing' || botId === 'dex') return [];
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
   }, [botCoins, staticCoins.join(','), botId]);
   // grid: always show full configured set.
@@ -1090,6 +1105,40 @@ export default function OverviewTab({ botId = 'signal' }) {
         ))}
       </div>
 
+      {/* ── BOT STATUS ────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 2 }}>Bots</span>
+        {ALL_BOTS_CONFIG.map(b => {
+          const h = heartbeat[b.source];
+          const ago = h?.last_trade_min_ago;
+          const active = ago != null && ago < 240;
+          const current = b.id === botId;
+          return (
+            <div key={b.id} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '3px 8px',
+              border: `1px solid ${current ? 'var(--border-strong)' : 'var(--border-subtle)'}`,
+              borderRadius: 3,
+              background: current ? 'var(--bg-elevated)' : 'transparent',
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
+                background: h == null ? 'var(--text-muted)' : active ? 'var(--accent-green)' : 'var(--accent-red)',
+                boxShadow: active ? '0 0 5px var(--accent-green)' : 'none',
+              }}/>
+              <span style={{ fontFamily: FM, fontSize: 10, color: current ? 'var(--text-primary)' : active ? 'var(--text-secondary)' : 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                {b.label}
+              </span>
+              {ago != null && (
+                <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>
+                  {ago < 60 ? `${ago}m` : `${Math.round(ago / 60)}h`}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* ── STATUS BAR: live feed indicator + heartbeat ───────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
         {/* WebSocket connection status */}
@@ -1123,25 +1172,31 @@ export default function OverviewTab({ botId = 'signal' }) {
       <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} />
 
       {analyzerCoins.length === 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
-          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
-          {coins.map(c => {
-            const on = coin === c;
-            return (
-              <button key={c} onClick={() => setCoin(c)} style={{
-                fontFamily: FM, fontSize: 11, padding: '4px 10px',
-                background: on ? 'var(--bg-elevated)' : 'transparent',
-                border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
-                color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
-              onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}>
-                {c}
-              </button>
-            );
-          })}
-        </div>
+        coins.length === 0 ? (
+          <div style={{ padding: '8px 0', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
+            ⏳ Waiting for first signal…
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
+            <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
+            {coins.map(c => {
+              const on = coin === c;
+              return (
+                <button key={c} onClick={() => setCoin(c)} style={{
+                  fontFamily: FM, fontSize: 11, padding: '4px 10px',
+                  background: on ? 'var(--bg-elevated)' : 'transparent',
+                  border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
+                  color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { if (!on) { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-strong)'; } }}
+                onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-default)'; } }}>
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+        )
       )}
 
       {/* ── CHART ─────────────────────────────────────────────── */}
