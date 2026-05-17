@@ -15,8 +15,6 @@ from modules.onchain_monitor import start_onchain_monitor
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules.dex_scanner import start_dex_scanner, dex_queue
 from modules.smart_wallet_tracker import start_smart_wallet_tracker, smart_wallet_queue
-from modules.funding_strategy import start_funding_strategy, funding_queue
-from modules.pairs_strategy import start_pairs_strategy
 from modules.coingecko_monitor import start_coingecko_monitor, cg_queue
 from modules.analytics_db import save_signal, init_db, DB_PATH
 from modules.liquidation_monitor import get_liquidation_signal
@@ -33,7 +31,7 @@ from config.settings import (
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
     LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
     LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE,
-    SIGNAL_BOT_TRADING, FR_TRADING, TELEGRAM_CHANNEL_ID,
+    SIGNAL_BOT_TRADING, TELEGRAM_CHANNEL_ID,
 )
 import ccxt
 
@@ -564,8 +562,6 @@ def run_signal_engine():
     start_commander()
     start_dex_scanner()
     start_smart_wallet_tracker()
-    start_funding_strategy()
-    start_pairs_strategy()
     start_coingecko_monitor()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_session_monitor(send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
@@ -988,40 +984,6 @@ def run_signal_engine():
                 _post_to_channel(liq_sig, "liq_cascade")
             # ──────────────────────────────────────────────────────────────────
 
-            # ─── Funding Rate mean-reversion signals ───────────────────────────
-            while not funding_queue.empty():
-                try:
-                    fr_sig = funding_queue.get_nowait()
-                except Exception:
-                    break
-                coin   = fr_sig.get("coin", "")
-                now_ts = datetime.now(timezone.utc).timestamp()
-                if now_ts - _coin_cooldown.get(coin, 0) < COIN_COOLDOWN_SEC:
-                    print(f"[FR] ⏳ Cooldown {coin}")
-                    continue
-                if is_coin_paused(coin):
-                    print(f"[FR] ⏸ {coin} призупинено — пропускаємо")
-                    continue
-                _coin_cooldown[coin] = now_ts
-                save_cooldown(_coin_cooldown)
-                fr_size   = round(ALT_SIZE * fr_sig.get("size_multiplier", 1.0), 1)
-                fr_tp     = fr_sig.get("tp_pct", ALT_TP)
-                fr_sl     = fr_sig.get("sl_pct", ALT_SL)
-                signal_id = save_signal(fr_sig, executed=False)
-                mins_left      = fr_sig.get("components", {}).get("mins_to_funding", "?")
-                close_after    = fr_sig.get("close_after_min")
-                print(f"\n[FR] 💰 {coin} {fr_sig['action']} | "
-                      f"FR={fr_sig['components']['funding_rate']:+.4f}% | "
-                      f"TP={fr_tp}% SL={fr_sl}% | funding через {mins_left}хв | "
-                      f"вихід через {close_after}хв")
-                if FR_TRADING:
-                    execute_trade(fr_sig, leverage_override=ALT_LEVERAGE,
-                                  tp_pct=fr_tp, sl_pct=fr_sl, size_pct=fr_size,
-                                  signal_id=signal_id, bot_source="fr",
-                                  use_maker=True, close_after_min=close_after)
-                _saas_dispatch(fr_sig, "fr", ALT_LEVERAGE, fr_tp, fr_sl, fr_size)
-                _post_to_channel(fr_sig, "fr")
-            # ──────────────────────────────────────────────────────────────────
 
             # Пишем live intel для дашборда
             _write_live_intel(tg_enabled)
