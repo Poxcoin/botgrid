@@ -129,15 +129,28 @@ def sync_user_trades(user_id: int) -> int:
             qty       = float(it.get("qty") or 0)
 
             # Skip if we already have a trade for this coin+entry_price combo.
-            # Two cases:
+            # Three cases:
             #   1. source != "bybit": bot already recorded this trade canonically — skip
             #      insertion and update open→closed if needed.
             #   2. source == "bybit": a previous bybit_sync run already imported this
             #      trade (e.g. orderId changed between API calls) — skip to avoid dupes.
+            #   3. Closed trade matching by exit_price+pnl+time: this Bybit event was
+            #      previously matched via the open_by_coin fallback (where entry_price
+            #      didn't match within 2%), so the canonical bot order_id wasn't overwritten
+            #      — but the exit data on the now-closed trade proves this event ran already.
             # Tolerance: 2% on entry price. Time check: close time must be after open
             # time (with 10 min slack for clock skew).
             already_exists = False
             for t in trades_by_coin.get(coin, []):
+                # Case 3: closed trade already carries this event's exit data
+                if t.status == "closed" and t.exit_price and exit_p and closed_dt and t.closed_at:
+                    ep_match  = abs(float(t.exit_price) - exit_p) / max(float(t.exit_price), exit_p) < 0.001
+                    pnl_match = abs(float(t.pnl_usdt or 0) - pnl) < 0.01
+                    t_sec     = abs((t.closed_at.replace(tzinfo=None) - closed_dt).total_seconds())
+                    if ep_match and pnl_match and t_sec < 60:
+                        already_exists = True
+                        break
+
                 if not (t.entry_price and entry_p):
                     continue
                 price_match = abs(t.entry_price - entry_p) / max(t.entry_price, entry_p) < 0.02

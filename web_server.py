@@ -1570,7 +1570,22 @@ def _dedup_bybit_dupes(rows):
             if key in bot_keys:
                 continue  # duplicate of a bot-recorded trade
         result.append(t)
-    return result
+
+    # Second pass: remove bot-source rows where the same Bybit close event was
+    # incorrectly matched to multiple open trades (identical exit_price + pnl +
+    # same-day close). Keeps the first row encountered (newest by closed_at desc).
+    seen_close_keys: set = set()
+    deduped = []
+    for t in result:
+        if t.source != "bybit" and t.exit_price is not None and t.closed_at is not None:
+            coin      = _nc(t.symbol or "")
+            close_day = t.closed_at.date()
+            key       = (coin, round(float(t.exit_price), 2), round(float(t.pnl_usdt or 0), 2), close_day)
+            if key in seen_close_keys:
+                continue
+            seen_close_keys.add(key)
+        deduped.append(t)
+    return deduped
 
 
 def _filter_ghost_closes(rows):
