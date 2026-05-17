@@ -827,6 +827,7 @@ def _run_single(cfg: dict) -> None:
     _set_leverage(exchange, symbol, leverage)
 
     _balance = get_free_usdt(exchange)
+    daily_guard.init(current_balance=_balance)
 
     # Minimum balance gate — grid requires headroom to DCA safely
     if _balance < 100.0:
@@ -1283,18 +1284,20 @@ def _run_single(cfg: dict) -> None:
                     elif _ema20_4h > 0 and _ema20_4h < _ema50_4h * (1 - EMA_BLOCK_MIN_GAP):
                         _log(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
-                        limit_price = levels[current_zone]  # floor зони — maker order
-                        _spread = (price - limit_price) / price if price > 0 else 0
-                        if limit_price >= price:
-                            # PostOnly відхилить ордер якщо ціна вже вище floor — пропускаємо
-                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — пропускаємо")
-                            result = None
-                        elif _spread < MIN_ORDER_SPREAD:
-                            # Занадто близько до ринку — PostOnly може відхилити на Demo
-                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                        if not daily_guard.check(current_balance=get_free_usdt(exchange)):
+                            _log(f"[GRID:{symbol}] 🛑 daily_guard — торгівля зупинена сьогодні, LONG BUY пропущено")
                             result = None
                         else:
-                            result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
+                            limit_price = levels[current_zone]  # floor зони — maker order
+                            _spread = (price - limit_price) / price if price > 0 else 0
+                            if limit_price >= price:
+                                _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} floor {limit_price:.4f} >= price {price:.4f} — пропускаємо")
+                                result = None
+                            elif _spread < MIN_ORDER_SPREAD:
+                                _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                                result = None
+                            else:
+                                result = _open_long_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
                         if result:
                             pending_orders[zone_str] = result
                             _save_state(symbol, state, user_id)
@@ -1342,17 +1345,21 @@ def _run_single(cfg: dict) -> None:
                     if not _is_btc and _btc_chg > BTC_PUMP_THRESHOLD:
                         _log(f"[GRID:{symbol}] 🚫 BTC +{_btc_chg:.1f}% за 2h — SHORT призупинено")
                     elif len(positions) + len(pending_orders) < max_pos:
-                        ceil_idx    = current_zone + 1 if current_zone + 1 < len(levels) else current_zone
-                        limit_price = levels[ceil_idx]  # ceiling зони — maker order
-                        _spread_s = (limit_price - price) / price if price > 0 else 0
-                        if limit_price <= price:
-                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} ceil {limit_price:.4f} <= price {price:.4f} — пропускаємо")
-                            result = None
-                        elif _spread_s < MIN_ORDER_SPREAD:
-                            _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread_s*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                        if not daily_guard.check(current_balance=get_free_usdt(exchange)):
+                            _log(f"[GRID:{symbol}] 🛑 daily_guard — торгівля зупинена сьогодні, SHORT пропущено")
                             result = None
                         else:
-                            result = _open_short_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
+                            ceil_idx    = current_zone + 1 if current_zone + 1 < len(levels) else current_zone
+                            limit_price = levels[ceil_idx]  # ceiling зони — maker order
+                            _spread_s = (limit_price - price) / price if price > 0 else 0
+                            if limit_price <= price:
+                                _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} ceil {limit_price:.4f} <= price {price:.4f} — пропускаємо")
+                                result = None
+                            elif _spread_s < MIN_ORDER_SPREAD:
+                                _log(f"[GRID:{symbol}] ⏭️ Level {current_zone} spread {_spread_s*100:.3f}% < {MIN_ORDER_SPREAD*100:.1f}% — занадто близько до ринку, пропускаємо")
+                                result = None
+                            else:
+                                result = _open_short_limit(exchange, symbol, limit_price, current_zone, size_usd, leverage)
                         if result:
                             pending_orders[zone_str] = result
                             _save_state(symbol, state, user_id)
