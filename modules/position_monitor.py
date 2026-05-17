@@ -84,6 +84,11 @@ def get_tracked_count() -> int:
     return len(_load_tracked())
 
 
+def is_tracked(symbol: str) -> bool:
+    """True якщо по символу є відкрита відстежувана позиція."""
+    return symbol in _load_tracked()
+
+
 def _is_expired(info: dict, now: datetime) -> bool:
     opened = datetime.fromisoformat(info["opened_at"])
     cam = info.get("close_after_min")
