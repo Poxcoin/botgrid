@@ -149,21 +149,17 @@ def run_orderflow_engine() -> None:
 
                 if ORDERFLOW_TRADING:
                     try:
-                        executed = execute_trade(
-                            exchange,
-                            symbol,
-                            action,
-                            signal_score=1,
-                            free_usdt=balance,
-                            leverage=LEVERAGE,
+                        coin = symbol.replace("/USDT:USDT", "")
+                        sig = {"coin": coin, "action": action, "total_score": 1, "size_multiplier": 1.0}
+                        execute_trade(
+                            sig,
+                            leverage_override=LEVERAGE,
                             tp_pct=TP_PCT,
                             sl_pct=SL_PCT,
                             size_pct=SIZE_PCT,
+                            bot_source="orderflow",
                         )
-                        if executed:
-                            send_telegram_message(tg_body, TG_CHAT_ID)
-                        else:
-                            print(f"[OF] execute_trade returned False for {symbol}")
+                        send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
                         print(f"[OF] ❌ execute_trade error {symbol}: {e}")
                 else:
