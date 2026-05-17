@@ -42,12 +42,17 @@ def _ensure_db_healthy() -> None:
             except sqlite3.DatabaseError as wal_err:
                 print(f"[DB] ⚠️  WAL checkpoint failed ({wal_err}) — clearing WAL files")
             conn.close()
-            # Remove -shm after checkpoint — stale shared-memory state causes
-            # "malformed" errors on next open when WAL mode re-initialises it
-            for ext in ("-wal", "-shm"):
-                p = _DB_PATH + ext
-                if os.path.exists(p) and os.path.getsize(p) == 0:
-                    os.remove(p)
+            # After a full checkpoint the WAL is flushed; -shm is just a
+            # shared-memory index for the WAL and is safe to delete once WAL
+            # is empty.  A stale non-zero -shm from a previous OOM-killed
+            # process causes SQLite to report "malformed" on the next open.
+            wal_path = _DB_PATH + "-wal"
+            shm_path = _DB_PATH + "-shm"
+            wal_empty = not os.path.exists(wal_path) or os.path.getsize(wal_path) == 0
+            if wal_empty:
+                for p in (wal_path, shm_path):
+                    if os.path.exists(p):
+                        os.remove(p)
             return
         conn.close()
         print(f"[DB] ⚠️  integrity_check: {result[0] if result else '?'} — відновлення з бекапу...")
