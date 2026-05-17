@@ -1467,6 +1467,8 @@ _BOT_LABELS = {
     "whale":       "Whale Tracker",
     "liq_cascade": "Liq Cascade",
     "cascade":     "Cascade Bot",
+    "orderflow":   "Orderflow",
+    "sniper":      "DEX Sniper",
     "bybit":       "Bybit Import",
     "altcoin":     "Altcoin Bot",
 }

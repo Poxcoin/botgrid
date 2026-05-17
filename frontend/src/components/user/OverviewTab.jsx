@@ -77,11 +77,11 @@ const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON
 const BOT_COINS = {
   // signal: excludes _TRADE_BLACKLIST (STX/TRX/ATOM/OP/AAVE/BTC/ETH/SOL/BNB)
   signal:  ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
-  fr:      ['INJ','ONDO','PENDLE','WLD','JUP','ARB','UNI','LDO','LINK'],
-  grid:    ['BTC','ETH','SOL'],
-  metals:  ['XAU'],
-  listing: [],  // dynamic — any new listing
-  dex:     [],  // dynamic — DEX volume spikes, any coin
+  fr:        ['INJ','ONDO','PENDLE','WLD','JUP','ARB','UNI','LDO','LINK'],
+  grid:      ['BTC','ETH','SOL'],
+  orderflow: ['BTC','ETH','SOL'],
+  listing:   [],  // dynamic — any new listing
+  dex:       [],  // dynamic — DEX volume spikes, any coin
   // cascade_bot.py (BTC/ETH/SOL) + main.py liq_cascade (22 alts)
   cascade: ['BTC','ETH','SOL','XRP','ADA','DOGE','AVAX','DOT','LINK','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
 };
@@ -877,26 +877,26 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 // Maps botId → one or more source values stored in user_trades.source
 // cascade_bot.py saves 'cascade', main.py liq pipeline saves 'liq_cascade'
 const BOT_SOURCES = {
-  signal:  ['news', 'dex'],
-  cascade: ['liq_cascade', 'cascade'],
-  fr:      ['fr'],
-  grid:    ['grid'],
-  altcoin: ['altcoin'],
-  metals:  ['metals'],
-  listing: ['listing'],
-  dex:     ['dex'],
-  history: ['bybit'],
+  signal:    ['news', 'dex'],
+  cascade:   ['liq_cascade', 'cascade'],
+  fr:        ['fr'],
+  grid:      ['grid'],
+  altcoin:   ['altcoin'],
+  orderflow: ['orderflow'],
+  listing:   ['listing'],
+  dex:       ['dex'],
+  history:   ['bybit'],
 };
 
 const ALL_BOTS_CONFIG = [
-  { id: 'signal',  label: 'Signal',  source: BOT_SOURCES.signal[0] },
-  { id: 'cascade', label: 'Cascade', source: BOT_SOURCES.cascade[0] },
-  { id: 'fr',      label: 'Funding', source: BOT_SOURCES.fr[0] },
-  { id: 'grid',    label: 'Grid',    source: BOT_SOURCES.grid[0] },
-  { id: 'altcoin', label: 'Alt',     source: BOT_SOURCES.altcoin[0] },
-  { id: 'metals',  label: 'Metals',  source: BOT_SOURCES.metals[0] },
-  { id: 'listing', label: 'Listing', source: BOT_SOURCES.listing[0] },
-  { id: 'dex',     label: 'DEX',     source: BOT_SOURCES.dex[0] },
+  { id: 'signal',    label: 'Signal',    source: BOT_SOURCES.signal[0] },
+  { id: 'cascade',   label: 'Cascade',   source: BOT_SOURCES.cascade[0] },
+  { id: 'fr',        label: 'Funding',   source: BOT_SOURCES.fr[0] },
+  { id: 'grid',      label: 'Grid',      source: BOT_SOURCES.grid[0] },
+  { id: 'altcoin',   label: 'Alt',       source: BOT_SOURCES.altcoin[0] },
+  { id: 'orderflow', label: 'Orderflow', source: BOT_SOURCES.orderflow[0] },
+  { id: 'listing',   label: 'Listing',   source: BOT_SOURCES.listing[0] },
+  { id: 'dex',       label: 'DEX',       source: BOT_SOURCES.dex[0] },
 ];
 
 export default function OverviewTab({ botId = 'signal' }) {
@@ -953,7 +953,7 @@ export default function OverviewTab({ botId = 'signal' }) {
     if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
     // Static fallback only for bots that hold positions without explicit open-trade records.
     // grid/fr are always-on — they hold perpetual positions even when all DB trades are closed.
-    // All other bots (cascade, metals, listing, dex, signal): no open trades = no positions.
+    // All other bots (cascade, orderflow, listing, dex, signal): no open trades = no positions.
     if ((botId === 'grid' || botId === 'fr') && staticCoins.length > 0) {
       const s = new Set(staticCoins);
       return positions.filter(p => s.has(sym(p.symbol)));

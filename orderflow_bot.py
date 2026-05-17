@@ -159,6 +159,19 @@ def run_orderflow_engine() -> None:
                             size_pct=SIZE_PCT,
                             bot_source="orderflow",
                         )
+                        try:
+                            from modules.saas_dispatcher import dispatch as _saas_dispatch
+                            _saas_dispatch({
+                                "source":   "orderflow",
+                                "symbol":   symbol,
+                                "side":     direction,
+                                "leverage": LEVERAGE,
+                                "tp_pct":   TP_PCT,
+                                "sl_pct":   SL_PCT,
+                                "size_pct": SIZE_PCT,
+                            })
+                        except Exception as _de:
+                            print(f"[OF] saas_dispatch error: {_de}")
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
                         print(f"[OF] ❌ execute_trade error {symbol}: {e}")

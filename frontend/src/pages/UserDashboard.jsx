@@ -10,14 +10,14 @@ import PnlTab           from '@/components/user/PnlTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 
 const BOTS = [
-  { id: 'signal',  label: 'Signal'         },
-  { id: 'fr',      label: 'Funding Rate'   },
-  { id: 'grid',    label: 'Grid'           },
-  { id: 'cascade', label: 'Cascade'        },
-  { id: 'metals',  label: 'Gold'           },
-  { id: 'listing', label: 'Listing Sniper' },
-  { id: 'dex',     label: 'DEX Sniper'     },
-  { id: 'history', label: 'History'        },
+  { id: 'signal',    label: 'Signal'         },
+  { id: 'fr',        label: 'Funding Rate'   },
+  { id: 'grid',      label: 'Grid'           },
+  { id: 'cascade',   label: 'Cascade'        },
+  { id: 'orderflow', label: 'Orderflow'      },
+  { id: 'listing',   label: 'Listing Sniper' },
+  { id: 'dex',       label: 'DEX Sniper'     },
+  { id: 'history',   label: 'History'        },
 ];
 const BOT_IDS = BOTS.map(b => b.id);
 

@@ -392,6 +392,19 @@ def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float)
             save_cascade_trade_all_users(coin, action, fill_price, qty)
         except Exception:
             pass
+        try:
+            from modules.saas_dispatcher import dispatch as _saas_dispatch
+            _saas_dispatch({
+                "source":   "cascade",
+                "symbol":   symbol,
+                "side":     action,
+                "leverage": LEVERAGE,
+                "tp_pct":   TP_PCT,
+                "sl_pct":   SL_PCT,
+                "size_pct": round(SIZE_PCT * size_mult, 2),
+            })
+        except Exception as _de:
+            print(f"[CASCADE] saas_dispatch error: {_de}")
 
         with _pos_lock:
             _positions[coin] = {
