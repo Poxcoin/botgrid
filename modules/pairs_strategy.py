@@ -319,6 +319,27 @@ def _open_pair(z: float, btc_price: float, eth_price: float) -> None:
     except Exception as e:
         print(f"[PAIRS] ⚠️ analytics_db save error: {e}")
 
+    # Set SL on exchange for each leg — safety net if strategy crashes/restarts
+    _SL_PCT = 5.0  # 5% price move SL per leg
+    for sym, action, fill in (
+        (ETH_SYMBOL, eth_action, eth_fill),
+        (BTC_SYMBOL, btc_action, btc_fill),
+    ):
+        try:
+            if action == "SHORT":
+                sl_p = float(_exchange.price_to_precision(sym, fill * (1 + _SL_PCT / 100)))
+            else:
+                sl_p = float(_exchange.price_to_precision(sym, fill * (1 - _SL_PCT / 100)))
+            _exchange.private_post_v5_position_trading_stop({
+                "category": "linear",
+                "symbol": _exchange.market_id(sym),
+                "positionIdx": 0,
+                "stopLoss": str(sl_p),
+                "slTriggerBy": "MarkPrice",
+            })
+        except Exception as _sl_e:
+            print(f"[PAIRS] ⚠️ SL not set for {sym}: {_sl_e}")
+
     pos = {
         "eth_action":   eth_action,
         "btc_action":   btc_action,
@@ -366,10 +387,10 @@ def _close_pair(reason: str, current_z: float = 0.0) -> None:
             return
         _position = None
 
-    _save_state(None)
-
+    # Close legs first, then persist state — avoids orphaned positions on crash
     eth_exit = _close_leg(ETH_SYMBOL, pos["eth_action"], pos["eth_qty"])
     btc_exit = _close_leg(BTC_SYMBOL, pos["btc_action"], pos["btc_qty"])
+    _save_state(None)
 
     # Fetch realized PnL from Bybit (authoritative)
     eth_pnl = _fetch_leg_pnl(ETH_SYMBOL)
