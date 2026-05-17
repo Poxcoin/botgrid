@@ -170,8 +170,6 @@ def update_pnl_db(exchange) -> int:
             continue
 
         closed = _fetch_closed_pnl(exchange, symbol, oldest_ms)
-        if not closed:
-            continue
 
         now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
 
@@ -242,7 +240,8 @@ def update_pnl_db(exchange) -> int:
                     print(f"[pnl_tracker] close_trade error: {e}")
 
             else:
-                # No Bybit close record — mark as ghost if older than threshold
+                # No Bybit close record — mark as ghost if older than threshold.
+                # This also covers Demo mode where closed_pnl API returns empty.
                 age_hours = (now_ms - trade_open_ms) / 3_600_000
                 if age_hours > GHOST_THRESHOLD_HOURS:
                     try:
