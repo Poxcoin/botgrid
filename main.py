@@ -802,9 +802,9 @@ def run_signal_engine():
                                 if is_coin_paused(coin):
                                     print(f"⏸ {coin} приостановлен (серия потерь) — пропускаем")
                                     continue
+                                _btc_eth_local = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
                                 _score_boost = get_score_threshold_boost(coin)
                                 if _score_boost > 0:
-                                    _btc_eth_local = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
                                     _base_min = 13.0 if coin.upper() in _btc_eth_local else 11.0
                                     if abs(signal["total_score"]) < _base_min + _score_boost:
                                         print(f"⚙️ {coin}: адаптивний поріг {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не пройшов")
