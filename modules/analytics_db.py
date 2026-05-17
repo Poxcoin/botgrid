@@ -178,6 +178,19 @@ def close_trade(trade_id: int, exit_price: float, pnl_usdt: float,
         ))
 
 
+def ghost_close_trade(trade_id: int, entry_price: float = 0.0) -> None:
+    """Позначає угоду як GHOST — не знайдено відповідного запису на біржі.
+    GHOST виключається з розрахунку WR і PnL статистики."""
+    init_db()
+    with _conn() as con:
+        con.execute("""
+            UPDATE trades SET
+                exit_price=?, pnl_usdt=NULL, pnl_pct=NULL, result='GHOST',
+                duration_minutes=NULL, timestamp_close=?
+            WHERE id=?
+        """, (entry_price, datetime.now(timezone.utc).isoformat(), trade_id))
+
+
 def save_user_trade(user_id: int, coin: str, side: str,
                     entry_price: float, source: str = "grid",
                     qty: float = None, order_id: str = None,

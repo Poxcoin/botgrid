@@ -15,11 +15,11 @@ import json
 import threading
 import sqlite3
 from datetime import datetime, timezone
-from modules.analytics_db import close_trade, DB_PATH
+from modules.analytics_db import close_trade, ghost_close_trade, DB_PATH
 
 LEDGER_FILES = ["signals_log.json", "signals_log_alt.json"]
 MATCH_WINDOW_MS = 5 * 60 * 1000   # 5 минут — окно для сопоставления JSON-журнала
-GHOST_THRESHOLD_HOURS = 8          # позиції старше 8h без Bybit-запису = ghost
+GHOST_THRESHOLD_HOURS = 24         # позиції старше 24h без Bybit-запису = ghost
 
 
 def _load(path: str) -> list:
@@ -185,12 +185,13 @@ def update_pnl_db(exchange) -> int:
             except Exception:
                 continue
 
-            # Find first unconsumed Bybit close event that happened AFTER trade opened
+            # Find first unconsumed Bybit close event that happened AFTER trade opened.
+            # Allow 30s before trade_open_ms to account for execution timing variance.
             matched = None
             matched_idx = -1
             for i, entry in enumerate(available):
                 entry_ms = int(entry.get("createdTime") or 0)
-                if entry_ms >= trade_open_ms:
+                if entry_ms >= trade_open_ms - 30_000:
                     matched = entry
                     matched_idx = i
                     break
@@ -240,13 +241,13 @@ def update_pnl_db(exchange) -> int:
                     print(f"[pnl_tracker] close_trade error: {e}")
 
             else:
-                # No Bybit close record — mark as ghost if older than threshold.
-                # This also covers Demo mode where closed_pnl API returns empty.
+                # No Bybit close record — mark as GHOST if older than threshold.
+                # GHOST trades are excluded from WR/PnL stats (not counted as LOSS).
                 age_hours = (now_ms - trade_open_ms) / 3_600_000
                 if age_hours > GHOST_THRESHOLD_HOURS:
                     try:
-                        close_trade(trade["id"], trade["entry_price"] or 0, 0.0, 0.0, round(age_hours * 60))
-                        print(f"[pnl_tracker] Ghost #{trade['id']} {coin} ({age_hours:.0f}h) — закрито з pnl=0")
+                        ghost_close_trade(trade["id"], trade["entry_price"] or 0)
+                        print(f"[pnl_tracker] Ghost #{trade['id']} {coin} ({age_hours:.0f}h) — GHOST (excluded from stats)")
                         updated += 1
                     except Exception as e:
                         print(f"[pnl_tracker] ghost close error: {e}")
