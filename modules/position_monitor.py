@@ -29,7 +29,7 @@ from typing import Callable
 
 from config.settings import MAX_TRADE_LOSS_USDT
 
-MAX_AGE_HOURS       = 4     # Позиция старше 4h → принудительно закрываем
+MAX_AGE_HOURS       = 48    # Safety net for stuck positions (TP/SL already set on Bybit)
 CHECK_INTERVAL_SEC  = 300   # Проверяем каждые 5 минут
 TRACK_FILE          = "open_positions.json"
 
@@ -104,7 +104,7 @@ def _monitor_loop(
     send_tg: Callable,
     chat_id: str,
 ) -> None:
-    print(f"[monitor] 🔍 Position monitor запущен (MAX_AGE={MAX_AGE_HOURS}h, интервал={CHECK_INTERVAL_SEC}s)")
+    print(f"[monitor] Position monitor started (safety timeout={MAX_AGE_HOURS}h, check every {CHECK_INTERVAL_SEC}s)")
 
     while True:
         try:
