@@ -73,7 +73,13 @@ class MacroBot:
     # ── Data fetching ────────────────────────────────────────────────────────
 
     async def fetch_actual(self, event_name: str) -> Optional[float]:
-        # Try BLS API first (most reliable for CPI/NFP/PPI)
+        # FOMC Rate Decision — FRED DFEDTARU (updates same day as decision)
+        if event_name in ("Federal Funds Rate", "FOMC Rate Decision") and self.fred:
+            rate = await self.fred.get_fomc_rate()
+            if rate is not None:
+                return rate
+
+        # BLS API for CPI/NFP/PPI
         bls_map = {
             "CPI m/m":                    "cpi",
             "Core CPI m/m":               "cpi",

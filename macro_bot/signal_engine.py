@@ -86,6 +86,25 @@ EVENT_CONFIG = {
         "historical_std": 0.5,
         "min_deviation":  0.6,
     },
+
+    # FOMC Rate Decision — Federal Funds Rate
+    # actual > forecast = surprise hike → USD strengthens → SHORT EUR/USD
+    # actual < forecast = surprise cut  → USD weakens    → LONG  EUR/USD
+    # historical_std = 0.25 (one standard 25bp move)
+    # min_deviation = 0.6 → need at least 15bp surprise (i.e. unexpected direction)
+    "Federal Funds Rate": {
+        "instrument":    "EURUSD",
+        "rule":          "usd_up_on_hot",
+        "historical_std": 0.25,
+        "min_deviation":  0.6,
+    },
+    # MT5 calendar may use this alternate name
+    "FOMC Rate Decision": {
+        "instrument":    "EURUSD",
+        "rule":          "usd_up_on_hot",
+        "historical_std": 0.25,
+        "min_deviation":  0.6,
+    },
 }
 
 

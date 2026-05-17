@@ -126,6 +126,36 @@ class FREDFetcher:
             "fetched_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    async def get_fomc_rate(self) -> Optional[float]:
+        """
+        Fetch today's Fed Funds Target Rate Upper Bound (DFEDTARU) from FRED.
+        FRED updates DFEDTARU on the same day as the FOMC decision — usually within minutes.
+        Returns the rate as a float (e.g., 5.50), or None if not yet published.
+        """
+        params = {
+            "series_id":         "DFEDTARU",
+            "api_key":           self.api_key,
+            "file_type":         "json",
+            "limit":             1,
+            "sort_order":        "desc",
+            "observation_start": date.today().isoformat(),
+        }
+        async with aiohttp.ClientSession() as s:
+            async with s.get(self.BASE, params=params) as r:
+                if r.status != 200:
+                    log.error("FRED FOMC error %s", r.status)
+                    return None
+                data = await r.json()
+
+        obs = data.get("observations", [])
+        if not obs or obs[0]["value"] == ".":
+            log.debug("FRED DFEDTARU: no observation for today yet")
+            return None
+
+        rate = float(obs[0]["value"])
+        log.info("FRED FOMC rate: %.2f%% (date=%s)", rate, obs[0]["date"])
+        return rate
+
 
 class ForexFactoryCalendar:
     """
