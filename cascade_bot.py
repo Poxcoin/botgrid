@@ -362,6 +362,27 @@ def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float)
             price
         )
 
+        # Recalculate TP/SL from actual fill price, then set via trading_stop.
+        # Inline params in create_order are unreliable on Demo accounts.
+        if action == "LONG":
+            tp_price = float(_exchange.price_to_precision(symbol, fill_price * (1 + TP_PCT / 100)))
+            sl_price = float(_exchange.price_to_precision(symbol, fill_price * (1 - SL_PCT / 100)))
+        else:
+            tp_price = float(_exchange.price_to_precision(symbol, fill_price * (1 - TP_PCT / 100)))
+            sl_price = float(_exchange.price_to_precision(symbol, fill_price * (1 + SL_PCT / 100)))
+        try:
+            _exchange.private_post_v5_position_trading_stop({
+                "category":    "linear",
+                "symbol":      _exchange.market_id(symbol),
+                "positionIdx": 0,
+                "takeProfit":  str(tp_price),
+                "stopLoss":    str(sl_price),
+                "tpTriggerBy": "MarkPrice",
+                "slTriggerBy": "MarkPrice",
+            })
+        except Exception as _tpsl_e:
+            print(f"[CASCADE] ⚠️ trading_stop failed for {coin}: {_tpsl_e}")
+
         ts_open = datetime.now(timezone.utc).isoformat()
         try:
             db_id = save_trade(None, coin, action, fill_price, ts_open, bot_source="cascade")
