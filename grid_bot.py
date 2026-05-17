@@ -45,7 +45,6 @@ from modules.tg_notifier import send_telegram_message
 from modules import daily_guard
 from modules.market_data import get_btc_2h_change
 from modules.analytics_db import save_trade, close_trade, save_user_trade, close_user_trade
-from modules.orderflow_engine import calc_vwap
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OWNER_USER_ID
 
 
@@ -117,9 +116,9 @@ MAX_REBUILDS_DAY       = 2      # макс перебудов сітки за д
 MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
 ATR_RANGE_PERIODS      = 10     # тісніші кроки → частіші fills
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
-SHORT_CONFIRM_TICKS    = 2      # 2 послідовних SHORT-читань (≈1h) → фліп в SHORT
+SHORT_CONFIRM_TICKS    = 9999   # SHORT режим ВИМКНЕНО — тільки LONG (grid накопичує позицію)
 LONG_CONFIRM_TICKS     = 3      # short→long: потребує 3 послідовних LONG-читань (≈1.5h)
-SHORT_EMA_MARGIN       = 0.97   # SHORT якщо ціна < EMA50*0.97 (3% нижче, агресивніше)
+SHORT_EMA_MARGIN       = 0.94   # не використовується поки SHORT_CONFIRM_TICKS=9999
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
@@ -182,62 +181,18 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
 
 
 def _detect_trend(exchange, symbol: str) -> str:
-    """Multi-factor trend detection on 4h candles.
+    """Повертає 'long' або 'short' на основі EMA50 на 4h свічках.
 
-    Scoring system — кожен індикатор голосує:
-      price < EMA50            → bearish +2  (ціна нижче середньотермінового тренду)
-      EMA50 < EMA200           → bearish +2  (macro downtrend підтверджено)
-      EMA20 < EMA50            → bearish +1  (короткостроковий momentum вниз)
-      price > EMA50            → bullish +2
-      EMA50 > EMA200           → bullish +1
-      EMA20 > EMA50            → bullish +1
-    SHORT якщо bearish > bullish, LONG якщо bullish >= bearish.
+    long  = ціна > EMA50 (висхідний або sideways тренд)
+    short = ціна < EMA50 * SHORT_EMA_MARGIN (низхідний тренд)
     """
     try:
-        ohlcv  = exchange.fetch_ohlcv(symbol, "4h", limit=210)
+        ohlcv  = exchange.fetch_ohlcv(symbol, "4h", limit=60)
         closes = [c[4] for c in ohlcv]
         price  = closes[-1]
-        ema20  = _calc_ema(closes, 20)
         ema50  = _calc_ema(closes, 50)
-        ema200 = _calc_ema(closes, 200) if len(closes) >= 200 else 0.0
-
-        bearish = 0
-        bullish = 0
-
-        if price < ema50:
-            bearish += 2
-        else:
-            bullish += 2
-
-        if ema200 > 0:
-            if ema50 < ema200:
-                bearish += 2
-            else:
-                bullish += 1
-
-        if ema20 > 0:
-            if ema20 < ema50:
-                bearish += 1
-            else:
-                bullish += 1
-
-        # VWAP tie-breaker: якщо рахунок однаковий або різниця ≤1 — VWAP вирішує
-        try:
-            vwap = calc_vwap(symbol, hours=8)
-            if vwap > 0:
-                if price < vwap:
-                    bearish += 1
-                else:
-                    bullish += 1
-        except Exception:
-            pass
-
-        direction = "short" if bearish > bullish else "long"
-        _log(
-            f"[GRID:{symbol}] Тренд: ${price:.2f} | "
-            f"EMA20={ema20:.2f} EMA50={ema50:.2f} EMA200={ema200:.2f} | "
-            f"score bearish={bearish} bullish={bullish} → {direction.upper()}"
-        )
+        direction = "long" if price >= ema50 * SHORT_EMA_MARGIN else "short"
+        _log(f"[GRID:{symbol}] Тренд: ціна=${price:.4f} EMA50=${ema50:.4f} threshold=${ema50 * SHORT_EMA_MARGIN:.4f} → {direction.upper()}")
         return direction
     except Exception as e:
         _log(f"[GRID:{symbol}] Trend detection error: {e} — defaulting to long")
