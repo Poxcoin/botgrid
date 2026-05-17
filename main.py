@@ -26,6 +26,10 @@ from modules.post_trade_analyzer import (
 from modules.session_monitor import start_session_monitor, get_session_bias
 from modules.saas_dispatcher import dispatch as saas_dispatch
 from modules.orderflow_engine import fetch_oi_delta
+from modules.oi_monitor import start_oi_monitor, get_oi_context
+from modules.token_unlocks import start_unlock_monitor, get_unlock_risk
+from modules.deribit_options import start_deribit_monitor, options_queue, get_options_sentiment
+from modules.macro_calendar import is_trade_blocked
 from config.settings import (
     BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
@@ -563,6 +567,9 @@ def run_signal_engine():
     start_dex_scanner()
     start_smart_wallet_tracker()
     start_coingecko_monitor()
+    start_oi_monitor()
+    start_unlock_monitor()
+    start_deribit_monitor()
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_session_monitor(send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
@@ -637,7 +644,15 @@ def run_signal_engine():
                 except Exception:
                     break
 
-            # 1b3. Smart wallet moves — Alchemy WebSocket реалтайм
+            # 1b3. Deribit options flow — великі угоди call/put
+            opt_news = []
+            while not options_queue.empty():
+                try:
+                    opt_news.append(options_queue.get_nowait())
+                except Exception:
+                    break
+
+            # 1b4. Smart wallet moves — Alchemy WebSocket реалтайм
             smart_news = []
             while not smart_wallet_queue.empty():
                 try:
@@ -658,7 +673,8 @@ def run_signal_engine():
             dex_count   = len(dex_news)
             smart_count = len(smart_news)
             cg_count    = len(cg_news)
-            _has_input  = ann_count or tg_count or dex_count or smart_count or cg_count
+            opt_count   = len(opt_news)
+            _has_input  = ann_count or tg_count or dex_count or smart_count or cg_count or opt_count
             _now_scan   = time.time()
             if _has_input:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
@@ -672,8 +688,8 @@ def run_signal_engine():
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування...")
                 last_scan_log_time = _now_scan
 
-            # Пріоритет: Анонси > TG > Smart Wallets > DEX > CoinGecko
-            latest_news = ann_news + tg_news + smart_news + dex_news + cg_news
+            # Пріоритет: Анонси > Options Flow > Smart Wallets > TG > DEX > CoinGecko
+            latest_news = ann_news + opt_news + smart_news + tg_news + dex_news + cg_news
             
             urls_changed = False
             for news_item in latest_news:
@@ -787,6 +803,21 @@ def run_signal_engine():
                                     except Exception:
                                         pass
 
+                                # Macro calendar hard block (FOMC/CPI/NFP)
+                                _macro_blocked, _macro_reason = is_trade_blocked()
+                                if _macro_blocked:
+                                    print(f"{_macro_reason} — пропускаємо {coin}")
+                                    continue
+
+                                # Token unlock filter
+                                _unlock_risk, _unlock_reason = get_unlock_risk(coin)
+                                if _unlock_risk == "avoid_long" and signal["action"] == "LONG":
+                                    print(f"{_unlock_reason} — LONG {coin} заблоковано")
+                                    continue
+                                if _unlock_risk == "short_bias":
+                                    signal["total_score"] -= 2.0
+                                    print(f"{_unlock_reason} → score {signal['total_score']:.1f}")
+
                                 # BTC Correlation Filter: блокируем LONG/SHORT на альтах
                                 # если BTC сильно двигается в обратную сторону за 2h
                                 _btc_2h = get_btc_2h_change()
@@ -827,9 +858,20 @@ def run_signal_engine():
                                     print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
 
-                                # OI delta filter: якщо OI падає — позиції закриваються,
-                                # momentum слабкий → знижуємо score або блокуємо
+                                # OI context (Binance 1h) + delta filter
                                 try:
+                                    _oi_ctx = get_oi_context(coin)
+                                    if _oi_ctx:
+                                        if _oi_ctx.get("signal") == "coil" and signal["action"] == "LONG":
+                                            signal["total_score"] = min(signal["total_score"] + 1.0, 15.0)
+                                            print(f"📈 {coin}: OI coil (+{_oi_ctx['oi_1h_pct']:.1f}%/1h, ціна flat) → score {signal['total_score']:.1f}")
+                                        elif _oi_ctx.get("signal") == "unwind":
+                                            signal["total_score"] -= 2.0
+                                            print(f"📉 {coin}: OI unwind ({_oi_ctx['oi_1h_pct']:.1f}%/1h) → score {signal['total_score']:.1f}")
+                                        _basis = _oi_ctx.get("basis_pct", 0)
+                                        if _basis > 0.3 and signal["action"] == "LONG":
+                                            signal["total_score"] -= 0.5
+                                            print(f"⚠️ {coin}: basis {_basis:+.2f}% (перегрів лонгів) → score {signal['total_score']:.1f}")
                                     _oi_sym = f"{coin.upper()}/USDT:USDT"
                                     _oi_delta = fetch_oi_delta(_oi_sym)
                                     if _oi_delta < -0.3:
@@ -842,7 +884,7 @@ def run_signal_engine():
                                         signal["total_score"] = min(signal["total_score"] + 0.5, 15.0)
                                         print(f"📈 {coin}: OI delta {_oi_delta:+.3f}% (нові позиції) → score {signal['total_score']:.1f}")
                                 except Exception:
-                                    pass  # OI недоступний для цієї монети — продовжуємо без фільтру
+                                    pass  # OI недоступний — продовжуємо без фільтру
 
                                 # Blacklist guard (синхронізовано з decision_maker._COIN_BLACKLIST)
                                 # BTC/ETH/SOL/BNB — grid/FR боти покривають, news bot не вспіває

@@ -107,6 +107,20 @@ for d in PCE_DATES_2026:
 MACRO_WINDOW_BEFORE_MIN = 60   # за 60 мин до события — рынок замирает
 MACRO_WINDOW_AFTER_MIN  = 45   # 45 мин после — первичная реакция
 
+# Дати щомісячної та квартальної опціонної експірації на Deribit (остання п'ятниця, 08:00 UTC)
+OPTIONS_EXPIRY_DATES_2026 = [
+    "2026-05-29", "2026-06-26", "2026-07-31", "2026-08-28",
+    "2026-09-25", "2026-10-30", "2026-11-27", "2026-12-25",
+]
+for _d in OPTIONS_EXPIRY_DATES_2026:
+    _SCHEDULED_EVENTS.append({
+        "name": "Deribit/CME Options Expiry",
+        "short": "OPT-EXP",
+        "date": _d,
+        "utc_hour": 8, "utc_min": 0,
+        "impact": 2,
+    })
+
 # Initial Jobless Claims — каждый четверг 13:30 UTC
 JOBLESS_CLAIMS_UTC_HOUR = 13
 JOBLESS_CLAIMS_UTC_MIN  = 30
@@ -180,6 +194,20 @@ def get_funding_settlement() -> Optional[dict]:
                 "is_before": delta_min > 0,
             }
     return None
+
+
+def is_trade_blocked() -> tuple[bool, str]:
+    """
+    Hard block for highest-impact events (FOMC, CPI, NFP, PCE).
+    Returns (True, reason) if trading should be completely stopped.
+    Used in main.py before any trade execution.
+    """
+    macro = get_active_macro_event()
+    if macro and macro["impact"] >= 3:
+        t = macro["minutes_to_event"]
+        t_str = f"через {abs(t)} хв" if t > 0 else f"{abs(t)} хв тому"
+        return True, f"🚫 {macro['name']} ({t_str}) — торгівля заблокована"
+    return False, ""
 
 
 def get_size_modifier() -> tuple[float, str]:
