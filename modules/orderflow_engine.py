@@ -27,10 +27,10 @@ def _get_pub() -> ccxt.Exchange:
             _pub = ccxt.bybit({
                 "options": {"defaultType": "swap"},
                 "enableRateLimit": True,
+                "timeout": 15000,
             })
             _pub.has["fetchCurrencies"] = False
-            if IS_DEMO_TRADING:
-                _pub.urls["api"] = _pub.urls["demotrading"]
+            # Market data endpoints are always public — no demo URL override needed
             _pub.load_markets()
     return _pub
 
