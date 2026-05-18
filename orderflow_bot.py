@@ -23,8 +23,8 @@ SYMBOLS = [
 ]
 
 LEVERAGE   = 3
-TP_PCT     = 1.0
-SL_PCT     = 0.5
+TP_PCT     = 2.0
+SL_PCT     = 1.0
 SIZE_PCT   = 3.0
 MAX_POS    = 2
 COOLDOWN   = 2 * 3600   # seconds
