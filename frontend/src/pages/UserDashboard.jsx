@@ -12,10 +12,12 @@ import { useTheme }     from '@/lib/ThemeContext';
 
 const BOTS = [
   { id: 'signal',    label: 'Signal'         },
+  { id: 'sweep',     label: 'Liq Sweep'      },
   { id: 'fr',        label: 'Funding Rate'   },
   { id: 'grid',      label: 'Grid'           },
   { id: 'cascade',   label: 'Cascade'        },
   { id: 'orderflow', label: 'Orderflow'      },
+  { id: 'macro',     label: 'Macro'          },
   { id: 'listing',   label: 'Listing Sniper' },
   { id: 'dex',       label: 'DEX Sniper'     },
   { id: 'history',   label: 'History'        },
@@ -26,8 +28,21 @@ function getUser() {
   try { return JSON.parse(localStorage.getItem('kado_user') || '{}'); } catch { return {}; }
 }
 
-function Page({ tab }) {
-  if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} />;
+function usePlanFeatures() {
+  const [bots, setBots] = React.useState([]);
+  useEffect(() => {
+    const token = localStorage.getItem('kado_token');
+    if (!token) return;
+    fetch('/api/users/plan-features', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setBots(d.bots || []); })
+      .catch(() => {});
+  }, []);
+  return bots;
+}
+
+function Page({ tab, allowedBots }) {
+  if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} allowedBots={allowedBots} />;
   switch (tab) {
     case 'analytics': return <AnalyticsTab />;
     case 'account':   return <AccountTab />;
@@ -51,6 +66,7 @@ export default function UserDashboard() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const dropRef = useRef(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const allowedBots = usePlanFeatures();
 
   useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
 
@@ -178,7 +194,7 @@ export default function UserDashboard() {
         ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
       </nav>
 
-      {/* footer: email + theme toggle + logout */}
+      {/* footer: account name + gear + theme + logout */}
       <div style={{
         borderTop: `1px solid ${border}`,
         padding: '10px 20px',
@@ -188,16 +204,16 @@ export default function UserDashboard() {
           fontSize: 11, color: muted,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
         }}>
-          {user.email ?? '—'}
+          {user.username || user.email?.split('@')[0] || '—'}
         </span>
-        {/* theme toggle */}
+        {/* gear → settings */}
         <button
-          onClick={toggle}
-          title={dark ? 'Switch to light' : 'Switch to dark'}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 14, flexShrink: 0, lineHeight: 1, padding: '2px 4px' }}
+          onClick={() => goTab('settings')}
+          title="Settings"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 13, flexShrink: 0, lineHeight: 1, padding: '2px 4px' }}
           onMouseEnter={e => e.currentTarget.style.color = fg}
           onMouseLeave={e => e.currentTarget.style.color = muted}>
-          {dark ? '☀' : '🌙'}
+          ⚙
         </button>
         {/* logout */}
         <button
@@ -301,7 +317,7 @@ export default function UserDashboard() {
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = borderHi; e.currentTarget.style.color = fg; }}
               onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted; } }}>
-                {isMobile ? (user.email?.split('@')[0] ?? 'Account') : (user.email ?? 'Account')}
+                {user.username || user.email?.split('@')[0] || 'Account'}
               </button>
 
               {drop && (
@@ -310,7 +326,7 @@ export default function UserDashboard() {
                   background: bgEl, border: `1px solid ${borderHi}`, zIndex: 100,
                 }}>
                   <div style={{ padding: '10px 14px', borderBottom: `1px solid ${border}`, fontSize: 11, color: muted }}>
-                    {user.email}
+                    {user.email ? user.email[0] + '***@***' + user.email.slice(user.email.lastIndexOf('.')) : '—'}
                   </div>
                   {/* theme in dropdown (mobile) */}
                   {isMobile && (
@@ -335,7 +351,7 @@ export default function UserDashboard() {
 
         {/* content */}
         <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? '16px' : '28px', display: 'flex', flexDirection: 'column' }}>
-          <Page tab={tab} />
+          <Page tab={tab} allowedBots={allowedBots} />
         </div>
       </div>
 

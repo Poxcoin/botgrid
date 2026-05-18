@@ -31,7 +31,7 @@ const CopyIcon = () => (
 
 const CheckIcon = () => (
   <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-    <path d="M2.5 7l3 3 5-6" stroke="#00d4aa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M2.5 7l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
@@ -62,8 +62,8 @@ const STEPS = [
             ['✗', 'Internal Transfer — leave off'],
           ].map(([mark, text], i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: FM, fontSize: 11 }}>
-              <span style={{ color: mark === '✓' ? 'var(--accent-green)' : 'var(--accent-red)', width: 12, flexShrink: 0 }}>{mark}</span>
-              <span style={{ color: mark === '✓' ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{text}</span>
+              <span style={{ color: mark === '✓' ? '#aaa' : '#555', width: 12, flexShrink: 0 }}>{mark}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{text}</span>
             </div>
           ))}
         </div>
@@ -76,7 +76,7 @@ const STEPS = [
     body: (
       <div style={{ lineHeight: 1.6 }}>
         Enable IP restriction and add the trading server IP. Contact support to get the exact address —{' '}
-        <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: 'var(--accent-green)', textDecoration: 'none' }}>{SUPPORT_EMAIL}</a>.
+        <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>{SUPPORT_EMAIL}</a>.
       </div>
     ),
   },
@@ -98,10 +98,10 @@ function SetupGuide() {
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--bg-surface)', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(0,212,170,0.12)', border: '1px solid rgba(0,212,170,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#666' }}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <circle cx="6" cy="6" r="5" stroke="#00d4aa" strokeWidth="1.2"/>
-              <path d="M6 5v4M6 3.5v.5" stroke="#00d4aa" strokeWidth="1.3" strokeLinecap="round"/>
+              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M6 5v4M6 3.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             </svg>
           </div>
           <div>
@@ -129,10 +129,10 @@ function SetupGuide() {
             ))}
           </div>
 
-          <div style={{ marginTop: 20, padding: '12px 14px', background: 'rgba(255,77,109,0.06)', border: '1px solid rgba(255,77,109,0.2)', borderRadius: 7, display: 'flex', gap: 10 }}>
-            <span style={{ color: 'var(--accent-red)', fontSize: 14, flexShrink: 0 }}>⚠</span>
+          <div style={{ marginTop: 20, padding: '12px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, display: 'flex', gap: 10 }}>
+            <span style={{ color: '#666', fontSize: 14, flexShrink: 0 }}>⚠</span>
             <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              <strong style={{ color: 'var(--accent-red)' }}>Never enable Withdrawal permission.</strong> The bot only needs to open/close positions and read your balance. Withdrawal access is unnecessary and a security risk.
+              <strong style={{ color: '#aaa' }}>Never enable Withdrawal permission.</strong> The bot only needs to open/close positions and read your balance. Withdrawal access is unnecessary and a security risk.
             </div>
           </div>
         </div>
@@ -227,11 +227,11 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
 // ── Key card (existing key) ────────────────────────────────────────────────
 function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
   return (
-    <div style={{ border: '1px solid rgba(0,212,170,0.2)', background: 'rgba(0,212,170,0.04)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
+    <div style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-green)' }} />
-          <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--accent-green)', letterSpacing: '0.1em' }}>BYBIT · CONNECTED</span>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />
+          <span style={{ fontFamily: FM, fontSize: 10, color: '#777', letterSpacing: '0.1em' }}>CONNECTED</span>
           {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>DEMO</span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -284,18 +284,93 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
     <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <div style={{ fontFamily: FF, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
-        {badge && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 8px', border: `1px solid ${badge.color}30`, color: badge.color, borderRadius: 100 }}>{badge.text}</span>}
+        {badge && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 8px', border: '1px solid rgba(255,255,255,0.1)', color: '#666', borderRadius: 100 }}>{badge.text}</span>}
       </div>
       <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>{subtitle}</div>
 
       {success && (
-        <div style={{ marginBottom: 14, padding: '10px 14px', border: '1px solid rgba(0,212,170,0.3)', background: 'rgba(0,212,170,0.06)', color: 'var(--accent-green)', fontSize: 12, fontFamily: FM, borderRadius: 6 }}>
+        <div style={{ marginBottom: 14, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#aaa', fontSize: 12, fontFamily: FM, borderRadius: 6 }}>
           ✓ {success}
         </div>
       )}
 
       {hasKey && !showForm && <KeyCard maskedKey={localMasked} isTestnet={isTestnet} onReplace={() => setShowForm(true)} onDelete={handleDelete} deleting={deleting} />}
       {(!hasKey || showForm) && <KeyForm isTestnet={isTestnet} existing={hasKey && showForm} onSaved={handleSaved} onCancel={showForm ? () => setShowForm(false) : null} />}
+    </div>
+  );
+}
+
+// ── MT5 Keys ───────────────────────────────────────────────────────────────
+function Mt5KeysSection() {
+  const [data,    setData]    = React.useState(null);
+  const [login,   setLogin]   = React.useState('');
+  const [pass,    setPass]    = React.useState('');
+  const [server,  setServer]  = React.useState('');
+  const [saving,  setSaving]  = React.useState(false);
+  const [msg,     setMsg]     = React.useState('');
+
+  React.useEffect(() => {
+    API('/api/users/mt5-keys').then(d => {
+      setData(d);
+      if (d.configured) { setLogin(d.login); setServer(d.server); }
+    }).catch(() => {});
+  }, []);
+
+  const save = async () => {
+    if (!login || !pass || !server) { setMsg('Fill all fields'); return; }
+    setSaving(true);
+    try {
+      await API('/api/users/mt5-keys', { method: 'POST', body: JSON.stringify({ login, password: pass, server }) });
+      setData({ configured: true, login, server });
+      setMsg('✓ MT5 credentials saved');
+      setPass('');
+    } catch(e) { setMsg(e.message); }
+    setSaving(false);
+  };
+
+  const remove = async () => {
+    await API('/api/users/mt5-keys', { method: 'DELETE' }).catch(() => {});
+    setData({ configured: false }); setLogin(''); setPass(''); setServer(''); setMsg('Removed');
+  };
+
+  return (
+    <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, overflow: 'hidden', marginTop: 24 }}>
+      <div style={{ padding: '14px 18px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: FM, fontSize: 13, fontWeight: 600 }}>MT5 / MetaApi Integration</span>
+        {data?.configured && <span style={{ fontSize: 11, color: 'var(--accent-green)', fontFamily: FM }}>● Connected</span>}
+      </div>
+      <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: FF, lineHeight: 1.5 }}>
+          Connect your IC Markets MT5 demo account to trade EURUSD, GBPUSD, XAUUSD on macro news events (CPI, NFP, PCE).
+        </div>
+        {[
+          { label: 'MT5 Login (account number)', val: login, set: setLogin, ph: '52886576', type: 'text' },
+          { label: 'MT5 Password', val: pass, set: setPass, ph: '••••••••••', type: 'password' },
+          { label: 'MT5 Server', val: server, set: setServer, ph: 'ICMarketsSC-Demo', type: 'text' },
+        ].map(({ label, val, set, ph, type }) => (
+          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: FM, letterSpacing: '0.05em' }}>{label}</label>
+            <input
+              type={type}
+              value={val}
+              onChange={e => set(e.target.value)}
+              placeholder={ph}
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '8px 12px', fontFamily: FM, fontSize: 12, color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+        ))}
+        {msg && <div style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--accent-green)' : 'var(--accent-red)', fontFamily: FM }}>{msg}</div>}
+        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+          <button onClick={save} disabled={saving} style={{ flex: 1, padding: '10px 0', background: 'var(--accent-green)', color: '#000', border: 'none', borderRadius: 6, fontFamily: FM, fontSize: 12, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? 'Saving…' : data?.configured ? 'Update' : 'Connect MT5'}
+          </button>
+          {data?.configured && (
+            <button onClick={remove} style={{ padding: '10px 16px', background: 'transparent', color: 'var(--accent-red)', border: '1px solid var(--accent-red)', borderRadius: 6, fontFamily: FM, fontSize: 12, cursor: 'pointer' }}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -355,13 +430,16 @@ export default function ApiKeysTab() {
               ? '✓ Two-factor authentication is enabled on your account.'
               : '2FA is not enabled — enable it in Settings for better protection.',
           ].map((line, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontFamily: FF, fontSize: 12, color: i === 3 && me?.totp_enabled ? 'var(--accent-green)' : 'var(--text-muted)', lineHeight: 1.5 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               <span style={{ marginTop: 2, flexShrink: 0 }}>·</span>
               {line}
             </div>
           ))}
         </div>
       </div>
+
+      {/* ── MT5 Keys ── */}
+      <Mt5KeysSection />
 
     </div>
   );

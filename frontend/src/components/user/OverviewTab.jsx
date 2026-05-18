@@ -76,13 +76,15 @@ const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON
 
 const BOT_COINS = {
   // signal: excludes _TRADE_BLACKLIST (STX/TRX/ATOM/OP/AAVE/BTC/ETH/SOL/BNB)
-  signal:  ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
+  signal:    ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
+  sweep:     ['ETH','SOL'],
   fr:        ['INJ','ONDO','PENDLE','WLD','JUP','ARB','UNI','LDO','LINK'],
   grid:      ['BTC','ETH','SOL'],
   orderflow: ['BTC','ETH','SOL'],
+  macro:     ['EUR','GBP','XAU'],
   listing:   [],  // dynamic — any new listing
   dex:       [],  // dynamic — DEX volume spikes, any coin
-  // cascade_bot.py (BTC/ETH/SOL) + main.py liq_cascade (22 alts)
+  // cascade_bot.py (BTC/ETH/SOL) + main.py liq pipeline (22 alts)
   cascade: ['BTC','ETH','SOL','XRP','ADA','DOGE','AVAX','DOT','LINK','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
 };
 
@@ -559,11 +561,13 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 // cascade_bot.py saves 'cascade', main.py liq pipeline saves 'liq_cascade'
 const BOT_SOURCES = {
   signal:    ['news', 'dex'],
+  sweep:     ['sweep'],
   cascade:   ['liq_cascade', 'cascade'],
   fr:        ['fr'],
   grid:      ['grid'],
   altcoin:   ['altcoin'],
   orderflow: ['orderflow'],
+  macro:     ['macro'],
   listing:   ['listing'],
   dex:       ['dex'],
   history:   ['bybit'],
@@ -571,19 +575,22 @@ const BOT_SOURCES = {
 
 const ALL_BOTS_CONFIG = [
   { id: 'signal',    label: 'Signal',    source: BOT_SOURCES.signal[0] },
+  { id: 'sweep',     label: 'Sweep',     source: BOT_SOURCES.sweep[0] },
   { id: 'cascade',   label: 'Cascade',   source: BOT_SOURCES.cascade[0] },
   { id: 'fr',        label: 'Funding',   source: BOT_SOURCES.fr[0] },
   { id: 'grid',      label: 'Grid',      source: BOT_SOURCES.grid[0] },
   { id: 'altcoin',   label: 'Alt',       source: BOT_SOURCES.altcoin[0] },
   { id: 'orderflow', label: 'Orderflow', source: BOT_SOURCES.orderflow[0] },
+  { id: 'macro',     label: 'Macro',     source: BOT_SOURCES.macro[0] },
   { id: 'listing',   label: 'Listing',   source: BOT_SOURCES.listing[0] },
   { id: 'dex',       label: 'DEX',       source: BOT_SOURCES.dex[0] },
 ];
 
-export default function OverviewTab({ botId = 'signal' }) {
+export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const dbSources = BOT_SOURCES[botId] ?? [botId];
   const dbSource  = dbSources[0]; // primary key for heartbeat + labels
   const isMobile  = useIsMobile();
+  const isLocked  = allowedBots !== null && allowedBots.length > 0 && !allowedBots.includes(botId);
 
   // ── Real-time WebSocket feed ──────────────────────────────────────────────
   const { positions, balance, openOrders, trades, connected } = useLiveStream();
@@ -748,6 +755,15 @@ export default function OverviewTab({ botId = 'signal' }) {
     }
   }, []);
 
+  if (isLocked) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 16 }}>
+      <div style={{ fontSize: 32 }}>🔒</div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-primary)', fontWeight: 600 }}>Bot not available on your plan</div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)' }}>Upgrade to access this bot</div>
+      <a href="/pricing" style={{ marginTop: 8, padding: '10px 24px', background: 'var(--accent-green)', color: '#000', borderRadius: 6, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Upgrade Plan</a>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
@@ -812,8 +828,7 @@ export default function OverviewTab({ botId = 'signal' }) {
             }}>
               <span style={{
                 width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
-                background: h == null ? 'var(--text-muted)' : active ? 'var(--accent-green)' : 'var(--accent-red)',
-                boxShadow: active ? '0 0 5px var(--accent-green)' : 'none',
+                background: h == null ? '#333' : active ? '#aaa' : '#555',
               }}/>
               <span style={{ fontFamily: FM, fontSize: 10, color: current ? 'var(--text-primary)' : active ? 'var(--text-secondary)' : 'var(--text-muted)', letterSpacing: '0.04em' }}>
                 {b.label}
@@ -834,8 +849,7 @@ export default function OverviewTab({ botId = 'signal' }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
             width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
-            background: connected ? 'var(--accent-green)' : 'var(--accent-red)',
-            boxShadow: connected ? '0 0 6px var(--accent-green)' : 'none',
+            background: connected ? 'rgba(255,255,255,0.35)' : '#444',
           }}/>
           <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
             {connected ? 'LIVE' : 'RECONNECTING…'}
@@ -848,7 +862,7 @@ export default function OverviewTab({ botId = 'signal' }) {
           const fresh = ago != null && ago < 240;
           return (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: fresh ? 'var(--accent-green)' : 'var(--text-muted)', display: 'inline-block', flexShrink: 0 }}/>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: fresh ? '#aaa' : '#444', display: 'inline-block', flexShrink: 0 }}/>
               <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
                 Last trade {ago != null ? (ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`) : '—'}
               </span>
