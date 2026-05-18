@@ -382,7 +382,7 @@ function CoinChart({ coins, allTrades }) {
     if (!selectedCoin) return;
     const load = (initial = false) => {
       if (initial) { setKlineLoading(true); setKlines([]); }
-      fetch(`https://api.bybit.com/v5/market/kline?symbol=${selectedCoin}USDT&interval=D&limit=90`)
+      fetch(`https://api.bybit.com/v5/market/kline?symbol=${selectedCoin}USDT&interval=D&limit=1000`)
         .then(r => r.json())
         .then(json => {
           const list = json?.result?.list;
