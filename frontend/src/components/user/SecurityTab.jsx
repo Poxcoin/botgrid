@@ -1,6 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useLang } from '@/lib/LangContext';
 
+function maskEmail(e) {
+  if (!e) return '—';
+  const [l, d] = e.split('@');
+  const ext = d ? d.slice(d.lastIndexOf('.')) : '';
+  return (l?.[0] || '*') + '***@***' + ext;
+}
+
 const API = (path, opts) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
   ...opts,
@@ -68,7 +75,7 @@ function TwoFAModal({ mode, onClose, onDone }) {
             <div style={title}>{t.dashboard.security.enable2faTitle}</div>
             <div style={sub}>{t.dashboard.security.enable2faSub}</div>
             <input type="password" autoFocus required placeholder={t.dashboard.security.yourPassword} value={password} onChange={e => setPassword(e.target.value)} style={{ ...inp, marginBottom: 12 }} />
-            {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
+            {err && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{err}</div>}
             <button type="submit" disabled={loading} style={btnPrimary}>{loading ? t.dashboard.security.checking : t.dashboard.security.continueArrow}</button>
             <button type="button" onClick={onClose} style={btnSecondary}>{t.dashboard.security.cancel}</button>
           </form>
@@ -83,7 +90,7 @@ function TwoFAModal({ mode, onClose, onDone }) {
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', background: 'var(--bg2)', border: '1px solid var(--border)', padding: '8px 10px', wordBreak: 'break-all', marginBottom: 16 }}>{secret}</div>
             <div style={{ fontSize: 11, color: 'var(--muted-fg)', marginBottom: 6 }}>{t.dashboard.security.enterAppCode}</div>
             <input type="text" autoFocus required inputMode="numeric" placeholder="000000" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} style={{ ...inp, letterSpacing: '0.2em', textAlign: 'center', fontSize: 18, marginBottom: 12 }} />
-            {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
+            {err && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{err}</div>}
             <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? t.dashboard.security.checking : t.dashboard.security.verifyArrow}</button>
             <button type="button" onClick={onClose} style={btnSecondary}>{t.dashboard.security.cancel}</button>
           </form>
@@ -96,7 +103,7 @@ function TwoFAModal({ mode, onClose, onDone }) {
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', padding: '12px 14px', marginBottom: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
               {recoveryCodes.map((c, i) => <span key={i} style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg)' }}>{c}</span>)}
             </div>
-            <button onClick={copyAll} style={{ ...btnSecondary, marginTop: 0, marginBottom: 12, color: copied ? '#5a5' : 'var(--muted-fg)' }}>{copied ? t.dashboard.security.copied : t.dashboard.security.copyAll}</button>
+            <button onClick={copyAll} style={{ ...btnSecondary, marginTop: 0, marginBottom: 12, color: copied ? 'var(--text-secondary)' : 'var(--muted-fg)' }}>{copied ? t.dashboard.security.copied : t.dashboard.security.copyAll}</button>
             <button onClick={() => onDone(true)} style={btnPrimary}>{t.dashboard.security.done}</button>
           </div>
         )}
@@ -106,8 +113,8 @@ function TwoFAModal({ mode, onClose, onDone }) {
             <div style={title}>{t.dashboard.security.disable2faTitle}</div>
             <div style={sub}>{t.dashboard.security.disable2faSub}</div>
             <input type="text" autoFocus required inputMode="numeric" placeholder="000000" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} style={{ ...inp, letterSpacing: '0.2em', textAlign: 'center', fontSize: 18, marginBottom: 12 }} />
-            {err && <div style={{ fontSize: 12, color: '#e55', marginBottom: 10 }}>{err}</div>}
-            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, background: '#c55', opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? t.dashboard.security.checking : t.dashboard.security.disable2faTitle}</button>
+            {err && <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{err}</div>}
+            <button type="submit" disabled={loading || code.length < 6} style={{ ...btnPrimary, background: 'var(--fg)', opacity: (loading || code.length < 6) ? 0.5 : 1 }}>{loading ? t.dashboard.security.checking : t.dashboard.security.disable2faTitle}</button>
             <button type="button" onClick={onClose} style={btnSecondary}>{t.dashboard.security.cancel}</button>
           </form>
         )}
@@ -181,10 +188,10 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ width: 7, height: 7, borderRadius: '50%', background: me?.has_api_keys ? '#22c55e' : 'var(--muted-fg)', opacity: me?.has_api_keys ? 1 : 0.35 }} />
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: me?.has_api_keys ? 'var(--text-secondary)' : 'var(--muted-fg)', opacity: me?.has_api_keys ? 1 : 0.35 }} />
         <span style={{ fontSize: 13 }}>{t.dashboard.security.bybitApiPrefix} {me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}</span>
         {me?.has_api_keys && me?.api_key_testnet && <span style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.1em' }}>{t.dashboard.security.testnetTag}</span>}
-        {me?.has_api_keys && <span style={{ marginLeft: 'auto', fontSize: 10, color: '#22c55e', letterSpacing: '0.08em' }}>{t.dashboard.security.activeStatus}</span>}
+        {me?.has_api_keys && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.08em' }}>{t.dashboard.security.activeStatus}</span>}
       </div>
 
       {revealed && (
@@ -245,7 +252,7 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
         </label>
 
         {error && <div style={{ fontSize: 12, color: 'var(--muted-fg)', marginBottom: 12, borderLeft: '2px solid var(--border-hi)', paddingLeft: 10 }}>{error}</div>}
-        {success && <div style={{ fontSize: 12, color: '#22c55e', marginBottom: 12 }}>{success}</div>}
+        {success && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>{success}</div>}
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="submit" disabled={saving} style={{ background: 'var(--fg)', color: 'var(--bg)', border: 'none', padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
@@ -267,7 +274,7 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
   );
 }
 
-function SecurityRow({ label, status, statusColor, action, actionLabel, description }) {
+function SecurityRow({ label, status, action, actionLabel, description }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
@@ -281,7 +288,7 @@ function SecurityRow({ label, status, statusColor, action, actionLabel, descript
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         {status && (
-          <span style={{ fontSize: 11, letterSpacing: '0.08em', padding: '3px 8px', border: `1px solid ${statusColor}33`, color: statusColor }}>
+          <span style={{ fontSize: 11, letterSpacing: '0.08em', padding: '3px 8px', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
             {status}
           </span>
         )}
@@ -307,9 +314,6 @@ export default function SecurityTab() {
   function updateMe(patch) { setMe(m => ({ ...m, ...patch })); }
   function on2faDone(enabled) { updateMe({ totp_enabled: enabled }); setModal2fa(null); }
 
-  const secScore = !me ? 0 : (me.totp_enabled ? 50 : 0) + (me.has_api_keys ? 30 : 0) + 20;
-  const scoreLabel = secScore >= 80 ? t.dashboard.security.strong : secScore >= 50 ? t.dashboard.security.medium : t.dashboard.security.weak;
-
   return (
     <div style={{ width: '100%' }}>
       {modal2fa && <TwoFAModal mode={modal2fa} onClose={() => setModal2fa(null)} onDone={on2faDone} />}
@@ -318,38 +322,12 @@ export default function SecurityTab() {
 
         <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
 
-        {/* Score widget — full width */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 20, marginBottom: 16,
-          padding: '20px 22px',
-          border: '1px solid var(--border)', borderRadius: 10,
-          background: 'var(--bg-elevated, var(--bg2))',
-        }}>
-          <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
-            <svg viewBox="0 0 52 52" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
-              <circle cx="26" cy="26" r="22" fill="none" stroke="var(--border)" strokeWidth="4" />
-              <circle cx="26" cy="26" r="22" fill="none" stroke={secScore >= 80 ? '#22c55e' : secScore >= 50 ? '#eab308' : '#ef4444'} strokeWidth="4" strokeDasharray={`${2 * Math.PI * 22 * secScore / 100} ${2 * Math.PI * 22}`} strokeLinecap="round" />
-            </svg>
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>{secScore}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 3 }}>
-              {scoreLabel} {t.dashboard.security.securitySuffix}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.5 }}>
-              {secScore < 100 && t.dashboard.security.improveScore}
-              {secScore === 100 && t.dashboard.security.allActive}
-            </div>
-          </div>
-        </div>
-
-        {/* Security rows — 2-col grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
+        {/* Security rows — single column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <SecurityRow
             label={t.dashboard.security.twoFactorAuth}
             description={me?.totp_enabled ? t.dashboard.security.totpEnabledDesc : t.dashboard.security.totpDisabledDesc}
             status={me?.totp_enabled ? t.dashboard.security.enabled : t.dashboard.security.disabled}
-            statusColor={me?.totp_enabled ? '#22c55e' : '#ef4444'}
             action={() => setModal2fa(me?.totp_enabled ? 'disable' : 'setup')}
             actionLabel={me?.totp_enabled ? t.dashboard.security.disable : t.dashboard.security.enable}
           />
@@ -360,7 +338,6 @@ export default function SecurityTab() {
               ? (me.api_key_testnet ? t.dashboard.security.apiKeysActiveTestnet : t.dashboard.security.apiKeysActiveLive)
               : t.dashboard.security.apiKeysInactive}
             status={me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}
-            statusColor={me?.has_api_keys ? '#22c55e' : '#555'}
             action={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
             actionLabel={me?.has_api_keys ? t.dashboard.security.manage : t.dashboard.security.connect}
           />
@@ -369,7 +346,6 @@ export default function SecurityTab() {
             label={t.dashboard.security.encryption}
             description={t.dashboard.security.encryptionDesc}
             status={t.dashboard.security.active}
-            statusColor="#22c55e"
           />
 
           <div style={{
@@ -378,7 +354,7 @@ export default function SecurityTab() {
             background: 'var(--bg-elevated, var(--bg2))',
           }}>
             <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{t.dashboard.security.accountEmail}</div>
-            <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{me?.email || '—'}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{maskEmail(me?.email)}</div>
           </div>
         </div>
 

@@ -8,51 +8,6 @@ const LANG_FULL = {
   en: 'English', es: 'Español', uk: 'Українська', ru: 'Русский', de: 'Deutsch', zh: '中文',
 };
 
-// ── Card section ─────────────────────────────────────────────────────────────
-function Section({ title, sub, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div style={{
-      border: '1px solid var(--border)',
-      borderRadius: 10,
-      background: 'var(--bg-elevated, var(--bg2))',
-      overflow: 'hidden',
-    }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        aria-label={`${title} settings`}
-        aria-expanded={open}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          width: '100%', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--fg)', textAlign: 'left',
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.01em' }}>{title}</div>
-          {sub && <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginTop: 4 }}>{sub}</div>}
-        </div>
-        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 180ms', opacity: 0.5 }}>
-          <path d="M2 4l3.5 3L9 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
-      {open && <div style={{ padding: '4px 20px 20px', borderTop: '1px solid var(--border)' }}>{children}</div>}
-    </div>
-  );
-}
-
-const selectStyle = {
-  width: '100%', maxWidth: 360,
-  background: 'var(--bg2)', border: '1px solid var(--border)',
-  color: 'var(--fg)', padding: '12px 16px', fontSize: 14,
-  fontFamily: 'var(--font-sans)', outline: 'none', cursor: 'pointer',
-  appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none',
-  backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'11\' height=\'11\' viewBox=\'0 0 11 11\' fill=\'none\'><path d=\'M2 4l3.5 3L9 4\' stroke=\'%23999\' stroke-width=\'1.4\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/></svg>")',
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'right 12px center',
-  paddingRight: 36,
-};
-
 const TZ_OPTIONS = [
   'auto',
   'UTC',
@@ -67,6 +22,60 @@ const TZ_OPTIONS = [
   'Asia/Shanghai',
   'Asia/Tokyo',
 ];
+
+const sectionHeaderStyle = {
+  fontSize: 11,
+  fontFamily: 'var(--font-mono)',
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  color: 'var(--text-muted)',
+  textTransform: 'uppercase',
+  marginBottom: 4,
+};
+
+const rowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '14px 0',
+  gap: 16,
+};
+
+const labelStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  color: 'var(--text-primary)',
+  fontWeight: 500,
+  flex: 1,
+  minWidth: 0,
+};
+
+const descStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  color: 'var(--text-muted)',
+  marginTop: 2,
+  lineHeight: 1.5,
+};
+
+const selectStyle = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-default)',
+  color: 'var(--text-primary)',
+  padding: '8px 12px',
+  fontSize: 14,
+  fontFamily: 'var(--font-sans)',
+  outline: 'none',
+  cursor: 'pointer',
+  minWidth: 160,
+  flexShrink: 0,
+};
+
+const dividerStyle = {
+  height: 1,
+  background: 'var(--border-subtle)',
+  margin: '8px 0',
+};
 
 // ── Notifications block ──────────────────────────────────────────────────────
 function NotificationsBlock() {
@@ -90,39 +99,49 @@ function NotificationsBlock() {
   }
 
   return (
-    <div>
-      {channels.map(c => (
-        <label key={c.key} style={{
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-          padding: '12px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer',
-          gap: 16,
-        }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--fg)', marginBottom: 4 }}>{c.label}</div>
-            <div style={{ fontSize: 13, color: 'var(--muted-fg)', lineHeight: 1.5 }}>{c.desc}</div>
-          </div>
-          <span style={{
-            position: 'relative', width: 36, height: 20, flexShrink: 0,
-            background: prefs[c.key] ? 'var(--fg)' : 'var(--border)',
-            borderRadius: 100, transition: 'background 150ms',
-            display: 'inline-block', marginTop: 2,
-          }}>
+    <>
+      {channels.map((c, i) => (
+        <React.Fragment key={c.key}>
+          <label style={{ ...rowStyle, cursor: 'pointer', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={labelStyle}>{c.label}</div>
+              <div style={descStyle}>{c.desc}</div>
+            </div>
             <span style={{
-              position: 'absolute', top: 2, left: prefs[c.key] ? 18 : 2,
-              width: 16, height: 16, borderRadius: '50%',
-              background: prefs[c.key] ? 'var(--bg)' : 'var(--fg)',
-              transition: 'left 150ms', opacity: 0.95,
-            }} />
-            <input
-              type="checkbox"
-              checked={!!prefs[c.key]}
-              onChange={() => toggle(c.key)}
-              style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-            />
-          </span>
-        </label>
+              position: 'relative',
+              width: 36,
+              height: 20,
+              flexShrink: 0,
+              background: prefs[c.key] ? 'var(--text-secondary)' : 'var(--border-default)',
+              borderRadius: 100,
+              transition: 'background 150ms',
+              display: 'inline-block',
+              marginTop: 2,
+            }}>
+              <span style={{
+                position: 'absolute',
+                top: 2,
+                left: prefs[c.key] ? 18 : 2,
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                background: 'var(--bg-surface)',
+                transition: 'left 150ms',
+              }} />
+              <input
+                type="checkbox"
+                checked={!!prefs[c.key]}
+                onChange={() => toggle(c.key)}
+                style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+              />
+            </span>
+          </label>
+          {i < channels.length - 1 && (
+            <div style={{ height: 1, background: 'var(--border-subtle)' }} />
+          )}
+        </React.Fragment>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -143,67 +162,58 @@ export default function SettingsTab() {
   }
 
   return (
-    <div style={{
-      width: '100%',
-      display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-      gap: 16, alignItems: 'start',
-    }}>
+    <div style={{ width: '100%', maxWidth: 640 }}>
 
-      {/* Language */}
-      <Section
-        title={t.dashboard.settingsPrefs.languageTitle}
-        sub={LANG_FULL[lang]}
-        defaultOpen
-      >
-        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
-          {t.dashboard.settingsPrefs.languageDesc}
+      {/* LANGUAGE */}
+      <div style={sectionHeaderStyle}>{t.dashboard.settingsPrefs.languageTitle}</div>
+      <div style={rowStyle}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={labelStyle}>{t.dashboard.settingsPrefs.languageTitle}</div>
+          <div style={descStyle}>{t.dashboard.settingsPrefs.languageDesc}</div>
         </div>
         <select value={lang} onChange={e => setLang(e.target.value)} style={selectStyle}>
           {LANGS.map(l => (
             <option key={l.code} value={l.code}>{LANG_FULL[l.code]}</option>
           ))}
         </select>
-      </Section>
+      </div>
 
-      {/* Theme */}
-      <Section
-        title={t.dashboard.settingsPrefs.themeTitle}
-        sub={theme === 'dark' ? t.dashboard.settingsPrefs.themeDark : t.dashboard.settingsPrefs.themeLight}
-        defaultOpen
-      >
-        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
-          {t.dashboard.settingsPrefs.themeDesc}
+      <div style={dividerStyle} />
+
+      {/* THEME */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 16 }}>{t.dashboard.settingsPrefs.themeTitle}</div>
+      <div style={rowStyle}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={labelStyle}>{t.dashboard.settingsPrefs.themeTitle}</div>
+          <div style={descStyle}>{t.dashboard.settingsPrefs.themeDesc}</div>
         </div>
         <select value={theme} onChange={e => changeTheme(e.target.value)} style={selectStyle}>
           <option value="dark">{t.dashboard.settingsPrefs.themeDark}</option>
           <option value="light">{t.dashboard.settingsPrefs.themeLight}</option>
         </select>
-      </Section>
+      </div>
 
-      {/* Timezone */}
-      <Section
-        title={t.dashboard.settingsPrefs.timezoneTitle}
-        sub={tz === 'auto' ? t.dashboard.settingsPrefs.tzAuto : tz}
-        defaultOpen
-      >
-        <div style={{ fontSize: 13, color: 'var(--muted-fg)', marginBottom: 12, lineHeight: 1.5 }}>
-          {t.dashboard.settingsPrefs.timezoneDesc}
+      <div style={dividerStyle} />
+
+      {/* TIMEZONE */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 16 }}>{t.dashboard.settingsPrefs.timezoneTitle}</div>
+      <div style={rowStyle}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={labelStyle}>{t.dashboard.settingsPrefs.timezoneTitle}</div>
+          <div style={descStyle}>{t.dashboard.settingsPrefs.timezoneDesc}</div>
         </div>
         <select value={tz} onChange={e => changeTz(e.target.value)} style={selectStyle}>
           {TZ_OPTIONS.map(z => (
             <option key={z} value={z}>{z === 'auto' ? t.dashboard.settingsPrefs.tzAuto : z}</option>
           ))}
         </select>
-      </Section>
+      </div>
 
-      {/* Notifications */}
-      <Section
-        title={t.dashboard.settingsPrefs.notifsTitle}
-        sub={t.dashboard.settingsPrefs.notifsSub}
-        defaultOpen
-      >
-        <NotificationsBlock />
-      </Section>
+      <div style={dividerStyle} />
+
+      {/* NOTIFICATIONS */}
+      <div style={{ ...sectionHeaderStyle, marginTop: 16 }}>{t.dashboard.settingsPrefs.notifsTitle}</div>
+      <NotificationsBlock />
 
     </div>
   );
