@@ -50,7 +50,7 @@ from config.settings import (
 
 # ─── Конфіг ───────────────────────────────────────────────────────────────────
 
-WATCHLIST = ["BTC", "ETH", "SOL", "XRP", "DOGE", "LINK"]
+WATCHLIST = ["ETH", "SOL", "XRP", "DOGE", "LINK"]
 
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %

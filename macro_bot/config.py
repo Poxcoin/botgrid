@@ -14,7 +14,7 @@ MT5_FILES_PATH    = os.getenv("MT5_FILES_PATH", "")
 RISK_PCT          = float(os.getenv("MACRO_RISK_PCT", "0.015"))   # 1.5% per trade
 MAX_TRADES        = int(os.getenv("MACRO_MAX_TRADES", "2"))
 STOP_LOSS_PIPS    = int(os.getenv("MACRO_SL_PIPS", "15"))
-TAKE_PROFIT_PIPS  = int(os.getenv("MACRO_TP_PIPS", "35"))
+TAKE_PROFIT_PIPS  = int(os.getenv("MACRO_TP_PIPS", "20"))
 EXIT_MINUTES      = int(os.getenv("MACRO_EXIT_MINUTES", "20"))
 
 DEVIATION_MIN     = float(os.getenv("MACRO_DEV_MIN", "0.3"))

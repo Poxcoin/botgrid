@@ -90,18 +90,6 @@ EVENT_CONFIG = {
         "historical_std": 0.5,
         "min_deviation":  0.6,
     },
-    "Federal Funds Rate": {
-        "instruments":   ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.25,
-        "min_deviation":  0.6,
-    },
-    "FOMC Rate Decision": {
-        "instruments":   ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.25,
-        "min_deviation":  0.6,
-    },
 }
 
 

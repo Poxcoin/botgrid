@@ -32,8 +32,8 @@ SCAN_SLEEP = 180        # seconds
 
 # Entry thresholds — tuned for meaningful signals
 _OI_MIN      = 0.5    # OI must grow ≥0.5% in 5 min (real money entering)
-_CVD_LONG    = 62.0   # ≥62% of recent volume was net buying
-_CVD_SHORT   = 38.0   # ≤38% of recent volume was net selling
+_CVD_LONG    = 68.0   # ≥62% of recent volume was net buying
+_CVD_SHORT   = 32.0   # ≤38% of recent volume was net selling
 _VWAP_MIN    = 0.05   # price at least 0.05% away from VWAP (not at VWAP)
 _VWAP_MAX    = 0.7    # price not more than 0.7% from VWAP (not extended)
 
