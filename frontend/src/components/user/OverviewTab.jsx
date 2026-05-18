@@ -291,6 +291,165 @@ function CoinTicker({ coins, selected, onSelect }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   PRICE CHART — Bybit kline via recharts AreaChart
+══════════════════════════════════════════════════════════════════ */
+const TF_OPTIONS = [['60','1H'],['240','4H'],['D','1D'],['W','1W']];
+
+function PriceChart({ coin, trades }) {
+  const wrapRef = useRef(null);
+  const [w,       setW]       = useState(0);
+  const [tf,      setTf]      = useState('D');
+  const [data,    setData]    = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    setW(wrapRef.current.offsetWidth);
+    let raf = null;
+    const ro = new ResizeObserver(entries => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setW(entries[0].contentRect.width));
+    });
+    ro.observe(wrapRef.current);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
+  useEffect(() => {
+    if (!coin) return;
+    setLoading(true);
+    fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${tf}&limit=200`)
+      .then(r => r.json())
+      .then(d => {
+        const list = (d?.result?.list || []).reverse().map(k => ({
+          ts:    +k[0],
+          t:     tf === 'D' || tf === 'W'
+                   ? new Date(+k[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                   : new Date(+k[0]).toLocaleString('en-US',    { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
+          close: parseFloat(k[4]),
+        }));
+        setData(list);
+      })
+      .catch(() => setData([]))
+      .finally(() => setLoading(false));
+  }, [coin, tf]);
+
+  /* trade entry / exit dots */
+  const coinTrades = useMemo(() =>
+    (trades || []).filter(t => sym(t.symbol) === coin),
+  [trades, coin]);
+
+  const tradeMap = useMemo(() => {
+    const map = {};
+    for (const t of coinTrades) {
+      if (t.opened_at) {
+        const ts = new Date(t.opened_at).getTime();
+        map[ts] = { side: t.side === 'Sell' ? 'sell' : 'buy', type: 'entry' };
+      }
+      if (t.closed_at) {
+        const ts = new Date(t.closed_at).getTime();
+        map[ts] = { side: t.side === 'Sell' ? 'buy' : 'sell', type: 'exit' };
+      }
+    }
+    return map;
+  }, [coinTrades]);
+
+  const dataWithMarkers = useMemo(() => {
+    if (Object.keys(tradeMap).length === 0) return data;
+    const candleMs = tf === 'W' ? 7*86400000 : tf === 'D' ? 86400000 : parseInt(tf, 10) * 60000;
+    return data.map(pt => {
+      for (const [tsStr, marker] of Object.entries(tradeMap)) {
+        if (Math.abs(pt.ts - +tsStr) < candleMs) return { ...pt, marker };
+      }
+      return pt;
+    });
+  }, [data, tradeMap, tf]);
+
+  const h = 280;
+
+  const CustomDot = (props) => {
+    const { cx, cy, payload } = props;
+    if (!payload?.marker) return null;
+    const { side, type } = payload.marker;
+    const color = type === 'entry' ? (side === 'buy' ? '#aaa' : '#666') : '#888';
+    return (
+      <g key={`dot-${cx}-${cy}`}>
+        {type === 'entry' ? (
+          <polygon points={`${cx},${cy - 8} ${cx - 5},${cy + 2} ${cx + 5},${cy + 2}`} fill={color} opacity={0.9}/>
+        ) : (
+          <polygon points={`${cx},${cy + 8} ${cx - 5},${cy - 2} ${cx + 5},${cy - 2}`} fill={color} opacity={0.9}/>
+        )}
+      </g>
+    );
+  };
+
+  const fmtPrice = v => {
+    if (v >= 10000) return `${(v/1000).toFixed(1)}k`;
+    if (v >= 1)    return v.toFixed(2);
+    return v.toFixed(4);
+  };
+
+  const current = dataWithMarkers[dataWithMarkers.length - 1]?.close;
+
+  return (
+    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{coin}USDT</span>
+          {current != null && <span style={{ fontFamily: FM, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>${fmtPrice(current)}</span>}
+        </div>
+        <div style={{ display: 'flex', gap: 2 }}>
+          {TF_OPTIONS.map(([v, label]) => {
+            const on = tf === v;
+            return (
+              <button key={v} onClick={() => setTf(v)} style={{
+                fontFamily: FM, fontSize: 9, padding: '2px 7px',
+                background: on ? 'var(--bg-elevated)' : 'transparent',
+                border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
+                color: on ? 'var(--text-primary)' : 'var(--text-muted)',
+                cursor: 'pointer', letterSpacing: '0.05em',
+              }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div ref={wrapRef} style={{ height: h + 24, position: 'relative' }}>
+        {loading && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>LOADING…</span>
+          </div>
+        )}
+        {!loading && dataWithMarkers.length === 0 && (
+          <div style={{ height: h, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>NO DATA</span>
+          </div>
+        )}
+        {w > 0 && dataWithMarkers.length > 0 && !loading && (
+          <AreaChart width={w} height={h} data={dataWithMarkers} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="price_grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%"  stopColor="rgba(240,242,245,1)" stopOpacity={0.12}/>
+                <stop offset="95%" stopColor="rgba(240,242,245,1)" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
+            <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={fmtPrice} domain={['auto', 'auto']} width={52}/>
+            <Tooltip
+              contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}
+              formatter={v => [`$${fmtPrice(v)}`, coin]}
+              labelStyle={{ color: 'rgba(240,242,245,0.4)', fontSize: 9 }}
+            />
+            <Area type="monotone" dataKey="close" stroke="rgba(240,242,245,0.45)" strokeWidth={1} fill="url(#price_grad)" dot={<CustomDot />} activeDot={{ r: 3, fill: 'rgba(240,242,245,0.7)', strokeWidth: 0 }}/>
+          </AreaChart>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    EQUITY CURVE — isolated component to avoid recharts ResizeObserver
    setState-during-render (React error #310) in React 18 concurrent mode
 ══════════════════════════════════════════════════════════════════ */
@@ -901,6 +1060,9 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
           </div>
         )
       )}
+
+      {/* ── PRICE CHART ───────────────────────────────────────── */}
+      {coin && <PriceChart coin={coin} trades={periodTrades} />}
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={periodTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
