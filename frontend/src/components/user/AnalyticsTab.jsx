@@ -410,7 +410,7 @@ function CoinChart({ coins, allTrades }) {
     const container = chartContainerRef.current;
     const chart = createChart(container, {
       width:  container.clientWidth || 600,
-      height: 280,
+      height: 420,
       layout: { background: { color: '#060606' }, textColor: '#555' },
       grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
       crosshair: { vertLine: { color: 'rgba(255,255,255,0.2)' }, horzLine: { color: 'rgba(255,255,255,0.2)' } },
@@ -551,7 +551,7 @@ function CoinChart({ coins, allTrades }) {
             Loading chart...
           </div>
         )}
-        <div ref={chartContainerRef} style={{ width: '100%', height: 280 }} />
+        <div ref={chartContainerRef} style={{ width: '100%', height: 420 }} />
       </div>
     </div>
   );
