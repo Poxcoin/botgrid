@@ -278,22 +278,21 @@ function SecurityRow({ label, status, action, actionLabel, description }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
-      padding: '16px 18px',
-      border: '1px solid var(--border)', borderRadius: 10,
-      background: 'var(--bg-elevated, var(--bg2))',
+      padding: '14px 0',
+      borderBottom: '1px solid var(--border-subtle)',
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{label}</div>
-        {description && <div style={{ fontSize: 12, color: 'var(--muted-fg)', lineHeight: 1.5 }}>{description}</div>}
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>{label}</div>
+        {description && <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{description}</div>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         {status && (
-          <span style={{ fontSize: 11, letterSpacing: '0.08em', padding: '3px 8px', border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
             {status}
           </span>
         )}
         {action && (
-          <button onClick={action} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--muted-fg)', padding: '6px 14px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          <button onClick={action} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)', padding: '6px 14px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             {actionLabel}
           </button>
         )}
@@ -322,8 +321,8 @@ export default function SecurityTab() {
 
         <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
 
-        {/* Security rows — single column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Security rows — flat list */}
+        <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <SecurityRow
             label={t.dashboard.security.twoFactorAuth}
             description={me?.totp_enabled ? t.dashboard.security.totpEnabledDesc : t.dashboard.security.totpDisabledDesc}
@@ -348,13 +347,9 @@ export default function SecurityTab() {
             status={t.dashboard.security.active}
           />
 
-          <div style={{
-            padding: '16px 18px',
-            border: '1px solid var(--border)', borderRadius: 10,
-            background: 'var(--bg-elevated, var(--bg2))',
-          }}>
-            <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 3 }}>{t.dashboard.security.accountEmail}</div>
-            <div style={{ fontSize: 12, color: 'var(--muted-fg)', fontFamily: 'var(--font-mono)' }}>{maskEmail(me?.email)}</div>
+          <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{t.dashboard.security.accountEmail}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{maskEmail(me?.email)}</div>
           </div>
         </div>
 

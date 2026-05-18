@@ -404,12 +404,6 @@ export default function AnalyticsTab() {
         />
       </div>
 
-      {/* Daily chart */}
-      <div style={{ marginBottom: 32 }}>
-        <SectionLabel title={t.dashboard.analytics.dailyPnl30} right={`${daily?.length ?? 0} ${t.dashboard.analytics.days}`} />
-        <DailyChart daily={daily} t={t} />
-      </div>
-
       {/* By bot source */}
       {(data?.by_source?.length > 0) && (
         <div style={{ marginBottom: 32 }}>

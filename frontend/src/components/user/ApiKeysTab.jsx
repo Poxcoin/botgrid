@@ -55,15 +55,15 @@ const STEPS = [
         <div style={{ marginBottom: 8 }}>Enable exactly these permissions:</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {[
-            ['✓', 'Unified Trading Account — Read'],
-            ['✓', 'Derivatives / Contract — Read + Trade'],
-            ['✓', 'Position — Read'],
-            ['✗', 'Withdrawal — NEVER enable'],
-            ['✗', 'Internal Transfer — leave off'],
-          ].map(([mark, text], i) => (
+            [true,  'Unified Trading Account — Read'],
+            [true,  'Derivatives / Contract — Read + Trade'],
+            [true,  'Position — Read'],
+            [false, 'Withdrawal — NEVER enable'],
+            [false, 'Internal Transfer — leave off'],
+          ].map(([allow, text], i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: FM, fontSize: 11 }}>
-              <span style={{ color: mark === '✓' ? '#aaa' : '#555', width: 12, flexShrink: 0 }}>{mark}</span>
-              <span style={{ color: 'var(--text-muted)' }}>{text}</span>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: allow ? 'var(--border-strong)' : 'var(--border-default)', flexShrink: 0, display: 'inline-block' }}/>
+              <span style={{ color: allow ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{text}</span>
             </div>
           ))}
         </div>
@@ -337,7 +337,7 @@ function Mt5KeysSection() {
     <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, overflow: 'hidden', marginTop: 24 }}>
       <div style={{ padding: '14px 18px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontFamily: FM, fontSize: 13, fontWeight: 600 }}>MT5 / MetaApi Integration</span>
-        {data?.configured && <span style={{ fontSize: 11, color: 'var(--accent-green)', fontFamily: FM }}>● Connected</span>}
+        {data?.configured && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: FM }}>Connected</span>}
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: FF, lineHeight: 1.5 }}>
@@ -400,8 +400,8 @@ export default function ApiKeysTab() {
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
         <KeySection
           title="Live Account"
-          badge={{ text: 'MAINNET', color: '#00d4aa' }}
-          subtitle="Real funds — Bybit Mainnet. The bot will trade with real money once this key is connected."
+          badge={{ text: 'MAINNET' }}
+          subtitle="Real funds. The bot will trade with real money once this key is connected."
           isTestnet={false}
           maskedKey={me?.bybit_live_key_masked || null}
           onSaved={reload}
@@ -409,8 +409,8 @@ export default function ApiKeysTab() {
         />
         <KeySection
           title="Demo Account"
-          badge={{ text: 'DEMO', color: '#888' }}
-          subtitle="Paper trading — Bybit Demo. Safe for testing strategies without real funds."
+          badge={{ text: 'DEMO' }}
+          subtitle="Paper trading. Safe for testing strategies without real funds."
           isTestnet={true}
           maskedKey={me?.bybit_demo_key_masked || null}
           onSaved={reload}
