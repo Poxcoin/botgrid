@@ -1486,7 +1486,7 @@ async def get_user_bot_summary(
         .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
         .all()
     )
-    deduped = _dedup_bybit_dupes(raw_rows)
+    deduped = _filter_ghost_closes(_dedup_bybit_dupes(raw_rows))
 
     by_source: dict = {}
     for t in deduped:

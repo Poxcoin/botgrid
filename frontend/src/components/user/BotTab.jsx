@@ -189,13 +189,74 @@ function CoinBreakdown({ trades }) {
   );
 }
 
+function BotsSection({ bots, heartbeat }) {
+  if (!bots || !bots.length) return null;
+
+  const HIDDEN = new Set(['bybit', 'metals']);
+  const rows = bots.filter(b => !HIDDEN.has(b.source));
+  if (!rows.length) return null;
+
+  return (
+    <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
+      <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Bot Performance</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: '#333', letterSpacing: '0.12em' }}>ALL TIME</span>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${B}` }}>
+              {['Bot', 'Trades', 'Win Rate', 'PnL (USDT)', 'Last Trade'].map((h, i) => (
+                <th key={h} style={{
+                  textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
+                  fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
+                  color: MUTED, fontWeight: 400,
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((b, i) => {
+              const isPos = b.pnl >= 0;
+              const hb = heartbeat?.[b.source];
+              const minAgo = hb?.last_trade_min_ago;
+              let lastStr = '—';
+              if (minAgo != null) {
+                if (minAgo < 60) lastStr = `${minAgo}m ago`;
+                else if (minAgo < 1440) lastStr = `${Math.floor(minAgo / 60)}h ago`;
+                else lastStr = `${Math.floor(minAgo / 1440)}d ago`;
+              }
+              const wr = b.win_rate;
+              return (
+                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <td style={{ padding: '10px 20px', color: '#ccc', fontWeight: 700 }}>{b.label}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: wr >= 50 ? 'var(--accent-green)' : '#888' }}>{b.trades ? `${wr}%` : '—'}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                    {isPos ? '+' : ''}{b.pnl}
+                  </td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{lastStr}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function BotTab() {
   const { t } = useLang();
-  const [feed,    setFeed]    = useState(null);
-  const [intel,   setIntel]   = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [pnl,     setPnl]     = useState(null);
-  const [feedErr, setFeedErr] = useState(false);
+  const [feed,      setFeed]      = useState(null);
+  const [intel,     setIntel]     = useState(null);
+  const [summary,   setSummary]   = useState(null);
+  const [pnl,       setPnl]       = useState(null);
+  const [heartbeat, setHeartbeat] = useState(null);
+  const [feedErr,   setFeedErr]   = useState(false);
 
   const loadFeed = useCallback(async () => {
     try {
@@ -207,14 +268,16 @@ export default function BotTab() {
   }, []);
 
   const loadLive = useCallback(async () => {
-    const [iRes, sRes, pRes] = await Promise.allSettled([
+    const [iRes, sRes, pRes, hRes] = await Promise.allSettled([
       authFetch('/api/intel'),
       authFetch('/api/users/bot-summary'),
       authFetch('/api/users/closed-pnl?days=30'),
+      authFetch('/api/users/bot-heartbeat'),
     ]);
     if (iRes.status === 'fulfilled' && iRes.value.ok) setIntel(await iRes.value.json());
     if (sRes.status === 'fulfilled' && sRes.value.ok) setSummary(await sRes.value.json());
     if (pRes.status === 'fulfilled' && pRes.value.ok) setPnl(await pRes.value.json());
+    if (hRes.status === 'fulfilled' && hRes.value.ok) setHeartbeat(await hRes.value.json());
   }, []);
 
   useEffect(() => {
@@ -279,6 +342,9 @@ export default function BotTab() {
 
       {/* ── Open positions ─────────────────────────────────────────────────── */}
       <PositionsTable positions={summary?.positions} />
+
+      {/* ── Bot performance ───────────────────────────────────────────────── */}
+      <BotsSection bots={summary?.bots} heartbeat={heartbeat} />
 
       {/* ── Per-coin breakdown (live from Bybit) ──────────────────────────── */}
       <CoinBreakdown trades={pnl?.trades} />
