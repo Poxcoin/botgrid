@@ -9,6 +9,7 @@ import AnalyticsTab     from '@/components/user/AnalyticsTab';
 import PnlTab           from '@/components/user/PnlTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
+import { useTheme }     from '@/lib/ThemeContext';
 
 const BOTS = [
   { id: 'signal',    label: 'Signal'         },
@@ -41,8 +42,11 @@ function Page({ tab }) {
 }
 
 export default function UserDashboard() {
-  const user       = getUser();
-  const isMobile   = useIsMobile();
+  const user              = getUser();
+  const isMobile          = useIsMobile();
+  const { theme, toggle } = useTheme();
+  const dark              = theme === 'dark';
+
   const [tab,        setTab]        = useState('signal');
   const [botsOpen,   setBotsOpen]   = useState(true);
   const [drop,       setDrop]       = useState(false);
@@ -50,7 +54,6 @@ export default function UserDashboard() {
   const dropRef = useRef(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // close drawer when switching to desktop
   useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
 
   useEffect(() => {
@@ -58,9 +61,7 @@ export default function UserDashboard() {
     if (!token) return;
     fetch('/api/users/me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (data && !data.onboarding_completed) setShowOnboarding(true);
-      })
+      .then(data => { if (data && !data.onboarding_completed) setShowOnboarding(true); })
       .catch(() => {});
   }, []);
 
@@ -79,7 +80,7 @@ export default function UserDashboard() {
 
   const goTab = id => { setTab(id); setDrawerOpen(false); };
 
-  const isBot = BOT_IDS.includes(tab);
+  const isBot    = BOT_IDS.includes(tab);
   const allItems = [
     ...BOTS,
     { id: 'analytics', label: 'Analytics' },
@@ -91,77 +92,89 @@ export default function UserDashboard() {
   ];
   const pageLabel = allItems.find(x => x.id === tab)?.label ?? '';
 
+  /* ── tokens ── */
+  const bg          = 'var(--bg-base)';
+  const bgEl        = 'var(--bg-elevated)';
+  const fg          = 'var(--text-primary)';
+  const muted       = 'var(--text-muted)';
+  const border      = 'var(--border-subtle)';
+  const borderHi    = 'var(--border-default)';
+
   const NavItem = ({ id, label, indent = false }) => {
     const on = tab === id;
     return (
       <button onClick={() => goTab(id)} style={{
         width: '100%', display: 'flex', alignItems: 'center',
         padding: indent ? '9px 20px 9px 40px' : '11px 20px',
-        background: on ? '#fff' : 'transparent',
+        background: on ? fg : 'transparent',
         border: 'none', cursor: 'pointer',
-        color: on ? '#000' : 'rgba(255,255,255,0.4)',
+        color: on ? bg : muted,
         fontSize: 13, textAlign: 'left',
-        fontFamily: "var(--font-sans)",
+        fontFamily: 'var(--font-sans)',
         fontWeight: on ? 500 : 400,
         letterSpacing: indent ? 0 : '0.01em',
-        transition: 'background 0.1s, color 0.1s',
+        transition: 'background 0.12s, color 0.12s',
         minHeight: 44,
       }}
-      onMouseEnter={e => { if (!on) { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; } }}
-      onMouseLeave={e => { if (!on) { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; } }}>
+      onMouseEnter={e => { if (!on) { e.currentTarget.style.color = fg; e.currentTarget.style.background = `var(--bg-overlay)`; } }}
+      onMouseLeave={e => { if (!on) { e.currentTarget.style.color = muted; e.currentTarget.style.background = 'transparent'; } }}>
         {label}
       </button>
     );
   };
 
-  /* ── sidebar / drawer nav content (shared) ── */
   const NavContent = () => (
     <>
+      {/* logo row */}
       <div style={{
         height: 56, display: 'flex', alignItems: 'center',
         padding: '0 20px', flexShrink: 0,
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: `1px solid ${border}`,
         justifyContent: 'space-between',
       }}>
         <a href="/" style={{
           fontFamily: "'Courier New',monospace",
           fontSize: 14, fontWeight: 700, letterSpacing: '0.35em',
-          color: '#fff', textDecoration: 'none',
+          color: fg, textDecoration: 'none',
         }}>KADO</a>
         {isMobile && (
           <button onClick={() => setDrawerOpen(false)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.4)', fontSize: 20, lineHeight: 1, padding: 4,
+            color: muted, fontSize: 20, lineHeight: 1, padding: 4,
           }}>✕</button>
         )}
       </div>
 
+      {/* nav links */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
+
+        {/* Bots parent */}
         <button onClick={() => setBotsOpen(v => !v)} style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '11px 20px', minHeight: 44,
-          background: isBot && !botsOpen ? '#fff' : 'transparent',
+          background: isBot && !botsOpen ? fg : 'transparent',
           border: 'none', cursor: 'pointer',
-          color: isBot ? (botsOpen ? '#fff' : '#000') : 'rgba(255,255,255,0.4)',
+          color: isBot ? (botsOpen ? fg : bg) : muted,
           fontSize: 13, fontFamily: 'inherit',
           letterSpacing: '0.01em',
+          transition: 'background 0.12s, color 0.12s',
         }}
-        onMouseEnter={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; } }}
-        onMouseLeave={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = isBot ? '#fff' : 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; } }}>
+        onMouseEnter={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; } }}
+        onMouseLeave={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = isBot ? fg : muted; e.currentTarget.style.background = 'transparent'; } }}>
           <span>Bots</span>
           <span style={{ fontSize: 9, opacity: 0.5 }}>{botsOpen ? '▾' : '▸'}</span>
         </button>
 
         {botsOpen && BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '8px 0' }}/>
+        <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
         {[
           { id: 'analytics', label: 'Analytics' },
           { id: 'pnl',       label: 'PnL'       },
         ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
 
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '8px 0' }}/>
+        <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
         {[
           { id: 'account',  label: 'Account'  },
@@ -171,22 +184,33 @@ export default function UserDashboard() {
         ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
       </nav>
 
+      {/* footer: email + theme toggle + logout */}
       <div style={{
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        padding: '12px 20px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0,
+        borderTop: `1px solid ${border}`,
+        padding: '10px 20px',
+        display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
       }}>
         <span style={{
-          fontSize: 11, color: 'rgba(255,255,255,0.25)',
+          fontSize: 11, color: muted,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
         }}>
           {user.email ?? '—'}
         </span>
-        <button onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.2)', fontSize: 16, flexShrink: 0, lineHeight: 1, padding: '0 0 0 8px' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}>
+        {/* theme toggle */}
+        <button
+          onClick={toggle}
+          title={dark ? 'Switch to light' : 'Switch to dark'}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 14, flexShrink: 0, lineHeight: 1, padding: '2px 4px' }}
+          onMouseEnter={e => e.currentTarget.style.color = fg}
+          onMouseLeave={e => e.currentTarget.style.color = muted}>
+          {dark ? '☀' : '🌙'}
+        </button>
+        {/* logout */}
+        <button
+          onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 16, flexShrink: 0, lineHeight: 1, padding: '0 0 0 2px' }}
+          onMouseEnter={e => e.currentTarget.style.color = fg}
+          onMouseLeave={e => e.currentTarget.style.color = muted}>
           ↪
         </button>
       </div>
@@ -196,40 +220,36 @@ export default function UserDashboard() {
   return (
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
-      background: '#000', color: '#fff',
-      fontFamily: "var(--font-sans)",
+      background: bg, color: fg,
+      fontFamily: 'var(--font-sans)',
     }}>
 
       {/* ── DESKTOP SIDEBAR ── */}
       {!isMobile && (
         <div style={{
           width: 200, flexShrink: 0,
-          background: '#000',
-          borderRight: '1px solid rgba(255,255,255,0.1)',
+          background: bg,
+          borderRight: `1px solid ${border}`,
           display: 'flex', flexDirection: 'column',
         }}>
           <NavContent />
         </div>
       )}
 
-      {/* ── MOBILE DRAWER BACKDROP ── */}
+      {/* ── MOBILE BACKDROP ── */}
       {isMobile && drawerOpen && (
         <div
           onClick={() => setDrawerOpen(false)}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.65)',
-            zIndex: 200,
-          }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 200 }}
         />
       )}
 
-      {/* ── MOBILE DRAWER PANEL ── */}
+      {/* ── MOBILE DRAWER ── */}
       {isMobile && (
         <div style={{
           position: 'fixed', top: 0, left: 0, bottom: 0, width: 260,
-          background: '#000',
-          borderRight: '1px solid rgba(255,255,255,0.1)',
+          background: bg,
+          borderRight: `1px solid ${border}`,
           display: 'flex', flexDirection: 'column',
           zIndex: 201,
           transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
@@ -245,7 +265,7 @@ export default function UserDashboard() {
         {/* header */}
         <div style={{
           height: 56, flexShrink: 0,
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          borderBottom: `1px solid ${border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: isMobile ? '0 16px' : '0 28px',
           gap: 12,
@@ -254,47 +274,68 @@ export default function UserDashboard() {
             {isMobile && (
               <button
                 onClick={() => setDrawerOpen(v => !v)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'rgba(255,255,255,0.6)', fontSize: 18,
-                  lineHeight: 1, padding: 4, flexShrink: 0,
-                }}
-              >
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 18, lineHeight: 1, padding: 4, flexShrink: 0 }}
+                onMouseEnter={e => e.currentTarget.style.color = fg}
+                onMouseLeave={e => e.currentTarget.style.color = muted}>
                 ☰
               </button>
             )}
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pageLabel}</span>
+            <span style={{ fontSize: 13, color: muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pageLabel}</span>
           </div>
 
-          <div ref={dropRef} style={{ position: 'relative', flexShrink: 0 }}>
-            <button onClick={() => setDrop(v => !v)} style={{
-              background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
-              padding: isMobile ? '6px 10px' : '6px 14px', cursor: 'pointer',
-              fontSize: 12, color: 'rgba(255,255,255,0.35)', fontFamily: 'inherit',
-              maxWidth: isMobile ? 120 : 'none',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; } }}>
-              {isMobile ? (user.email?.split('@')[0] ?? 'Account') : (user.email ?? 'Account')}
-            </button>
-
-            {drop && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180,
-                background: '#111', border: '1px solid rgba(255,255,255,0.12)', zIndex: 100,
-              }}>
-                <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-                  {user.email}
-                </div>
-                <button onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
-                  style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.4)', textAlign: 'left', fontFamily: 'inherit' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'none'; }}>
-                  Logout
-                </button>
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {/* theme toggle — header (desktop only; mobile gets it in drawer footer) */}
+            {!isMobile && (
+              <button
+                onClick={toggle}
+                title={dark ? 'Light mode' : 'Dark mode'}
+                style={{ background: 'none', border: `1px solid ${border}`, cursor: 'pointer', color: muted, fontSize: 13, padding: '5px 9px', lineHeight: 1, fontFamily: 'inherit' }}
+                onMouseEnter={e => { e.currentTarget.style.color = fg; e.currentTarget.style.borderColor = borderHi; }}
+                onMouseLeave={e => { e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; }}>
+                {dark ? '☀ Light' : '🌙 Dark'}
+              </button>
             )}
+
+            {/* account dropdown */}
+            <div ref={dropRef} style={{ position: 'relative' }}>
+              <button onClick={() => setDrop(v => !v)} style={{
+                background: 'transparent', border: `1px solid ${border}`,
+                padding: isMobile ? '6px 10px' : '6px 14px', cursor: 'pointer',
+                fontSize: 12, color: muted, fontFamily: 'inherit',
+                maxWidth: isMobile ? 110 : 'none',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = borderHi; e.currentTarget.style.color = fg; }}
+              onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted; } }}>
+                {isMobile ? (user.email?.split('@')[0] ?? 'Account') : (user.email ?? 'Account')}
+              </button>
+
+              {drop && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180,
+                  background: bgEl, border: `1px solid ${borderHi}`, zIndex: 100,
+                }}>
+                  <div style={{ padding: '10px 14px', borderBottom: `1px solid ${border}`, fontSize: 11, color: muted }}>
+                    {user.email}
+                  </div>
+                  {/* theme in dropdown (mobile) */}
+                  {isMobile && (
+                    <button onClick={toggle}
+                      style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: muted, textAlign: 'left', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseEnter={e => { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = muted; e.currentTarget.style.background = 'none'; }}>
+                      {dark ? '☀' : '🌙'} {dark ? 'Light mode' : 'Dark mode'}
+                    </button>
+                  )}
+                  <button onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
+                    style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: muted, textAlign: 'left', fontFamily: 'inherit' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = muted; e.currentTarget.style.background = 'none'; }}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -308,7 +349,7 @@ export default function UserDashboard() {
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:4px}
         ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1)}
+        ::-webkit-scrollbar-thumb{background:var(--border-default)}
       `}</style>
 
       {showOnboarding && (
