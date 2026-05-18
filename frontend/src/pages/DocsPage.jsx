@@ -340,9 +340,9 @@ export default function DocsPage() {
         paddingTop: isMobile ? 68 : 72,
       }}>
         <div style={{
-          maxWidth: 1400, margin: '0 auto',
-          padding: isMobile ? '0 20px' : '0 64px',
-          display: 'flex', gap: isMobile ? 0 : 4,
+          maxWidth: 900, margin: '0 auto',
+          padding: isMobile ? '0 20px' : '0 40px',
+          display: 'flex', gap: isMobile ? 0 : 2,
           overflowX: 'auto',
         }}>
           {SECTIONS.map(s => (
@@ -371,10 +371,8 @@ export default function DocsPage() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, maxWidth: 1400, margin: '0 auto', width: '100%', padding: isMobile ? '40px 20px 80px' : '60px 64px 100px' }}>
-        <div style={{ maxWidth: 760 }}>
-          {renderSection()}
-        </div>
+      <div style={{ flex: 1, maxWidth: 900, margin: '0 auto', width: '100%', padding: isMobile ? '40px 20px 80px' : '56px 40px 100px' }}>
+        {renderSection()}
       </div>
 
       <LandingFooter />
