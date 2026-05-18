@@ -407,8 +407,9 @@ function CoinChart({ coins, allTrades }) {
   // Create chart and series once — never destroy on data updates
   useEffect(() => {
     if (!chartContainerRef.current) return;
-    const chart = createChart(chartContainerRef.current, {
-      autoSize: true,
+    const container = chartContainerRef.current;
+    const chart = createChart(container, {
+      width:  container.clientWidth || 600,
       height: 280,
       layout: { background: { color: '#060606' }, textColor: '#555' },
       grid: { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
@@ -423,7 +424,15 @@ function CoinChart({ coins, allTrades }) {
     });
     chartRef.current = chart;
     seriesRef.current = series;
+
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect?.width;
+      if (w && chartRef.current) chartRef.current.applyOptions({ width: w });
+    });
+    ro.observe(container);
+
     return () => {
+      ro.disconnect();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
