@@ -449,37 +449,45 @@ function CoinChart({ coins, allTrades }) {
     if (!seriesRef.current || klines.length === 0) return;
     seriesRef.current.setData(klines);
 
+    // Snap timestamp to UTC midnight so it aligns with daily candle keys
+    const toDay = ms => Math.floor(Date.UTC(
+      new Date(ms).getUTCFullYear(),
+      new Date(ms).getUTCMonth(),
+      new Date(ms).getUTCDate(),
+    ) / 1000);
+
     const coinTrades = (allTrades || []).filter(
       t => (t.symbol || '') === selectedCoin
     );
     const markers = [];
     coinTrades.forEach(tr => {
-      const openTs  = tr.opened_at ? new Date(parseInt(tr.opened_at)) : null;
-      const closeTs = tr.closed_at ? new Date(parseInt(tr.closed_at)) : null;
-      const isLong  = tr.side === 'LONG';
-      const entryColor = isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)';
-      const exitColor  = isLong ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)';
-      if (openTs && !isNaN(openTs)) {
+      const openMs  = tr.opened_at ? parseInt(tr.opened_at) : null;
+      const closeMs = tr.closed_at ? parseInt(tr.closed_at) : null;
+      const isLong  = tr.side === 'LONG' || tr.side === 'Buy';
+      if (openMs && !isNaN(openMs)) {
         markers.push({
-          time: openTs.toISOString().slice(0, 10),
+          time:     toDay(openMs),
           position: isLong ? 'belowBar' : 'aboveBar',
-          color: entryColor,
-          shape: isLong ? 'arrowUp' : 'arrowDown',
-          text: isLong ? 'L' : 'S',
+          color:    isLong ? '#22c55e' : '#ef4444',
+          shape:    isLong ? 'arrowUp' : 'arrowDown',
+          text:     `${isLong ? 'L' : 'S'} ${tr.entry_price ? parseFloat(tr.entry_price).toFixed(2) : ''}`,
+          size:     1,
         });
       }
-      if (closeTs && !isNaN(closeTs)) {
-        const pnlSign = (tr.pnl ?? 0) >= 0 ? '+' : '';
+      if (closeMs && !isNaN(closeMs)) {
+        const p = tr.pnl ?? 0;
+        const sign = p >= 0 ? '+' : '';
         markers.push({
-          time: closeTs.toISOString().slice(0, 10),
+          time:     toDay(closeMs),
           position: isLong ? 'aboveBar' : 'belowBar',
-          color: (tr.pnl ?? 0) >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)',
-          shape: 'circle',
-          text: `${pnlSign}${(tr.pnl ?? 0).toFixed(1)}`,
+          color:    p >= 0 ? '#22c55e' : '#ef4444',
+          shape:    'circle',
+          text:     `${sign}${p.toFixed(2)}$`,
+          size:     1,
         });
       }
     });
-    markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+    markers.sort((a, b) => a.time - b.time);
     seriesRef.current.setMarkers(markers);
   }, [klines, allTrades, selectedCoin]);
 
@@ -487,7 +495,7 @@ function CoinChart({ coins, allTrades }) {
 
   return (
     <div style={{ marginBottom: 32 }}>
-      <SectionHeader title="Coin Charts" right={selectedCoin ? `${selectedCoin}USDT · 90D` : ''} />
+      <SectionHeader title="Coin Charts" right={selectedCoin ? `${selectedCoin}USDT · All history` : ''} />
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {coins.map(c => {
