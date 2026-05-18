@@ -48,8 +48,6 @@ function StrategyCard({ strategy, estMonthlyLabel }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: hovered ? '#0f0f0f' : '#0a0a0a',
-        border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 16,
         padding: '44px 36px',
         display: 'flex',
         flexDirection: 'column',
@@ -154,7 +152,7 @@ export default function StrategiesPage() {
       <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 100 }}>
         <div
           className="grid grid-cols-1 md:grid-cols-3"
-          style={{ gap: 16 }}
+          style={{ gap: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden' }}
         >
           {STRATEGIES.map((s) => (
             <StrategyCard key={s.num} strategy={s} estMonthlyLabel={t.landing.estMonthly} />
@@ -247,7 +245,15 @@ export default function StrategiesPage() {
                           fontSize: 14,
                           color: included ? '#fff' : '#333',
                         }}>
-                          {included ? '✓' : '✗'}
+                          {included ? (
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: 'inline-block' }}>
+                              <path d="M2.5 7l4 4 5-6.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ display: 'inline-block' }}>
+                              <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="#333" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                          )}
                         </td>
                       ))}
                     </tr>
