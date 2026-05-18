@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLang } from '@/lib/LangContext';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const API = (path) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
@@ -9,6 +10,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 export default function PnlTab() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -34,7 +36,7 @@ export default function PnlTab() {
   return (
     <div>
       {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0 40px', marginBottom: 40 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? 0 : '0 40px', marginBottom: 40 }}>
         {[
           { label: t.dashboard.pnl.totalGross, val: totalGross },
           { label: t.dashboard.pnl.totalFee,   val: totalFee },

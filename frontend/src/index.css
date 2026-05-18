@@ -172,3 +172,27 @@
 }
 
 /* v2 */
+
+/* ── Mobile responsive ───────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* Tables scroll horizontally instead of overflowing */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Recharts / chart containers don't overflow */
+  .recharts-wrapper, .recharts-responsive-container {
+    max-width: 100% !important;
+  }
+
+  /* PnL summary grid: 1 col on very small screens */
+  /* (handled inline via isMobile hook in each component) */
+
+  /* Touch-friendly tap targets */
+  button { min-height: 36px; }
+
+  /* Prevent horizontal overflow on content areas */
+  .kado-page-content { overflow-x: hidden; }
+}

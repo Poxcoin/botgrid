@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { init as klInit, dispose as klDispose } from 'klinecharts';
 import { AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { useLiveStream } from '@/lib/useLiveStream';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
@@ -902,6 +903,7 @@ const ALL_BOTS_CONFIG = [
 export default function OverviewTab({ botId = 'signal' }) {
   const dbSources = BOT_SOURCES[botId] ?? [botId];
   const dbSource  = dbSources[0]; // primary key for heartbeat + labels
+  const isMobile  = useIsMobile();
 
   // ── Real-time WebSocket feed ──────────────────────────────────────────────
   const { positions, balance, openOrders, trades, connected } = useLiveStream();
@@ -1090,19 +1092,27 @@ export default function OverviewTab({ botId = 'signal' }) {
       </div>
 
       {/* ── STATS ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
         {[
           { label: 'Balance',    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `equity $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
           { label: 'Unrealized', value: botPos.length > 0 ? `${sign(botUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open position${botPos.length !== 1 ? 's' : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
           { label: 'Realized',   value: stats.n > 0 ? `${sign(stats.total)} USDT` : '—', sub: stats.n > 0 ? `${stats.n} closed trades` : 'no trades yet', good: stats.n > 0 ? pos(stats.total) : null },
           { label: 'Win Rate',   value: stats.n > 0 ? `${stats.wr}%` : '—', sub: stats.n > 0 ? `${stats.wins}W / ${stats.n - stats.wins}L` : '—', good: stats.n > 0 ? stats.wr >= 50 : null },
-        ].map((s, i) => (
-          <div key={s.label} style={{ padding: '20px 20px', borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
-            <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{s.label}</div>
-            <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 600, letterSpacing: '-0.02em', color: s.good === null ? 'var(--text-primary)' : s.good ? 'var(--accent-green)' : 'var(--accent-red)' }}>{s.value}</div>
-            {s.sub && <div style={{ fontFamily: FF, fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>{s.sub}</div>}
-          </div>
-        ))}
+        ].map((s, i) => {
+          const cols = isMobile ? 2 : 4;
+          const last = i === 3;
+          const rightBorder = isMobile
+            ? (i % 2 === 0 ? '1px solid var(--border-subtle)' : 'none')
+            : (i < 3 ? '1px solid var(--border-subtle)' : 'none');
+          const bottomBorder = isMobile && i < 2 ? '1px solid var(--border-subtle)' : 'none';
+          return (
+            <div key={s.label} style={{ padding: isMobile ? '14px 14px' : '20px 20px', borderRight: rightBorder, borderBottom: bottomBorder }}>
+              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontFamily: FM, fontSize: isMobile ? 16 : 22, fontWeight: 600, letterSpacing: '-0.02em', color: s.good === null ? 'var(--text-primary)' : s.good ? 'var(--accent-green)' : 'var(--accent-red)' }}>{s.value}</div>
+              {s.sub && <div style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{s.sub}</div>}
+            </div>
+          );
+        })}
       </div>
 
       {/* ── BOT STATUS ────────────────────────────────────────── */}
