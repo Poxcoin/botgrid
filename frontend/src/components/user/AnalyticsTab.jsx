@@ -436,16 +436,34 @@ function CoinChart({ coins, allTrades }) {
     seriesRef.current.setData(klines);
 
     const coinTrades = (allTrades || []).filter(
-      t => (t.symbol || '').split('/')[0].replace('USDT', '') === selectedCoin
+      t => (t.symbol || '') === selectedCoin
     );
     const markers = [];
     coinTrades.forEach(tr => {
-      const ts = tr.closed_at ? new Date(parseInt(tr.closed_at)) : null;
-      if (!ts || isNaN(ts)) return;
-      const dateStr = ts.toISOString().slice(0, 10);
+      const openTs  = tr.opened_at ? new Date(parseInt(tr.opened_at)) : null;
+      const closeTs = tr.closed_at ? new Date(parseInt(tr.closed_at)) : null;
       const isLong  = tr.side === 'LONG';
-      markers.push({ time: dateStr, position: 'belowBar', color: isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)', shape: 'arrowUp', text: isLong ? '▲ Entry' : '▼ Entry' });
-      markers.push({ time: dateStr, position: 'aboveBar', color: isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)', shape: 'arrowDown', text: 'Exit' });
+      const entryColor = isLong ? 'rgba(34,197,94,0.9)' : 'rgba(239,68,68,0.9)';
+      const exitColor  = isLong ? 'rgba(34,197,94,0.6)' : 'rgba(239,68,68,0.6)';
+      if (openTs && !isNaN(openTs)) {
+        markers.push({
+          time: openTs.toISOString().slice(0, 10),
+          position: isLong ? 'belowBar' : 'aboveBar',
+          color: entryColor,
+          shape: isLong ? 'arrowUp' : 'arrowDown',
+          text: isLong ? 'L' : 'S',
+        });
+      }
+      if (closeTs && !isNaN(closeTs)) {
+        const pnlSign = (tr.pnl ?? 0) >= 0 ? '+' : '';
+        markers.push({
+          time: closeTs.toISOString().slice(0, 10),
+          position: isLong ? 'aboveBar' : 'belowBar',
+          color: (tr.pnl ?? 0) >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.7)',
+          shape: 'circle',
+          text: `${pnlSign}${(tr.pnl ?? 0).toFixed(1)}`,
+        });
+      }
     });
     markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
     seriesRef.current.setMarkers(markers);
@@ -453,14 +471,12 @@ function CoinChart({ coins, allTrades }) {
 
   if (!coins || !coins.length) return null;
 
-  const visibleCoins = coins.slice(0, 6);
-
   return (
     <div style={{ marginBottom: 32 }}>
       <SectionHeader title="Coin Charts" right={selectedCoin ? `${selectedCoin}USDT · 90D` : ''} />
 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-        {visibleCoins.map(c => {
+        {coins.map(c => {
           const active = c.coin === selectedCoin;
           return (
             <button

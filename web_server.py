@@ -1471,6 +1471,7 @@ _BOT_LABELS = {
     "sniper":      "DEX Sniper",
     "bybit":       "Bybit Import",
     "altcoin":     "Altcoin Bot",
+    "metals":      "Metals (Legacy)",
 }
 
 @app.get("/api/users/bot-summary")
@@ -1661,6 +1662,7 @@ async def get_user_closed_pnl(
         if pnl > 0:
             total_wins += 1
         closed_ms = int(t.closed_at.timestamp() * 1000) if t.closed_at else 0
+        opened_ms = int(t.opened_at.timestamp() * 1000) if t.opened_at else closed_ms
         trades.append({
             "symbol":      _normalize_coin(t.symbol or ""),
             "side":        _fix_bybit_side(t.side, t.source) or "",
@@ -1668,6 +1670,7 @@ async def get_user_closed_pnl(
             "entry_price": float(t.entry_price or 0),
             "exit_price":  float(t.exit_price or 0) if t.exit_price else None,
             "pnl":         round(pnl, 2),
+            "opened_at":   str(opened_ms),
             "closed_at":   str(closed_ms),
             "source":      t.source or "bybit",
         })
