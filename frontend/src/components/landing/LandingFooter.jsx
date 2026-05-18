@@ -51,27 +51,25 @@ export default function LandingFooter() {
 
   return (
     <footer style={{ background: '#060606', borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
-      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 48px', display: 'flex', justifyContent: 'space-between', gap: 48, flexWrap: 'wrap' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '64px 48px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0 40px', alignItems: 'flex-start' }}>
         {/* Brand */}
-        <div style={{ minWidth: 200 }}>
+        <div>
           <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.04em', fontFamily: MONO, marginBottom: 16 }}>KADO</div>
           <p style={{ fontFamily: FONT, fontSize: 14, lineHeight: 1.7, color: '#555', letterSpacing: '-0.01em', maxWidth: 220 }}>
             {t.footer.tagline}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 64, flexWrap: 'wrap' }}>
-          {COLS.map(col => (
-            <div key={col.title}>
-              <div style={{ fontFamily: FONT, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#444', marginBottom: 20, fontWeight: 600 }}>{col.title}</div>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {col.links.map(l => (
-                  <li key={l.label}><FootLink {...l} /></li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        {COLS.map(col => (
+          <div key={col.title}>
+            <div style={{ fontFamily: FONT, fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#444', marginBottom: 20, fontWeight: 600 }}>{col.title}</div>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {col.links.map(l => (
+                <li key={l.label}><FootLink {...l} /></li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
 
       {/* Social icons */}
