@@ -98,7 +98,7 @@ function SetupGuide() {
         style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: 'var(--bg-surface)', border: 'none', cursor: 'pointer', textAlign: 'left' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#666' }}>
+          <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--text-muted)' }}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
               <path d="M6 5v4M6 3.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
@@ -129,10 +129,10 @@ function SetupGuide() {
             ))}
           </div>
 
-          <div style={{ marginTop: 20, padding: '12px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 7, display: 'flex', gap: 10 }}>
-            <span style={{ color: '#666', fontSize: 14, flexShrink: 0 }}>⚠</span>
+          <div style={{ marginTop: 20, padding: '12px 14px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 7, display: 'flex', gap: 10 }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 14, flexShrink: 0 }}>⚠</span>
             <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              <strong style={{ color: '#aaa' }}>Never enable Withdrawal permission.</strong> The bot only needs to open/close positions and read your balance. Withdrawal access is unnecessary and a security risk.
+              <strong style={{ color: 'var(--text-secondary)' }}>Never enable Withdrawal permission.</strong> The bot only needs to open/close positions and read your balance. Withdrawal access is unnecessary and a security risk.
             </div>
           </div>
         </div>
@@ -227,11 +227,11 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
 // ── Key card (existing key) ────────────────────────────────────────────────
 function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
   return (
-    <div style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
+    <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'rgba(255,255,255,0.4)' }} />
-          <span style={{ fontFamily: FM, fontSize: 10, color: '#777', letterSpacing: '0.1em' }}>CONNECTED</span>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--border-strong)' }} />
+          <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>CONNECTED</span>
           {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>DEMO</span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -284,12 +284,12 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
     <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <div style={{ fontFamily: FF, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</div>
-        {badge && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 8px', border: '1px solid rgba(255,255,255,0.1)', color: '#666', borderRadius: 100 }}>{badge.text}</span>}
+        {badge && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 8px', border: '1px solid var(--border-default)', color: 'var(--text-muted)', borderRadius: 100 }}>{badge.text}</span>}
       </div>
       <div style={{ fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, lineHeight: 1.5 }}>{subtitle}</div>
 
       {success && (
-        <div style={{ marginBottom: 14, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', color: '#aaa', fontSize: 12, fontFamily: FM, borderRadius: 6 }}>
+        <div style={{ marginBottom: 14, padding: '10px 14px', border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: 12, fontFamily: FM, borderRadius: 6 }}>
           ✓ {success}
         </div>
       )}

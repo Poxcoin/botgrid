@@ -6,8 +6,6 @@ import {
 } from 'recharts';
 
 const MONO = "'Courier New','SF Mono',monospace";
-const B    = 'rgba(255,255,255,0.06)';
-const MUTED = '#555';
 
 function dp(v) { if (!v) return 4; if (v >= 10000) return 1; if (v >= 100) return 2; return 4; }
 
@@ -42,14 +40,14 @@ function BalanceCard({ label, value, color, accent, live }) {
 function NoKeyBanner() {
   return (
     <div style={{
-      border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24,
+      border: '1px solid var(--border-subtle)', padding: '32px 24px', marginBottom: 24,
       display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
     }}>
       <div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: '#ccc', marginBottom: 6 }}>
+        <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>
           No Bybit API key connected
         </div>
-        <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
+        <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>
           Connect your key to see live balance, positions and trade history.
         </div>
       </div>
@@ -72,20 +70,20 @@ function PositionsTable({ positions }) {
   if (!positions || !positions.length) return null;
   const cols = ['Coin', 'Side', 'Lev', 'Qty', 'Value (USDT)', 'Entry', 'Mark', 'Unreal PnL', 'SL', 'TP', 'Liq'];
   return (
-    <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
-      <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${B}` }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Open Positions</span>
+    <div style={{ border: '1px solid var(--border-subtle)', marginBottom: 24 }}>
+      <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border-subtle)' }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Open Positions</span>
         <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--accent-green)' }}>{positions.length}</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 12 }}>
           <thead>
-            <tr style={{ borderBottom: `1px solid ${B}` }}>
+            <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
               {cols.map((h, i) => (
                 <th key={h} style={{
                   textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
                   fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
-                  color: MUTED, fontWeight: 400,
+                  color: 'var(--text-muted)', fontWeight: 400,
                 }}>{h}</th>
               ))}
             </tr>
@@ -96,30 +94,30 @@ function PositionsTable({ positions }) {
               const isProfit = (p.unrealized_pnl ?? 0) >= 0;
               const qtyValue = (p.qty * (p.mark_price || p.entry_price || 0)).toFixed(2);
               return (
-                <tr key={i} style={{ borderBottom: 'rgba(255,255,255,0.025) solid 1px' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '11px 20px', color: '#ccc', fontWeight: 700 }}>{p.symbol}</td>
+                  <td style={{ padding: '11px 20px', color: 'var(--text-primary)', fontWeight: 700 }}>{p.symbol}</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#888' }}>{p.leverage ?? '—'}×</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.qty ?? '—'}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{qtyValue}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(dp(p.entry_price)) ?? '—'}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.mark_price?.toFixed(dp(p.mark_price)) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-muted)' }}>{p.leverage ?? '—'}×</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-secondary)' }}>{p.qty ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-secondary)' }}>{qtyValue}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-secondary)' }}>{p.entry_price?.toFixed(dp(p.entry_price)) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-secondary)' }}>{p.mark_price?.toFixed(dp(p.mark_price)) ?? '—'}</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
                     {p.pnl_pct != null && (
                       <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.7 }}>({isProfit ? '+' : ''}{p.pnl_pct}%)</span>
                     )}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? 'var(--accent-red)' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? 'var(--accent-red)' : 'var(--border-default)' }}>
                     {p.stop_loss?.toFixed(dp(p.stop_loss)) ?? '—'}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? 'var(--accent-green)' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? 'var(--accent-green)' : 'var(--border-default)' }}>
                     {p.take_profit?.toFixed(dp(p.take_profit)) ?? '—'}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? 'rgba(255,77,109,0.5)' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? 'rgba(255,77,109,0.5)' : 'var(--border-default)' }}>
                     {p.liq_price?.toFixed(dp(p.liq_price)) ?? '—'}
                   </td>
                 </tr>
@@ -136,7 +134,7 @@ function BotPerformanceCards({ bots }) {
   if (!bots || !bots.length) return null;
   return (
     <div style={{ marginBottom: 24 }}>
-      <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED, marginBottom: 12 }}>
+      <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
         Bot Performance
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
@@ -157,12 +155,12 @@ function BotPerformanceCards({ bots }) {
               </div>
               <div style={{ display: 'flex', gap: 16 }}>
                 <div>
-                  <div style={{ fontFamily: MONO, fontSize: 9, color: MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Trades</div>
-                  <div style={{ fontFamily: MONO, fontSize: 13, color: '#ccc' }}>{bot.trades ?? '—'}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Trades</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{bot.trades ?? '—'}</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: MONO, fontSize: 9, color: MUTED, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Win Rate</div>
-                  <div style={{ fontFamily: MONO, fontSize: 13, color: '#ccc' }}>{bot.win_rate != null ? `${bot.win_rate}%` : '—'}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Win Rate</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{bot.win_rate != null ? `${bot.win_rate}%` : '—'}</div>
                 </div>
               </div>
             </div>
@@ -180,9 +178,9 @@ function FilterChip({ active, onClick, children }) {
     <button onClick={onClick} style={{
       fontFamily: MONO, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
       padding: '4px 10px', cursor: 'pointer',
-      border: `1px solid ${active ? 'rgba(255,255,255,0.4)' : B}`,
-      background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
-      color: active ? '#fff' : MUTED,
+      border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border-subtle)'}`,
+      background: active ? 'var(--bg-overlay)' : 'transparent',
+      color: active ? 'var(--text-primary)' : 'var(--text-muted)',
     }}>
       {children}
     </button>
@@ -195,14 +193,14 @@ const ChartTooltip = ({ active, payload }) => {
   const isPos = d.cum >= 0;
   return (
     <div style={{
-      background: '#111', border: `1px solid ${B}`,
+      background: 'var(--bg-base)', border: '1px solid var(--border-subtle)',
       padding: '8px 12px', fontFamily: MONO, fontSize: 11,
     }}>
-      <div style={{ color: MUTED, marginBottom: 4 }}>{d.date}</div>
+      <div style={{ color: 'var(--text-muted)', marginBottom: 4 }}>{d.date}</div>
       <div style={{ color: isPos ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700 }}>
         {isPos ? '+' : ''}{d.cum.toFixed(2)} USDT
       </div>
-      <div style={{ color: MUTED, marginTop: 2 }}>
+      <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
         Trade: {d.pnl >= 0 ? '+' : ''}{d.pnl.toFixed(2)}
         {d.symbol && <span style={{ marginLeft: 8 }}>{d.symbol}</span>}
         {d.source && <span style={{ marginLeft: 6, opacity: 0.6 }}>{BOT_LABELS[d.source] || d.source}</span>}
@@ -286,13 +284,13 @@ function PnlChart({ hasKey }) {
   const color  = isPos ? 'var(--accent-green)' : 'var(--accent-red)';
 
   return (
-    <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
+    <div style={{ border: '1px solid var(--border-subtle)', marginBottom: 24 }}>
       {/* Header */}
       <div style={{
         padding: '0 20px', height: 44, display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', borderBottom: `1px solid ${B}`,
+        justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)',
       }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
           PnL Chart
         </span>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -308,7 +306,7 @@ function PnlChart({ hasKey }) {
         {/* Bot filter */}
         {bots.length > 0 && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, marginRight: 4 }}>Bot</span>
+            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Bot</span>
             <FilterChip active={botFilter === 'all'} onClick={() => { setBotFilter('all'); setCoin('all'); }}>All</FilterChip>
             {bots.map(b => (
               <FilterChip key={b} active={botFilter === b} onClick={() => { setBotFilter(b); setCoin('all'); }}>
@@ -321,7 +319,7 @@ function PnlChart({ hasKey }) {
         {/* Coin filter */}
         {coins.length > 1 && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, marginRight: 4 }}>Coin</span>
+            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Coin</span>
             <FilterChip active={coin === 'all'} onClick={() => setCoin('all')}>All</FilterChip>
             {coins.map(c => (
               <FilterChip key={c} active={coin === c} onClick={() => setCoin(c)}>{c}</FilterChip>
@@ -339,24 +337,24 @@ function PnlChart({ hasKey }) {
               { label: 'W / L', val: `${stats.wins} / ${stats.losses}` },
             ].map(({ label, val, color: c }) => (
               <div key={label}>
-                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: MUTED, marginBottom: 4 }}>{label}</div>
-                <div style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: c || '#ccc' }}>{val}</div>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+                <div style={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: c || 'var(--text-primary)' }}>{val}</div>
               </div>
             ))}
           </div>
         )}
 
         {/* Chart */}
-        {loading && <div style={{ fontFamily: MONO, fontSize: 11, color: MUTED, padding: '40px 0', textAlign: 'center' }}>Loading…</div>}
+        {loading && <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>Loading…</div>}
 
         {!loading && !hasKey && (
-          <div style={{ fontFamily: MONO, fontSize: 11, color: MUTED, padding: '40px 0', textAlign: 'center' }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>
             Connect API key to see chart
           </div>
         )}
 
         {!loading && hasKey && chartData.length < 2 && (
-          <div style={{ fontFamily: MONO, fontSize: 11, color: MUTED, padding: '40px 0', textAlign: 'center' }}>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>
             Not enough data for selected filters
           </div>
         )}
@@ -371,20 +369,20 @@ function PnlChart({ hasKey }) {
                     <stop offset="95%" stopColor={isPos ? '#22c55e' : '#ef4444'} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" vertical={false} />
                 <XAxis
                   dataKey="date"
-                  tick={{ fill: '#444', fontSize: 9, fontFamily: MONO }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 9, fontFamily: MONO }}
                   tickLine={false} axisLine={false}
                   interval="preserveStartEnd"
                 />
                 <YAxis
-                  tick={{ fill: '#444', fontSize: 9, fontFamily: MONO }}
+                  tick={{ fill: 'var(--text-muted)', fontSize: 9, fontFamily: MONO }}
                   tickLine={false} axisLine={false}
                   tickFormatter={v => `${v >= 0 ? '+' : ''}${v}`}
                   width={46}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'var(--border-default)', strokeWidth: 1 }} />
                 <Area
                   type="monotone" dataKey="cum"
                   stroke={isPos ? '#22c55e' : '#ef4444'} strokeWidth={1.5}
@@ -439,14 +437,14 @@ export default function AssetsTab() {
         <BalanceCard
           label="Total Equity"
           value={equity}
-          color={balance?.equity != null ? 'var(--accent-green)' : MUTED}
+          color={balance?.equity != null ? 'var(--accent-green)' : 'var(--text-muted)'}
           accent={balance?.equity != null ? 'green' : undefined}
           live={!!balance}
         />
         <BalanceCard
           label="Wallet Balance"
           value={wallet}
-          color={balance?.wallet != null ? 'var(--text-primary)' : MUTED}
+          color={balance?.wallet != null ? 'var(--text-primary)' : 'var(--text-muted)'}
         />
         <BalanceCard
           label="Unrealized PnL"
