@@ -3,17 +3,17 @@ import { createChart } from 'lightweight-charts';
 import { useLang } from '@/lib/LangContext';
 
 const S = {
-  bg:       '#060606',
-  border:   'rgba(255,255,255,0.06)',
-  borderHi: 'rgba(255,255,255,0.15)',
-  fg:       '#fff',
-  muted:    '#555',
-  dim:      '#333',
+  bg:       'var(--bg-base)',
+  border:   'var(--border-subtle)',
+  borderHi: 'var(--border-strong)',
+  fg:       'var(--text-primary)',
+  muted:    'var(--text-muted)',
+  dim:      'var(--border-default)',
   blue:     '#0047FF',
-  green:    '#22c55e',
-  red:      '#ef4444',
-  card:     'rgba(255,255,255,0.03)',
-  mono:     "'Courier New','SF Mono',monospace",
+  green:    'var(--accent-green)',
+  red:      'var(--accent-red)',
+  card:     'var(--bg-elevated)',
+  mono:     'var(--font-mono)',
 };
 
 function getToken() {

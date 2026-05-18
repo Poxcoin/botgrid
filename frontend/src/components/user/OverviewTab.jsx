@@ -346,7 +346,7 @@ function CoinTicker({ coins, selected, onSelect }) {
   );
 }
 
-function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange }) {
+function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, isMobile = false }) {
   const elRef       = useRef(null);
   const chartRef    = useRef(null);
   const panesRef    = useRef({});
@@ -561,7 +561,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange })
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 440px)', minHeight: 320, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
 
       {/* Top toolbar: chart type + indicators + TF */}
-      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', overflowX: 'auto', scrollbarWidth: 'none' }}>
         {CHART_TYPES.map(ct => (
           <button key={ct.id} onClick={() => applyChartType(ct.id)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: chartType === ct.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${chartType === ct.id ? 'var(--border-strong)' : 'transparent'}`, color: chartType === ct.id ? 'var(--text-primary)' : 'var(--text-muted)' }}>{ct.label}</button>
         ))}
@@ -606,7 +606,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange })
           <div ref={elRef} style={{ position: 'absolute', inset: 0, background: chartBg }} />
         </div>
         {/* Order book */}
-        <OrderBook coin={coin} />
+        {!isMobile && <OrderBook coin={coin} />}
       </div>
     </div>
   );
@@ -1210,7 +1210,7 @@ export default function OverviewTab({ botId = 'signal' }) {
       )}
 
       {/* ── CHART ─────────────────────────────────────────────── */}
-      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} />
+      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} isMobile={isMobile} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={periodTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
