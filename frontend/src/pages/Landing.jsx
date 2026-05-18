@@ -295,7 +295,7 @@ function BotsSection() {
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 10 : 16, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 10 : 16, alignItems: 'stretch' }}>
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
