@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { init as klInit, dispose as klDispose } from 'klinecharts';
 import { AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { useLiveStream } from '@/lib/useLiveStream';
 import { useIsMobile } from '@/lib/useIsMobile';
@@ -229,6 +230,62 @@ function OrderBook({ coin }) {
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   MINI CANDLESTICK SPARKLINE — 24 × 1h candles per coin
+══════════════════════════════════════════════════════════════════ */
+const _klineCache = {};
+
+function MiniChart({ coin }) {
+  const [candles, setCandles] = useState(_klineCache[coin] || []);
+
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=60&limit=24`)
+        .then(r => r.json())
+        .then(d => {
+          if (!alive) return;
+          const list = (d?.result?.list || []).slice().reverse().map(k => ({
+            o: +k[1], h: +k[2], l: +k[3], c: +k[4],
+          }));
+          _klineCache[coin] = list;
+          setCandles(list);
+        })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 5 * 60 * 1000);
+    return () => { alive = false; clearInterval(id); };
+  }, [coin]);
+
+  const W = 80, H = 28;
+  if (!candles.length) return <div style={{ width: W, height: H }} />;
+
+  const maxH  = Math.max(...candles.map(c => c.h));
+  const minL  = Math.min(...candles.map(c => c.l));
+  const range = maxH - minL || maxH * 0.001;
+  const n  = candles.length;
+  const cw = W / n;
+  const sy = v => ((maxH - v) / range) * H;
+
+  return (
+    <svg width={W} height={H} style={{ display: 'block' }}>
+      {candles.map((c, i) => {
+        const isUp = c.c >= c.o;
+        const col  = isUp ? '#00d4aa' : '#ff4d6d';
+        const cx   = i * cw + cw / 2;
+        const top  = sy(Math.max(c.o, c.c));
+        const bh   = Math.max(1, sy(Math.min(c.o, c.c)) - top);
+        return (
+          <g key={i}>
+            <line x1={cx} y1={sy(c.h)} x2={cx} y2={sy(c.l)} stroke={col} strokeWidth={0.8} opacity={0.45}/>
+            <rect x={Math.max(0, cx - cw * 0.38)} y={top} width={Math.max(1, cw * 0.76)} height={bh} fill={col} opacity={0.85}/>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function CoinTicker({ coins, selected, onSelect }) {
   const [tickers, setTickers] = useState({});
 
@@ -279,6 +336,7 @@ function CoinTicker({ coins, selected, onSelect }) {
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{c}</span>
               {t && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chg >= 0 ? '+' : ''}{chg?.toFixed(2)}%</span>}
             </div>
+            <MiniChart coin={c} />
             {t ? <>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>${t.price < 1 ? t.price.toFixed(5) : t.price < 10 ? t.price.toFixed(3) : t.price.toFixed(2)}</span>
               {fr != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: fr > 0.05 ? 'var(--accent-red)' : fr < 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>FR {fr >= 0 ? '+' : ''}{fr?.toFixed(3)}%</span>}
@@ -444,6 +502,271 @@ function PriceChart({ coin, trades }) {
             <Area type="monotone" dataKey="close" stroke="rgba(240,242,245,0.45)" strokeWidth={1} fill="url(#price_grad)" dot={<CustomDot />} activeDot={{ r: 3, fill: 'rgba(240,242,245,0.7)', strokeWidth: 0 }}/>
           </AreaChart>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   KLINECHART — full candlestick chart with order book, indicators
+══════════════════════════════════════════════════════════════════ */
+function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, isMobile = false }) {
+  const elRef       = useRef(null);
+  const chartRef    = useRef(null);
+  const panesRef    = useRef({});
+  const wsSubRef    = useRef(null);
+  const entryOvRef  = useRef(null);
+  const slOvRef     = useRef(null);
+  const tpOvRef     = useRef(null);
+  const coinRef     = useRef(coin);
+  const tfRef       = useRef('60');
+  const prevCoinRef = useRef(coin);
+  const prevTfRef   = useRef('60');
+
+  const [tf,           setTf]           = useState('60');
+  const [activeTool,   setActiveTool]   = useState(null);
+  const [activeInds,   setActiveInds]   = useState({});
+  const [chartType,    setChartType]    = useState('candle_solid');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [chartBg,      setChartBg]      = useState('var(--bg-base)');
+
+  coinRef.current = coin;
+  tfRef.current   = tf;
+
+  const prec = c => c === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(c) ? 4 : 2;
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+
+    const chart = klInit(el, { styles: CHART_STYLES, locale: 'en-US' });
+    chartRef.current = chart;
+    panesRef.current = {};
+    entryOvRef.current = null;
+
+    chart.setSymbol({ shortName: `${coinRef.current}USDT`, pricePrecision: prec(coinRef.current), volumePrecision: 4 });
+    chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tfRef.current });
+
+    chart.setDataLoader({
+      getBars: async ({ type, period, timestamp, callback }) => {
+        if (type !== 'init' && type !== 'forward') { callback([], false); return; }
+        const c = coinRef.current;
+        try {
+          const parse = list => list.slice().reverse().map(k => ({
+            timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+          }));
+          const fetchPage = async (end, limit) => {
+            let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${c}USDT&interval=${period.text}&limit=${limit}`;
+            if (end) url += `&end=${end}`;
+            return parse((await (await fetch(url)).json()).result?.list || []);
+          };
+          if (type === 'init') {
+            const page = await fetchPage(undefined, 200);
+            callback(page, { backward: false, forward: page.length >= 200 });
+          } else {
+            const page = await fetchPage(timestamp - 1, 1000);
+            callback(page, { backward: false, forward: page.length >= 1000 });
+          }
+        } catch { callback([], false); }
+      },
+      subscribeBar: ({ period, callback: cb }) => {
+        const symStr = coinRef.current;
+        const topic = `kline.${period.text}.${symStr}USDT`;
+        let closed = false;
+        const tryConnect = () => {
+          if (closed) return;
+          const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+          ws.onopen = () => {
+            if (closed) { ws.close(); return; }
+            ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+          };
+          ws.onmessage = e => {
+            if (closed) return;
+            try {
+              const m = JSON.parse(e.data);
+              if (m.topic === topic && Array.isArray(m.data) && m.data[0]) {
+                const k = m.data[0];
+                cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
+              }
+            } catch {}
+          };
+          ws.onclose = () => { if (!closed) setTimeout(tryConnect, 3000); };
+          ws.onerror = () => {};
+          wsSubRef.current = { close: () => { closed = true; ws.close(); } };
+        };
+        tryConnect();
+      },
+      unsubscribeBar: () => { wsSubRef.current?.close(); wsSubRef.current = null; },
+    });
+
+    let resizeRaf = null;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => { try { chart.resize(); } catch {} });
+    });
+    ro.observe(el);
+
+    return () => {
+      wsSubRef.current?.close();
+      wsSubRef.current = null;
+      cancelAnimationFrame(resizeRaf);
+      ro.disconnect();
+      try { klDispose(el); } catch {}
+      chartRef.current = null;
+      panesRef.current = {};
+      entryOvRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (coin !== prevCoinRef.current) {
+      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: prec(coin), volumePrecision: 4 });
+      prevCoinRef.current = coin;
+    }
+    if (tf !== prevTfRef.current) {
+      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
+      prevTfRef.current = tf;
+    }
+  }, [coin, tf]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    try {
+      if (entryOvRef.current) { chart.removeOverlay?.(entryOvRef.current); entryOvRef.current = null; }
+      if (slOvRef.current)    { chart.removeOverlay?.(slOvRef.current);    slOvRef.current    = null; }
+      if (tpOvRef.current)    { chart.removeOverlay?.(tpOvRef.current);    tpOvRef.current    = null; }
+      if (entryPrice > 0) {
+        entryOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: entryPrice }], styles: { line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.9)' } }, extendData: `Entry $${entryPrice}`, lock: true }) ?? null;
+      }
+      if (stopLoss > 0) {
+        slOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: stopLoss }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(255,77,109,0.9)' } }, extendData: `SL $${stopLoss}`, lock: true }) ?? null;
+      }
+      if (takeProfit > 0) {
+        tpOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: takeProfit }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(0,212,170,0.9)' } }, extendData: `TP $${takeProfit}`, lock: true }) ?? null;
+      }
+    } catch {}
+  }, [entryPrice, stopLoss, takeProfit]);
+
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') setIsFullscreen(false); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  React.useEffect(() => {
+    const t = setTimeout(() => { try { chartRef.current?.resize(); } catch {} }, 60);
+    return () => clearTimeout(t);
+  }, [isFullscreen]);
+
+  function applyChartType(typeId) {
+    setChartType(typeId);
+    onTypeChange?.(typeId);
+    const cfg   = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
+    const theme = typeId === 'candle_up_stroke' ? THEME_BW : THEME_DARK;
+    setChartBg(theme.bg);
+    try {
+      chartRef.current?.setStyles({
+        candle:    { type: typeId, bar: cfg.bar },
+        indicator: { bars: cfg.vol },
+        grid:      theme.grid,
+        xAxis:     theme.xAxis,
+        yAxis:     theme.yAxis,
+        crosshair: theme.crosshair,
+      });
+    } catch {}
+  }
+
+  function selectTool(toolId) {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (activeTool === toolId) {
+      setActiveTool(null);
+      try { chart.removeOverlay(); } catch {}
+    } else {
+      setActiveTool(toolId);
+      if (toolId) try { chart.createOverlay({ name: toolId, lock: false }); } catch {}
+      else try { chart.removeOverlay(); } catch {}
+    }
+  }
+
+  function toggleInd(name) {
+    const chart = chartRef.current;
+    if (!chart) return;
+    if (activeInds[name]) {
+      const paneId = panesRef.current[name];
+      try {
+        if (INDS_CANDLE.includes(name)) chart.removeIndicator('candle_pane', name);
+        else if (paneId) chart.removeIndicator(paneId, name);
+      } catch {}
+      delete panesRef.current[name];
+      setActiveInds(p => ({ ...p, [name]: false }));
+    } else {
+      try {
+        if (INDS_CANDLE.includes(name)) {
+          chart.createIndicator(name, false, { id: 'candle_pane' });
+          panesRef.current[name] = 'candle_pane';
+        } else {
+          const paneId = chart.createIndicator(name, false, { height: 80 });
+          panesRef.current[name] = paneId;
+        }
+        setActiveInds(p => ({ ...p, [name]: true }));
+      } catch {}
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 260px)', minHeight: 480, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
+
+      {/* Top toolbar: chart type + indicators + TF */}
+      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {CHART_TYPES.map(ct => (
+          <button key={ct.id} onClick={() => applyChartType(ct.id)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: chartType === ct.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${chartType === ct.id ? 'var(--border-strong)' : 'transparent'}`, color: chartType === ct.id ? 'var(--text-primary)' : 'var(--text-muted)' }}>{ct.label}</button>
+        ))}
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        <span style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Ind</span>
+        {ALL_INDS.map(name => (
+          <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {activeTool && (
+          <button onClick={() => { setActiveTool(null); try { chartRef.current?.removeOverlay(); } catch {} }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FF, fontSize: 10, background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>Clear</button>
+        )}
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        {['1','5','15','60','240','D'].map(t => (
+          <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{{ '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' }[t]}</button>
+        ))}
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        <button
+          onClick={() => setIsFullscreen(v => !v)}
+          title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+          style={{ height: 22, width: 22, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isFullscreen ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${isFullscreen ? 'var(--border-strong)' : 'transparent'}`, color: isFullscreen ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0, flexShrink: 0 }}
+          onMouseEnter={e => { if (!isFullscreen) e.currentTarget.style.color = 'var(--text-primary)'; }}
+          onMouseLeave={e => { if (!isFullscreen) e.currentTarget.style.color = 'var(--text-muted)'; }}
+        >
+          {isFullscreen
+            ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 1H1v3M8 1h3v3M4 11H1V8M8 11h3V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 4V1h3M8 1h3v3M1 8v3h3M8 11h3V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          }
+        </button>
+      </div>
+
+      {/* Chart area */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* Left draw toolbar */}
+        <div style={{ width: 34, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 6, gap: 2, borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+          {DRAW_TOOLS.map(t => (
+            <button key={t.id ?? 'cursor'} title={t.title} onClick={() => selectTool(t.id)} style={{ width: 26, height: 26, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: activeTool === t.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeTool === t.id ? 'var(--border-strong)' : 'transparent'}`, color: activeTool === t.id ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0 }}>{t.icon}</button>
+          ))}
+        </div>
+        {/* Canvas */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
+          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: chartBg }} />
+        </div>
+        {/* Order book */}
+        {!isMobile && <OrderBook coin={coin} />}
       </div>
     </div>
   );
@@ -755,6 +1078,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const { positions, balance, openOrders, trades, connected } = useLiveStream();
 
   const [coin,      setCoin]      = useState('BTC');
+  const [isBW,      setIsBW]      = useState(false);
   const [heartbeat, setHeartbeat] = useState({});
   const [period,    setPeriod]    = useState('30d');
   const autoSelectDoneRef = useRef(false);
@@ -924,7 +1248,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isBW ? { filter: 'grayscale(1)' } : {}) }}>
 
       {/* ── PERIOD FILTER ─────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
@@ -1061,8 +1385,8 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
         )
       )}
 
-      {/* ── PRICE CHART ───────────────────────────────────────── */}
-      {coin && <PriceChart coin={coin} trades={periodTrades} />}
+      {/* ── KLINECHART ────────────────────────────────────────── */}
+      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} isMobile={isMobile} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={periodTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
