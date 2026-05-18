@@ -39,6 +39,11 @@ bot_pid.txt
 signals_log.json
 processed_urls.json
 backtest_results.json
+backtest_*_results.json
+backtest_*_sweep.json
+full_code_dump.txt
+debug_report.txt
+path/
 # Локальные service-файлы
 crypto-bot.service
 crypto-web.service
