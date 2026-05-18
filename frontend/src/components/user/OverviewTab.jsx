@@ -436,12 +436,17 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
       unsubscribeBar: () => { wsSubRef.current?.close(); wsSubRef.current = null; },
     });
 
-    const ro = new ResizeObserver(() => { try { chart.resize(); } catch {} });
+    let resizeRaf = null;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => { try { chart.resize(); } catch {} });
+    });
     ro.observe(el);
 
     return () => {
       wsSubRef.current?.close();
       wsSubRef.current = null;
+      cancelAnimationFrame(resizeRaf);
       ro.disconnect();
       try { klDispose(el); } catch {}
       chartRef.current = null;
@@ -623,9 +628,13 @@ function EquityCurve({ data }) {
   useEffect(() => {
     if (!wrapRef.current) return;
     setW(wrapRef.current.offsetWidth);
-    const ro = new ResizeObserver(entries => setW(entries[0].contentRect.width));
+    let raf = null;
+    const ro = new ResizeObserver(entries => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setW(entries[0].contentRect.width));
+    });
     ro.observe(wrapRef.current);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
   }, []);
 
   const isPos = data[data.length - 1]?.v >= 0;

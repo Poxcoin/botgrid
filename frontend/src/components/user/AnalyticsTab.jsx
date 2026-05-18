@@ -425,13 +425,18 @@ function CoinChart({ coins, allTrades }) {
     chartRef.current = chart;
     seriesRef.current = series;
 
+    let resizeRaf = null;
     const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect?.width;
-      if (w && chartRef.current) chartRef.current.applyOptions({ width: w });
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => {
+        const w = entries[0]?.contentRect?.width;
+        if (w && chartRef.current) chartRef.current.applyOptions({ width: w });
+      });
     });
     ro.observe(container);
 
     return () => {
+      cancelAnimationFrame(resizeRaf);
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
