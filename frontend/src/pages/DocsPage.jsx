@@ -173,21 +173,67 @@ function DashboardContent({ isMobile }) {
 
 function FaqContent({ isMobile }) {
   const pad = isMobile ? '24px 16px 40px' : '40px 32px 60px';
+  const MONO_LOCAL = "'Courier New','SF Mono',monospace";
+  const groups = [
+    {
+      label: 'SECURITY & SAFETY',
+      items: [
+        { q: 'Is KADO safe to use?', a: 'Yes. KADO is non-custodial — your funds never leave your Bybit account. We connect using trade-only API keys which cannot withdraw funds. All stored API keys are encrypted with AES-256 Fernet before being saved to the database. Passwords are hashed with bcrypt (cost factor 12). Connections use TLS 1.3. We do not share your data with third parties for commercial purposes.' },
+        { q: 'Can KADO withdraw my funds?', a: 'No. KADO API keys are configured with trade-only permissions. Withdrawal permission is never required and you should never grant it to any API key connected to KADO. Even if our systems were fully compromised, an attacker could not withdraw your funds through KADO — the exchange rejects any withdrawal request from our API keys by design.' },
+        { q: 'What if someone hacks KADO\'s servers?', a: 'API keys are stored encrypted — an attacker who accessed our database would only see AES-256 ciphertext, not your actual keys. Even with decrypted keys, withdrawal is impossible. We recommend enabling IP restriction on your Bybit API key (whitelist our VPS IP) and setting up 2FA on your Bybit account for maximum protection.' },
+        { q: 'Should I enable 2FA on KADO?', a: 'Yes, strongly recommended. Go to Dashboard → Security → Enable 2FA. We support TOTP (Time-based One-Time Password) using any authenticator app: Google Authenticator, Authy, 1Password, Bitwarden, etc. Scan the QR code, save your backup codes, and 2FA will be required on every login.' },
+        { q: 'What API key permissions should I give KADO?', a: 'Only enable: Read Only (account info) and Unified Trading / Contract Trade (to place orders). Never enable Withdrawals. Wallet permission is not needed. For extra security, enable IP restriction on the Bybit API key and whitelist our VPS IP address.' },
+      ],
+    },
+    {
+      label: 'TRADING & BOTS',
+      items: [
+        { q: 'How does the Signal Bot decide when to trade?', a: 'The Signal Bot monitors real-time crypto news and social media feeds. Each item is scored by an AI model (Claude Haiku) on three dimensions: trading relevance (0–10), direction (bullish/bearish), and urgency (0–10). A composite score is calculated. If it exceeds the configured threshold (default: 13/20), a trade is opened on the relevant altcoin perpetual. The bot uses a strict stop-loss and takes profit as soon as the signal target is hit.' },
+        { q: 'What does the Grid Bot do exactly?', a: 'The Grid Bot creates a ladder of limit buy and sell orders at fixed intervals above and below a central price. When the market dips, it buys. When the market rises back up, it sells. Each buy-sell cycle captures a small spread. In sideways or ranging markets this generates consistent small profits. In strong trending markets the bot can suffer losses as price moves outside the grid range.' },
+        { q: 'What is the Funding Rate Bot?', a: 'Perpetual futures contracts charge a funding fee every 8 hours between long and short holders to keep price anchored to spot. When funding rates become extremely positive (longs pay shorts), it means the market is overcrowded on the long side and a correction is likely. The bot fades these extremes: it shorts when funding is too positive and longs when it is too negative, targeting a mean-reversion move.' },
+        { q: 'How risky is the Listing Sniper?', a: 'High risk. The bot detects new token listings on Bybit within seconds of the announcement and opens a small long position (2% of balance) to capture the initial pump. However, not all listings pump — some dump immediately or have very low liquidity. Position size is deliberately small. TP is 20%, SL is 7%. The bot uses very tight time exits (position closes within minutes if TP/SL is not hit) to avoid getting stuck in illiquid markets.' },
+        { q: 'What happens during a flash crash?', a: 'All KADO bots use stop-loss orders. In a flash crash, stop-loss orders may experience slippage — executing at a worse price than set. For leveraged positions (Grid, Signal), this could mean a larger-than-expected loss. KADO does not use strategies without stops. We recommend starting with lower leverage (3–5×) until you are comfortable with bot behavior under volatile conditions.' },
+        { q: 'Can I run multiple bots simultaneously?', a: 'Yes. The Signal Bot, Grid Bot, Funding Rate Bot, Listing Sniper, and DEX Sniper can all run at the same time. Each manages its own position size as a percentage of your free USDT balance. If multiple bots trigger simultaneously, they each take their configured allocation — make sure your total allocation across all bots does not exceed 100% of your available balance.' },
+        { q: 'What leverage do the bots use?', a: 'Configurable in Settings. Defaults: Signal Bot 5×, Grid Bot 3×, Funding Rate Bot 5×, Listing Sniper 3×. We recommend starting at default or lower. Higher leverage means larger profits AND larger losses — a 10× leveraged position can be liquidated by a 10% adverse move. The DEX Sniper does not use leverage (it trades on-chain in spot BNB/token pairs).' },
+      ],
+    },
+    {
+      label: 'ACCOUNTS & BILLING',
+      items: [
+        { q: 'What is the high-water mark policy?', a: 'The high-water mark (HWM) means you only pay performance fees when your account reaches a new equity peak. Example: your balance starts at $1,000. The bot earns $200 → new HWM = $1,200. Fee = 25% × $200 = $50. Next month the balance drops to $1,100. No fee. Month after, balance rises to $1,350. Fee = 25% × ($1,350 − $1,200) = $37.50. You never pay twice for the same profit.' },
+        { q: 'What if I withdraw from Bybit while using KADO?', a: 'If you withdraw funds from Bybit, your balance decreases. KADO detects the reduced balance and adjusts position sizing accordingly. Withdrawal does not reset the high-water mark — the HWM remains at the previous equity peak. If your balance is now lower than the HWM, no fees are charged until your balance returns above the previous peak and then continues rising.' },
+        { q: 'Is there a free plan?', a: 'Yes. The Free plan allows you to connect Bybit and use the Signal Bot with limited features. See the Pricing page for the current feature comparison between Free, Standard, and Performance plans. No credit card is required to start.' },
+        { q: 'How do I upgrade or downgrade my plan?', a: 'Go to Dashboard → Account → Subscription. Changes take effect at the start of the next billing period. If you downgrade from Performance to Standard, any outstanding performance fees are settled immediately.' },
+        { q: 'What is the Referral Program?', a: 'Refer a friend using your unique referral link (Dashboard → Account → Referral). When they join and generate performance fees, you receive 5% of their fees for the lifetime of their active subscription. Payouts are made monthly alongside your own fee settlement in USDT. There is no cap on referral earnings.' },
+        { q: 'How do I cancel my account?', a: 'Remove your API keys from Dashboard → API Keys, then email support@kadoclub.net requesting account deletion. We will confirm deletion within 2 business days and remove all personal data within 30 days per GDPR. Any outstanding performance fees are settled before deletion.' },
+      ],
+    },
+    {
+      label: 'TECHNICAL',
+      items: [
+        { q: 'How does KADO connect to Bybit?', a: 'KADO uses the official Bybit REST API v5 and WebSocket streams. Your API key and secret are used to authenticate order requests. The bot runs on a Hetzner VPS in Germany with 24/7 uptime monitoring. Orders are placed directly on your exchange account — KADO is purely an instruction-sender, not a custodian.' },
+        { q: 'What happens if the server goes down?', a: 'Open positions on your Bybit account continue running with their existing TP and SL orders — these are exchange-side orders and do not depend on KADO being online. The bot cannot open new trades while offline, but your risk is managed by the exchange-side stop orders. We run redundant monitoring and aim for 99.9% uptime.' },
+        { q: 'Does KADO work with Bybit Demo accounts?', a: 'Yes. Bybit offers a fully functional Demo account with paper money that mirrors live market prices. To use it: create a Demo API key on Bybit, add it to KADO in Dashboard → API Keys, and toggle Demo mode on. Demo trading is a great way to test strategy settings before committing real funds.' },
+        { q: 'Can I use KADO on mobile?', a: 'The KADO dashboard is fully mobile-responsive. You can monitor positions, review trade history, and adjust settings from any mobile browser. The bots run on our server 24/7 regardless of whether you are logged in or which device you are using.' },
+        { q: 'Is there an API for developers?', a: 'Not yet. A public API for programmatic access to KADO configuration and trade data is on the roadmap for Q3 2026. For now, all configuration is done through the web dashboard. Contact support@kadoclub.net if you have specific developer integration needs.' },
+      ],
+    },
+  ];
+
   return (
     <div style={{ padding: pad }}>
       <H2>FAQ</H2>
-      <div style={{ marginTop: 8 }}>
-        <FaqItem q="Is KADO safe to use?" a="Your funds remain on Bybit at all times. KADO connects using trade-only API keys — withdrawal permissions are never requested. AES-256 encryption for stored keys, bcrypt for passwords." />
-        <FaqItem q="How much can I earn?" a="Returns depend entirely on market conditions. Past performance does not guarantee future results. Always trade only funds you can afford to lose." />
-        <FaqItem q="What happens if the bot makes a losing trade?" a="Every trade has a stop-loss. The position closes automatically. Maximum loss per trade is capped (default: 3% of margin for altcoins). Adjustable in Settings." />
-        <FaqItem q="Where are my funds?" a="Always on your Bybit account. KADO cannot move or withdraw funds — our API keys do not have withdrawal permission." />
-        <FaqItem q="How do I pause the bot?" a="Dashboard → Settings → toggle bot off. Open positions are not closed automatically — they run until their existing TP/SL levels." />
-        <FaqItem q="What is the minimum balance?" a="Technically $1, but we recommend at least $100 USDT. Below $50 fixed fees eat into returns significantly." />
-        <FaqItem q="Does KADO work with other exchanges?" a="Currently Bybit only (USDT Perpetuals, Unified account). More exchanges are on the roadmap." />
-        <FaqItem q="What is the Performance plan fee?" a="25% of net new profits monthly under a high-water-mark policy. No fee in losing months. Settled in USDT." />
-        <FaqItem q="How do I get Telegram signals?" a="Connect Telegram in Settings. @KADO_c_BOT sends a notification for every trade: open, update, close." />
-        <FaqItem q="Can I use a Demo account?" a="Yes. Add Bybit Demo API keys and toggle Demo mode in the API Keys tab. Paper money only." />
-      </div>
+      <P>Frequently asked questions about security, trading, billing, and technical setup.</P>
+      {groups.map(g => (
+        <div key={g.label} style={{ marginTop: 36 }}>
+          <div style={{ fontFamily: MONO_LOCAL, fontSize: 9, letterSpacing: '0.16em', color: '#333', marginBottom: 4, textTransform: 'uppercase' }}>
+            {g.label}
+          </div>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', marginBottom: 0 }}>
+            {g.items.map(item => <FaqItem key={item.q} q={item.q} a={item.a} />)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
