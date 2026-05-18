@@ -309,7 +309,7 @@ def execute_trade(
 
     # ─── Проверка 3: дневной лимит убытков ───────────────────────────────────
     free_check = get_free_usdt(exchange)
-    if not daily_guard.check(free_check):
+    if free_check > 0 and not daily_guard.check(free_check):
         dg = daily_guard.get_status(free_check)
         msg = (
             f"🛑 <b>Торговля остановлена — дневной лимит убытков</b>\n"

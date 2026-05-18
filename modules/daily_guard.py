@@ -105,6 +105,9 @@ def check(current_balance: float) -> bool:
         True  — торговать можно
         False — дневной лимит убытков исчерпан, торговлю остановить
     """
+    if current_balance <= 0:
+        return True  # balance fetch failed — don't treat as loss
+
     global _state
 
     # Перечитываем файл — другой бот мог обновить (main ↔ alt)
