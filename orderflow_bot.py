@@ -147,8 +147,8 @@ def run_orderflow_engine() -> None:
                 if not is_long and not is_short:
                     continue
 
-                action = "buy" if is_long else "sell"
                 direction = "LONG" if is_long else "SHORT"
+                action = direction
 
                 print(f"\n[OF] {'='*44}")
                 print(f"[OF] SIGNAL  {direction}  {symbol}")
