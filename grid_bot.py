@@ -816,7 +816,9 @@ def _run_single(cfg: dict) -> None:
     _set_leverage(exchange, symbol, leverage)
 
     _balance = get_free_usdt(exchange)
-    daily_guard.init(current_balance=_balance)
+    _is_owner_thread = user_id is None
+    if _is_owner_thread:
+        daily_guard.init(current_balance=_balance)
 
     # Minimum balance gate — grid requires headroom to DCA safely
     if _balance < 100.0:
@@ -1273,7 +1275,7 @@ def _run_single(cfg: dict) -> None:
                     elif _ema20_4h > 0 and _ema20_4h < _ema50_4h * (1 - EMA_BLOCK_MIN_GAP):
                         _log(f"[GRID:{symbol}] 📉 EMA20({_ema20_4h:.2f}) < EMA50({_ema50_4h:.2f}) [{(_ema50_4h-_ema20_4h)/_ema50_4h*100:.2f}%] — LONG BUY пропускаємо (downtrend)")
                     elif len(positions) + len(pending_orders) < max_pos:
-                        if not daily_guard.check(current_balance=get_free_usdt(exchange)):
+                        if _is_owner_thread and not daily_guard.check(current_balance=get_free_usdt(exchange)):
                             _log(f"[GRID:{symbol}] 🛑 daily_guard — торгівля зупинена сьогодні, LONG BUY пропущено")
                             result = None
                         else:
@@ -1334,7 +1336,7 @@ def _run_single(cfg: dict) -> None:
                     if not _is_btc and _btc_chg > BTC_PUMP_THRESHOLD:
                         _log(f"[GRID:{symbol}] 🚫 BTC +{_btc_chg:.1f}% за 2h — SHORT призупинено")
                     elif len(positions) + len(pending_orders) < max_pos:
-                        if not daily_guard.check(current_balance=get_free_usdt(exchange)):
+                        if _is_owner_thread and not daily_guard.check(current_balance=get_free_usdt(exchange)):
                             _log(f"[GRID:{symbol}] 🛑 daily_guard — торгівля зупинена сьогодні, SHORT пропущено")
                             result = None
                         else:
