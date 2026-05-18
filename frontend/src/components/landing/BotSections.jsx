@@ -272,7 +272,9 @@ function DexSection() {
           ].map(s => (
             <div key={s} className="flex items-center gap-3 py-2.5 font-mono text-[12px]"
               style={{ borderBottom: '1px solid var(--border)', color: 'var(--muted-fg)' }}>
-              <span style={{ color: 'var(--fg)', opacity: 0.5, flexShrink: 0 }}>✓</span>{s}
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--fg)', opacity: 0.5, flexShrink: 0 }}>
+                <path d="M2 6.5l3 3 5-5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>{s}
             </div>
           ))}
         </div>

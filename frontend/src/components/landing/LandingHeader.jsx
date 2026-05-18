@@ -102,9 +102,9 @@ function LanguageBlock() {
           <div style={{ fontFamily: FONT, fontSize: 13, color: '#ddd', lineHeight: 1.2 }}>{t.settings.language}</div>
         </div>
         <span style={{ fontFamily: MONO, fontSize: 10, color: '#666', letterSpacing: '0.04em' }}>{LANG_LABELS[lang]}</span>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
           style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 180ms', flexShrink: 0 }}>
-          <path d="M3 2l4 3-4 3" stroke="#555" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M4 3l5 4-5 4" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
 
@@ -130,8 +130,8 @@ function LanguageBlock() {
               >
                 <span>{LANG_LABELS[code]}</span>
                 {active && (
-                  <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-                    <path d="M2 6.5l3.5 3.5 5.5-6" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M2.5 7l4 4 5-6.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 )}
               </button>
@@ -154,8 +154,8 @@ function MenuRow({ icon, label, onClick, href, danger }) {
       <span style={{ flexShrink: 0, color: danger ? '#e74c3c' : '#777', display: 'flex' }}>{icon}</span>
       <span style={{ flex: 1, fontFamily: FONT, fontSize: 13, color: danger ? '#e74c3c' : '#ddd' }}>{label}</span>
       {href && (
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
-          <path d="M3.5 8.5l5-5M5 3.5h3.5V7" stroke="#555" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+          <path d="M4 10l6-6M7 4h3v3" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       )}
     </div>
