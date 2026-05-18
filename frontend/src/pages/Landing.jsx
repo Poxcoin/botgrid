@@ -269,12 +269,9 @@ function HowItWorks() {
     <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.stepsLabel} title={t.landing.stepsTitle} sub={t.landing.stepsSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {STEPS.map(s => (
-            <div key={s.n} style={{ background: '#0a0a0a', padding: isMobile ? '28px 20px' : '48px 40px', transition: 'background 200ms' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#0f0f0f'}
-              onMouseLeave={e => e.currentTarget.style.background = '#0a0a0a'}
-            >
+            <div key={s.n} style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '28px 20px' : '48px 40px' }}>
               <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.1em', fontFamily: MONO, marginBottom: 28 }}>{s.n}</div>
               <div style={{ fontSize: 18, fontWeight: 600, color: '#e0e0e0', marginBottom: 16, letterSpacing: '-0.02em', fontFamily: FONT }}>{s.title}</div>
               <div style={{ fontSize: 13, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{s.body}</div>
@@ -298,21 +295,27 @@ function BotsSection() {
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))', gap: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden', alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 10 : 16, alignItems: 'stretch' }}>
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
                 style={{
-                  background: '#0a0a0a',
-                  padding: isMobile ? '24px 18px 20px' : '32px 28px 28px',
+                  background: 'rgba(8,8,8,0.92)',
+                  padding: isMobile ? '18px 14px 16px' : '28px 28px 24px',
                   textAlign: 'left',
                   height: '100%',
                   boxSizing: 'border-box',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.06)',
                   display: 'flex', flexDirection: 'column',
-                  transition: 'background 200ms',
+                  transition: 'border-color 180ms',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#0f0f0f'}
-                onMouseLeave={e => e.currentTarget.style.background = '#0a0a0a'}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+                }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
                   <span style={{ fontSize: 12, color: '#444', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>
@@ -344,12 +347,9 @@ function RiskSection() {
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.riskLabel} title={t.landing.riskTitle} sub={t.landing.riskSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {RISK.map(r => (
-            <div key={r.title} style={{ background: '#0a0a0a', padding: isMobile ? '28px 20px' : '44px 36px', transition: 'background 200ms' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#0f0f0f'}
-              onMouseLeave={e => e.currentTarget.style.background = '#0a0a0a'}
-            >
+            <div key={r.title} style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '24px 18px' : '40px 32px' }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d0d0', marginBottom: 14, letterSpacing: '-0.02em', fontFamily: FONT }}>{r.title}</div>
               <div style={{ fontSize: 12, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{r.body}</div>
             </div>
@@ -372,13 +372,13 @@ function Strategies() {
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.stratLabel} title={t.landing.stratTitle} sub={t.landing.stratSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
           {STRATS.map(s => (
             <Link key={s.n} to="/strategies" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
-                style={{ background: '#0a0a0a', padding: isMobile ? '40px 28px' : '56px 44px', textAlign: 'left', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', transition: 'background 200ms' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#0f0f0f'}
-                onMouseLeave={e => e.currentTarget.style.background = '#0a0a0a'}
+                style={{ background: 'rgba(8,8,8,0.92)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: isMobile ? '32px 24px' : '48px 40px', textAlign: 'left', transition: 'border-color 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
               >
                 <div style={{ fontSize: 10, color: '#333', fontFamily: MONO, marginBottom: 20, letterSpacing: '0.08em' }}>{s.n}</div>
                 <div style={{ fontSize: 22, fontWeight: 600, color: '#e0e0e0', marginBottom: 14, letterSpacing: '-0.03em', fontFamily: FONT }}>{s.name}</div>

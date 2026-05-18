@@ -65,13 +65,11 @@ function Code({ children }) {
 function Warning({ children }) {
   return (
     <div style={{
-      borderLeft: '2px solid rgba(255,255,255,0.25)',
-      padding: '10px 16px',
-      marginBottom: 16,
-      fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65,
+      background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)',
+      borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+      fontSize: 13, color: '#ef4444', lineHeight: 1.65,
     }}>
-      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', color: 'var(--text-muted)', display: 'block', marginBottom: 6, fontWeight: 600 }}>WARNING</span>
-      {children}
+      ⚠ {children}
     </div>
   );
 }
@@ -79,13 +77,11 @@ function Warning({ children }) {
 function Tip({ children }) {
   return (
     <div style={{
-      borderLeft: '2px solid rgba(255,255,255,0.12)',
-      padding: '10px 16px',
-      marginBottom: 16,
-      fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.65,
+      background: 'rgba(34,197,94,0.07)', border: '1px solid rgba(34,197,94,0.2)',
+      borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+      fontSize: 13, color: '#22c55e', lineHeight: 1.65,
     }}>
-      <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.15em', color: 'var(--text-muted)', display: 'block', marginBottom: 6, fontWeight: 600 }}>NOTE</span>
-      {children}
+      ✓ {children}
     </div>
   );
 }
@@ -142,7 +138,7 @@ export default function DocsPage() {
     <div style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', fontFamily: FONT, minHeight: '100vh' }}>
       <LandingHeader />
 
-      <div style={{ maxWidth: 1440, margin: '0 auto', padding: '60px 64px 120px', display: 'flex', gap: 80, alignItems: 'flex-start' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 24px 120px', display: 'flex', gap: 60, alignItems: 'flex-start' }}>
 
         {/* sidebar */}
         <aside style={{ width: 180, flexShrink: 0, position: 'sticky', top: 90 }}>
@@ -211,11 +207,11 @@ export default function DocsPage() {
             <Step n={2}>Click <strong>Create New Key</strong>. Choose <em>System-generated API Keys</em>.</Step>
             <Step n={3}>
               Set a name (e.g. <Code>KADO Bot</Code>) and configure permissions:
-              <ul style={{ marginTop: 8, paddingLeft: 20, lineHeight: 2, color: 'var(--text-secondary)', fontSize: 14 }}>
-                <li>Read Only — <strong style={{ color: 'var(--text-primary)' }}>enable</strong></li>
-                <li>Unified Trading (Contract Trade) — <strong style={{ color: 'var(--text-primary)' }}>enable</strong></li>
-                <li>Wallet — <strong style={{ color: 'var(--text-primary)' }}>do not enable</strong></li>
-                <li>Withdraw — <strong style={{ color: 'var(--text-primary)' }}>do not enable</strong></li>
+              <ul style={{ marginTop: 8, paddingLeft: 20, lineHeight: 2 }}>
+                <li>✅ Read Only</li>
+                <li>✅ Unified Trading (Contract Trade)</li>
+                <li>❌ Wallet — <strong>do not enable</strong></li>
+                <li>❌ Withdraw — <strong>do not enable</strong></li>
               </ul>
             </Step>
             <Step n={4}>Leave <strong>IP Restriction</strong> blank (or add our VPS IP for extra security).</Step>

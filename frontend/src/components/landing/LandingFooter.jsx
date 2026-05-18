@@ -31,6 +31,10 @@ export default function LandingFooter() {
           <p style={{ fontFamily: FONT, fontSize: 15, lineHeight: 1.6, color: '#666', letterSpacing: '-0.01em' }}>
             {t.footer.tagline}
           </p>
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8, fontFamily: FONT, fontSize: 13, color: '#666' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block', boxShadow: '0 0 6px rgba(34,197,94,0.5)' }} />
+            {t.footer.status}
+          </div>
         </div>
 
         {COLS.map(col => (
