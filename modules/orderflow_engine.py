@@ -97,24 +97,30 @@ def fetch_oi_delta(symbol: str) -> float:
 
 # ─── Cumulative Volume Delta ───────────────────────────────────────────────────
 
-def calc_cvd(symbol: str, limit: int = 500) -> float:
-    """Net buy/sell aggression from recent trades in USDT notional.
-    Positive → buyers hitting ask (bullish aggression)
-    Negative → sellers hitting bid (bearish aggression)
+def calc_cvd(symbol: str, limit: int = 500) -> tuple[float, float]:
+    """Net buy/sell aggression from recent trades.
+    Returns (cvd_usdt, total_notional_usdt).
+    cvd_ratio_pct = (cvd / total) * 100 — directional bias:
+      > 60% = strong buying, < 40% = strong selling, ~50% = balanced
     """
     def _fetch():
         ex = _get_pub()
         trades = ex.fetch_trades(symbol, limit=limit, params={"category": "linear"})
         cvd = 0.0
+        total = 0.0
         for t in trades:
             notional = float(t["price"]) * float(t["amount"])
+            total += notional
             if t["side"] == "buy":
                 cvd += notional
             else:
                 cvd -= notional
-        return cvd
+        return cvd, total
 
-    return _cached(f"cvd:{symbol}:{limit}", _CVD_TTL, _fetch) or 0.0
+    result = _cached(f"cvd:{symbol}:{limit}", _CVD_TTL, _fetch)
+    if not result:
+        return 0.0, 0.0
+    return result
 
 
 # ─── All-in-one context ────────────────────────────────────────────────────────
@@ -137,20 +143,23 @@ def get_orderflow_context(symbol: str) -> dict:
     except Exception:
         price = 0.0
 
-    vwap      = calc_vwap(symbol)
-    oi_delta  = fetch_oi_delta(symbol)
-    cvd       = calc_cvd(symbol)
-    vwap_dev  = (price - vwap) / vwap * 100.0 if vwap > 0 else 0.0
+    vwap              = calc_vwap(symbol)
+    oi_delta          = fetch_oi_delta(symbol)
+    cvd, total_notional = calc_cvd(symbol)
+    vwap_dev          = (price - vwap) / vwap * 100.0 if vwap > 0 else 0.0
+    # cvd_ratio_pct: 50% = balanced, >60% = net buying, <40% = net selling
+    cvd_ratio_pct     = (cvd / total_notional * 100.0 + 100.0) / 2.0 if total_notional > 0 else 50.0
 
     long_cond  = price > vwap and cvd > 0 and oi_delta > 0
     short_cond = price < vwap and cvd < 0 and oi_delta > 0
     bias = "long" if long_cond else ("short" if short_cond else "neutral")
 
     return {
-        "price":        price,
-        "vwap":         vwap,
-        "vwap_dev_pct": vwap_dev,
-        "oi_delta_pct": oi_delta,
-        "cvd_usdt":     cvd,
-        "bias":         bias,
+        "price":          price,
+        "vwap":           vwap,
+        "vwap_dev_pct":   vwap_dev,
+        "oi_delta_pct":   oi_delta,
+        "cvd_usdt":       cvd,
+        "cvd_ratio_pct":  cvd_ratio_pct,
+        "bias":           bias,
     }

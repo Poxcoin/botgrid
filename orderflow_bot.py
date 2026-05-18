@@ -30,20 +30,27 @@ MAX_POS    = 2
 COOLDOWN   = 2 * 3600   # seconds
 SCAN_SLEEP = 180        # seconds
 
+# Entry thresholds — tuned for meaningful signals
+_OI_MIN      = 0.5    # OI must grow ≥0.5% in 5 min (real money entering)
+_CVD_LONG    = 62.0   # ≥62% of recent volume was net buying
+_CVD_SHORT   = 38.0   # ≤38% of recent volume was net selling
+_VWAP_MIN    = 0.05   # price at least 0.05% away from VWAP (not at VWAP)
+_VWAP_MAX    = 0.7    # price not more than 0.7% from VWAP (not extended)
+
 
 def _check_long(ctx: dict) -> bool:
     return (
-        ctx["oi_delta_pct"] > 0.1
-        and ctx["cvd_usdt"] > 0
-        and 0 < ctx["vwap_dev_pct"] < 1.0
+        ctx["oi_delta_pct"] >= _OI_MIN
+        and ctx["cvd_ratio_pct"] >= _CVD_LONG
+        and _VWAP_MIN <= ctx["vwap_dev_pct"] <= _VWAP_MAX
     )
 
 
 def _check_short(ctx: dict) -> bool:
     return (
-        ctx["oi_delta_pct"] > 0.1
-        and ctx["cvd_usdt"] < 0
-        and -1.0 < ctx["vwap_dev_pct"] < 0
+        ctx["oi_delta_pct"] >= _OI_MIN
+        and ctx["cvd_ratio_pct"] <= _CVD_SHORT
+        and -_VWAP_MAX <= ctx["vwap_dev_pct"] <= -_VWAP_MIN
     )
 
 
@@ -78,6 +85,7 @@ def run_orderflow_engine() -> None:
     )
 
     _cooldowns: dict[str, float] = {}
+    _open_symbols: set = set()   # tracks only orderflow's own open positions
     last_error_tg = 0.0
 
     while True:
@@ -97,13 +105,24 @@ def run_orderflow_engine() -> None:
                 time.sleep(SCAN_SLEEP)
                 continue
 
-            if position_monitor.get_tracked_count() >= MAX_POS:
+            # Sync _open_symbols against real exchange positions
+            try:
+                real_pos = {
+                    p["symbol"].replace("USDT", "/USDT:USDT")
+                    for p in exchange.fetch_positions(params={"category": "linear"})
+                    if float(p.get("contracts", 0) or 0) > 0
+                }
+                _open_symbols &= real_pos  # remove symbols that are no longer open
+            except Exception:
+                pass
+
+            if len(_open_symbols) >= MAX_POS:
                 print(f"[OF] Max positions ({MAX_POS}) reached — skipping scan")
                 time.sleep(SCAN_SLEEP)
                 continue
 
             for symbol in SYMBOLS:
-                if position_monitor.get_tracked_count() >= MAX_POS:
+                if len(_open_symbols) >= MAX_POS:
                     print(f"[OF] Max positions reached mid-scan — stopping")
                     break
 
@@ -112,8 +131,8 @@ def run_orderflow_engine() -> None:
                     print(f"[OF] Cooldown {symbol}: {int(cooldown_remaining / 60)} хв")
                     continue
 
-                if position_monitor.is_tracked(symbol):
-                    print(f"[OF] {symbol} already tracked — skip")
+                if symbol in _open_symbols:
+                    print(f"[OF] {symbol} already open — skip")
                     continue
 
                 try:
@@ -141,7 +160,7 @@ def run_orderflow_engine() -> None:
                     f"Price: <code>{ctx['price']:.4f}</code> | "
                     f"VWAP dev: <code>{ctx['vwap_dev_pct']:+.2f}%</code>\n"
                     f"OI delta: <code>{ctx['oi_delta_pct']:+.3f}%</code> | "
-                    f"CVD: <code>{ctx['cvd_usdt']:+.0f} USDT</code>\n"
+                    f"CVD bias: <code>{ctx['cvd_ratio_pct']:.1f}%</code>\n"
                     f"TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}"
                 )
 
@@ -172,6 +191,7 @@ def run_orderflow_engine() -> None:
                             })
                         except Exception as _de:
                             print(f"[OF] saas_dispatch error: {_de}")
+                        _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
                         print(f"[OF] ❌ execute_trade error {symbol}: {e}")
