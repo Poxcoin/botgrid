@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { usePageTitle } from '@/lib/usePageTitle';
@@ -270,8 +270,16 @@ function SupportContent({ isMobile }) {
 
 export default function DocsPage() {
   usePageTitle('Documentation', 'Step-by-step guides for connecting Bybit API, choosing trading strategies, and getting the most out of KADO.');
-  const [active, setActive] = useState('getting-started');
+  const [searchParams] = useSearchParams();
+  const initialSection = searchParams.get('section') || 'getting-started';
+  const VALID_SECTIONS = ['getting-started', 'api-keys', 'strategies', 'dashboard', 'faq', 'support'];
+  const [active, setActive] = useState(VALID_SECTIONS.includes(initialSection) ? initialSection : 'getting-started');
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    const s = searchParams.get('section');
+    if (s && VALID_SECTIONS.includes(s)) setActive(s);
+  }, [searchParams]);
 
   function handleNav(id) {
     setActive(id);

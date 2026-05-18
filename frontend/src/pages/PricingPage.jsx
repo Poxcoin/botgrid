@@ -307,7 +307,7 @@ export default function PricingPage() {
 
       {/* Cards */}
       <div style={S.wrap} className="px-5 md:px-14">
-        <div style={S.cardsSection}>
+        <div id="performance-fees" style={S.cardsSection}>
           {checkoutErr && (
             <div role="alert" style={{
               maxWidth: 880, margin: '0 auto 16px',
@@ -369,6 +369,54 @@ export default function PricingPage() {
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+
+      {/* Referral */}
+      <div id="referral" style={S.wrap} className="px-5 md:px-14">
+        <div style={{
+          maxWidth: 880, margin: '0 auto',
+          padding: '60px 0 40px',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <p style={{ fontFamily: "'Courier New','SF Mono',monospace", fontSize: 9, letterSpacing: '0.16em', color: '#444', textTransform: 'uppercase', marginBottom: 20 }}>
+            REFERRAL PROGRAM
+          </p>
+          <div style={{ display: 'flex', gap: 48, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <h2 style={{ fontSize: 'clamp(24px,4vw,40px)', fontWeight: 700, letterSpacing: '-0.04em', margin: '0 0 16px', color: '#fff' }}>
+                Earn 5% for life
+              </h2>
+              <p style={{ fontSize: 14, color: '#666', lineHeight: 1.85, margin: '0 0 24px', maxWidth: 400 }}>
+                Refer a friend using your unique link. When they start generating profits, you receive 5% of their performance fees — every month, for the lifetime of their subscription. No cap. Paid in USDT.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {[
+                  ['01', 'Share your referral link from Dashboard → Account'],
+                  ['02', 'Friend registers and connects Bybit'],
+                  ['03', 'You earn 5% of their monthly performance fees forever'],
+                ].map(([n, text]) => (
+                  <div key={n} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    <span style={{ fontFamily: "'Courier New','SF Mono',monospace", fontSize: 9, color: '#333', minWidth: 20, paddingTop: 3, letterSpacing: '0.06em' }}>{n}</span>
+                    <span style={{ fontSize: 13, color: '#777', lineHeight: 1.7 }}>{text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { label: 'Your cut', value: '5%' },
+                { label: 'Duration', value: 'Lifetime' },
+                { label: 'Currency', value: 'USDT' },
+                { label: 'Payment', value: 'Monthly' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '14px 24px', minWidth: 160 }}>
+                  <div style={{ fontFamily: "'Courier New','SF Mono',monospace", fontSize: 8, letterSpacing: '0.14em', color: '#444', marginBottom: 6, textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: '#d0d0d0' }}>{value}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
