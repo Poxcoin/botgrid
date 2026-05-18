@@ -112,7 +112,10 @@ def run_orderflow_engine() -> None:
                     for p in exchange.fetch_positions(params={"category": "linear"})
                     if float(p.get("contracts", 0) or 0) > 0
                 }
-                _open_symbols &= real_pos  # remove symbols that are no longer open
+                if _open_symbols:
+                    _open_symbols &= real_pos  # remove symbols closed since last scan
+                else:
+                    _open_symbols = {s for s in real_pos if s in SYMBOLS}  # init after restart
             except Exception:
                 pass
 
