@@ -271,7 +271,11 @@ function HowItWorks() {
         <SectionHeader label={t.landing.stepsLabel} title={t.landing.stepsTitle} sub={t.landing.stepsSub} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {STEPS.map(s => (
-            <div key={s.n} style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '28px 20px' : '48px 40px' }}>
+            <div key={s.n}
+              style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '28px 20px' : '48px 40px', transition: 'background 180ms, box-shadow 180ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(20,20,20,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
               <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.1em', fontFamily: MONO, marginBottom: 28 }}>{s.n}</div>
               <div style={{ fontSize: 18, fontWeight: 600, color: '#e0e0e0', marginBottom: 16, letterSpacing: '-0.02em', fontFamily: FONT }}>{s.title}</div>
               <div style={{ fontSize: 13, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{s.body}</div>
@@ -306,10 +310,10 @@ function BotsSection() {
                   height: '100%',
                   boxSizing: 'border-box',
                   display: 'flex', flexDirection: 'column',
-                  transition: 'background 180ms',
+                  transition: 'background 180ms, box-shadow 180ms',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(12,12,12,0.95)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(22,22,22,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
                   <span style={{ fontSize: 12, color: '#444', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>
@@ -343,7 +347,11 @@ function RiskSection() {
         <SectionHeader label={t.landing.riskLabel} title={t.landing.riskTitle} sub={t.landing.riskSub} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {RISK.map(r => (
-            <div key={r.title} style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '24px 18px' : '40px 32px' }}>
+            <div key={r.title}
+              style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '24px 18px' : '40px 32px', transition: 'background 180ms, box-shadow 180ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(20,20,20,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
               <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d0d0', marginBottom: 14, letterSpacing: '-0.02em', fontFamily: FONT }}>{r.title}</div>
               <div style={{ fontSize: 12, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{r.body}</div>
             </div>
@@ -370,9 +378,9 @@ function Strategies() {
           {STRATS.map(s => (
             <Link key={s.n} to="/strategies" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
-                style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '32px 24px' : '48px 40px', textAlign: 'left', transition: 'background 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(12,12,12,0.95)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(5,5,5,0.92)'}
+                style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '32px 24px' : '48px 40px', textAlign: 'left', transition: 'background 180ms, box-shadow 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(22,22,22,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 <div style={{ fontSize: 10, color: '#333', fontFamily: MONO, marginBottom: 20, letterSpacing: '0.08em' }}>{s.n}</div>
                 <div style={{ fontSize: 22, fontWeight: 600, color: '#e0e0e0', marginBottom: 14, letterSpacing: '-0.03em', fontFamily: FONT }}>{s.name}</div>
