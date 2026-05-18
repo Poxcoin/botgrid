@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { init as klInit, dispose as klDispose } from 'klinecharts';
-import { AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
 import { useLiveStream } from '@/lib/useLiveStream';
 import { useIsMobile } from '@/lib/useIsMobile';
 
@@ -349,165 +348,6 @@ function CoinTicker({ coins, selected, onSelect }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PRICE CHART — Bybit kline via recharts AreaChart
-══════════════════════════════════════════════════════════════════ */
-const TF_OPTIONS = [['60','1H'],['240','4H'],['D','1D'],['W','1W']];
-
-function PriceChart({ coin, trades }) {
-  const wrapRef = useRef(null);
-  const [w,       setW]       = useState(0);
-  const [tf,      setTf]      = useState('D');
-  const [data,    setData]    = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!wrapRef.current) return;
-    setW(wrapRef.current.offsetWidth);
-    let raf = null;
-    const ro = new ResizeObserver(entries => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => setW(entries[0].contentRect.width));
-    });
-    ro.observe(wrapRef.current);
-    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
-  }, []);
-
-  useEffect(() => {
-    if (!coin) return;
-    setLoading(true);
-    fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${tf}&limit=200`)
-      .then(r => r.json())
-      .then(d => {
-        const list = (d?.result?.list || []).reverse().map(k => ({
-          ts:    +k[0],
-          t:     tf === 'D' || tf === 'W'
-                   ? new Date(+k[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                   : new Date(+k[0]).toLocaleString('en-US',    { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
-          close: parseFloat(k[4]),
-        }));
-        setData(list);
-      })
-      .catch(() => setData([]))
-      .finally(() => setLoading(false));
-  }, [coin, tf]);
-
-  /* trade entry / exit dots */
-  const coinTrades = useMemo(() =>
-    (trades || []).filter(t => sym(t.symbol) === coin),
-  [trades, coin]);
-
-  const tradeMap = useMemo(() => {
-    const map = {};
-    for (const t of coinTrades) {
-      if (t.opened_at) {
-        const ts = new Date(t.opened_at).getTime();
-        map[ts] = { side: t.side === 'Sell' ? 'sell' : 'buy', type: 'entry' };
-      }
-      if (t.closed_at) {
-        const ts = new Date(t.closed_at).getTime();
-        map[ts] = { side: t.side === 'Sell' ? 'buy' : 'sell', type: 'exit' };
-      }
-    }
-    return map;
-  }, [coinTrades]);
-
-  const dataWithMarkers = useMemo(() => {
-    if (Object.keys(tradeMap).length === 0) return data;
-    const candleMs = tf === 'W' ? 7*86400000 : tf === 'D' ? 86400000 : parseInt(tf, 10) * 60000;
-    return data.map(pt => {
-      for (const [tsStr, marker] of Object.entries(tradeMap)) {
-        if (Math.abs(pt.ts - +tsStr) < candleMs) return { ...pt, marker };
-      }
-      return pt;
-    });
-  }, [data, tradeMap, tf]);
-
-  const h = 280;
-
-  const CustomDot = (props) => {
-    const { cx, cy, payload } = props;
-    if (!payload?.marker) return null;
-    const { side, type } = payload.marker;
-    const color = type === 'entry' ? (side === 'buy' ? '#aaa' : '#666') : '#888';
-    return (
-      <g key={`dot-${cx}-${cy}`}>
-        {type === 'entry' ? (
-          <polygon points={`${cx},${cy - 8} ${cx - 5},${cy + 2} ${cx + 5},${cy + 2}`} fill={color} opacity={0.9}/>
-        ) : (
-          <polygon points={`${cx},${cy + 8} ${cx - 5},${cy - 2} ${cx + 5},${cy - 2}`} fill={color} opacity={0.9}/>
-        )}
-      </g>
-    );
-  };
-
-  const fmtPrice = v => {
-    if (v >= 10000) return `${(v/1000).toFixed(1)}k`;
-    if (v >= 1)    return v.toFixed(2);
-    return v.toFixed(4);
-  };
-
-  const current = dataWithMarkers[dataWithMarkers.length - 1]?.close;
-
-  return (
-    <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12, flexShrink: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{coin}USDT</span>
-          {current != null && <span style={{ fontFamily: FM, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>${fmtPrice(current)}</span>}
-        </div>
-        <div style={{ display: 'flex', gap: 2 }}>
-          {TF_OPTIONS.map(([v, label]) => {
-            const on = tf === v;
-            return (
-              <button key={v} onClick={() => setTf(v)} style={{
-                fontFamily: FM, fontSize: 9, padding: '2px 7px',
-                background: on ? 'var(--bg-elevated)' : 'transparent',
-                border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
-                color: on ? 'var(--text-primary)' : 'var(--text-muted)',
-                cursor: 'pointer', letterSpacing: '0.05em',
-              }}>
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div ref={wrapRef} style={{ height: h + 24, position: 'relative' }}>
-        {loading && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>LOADING…</span>
-          </div>
-        )}
-        {!loading && dataWithMarkers.length === 0 && (
-          <div style={{ height: h, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>NO DATA</span>
-          </div>
-        )}
-        {w > 0 && dataWithMarkers.length > 0 && !loading && (
-          <AreaChart width={w} height={h} data={dataWithMarkers} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="price_grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="rgba(240,242,245,1)" stopOpacity={0.12}/>
-                <stop offset="95%" stopColor="rgba(240,242,245,1)" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-            <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={fmtPrice} domain={['auto', 'auto']} width={52}/>
-            <Tooltip
-              contentStyle={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }}
-              formatter={v => [`$${fmtPrice(v)}`, coin]}
-              labelStyle={{ color: 'rgba(240,242,245,0.4)', fontSize: 9 }}
-            />
-            <Area type="monotone" dataKey="close" stroke="rgba(240,242,245,0.45)" strokeWidth={1} fill="url(#price_grad)" dot={<CustomDot />} activeDot={{ r: 3, fill: 'rgba(240,242,245,0.7)', strokeWidth: 0 }}/>
-          </AreaChart>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════
    KLINECHART — full candlestick chart with order book, indicators
 ══════════════════════════════════════════════════════════════════ */
 function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, isMobile = false }) {
@@ -773,12 +613,12 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   EQUITY CURVE — isolated component to avoid recharts ResizeObserver
-   setState-during-render (React error #310) in React 18 concurrent mode
+   EQUITY CURVE — pure SVG, no recharts (avoids React 18 error #310)
 ══════════════════════════════════════════════════════════════════ */
 function EquityCurve({ data }) {
   const wrapRef = useRef(null);
   const [w, setW] = useState(0);
+  const [hover, setHover] = useState(null);
 
   useEffect(() => {
     if (!wrapRef.current) return;
@@ -792,24 +632,131 @@ function EquityCurve({ data }) {
     return () => { ro.disconnect(); cancelAnimationFrame(raf); };
   }, []);
 
-  const isPos = data[data.length - 1]?.v >= 0;
-  const h = 320;
+  const H = 300;
+  const PAD = { top: 12, right: 8, bottom: 28, left: 56 };
+
+  const vals = data.map(d => d.v);
+  const minV = Math.min(...vals, 0);
+  const maxV = Math.max(...vals, 0);
+  const range = maxV - minV || 1;
+  const isPos = (vals[vals.length - 1] ?? 0) >= 0;
+  const color = isPos ? '#00d4aa' : '#ff4d6d';
+
+  const chartW = w - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+
+  const sx = i => PAD.left + (i / Math.max(data.length - 1, 1)) * chartW;
+  const sy = v => PAD.top + chartH - ((v - minV) / range) * chartH;
+
+  const pts = data.map((d, i) => `${sx(i)},${sy(d.v)}`).join(' ');
+  const zeroY = sy(0);
+
+  const areaPath = data.length > 1
+    ? `M${sx(0)},${zeroY} ` +
+      data.map((d, i) => `L${sx(i)},${sy(d.v)}`).join(' ') +
+      ` L${sx(data.length - 1)},${zeroY} Z`
+    : '';
+
+  /* Y-axis ticks */
+  const yTicks = [];
+  const tickCount = 5;
+  for (let i = 0; i <= tickCount; i++) {
+    const v = minV + (range * i) / tickCount;
+    yTicks.push({ v, y: sy(v) });
+  }
+
+  /* X-axis ticks — first, last, and ~3 middle */
+  const xIdxs = data.length <= 1 ? [0]
+    : [0, Math.floor(data.length * 0.33), Math.floor(data.length * 0.66), data.length - 1].filter((v, i, a) => a.indexOf(v) === i);
 
   return (
-    <div ref={wrapRef} style={{ padding: '12px 4px', height: h + 24 }}>
-      {w > 0 && (
-        <AreaChart width={w} height={h} data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+    <div ref={wrapRef} style={{ padding: '8px 4px 0' }}>
+      {w > 0 && data.length > 0 && (
+        <svg
+          width={w} height={H}
+          style={{ display: 'block', overflow: 'visible' }}
+          onMouseMove={e => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const mx = e.clientX - rect.left - PAD.left;
+            const idx = Math.round((mx / chartW) * (data.length - 1));
+            const clamped = Math.max(0, Math.min(data.length - 1, idx));
+            setHover(clamped);
+          }}
+          onMouseLeave={() => setHover(null)}
+        >
           <defs>
-            <linearGradient id="eq_grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0.25}/>
-              <stop offset="95%" stopColor={isPos ? '#00d4aa' : '#ff4d6d'} stopOpacity={0}/>
+            <linearGradient id="eq_svg_grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.2}/>
+              <stop offset="100%" stopColor={color} stopOpacity={0}/>
             </linearGradient>
           </defs>
-          <XAxis dataKey="t" tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} interval="preserveStartEnd"/>
-          <YAxis tick={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 9, fill: 'rgba(240,242,245,0.3)' }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`}/>
-          <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, fontFamily: 'JetBrains Mono, monospace', fontSize: 11 }} formatter={v => [`$${v}`, 'Cumulative PnL']} labelStyle={{ color: 'rgba(240,242,245,0.5)', fontSize: 9 }}/>
-          <Area type="monotone" dataKey="v" stroke={isPos ? '#00d4aa' : '#ff4d6d'} strokeWidth={1.5} fill="url(#eq_grad)" dot={false} activeDot={{ r: 3 }}/>
-        </AreaChart>
+
+          {/* zero line */}
+          {minV < 0 && maxV > 0 && (
+            <line x1={PAD.left} y1={zeroY} x2={PAD.left + chartW} y2={zeroY}
+              stroke="var(--border-default)" strokeWidth={1} strokeDasharray="3 3"/>
+          )}
+
+          {/* grid lines */}
+          {yTicks.map(({ y }, i) => (
+            <line key={i} x1={PAD.left} y1={y} x2={PAD.left + chartW} y2={y}
+              stroke="var(--border-subtle)" strokeWidth={0.5}/>
+          ))}
+
+          {/* fill */}
+          {areaPath && <path d={areaPath} fill="url(#eq_svg_grad)"/>}
+
+          {/* line */}
+          <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round"/>
+
+          {/* Y-axis labels */}
+          {yTicks.map(({ v, y }) => (
+            <text key={v} x={PAD.left - 6} y={y + 3}
+              textAnchor="end" fontFamily="JetBrains Mono, monospace" fontSize={9}
+              fill="var(--text-muted)">
+              ${v >= 0 ? '+' : ''}{v.toFixed(0)}
+            </text>
+          ))}
+
+          {/* X-axis labels */}
+          {xIdxs.map(i => (
+            <text key={i} x={sx(i)} y={H - 6}
+              textAnchor={i === 0 ? 'start' : i === data.length - 1 ? 'end' : 'middle'}
+              fontFamily="JetBrains Mono, monospace" fontSize={9}
+              fill="var(--text-muted)">
+              {data[i].t}
+            </text>
+          ))}
+
+          {/* hover crosshair */}
+          {hover != null && (
+            <>
+              <line x1={sx(hover)} y1={PAD.top} x2={sx(hover)} y2={PAD.top + chartH}
+                stroke="var(--border-default)" strokeWidth={1} strokeDasharray="4 2"/>
+              <circle cx={sx(hover)} cy={sy(data[hover].v)} r={4}
+                fill={color} stroke="var(--bg-base)" strokeWidth={2}/>
+              <rect
+                x={Math.min(sx(hover) + 8, PAD.left + chartW - 110)}
+                y={Math.max(PAD.top, sy(data[hover].v) - 28)}
+                width={104} height={40} rx={2}
+                fill="var(--bg-elevated)" stroke="var(--border-default)" strokeWidth={1}/>
+              <text
+                x={Math.min(sx(hover) + 60, PAD.left + chartW - 58)}
+                y={Math.max(PAD.top, sy(data[hover].v) - 28) + 14}
+                textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize={9}
+                fill="var(--text-muted)">
+                {data[hover].t}
+              </text>
+              <text
+                x={Math.min(sx(hover) + 60, PAD.left + chartW - 58)}
+                y={Math.max(PAD.top, sy(data[hover].v) - 28) + 28}
+                textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize={11}
+                fontWeight={600} fill={color}>
+                {data[hover].v >= 0 ? '+' : ''}{data[hover].v.toFixed(2)} USDT
+              </text>
+            </>
+          )}
+        </svg>
       )}
     </div>
   );
