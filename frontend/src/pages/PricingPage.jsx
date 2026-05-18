@@ -249,7 +249,14 @@ function FeatureRow({ on, text }) {
 }
 
 export default function PricingPage() {
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    if (window.location.hash) {
+      const el = document.querySelector(window.location.hash);
+      if (el) { setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); }
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, []);
   const [loading, setLoading] = useState(null);
   const [checkoutErr, setCheckoutErr] = useState('');
   const { t } = useLang();

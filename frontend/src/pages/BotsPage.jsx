@@ -113,7 +113,14 @@ function PipelineCard({ step }) {
 }
 
 export default function BotsPage() {
-  useEffect(() => { if (!window.location.hash) window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    if (window.location.hash) {
+      const el = document.querySelector(window.location.hash);
+      if (el) { setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); }
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, []);
   const { t } = useLang();
   usePageTitle(t.nav.bots);
 

@@ -204,7 +204,14 @@ const PRIVACY_EN = {
 };
 
 function LegalPage({ doc }) {
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    if (window.location.hash) {
+      const el = document.querySelector(window.location.hash);
+      if (el) { setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80); }
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, []);
   usePageTitle(doc.title);
   return (
     <div style={{ background: 'var(--bg-base)', color: 'var(--text-primary)', fontFamily: FONT, minHeight: '100vh' }}>
