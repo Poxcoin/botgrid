@@ -4,6 +4,7 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
 import { usePageTitle } from '@/lib/usePageTitle';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
@@ -36,13 +37,14 @@ function PillTag({ label }) {
 
 function BotCard({ bot }) {
   const [hovered, setHovered] = React.useState(false);
+  const isMobile = useIsMobile();
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         background: hovered ? '#0f0f0f' : '#0a0a0a',
-        padding: '44px 36px',
+        padding: isMobile ? '28px 20px' : '44px 36px',
         display: 'flex',
         flexDirection: 'column',
         transition: 'background 200ms',
@@ -89,11 +91,12 @@ function BotCard({ bot }) {
 
 function PipelineCard({ step }) {
   const [hovered, setHovered] = React.useState(false);
+  const isMobile = useIsMobile();
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{ background: hovered ? '#0f0f0f' : '#0a0a0a', padding: '44px 36px', transition: 'background 200ms' }}
+      style={{ background: hovered ? '#0f0f0f' : '#0a0a0a', padding: isMobile ? '28px 20px' : '44px 36px', transition: 'background 200ms' }}
     >
       <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: '#555', letterSpacing: '0.08em', marginBottom: 16 }}>
         {step.num}

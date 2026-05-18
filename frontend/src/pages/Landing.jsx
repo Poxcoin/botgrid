@@ -4,6 +4,7 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import SpiralText from '@/components/shared/SpiralText';
 import { useLang } from '@/lib/LangContext';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const FONT = "'Inter','SF Pro Display',system-ui,sans-serif";
 const MONO = "'JetBrains Mono','SF Mono',monospace";
@@ -176,6 +177,7 @@ function HomeHero() {
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const sectionRef = useRef(null);
   const { t } = useLang();
+  const isMobile = useIsMobile();
   useEffect(() => { const timer = setTimeout(() => setIn(true), 60); return () => clearTimeout(timer); }, []);
 
   const onMouseMove = useCallback((e) => {
@@ -204,7 +206,7 @@ function HomeHero() {
         alignItems: 'center',
         justifyContent: 'center',
         textAlign: 'center',
-        padding: '0 32px',
+        padding: isMobile ? '0 16px' : '0 32px',
         position: 'relative',
         overflow: 'hidden',
         background: 'transparent',
@@ -257,6 +259,7 @@ function HomeHero() {
 /* ── HOW IT WORKS ── */
 function HowItWorks() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const STEPS = [
     { n: '01', title: t.landing.step1Title, body: t.landing.step1Body },
     { n: '02', title: t.landing.step2Title, body: t.landing.step2Body },
@@ -264,11 +267,11 @@ function HowItWorks() {
   ];
   return (
     <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
-      <div style={{ padding: '120px 64px' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.stepsLabel} title={t.landing.stepsTitle} sub={t.landing.stepsSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {STEPS.map(s => (
-            <div key={s.n} style={{ background: 'rgba(5,5,5,0.92)', padding: '48px 40px' }}>
+            <div key={s.n} style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '28px 20px' : '48px 40px' }}>
               <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.1em', fontFamily: MONO, marginBottom: 28 }}>{s.n}</div>
               <div style={{ fontSize: 18, fontWeight: 600, color: '#e0e0e0', marginBottom: 16, letterSpacing: '-0.02em', fontFamily: FONT }}>{s.title}</div>
               <div style={{ fontSize: 13, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{s.body}</div>
@@ -283,21 +286,22 @@ function HowItWorks() {
 /* ── BOTS ── */
 function BotsSection() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const BOTS = ['b1','b2','b3','b4','b5','b6','b7','b8'].map((k, i) => ({
     num: String(i + 1).padStart(2, '0'),
     ...t.landing.arsenalBots[k],
   }));
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
-      <div style={{ padding: '120px 64px' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, minmax(0, 1fr))', gap: isMobile ? 10 : 16, alignItems: 'stretch' }}>
           {BOTS.map(bot => (
             <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
                 style={{
                   background: 'rgba(8,8,8,0.92)',
-                  padding: '28px 28px 24px',
+                  padding: isMobile ? '18px 14px 16px' : '28px 28px 24px',
                   textAlign: 'left',
                   height: '100%',
                   boxSizing: 'border-box',
@@ -337,14 +341,15 @@ function BotsSection() {
 /* ── RISK ── */
 function RiskSection() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const RISK = ['r1','r2','r3','r4'].map(k => t.landing.risks[k]);
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
-      <div style={{ padding: '120px 64px' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.riskLabel} title={t.landing.riskTitle} sub={t.landing.riskSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
           {RISK.map(r => (
-            <div key={r.title} style={{ background: 'rgba(5,5,5,0.92)', padding: '40px 32px' }}>
+            <div key={r.title} style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '24px 18px' : '40px 32px' }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d0d0', marginBottom: 14, letterSpacing: '-0.02em', fontFamily: FONT }}>{r.title}</div>
               <div style={{ fontSize: 12, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{r.body}</div>
             </div>
@@ -358,19 +363,20 @@ function RiskSection() {
 /* ── STRATEGIES ── */
 function Strategies() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const STRATS = ['s1','s2','s3'].map((k, i) => ({
     n: String(i + 1).padStart(2, '0'),
     ...t.landing.strats[k],
   }));
   return (
     <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
-      <div style={{ padding: '120px 64px' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.stratLabel} title={t.landing.stratTitle} sub={t.landing.stratSub} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
           {STRATS.map(s => (
             <Link key={s.n} to="/strategies" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div
-                style={{ background: 'rgba(8,8,8,0.92)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '48px 40px', textAlign: 'left', transition: 'border-color 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
+                style={{ background: 'rgba(8,8,8,0.92)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: isMobile ? '32px 24px' : '48px 40px', textAlign: 'left', transition: 'border-color 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
               >
@@ -400,9 +406,10 @@ function Strategies() {
 /* ── CTA ── */
 function CtaInner() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const badges = [t.landing.ctaBadge1, t.landing.ctaBadge2, t.landing.ctaBadge3];
   return (
-    <div style={{ padding: '140px 64px', textAlign: 'center' }}>
+    <div style={{ padding: isMobile ? '80px 24px' : '140px 64px', textAlign: 'center' }}>
       <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,180px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', margin: '0 0 40px' }}>
         KADO
       </h2>

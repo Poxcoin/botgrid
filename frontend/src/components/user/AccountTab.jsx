@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLang } from '@/lib/LangContext';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const API = (path, opts) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}`, 'Content-Type': 'application/json' },
@@ -340,6 +341,7 @@ function TelegramBlock({ me, onChange }) {
 // ── Main AccountTab ──────────────────────────────────────────────────────────
 export default function AccountTab() {
   const { t } = useLang();
+  const isMobile = useIsMobile();
   const [me, setMe] = useState(null);
 
   function reload() {
@@ -354,7 +356,7 @@ export default function AccountTab() {
   return (
     <div style={{
       width: '100%',
-      display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
       gap: 16, alignItems: 'start',
     }}>
 

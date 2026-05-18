@@ -4,6 +4,7 @@ import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
 import { useLang } from '@/lib/LangContext';
 import { usePageTitle } from '@/lib/usePageTitle';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const MONO = "'Courier New','SF Mono',monospace";
 const SANS = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif";
@@ -347,6 +348,7 @@ function Skeleton() {
 export default function NewsPage() {
   const { t, lang } = useLang();
   const locale = LOCALE_MAP[lang] || 'en-US';
+  const isMobile = useIsMobile();
   usePageTitle(t.nav.news);
 
   const [items,     setItems]     = useState([]);
@@ -466,11 +468,11 @@ export default function NewsPage() {
 
       {/* ── Основной контент ─────────────────────────────────────────────── */}
       {loading ? (
-        <div style={{ padding: '0 32px 80px' }}>
+        <div style={{ padding: isMobile ? '0 16px 40px' : '0 32px 80px' }}>
           <Skeleton />
         </div>
       ) : display.length === 0 ? (
-        <div style={{ padding: '0 32px 80px' }}>
+        <div style={{ padding: isMobile ? '0 16px 40px' : '0 32px 80px' }}>
           <div style={{ padding: '80px 0', textAlign: 'center', fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.18em' }}>
             {t.news.noFilter}
           </div>
@@ -478,7 +480,7 @@ export default function NewsPage() {
       ) : (
         <>
           {/* ── 3-col grid + category sections ── */}
-          <div style={{ padding: '0 32px 80px' }}>
+          <div style={{ padding: isMobile ? '0 16px 40px' : '0 32px 80px' }}>
 
             {/* 3 колонки */}
             <div className="j-main-grid" style={{

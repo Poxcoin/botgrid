@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLang } from '@/lib/LangContext';
 import { useTheme } from '@/lib/ThemeContext';
+import { useIsMobile } from '@/lib/useIsMobile';
 import { LANGS } from '@/i18n/translations';
 
 const LANG_FULL = {
@@ -129,6 +130,7 @@ function NotificationsBlock() {
 export default function SettingsTab() {
   const { t, lang, setLang } = useLang();
   const { theme, toggle: toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
   const [tz, setTz] = useState(() => localStorage.getItem('kado_tz') || 'auto');
 
   function changeTz(v) {
@@ -143,7 +145,7 @@ export default function SettingsTab() {
   return (
     <div style={{
       width: '100%',
-      display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+      display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
       gap: 16, alignItems: 'start',
     }}>
 

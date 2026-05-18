@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const FM = "'JetBrains Mono','Courier New',monospace";
 const FF = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
@@ -302,6 +303,7 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
 // ── Main export ────────────────────────────────────────────────────────────
 export default function ApiKeysTab() {
   const [me, setMe] = useState(null);
+  const isMobile = useIsMobile();
   const reload = () => API('/api/users/me').then(setMe).catch(console.error);
   useEffect(() => { reload(); }, []);
 
@@ -320,7 +322,7 @@ export default function ApiKeysTab() {
       <SetupGuide />
 
       {/* Live + Demo side by side */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
         <KeySection
           title="Live Account"
           badge={{ text: 'MAINNET', color: '#00d4aa' }}
