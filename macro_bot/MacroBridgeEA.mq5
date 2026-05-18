@@ -133,19 +133,26 @@ void GetCalendarEvents()
 
 void OpenTrade(string symbol, string direction, double volume, double sl_pips, double tp_pips)
 {
-   double pip    = (StringFind(symbol, "JPY") >= 0) ? 0.01 : 0.0001;
+   double pip;
+   if(StringFind(symbol, "XAU") >= 0 || StringFind(symbol, "XAG") >= 0)
+      pip = 1.0;       // metals: 1 macro-pip = $1 price move
+   else if(StringFind(symbol, "JPY") >= 0)
+      pip = 0.01;
+   else
+      pip = 0.0001;
+   int digits = (int)SymbolInfoInteger(symbol, SYMBOL_DIGITS);
    double price, sl, tp;
 
    if(direction == "LONG")
    {
       price = SymbolInfoDouble(symbol, SYMBOL_ASK);
-      sl    = NormalizeDouble(price - sl_pips * pip, 5);
-      tp    = NormalizeDouble(price + tp_pips * pip, 5);
+      sl    = NormalizeDouble(price - sl_pips * pip, digits);
+      tp    = NormalizeDouble(price + tp_pips * pip, digits);
       bool ok = trade.Buy(volume, symbol, price, sl, tp, "macro_bot");
       if(ok)
          WriteResult("{\"status\":\"ok\",\"action\":\"open\",\"direction\":\"LONG\",\"ticket\":" +
                      IntegerToString(trade.ResultOrder()) + ",\"price\":" +
-                     DoubleToString(trade.ResultPrice(), 5) + "}");
+                     DoubleToString(trade.ResultPrice(), digits) + "}");
       else
          WriteResult("{\"status\":\"error\",\"code\":" + IntegerToString(trade.ResultRetcode()) +
                      ",\"msg\":\"" + trade.ResultRetcodeDescription() + "\"}");
@@ -153,13 +160,13 @@ void OpenTrade(string symbol, string direction, double volume, double sl_pips, d
    else
    {
       price = SymbolInfoDouble(symbol, SYMBOL_BID);
-      sl    = NormalizeDouble(price + sl_pips * pip, 5);
-      tp    = NormalizeDouble(price - tp_pips * pip, 5);
+      sl    = NormalizeDouble(price + sl_pips * pip, digits);
+      tp    = NormalizeDouble(price - tp_pips * pip, digits);
       bool ok = trade.Sell(volume, symbol, price, sl, tp, "macro_bot");
       if(ok)
          WriteResult("{\"status\":\"ok\",\"action\":\"open\",\"direction\":\"SHORT\",\"ticket\":" +
                      IntegerToString(trade.ResultOrder()) + ",\"price\":" +
-                     DoubleToString(trade.ResultPrice(), 5) + "}");
+                     DoubleToString(trade.ResultPrice(), digits) + "}");
       else
          WriteResult("{\"status\":\"error\",\"code\":" + IntegerToString(trade.ResultRetcode()) +
                      ",\"msg\":\"" + trade.ResultRetcodeDescription() + "\"}");

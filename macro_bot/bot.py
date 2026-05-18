@@ -24,7 +24,7 @@ from config import (
 )
 from mt5_client import MT5Client
 from data_fetcher import BLSFetcher, FREDFetcher
-from signal_engine import generate_signal, parse_forecast, EVENT_CONFIG
+from signal_engine import generate_signals, parse_forecast, EVENT_CONFIG
 from notifier import send_telegram, fmt_signal, fmt_close
 from trade_logger import log_open, log_close, init_db
 
@@ -145,7 +145,7 @@ class MacroBot:
             if elapsed_min >= EXIT_MINUTES:
                 ok = await self._mt5_call(self.mt5.close_position, ticket)
                 reason = f"Time limit {EXIT_MINUTES}min"
-                price = client_price = 0.0
+                price = 0.0
                 ping = await self._mt5_call(self.mt5.ping)
                 if ping:
                     price = ping.get("eurusd_bid" if meta["direction"] == "LONG" else "eurusd_ask", 0)
@@ -179,53 +179,61 @@ class MacroBot:
             log.warning("No actual data for %s after 90s", name)
             return
 
-        signal = generate_signal(name, actual, forecast)
-        if signal is None:
+        signals = generate_signals(name, actual, forecast)
+        if not signals:
             log.info("No signal for %s (deviation below threshold)", name)
             return
 
-        if len(self.open_trades) >= MAX_TRADES:
-            log.warning("MAX_TRADES=%d reached — skipping %s", MAX_TRADES, name)
-            return
-
         balance = await self._mt5_call(self.mt5.get_balance)
-        volume  = self.mt5.calculate_volume(balance, RISK_PCT, signal.strength, STOP_LOSS_PIPS)
 
-        result = await self._mt5_call(
-            self.mt5.place_market_order,
-            signal.instrument,
-            signal.direction,
-            volume,
-            STOP_LOSS_PIPS,
-            TAKE_PROFIT_PIPS,
-            f"macro:{name[:12]}",
-        )
+        for signal in signals:
+            if len(self.open_trades) >= MAX_TRADES:
+                log.warning("MAX_TRADES=%d reached — skipping %s %s",
+                            MAX_TRADES, name, signal.instrument)
+                break
 
-        if not result:
-            log.error("Order failed for %s", name)
-            return
+            volume = self.mt5.calculate_volume(
+                balance, RISK_PCT, signal.strength,
+                STOP_LOSS_PIPS, instrument=signal.instrument,
+            )
 
-        ticket = int(result["ticket"])
-        open_price = float(result.get("price", 0))
-        self.open_trades[ticket] = {
-            "event":     name,
-            "opened_at": datetime.now(timezone.utc),
-            "direction": signal.direction,
-            "volume":    volume,
-        }
+            result = await self._mt5_call(
+                self.mt5.place_market_order,
+                signal.instrument,
+                signal.direction,
+                volume,
+                STOP_LOSS_PIPS,
+                TAKE_PROFIT_PIPS,
+                f"macro:{name[:12]}",
+            )
 
-        log_open(
-            ticket=ticket, event=name, symbol=signal.instrument,
-            direction=signal.direction, volume=volume,
-            open_price=open_price,
-            sl_pips=STOP_LOSS_PIPS, tp_pips=TAKE_PROFIT_PIPS,
-            deviation=signal.deviation, strength=signal.strength,
-        )
+            if not result:
+                log.error("Order failed for %s %s", name, signal.instrument)
+                continue
 
-        await self.notify(fmt_signal(
-            name, actual, forecast,
-            signal.direction, volume, signal.deviation
-        ))
+            ticket = int(result["ticket"])
+            open_price = float(result.get("price", 0))
+            self.open_trades[ticket] = {
+                "event":     name,
+                "opened_at": datetime.now(timezone.utc),
+                "direction": signal.direction,
+                "volume":    volume,
+                "symbol":    signal.instrument,
+            }
+
+            log_open(
+                ticket=ticket, event=name, symbol=signal.instrument,
+                direction=signal.direction, volume=volume,
+                open_price=open_price,
+                sl_pips=STOP_LOSS_PIPS, tp_pips=TAKE_PROFIT_PIPS,
+                deviation=signal.deviation, strength=signal.strength,
+            )
+
+            await self.notify(fmt_signal(
+                name, actual, forecast,
+                signal.direction, volume, signal.deviation,
+                instrument=signal.instrument,
+            ))
 
     # ── Main loop ────────────────────────────────────────────────────────────
 

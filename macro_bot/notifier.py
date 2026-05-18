@@ -20,7 +20,8 @@ async def send_telegram(token: str, chat_id: str, text: str) -> None:
         log.warning("Telegram send failed: %s", e)
 
 
-def fmt_signal(event, actual, forecast, direction, units, deviation) -> str:
+def fmt_signal(event, actual, forecast, direction, units, deviation,
+               instrument: str = "EURUSD") -> str:
     sign = "📈" if direction == "LONG" else "📉"
     side = "BUY" if direction == "LONG" else "SELL"
     return (
@@ -28,7 +29,7 @@ def fmt_signal(event, actual, forecast, direction, units, deviation) -> str:
         f"Event: <b>{event}</b>\n"
         f"Actual: <b>{actual}</b> | Forecast: {forecast}\n"
         f"Deviation: {deviation:+.2f}σ\n"
-        f"→ {side} EUR/USD | {abs(units):.2f} lots"
+        f"→ {side} {instrument} | {abs(units):.2f} lots"
     )
 
 

@@ -139,14 +139,26 @@ class MT5Client:
             return []
         return result.get("events", [])
 
+    # USD value per lot per 1 macro-pip (instrument-dependent)
+    # Forex majors: $10/pip/lot (1 lot = 100K units, 0.0001 pip × 100K = $10)
+    # XAUUSD: $100/pip/lot (1 lot = 100 oz, $1 pip × 100 oz = $100)
+    # XAGUSD: $50/pip/lot  (1 lot = 5000 oz, $0.01 pip × 5000 = $50)
+    _PIP_VALUE_PER_LOT: dict[str, float] = {
+        "XAUUSD": 100.0,
+        "XAGUSD": 50.0,
+    }
+    _DEFAULT_PIP_VALUE = 10.0  # forex majors
+
     def calculate_volume(
         self,
         balance: float,
         risk_pct: float,
         strength: float,
         sl_pips: float,
+        instrument: str = "EURUSD",
     ) -> float:
-        """risk_usd / (sl_pips * $10/pip per lot) → rounded to 0.01"""
-        risk_usd = balance * risk_pct * strength
-        lots = risk_usd / (sl_pips * 10.0)
+        """risk_usd / (sl_pips * pip_value_per_lot) → rounded to 0.01"""
+        risk_usd    = balance * risk_pct * strength
+        pip_value   = self._PIP_VALUE_PER_LOT.get(instrument, self._DEFAULT_PIP_VALUE)
+        lots        = risk_usd / (sl_pips * pip_value)
         return max(0.01, min(round(lots, 2), 5.0))
