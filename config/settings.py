@@ -142,3 +142,6 @@ PAIRS_TRADING = os.getenv("PAIRS_TRADING", "False").lower() == "true"
 
 # ── Orderflow Bot (BTC/ETH/SOL) ───────────────────────────────────────────────
 ORDERFLOW_TRADING = os.getenv("ORDERFLOW_TRADING", "False").lower() == "true"
+
+# ── Liquidity Sweep Reversal Bot (ETH/SOL) ────────────────────────────────────
+SWEEP_TRADING = os.getenv("SWEEP_TRADING", "True").lower() == "true"
