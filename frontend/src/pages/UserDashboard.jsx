@@ -6,7 +6,6 @@ import SecurityTab      from '@/components/user/SecurityTab';
 import ApiKeysTab       from '@/components/user/ApiKeysTab';
 import AssetsTab        from '@/components/user/AssetsTab';
 import AnalyticsTab     from '@/components/user/AnalyticsTab';
-import PnlTab           from '@/components/user/PnlTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
 import { useTheme }     from '@/lib/ThemeContext';
@@ -31,7 +30,6 @@ function Page({ tab }) {
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} />;
   switch (tab) {
     case 'analytics': return <AnalyticsTab />;
-    case 'pnl':       return <PnlTab />;
     case 'account':   return <AccountTab />;
     case 'api-keys':  return <ApiKeysTab />;
     case 'security':  return <SecurityTab />;
@@ -83,8 +81,7 @@ export default function UserDashboard() {
   const isBot    = BOT_IDS.includes(tab);
   const allItems = [
     ...BOTS,
-    { id: 'analytics', label: 'Analytics' },
-    { id: 'pnl',       label: 'PnL'       },
+    { id: 'analytics', label: 'Balance' },
     { id: 'account',   label: 'Account'   },
     { id: 'api-keys',  label: 'API Keys'  },
     { id: 'security',  label: 'Security'  },
@@ -148,6 +145,10 @@ export default function UserDashboard() {
       {/* nav links */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
 
+        <NavItem id="analytics" label="Balance" />
+
+        <div style={{ height: 1, background: border, margin: '8px 0' }}/>
+
         {/* Bots parent */}
         <button onClick={() => setBotsOpen(v => !v)} style={{
           width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -166,13 +167,6 @@ export default function UserDashboard() {
         </button>
 
         {botsOpen && BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
-
-        <div style={{ height: 1, background: border, margin: '8px 0' }}/>
-
-        {[
-          { id: 'analytics', label: 'Analytics' },
-          { id: 'pnl',       label: 'PnL'       },
-        ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
