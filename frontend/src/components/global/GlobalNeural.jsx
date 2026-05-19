@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/ThemeContext';
 export const cursorStateRef = { x: -9999, y: -9999, vx: 0, vy: 0, moving: false };
 
 function buildAxons(W, H, isMobile) {
-  const count = isMobile ? 12 : 28;
+  const count = isMobile ? 4 : 28;
   return Array.from({ length: count }, () => ({
     ox: W * 0.05 + Math.random() * W * 0.28,
     oy: H * 0.62 + Math.random() * H * 0.48,
@@ -53,8 +53,8 @@ export default function GlobalNeural() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const isMobile = window.matchMedia('(pointer: coarse)').matches;
-    const BASE = isMobile ? 40 : 80;
-    const CONN = isMobile ? 60 : 80;
+    const BASE = isMobile ? 16 : 80;
+    const CONN = isMobile ? 50 : 80;
     const STORM_MS = 800;
 
     let W, H, raf;
@@ -62,6 +62,7 @@ export default function GlobalNeural() {
     let nodes = [];
     const signals = [];
     let stormStart = 0;
+    let hidden = document.hidden;
 
     function resize() {
       W = canvas.width = window.innerWidth;
@@ -136,9 +137,13 @@ export default function GlobalNeural() {
       },
     };
 
+    const onVisibility = () => { hidden = document.hidden; };
+    document.addEventListener('visibilitychange', onVisibility);
+
     let lastTs = 0;
     function frame(ts) {
       raf = requestAnimationFrame(frame);
+      if (hidden) return;
       const dt = Math.min(ts - lastTs, 40);
       lastTs = ts;
       const t = ts * 0.001;
@@ -314,6 +319,7 @@ export default function GlobalNeural() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
+      document.removeEventListener('visibilitychange', onVisibility);
       delete window.__neuronField;
     };
   }, []);

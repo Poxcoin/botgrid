@@ -32,7 +32,15 @@ function PixelRouteTracker() {
 
 export default function App() {
   useEffect(() => {
-    const onScroll = () => window.__neuronField?.setScrollY(window.scrollY);
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        window.__neuronField?.setScrollY(window.scrollY);
+        ticking = false;
+      });
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);

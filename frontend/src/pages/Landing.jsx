@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
@@ -9,183 +9,14 @@ import { useIsMobile } from '@/lib/useIsMobile';
 const FONT = "'Inter','SF Pro Display',system-ui,sans-serif";
 const MONO = "'JetBrains Mono','SF Mono',monospace";
 
-/* ── BACKGROUND CHARTS ── */
-function generateCandles(count, startPrice, volatility, seed) {
-  let price = startPrice;
-  let rng = seed;
-  const next = () => { rng = (rng * 1664525 + 1013904223) & 0xffffffff; return (rng >>> 0) / 0xffffffff; };
-  return Array.from({ length: count }, () => {
-    const open = price;
-    const move = (next() - 0.48) * volatility;
-    const close = Math.max(10, open + move);
-    const high = Math.max(open, close) + next() * volatility * 0.6;
-    const low  = Math.min(open, close) - next() * volatility * 0.4;
-    price = close;
-    return { open, close, high, low };
-  });
-}
-
-function CandleChart({ x, y, width, height, count = 40, seed = 42, opacity = 0.07 }) {
-  const candles = generateCandles(count, 100, 8, seed);
-  const prices = candles.flatMap(c => [c.high, c.low]);
-  const minP = Math.min(...prices), maxP = Math.max(...prices);
-  const scaleY = p => y + height - ((p - minP) / (maxP - minP)) * height;
-  const cw = width / count;
-  const bodyW = Math.max(1.5, cw * 0.55);
-  const closePts = candles.map((c, i) => `${x + i * cw + cw / 2},${scaleY(c.close)}`).join(' ');
-
-  return (
-    <g opacity={opacity}>
-      {/* Grid lines */}
-      {[0, 0.25, 0.5, 0.75, 1].map(t => (
-        <line key={t} x1={x} x2={x + width} y1={y + height * t} y2={y + height * t}
-          stroke="white" strokeWidth="0.4" strokeDasharray="4 8" opacity="0.4" />
-      ))}
-      {/* Candles */}
-      {candles.map((c, i) => {
-        const cx = x + i * cw + cw / 2;
-        const bull = c.close >= c.open;
-        const bodyTop = scaleY(Math.max(c.open, c.close));
-        const bodyH = Math.max(1, Math.abs(scaleY(c.open) - scaleY(c.close)));
-        return (
-          <g key={i} stroke="white" fill={bull ? 'white' : 'none'}>
-            <line x1={cx} x2={cx} y1={scaleY(c.high)} y2={scaleY(c.low)} strokeWidth="0.6" />
-            <rect x={cx - bodyW / 2} y={bodyTop} width={bodyW} height={bodyH}
-              fill={bull ? 'white' : 'none'} stroke="white" strokeWidth="0.6" />
-          </g>
-        );
-      })}
-      {/* Price line */}
-      <polyline points={closePts} fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
-    </g>
-  );
-}
-
-function BackgroundCharts() {
-  return (
-    <svg
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
-      preserveAspectRatio="xMidYMid slice"
-      viewBox="0 0 1400 900"
-    >
-      {/* Main chart — right side */}
-      <CandleChart x={640} y={60} width={720} height={340} count={48} seed={77} opacity={0.07} />
-      {/* Secondary chart — bottom left */}
-      <CandleChart x={20} y={520} width={420} height={220} count={32} seed={133} opacity={0.05} />
-      {/* Micro chart — top left corner */}
-      <CandleChart x={20} y={40} width={260} height={140} count={26} seed={211} opacity={0.04} />
-      {/* Volume bars — right bottom */}
-      {generateCandles(48, 60, 20, 99).map((c, i) => (
-        <rect key={i}
-          x={640 + i * 15 + 1} y={820 - c.high * 1.2} width={10} height={c.high * 1.2}
-          fill="white" opacity={0.03 + (c.close > c.open ? 0.02 : 0)} />
-      ))}
-    </svg>
-  );
-}
-
-/* ── LOCAL NEURAL CANVAS (hero-only, 80 nodes, mouse-reactive) ── */
-function HeroLocalCanvas({ mouseRef }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    let W, H, raf;
-    const nodes = [];
-
-    function init(w, h) {
-      nodes.length = 0;
-      for (let i = 0; i < 80; i++) {
-        const hx = Math.random() * w, hy = Math.random() * h;
-        nodes.push({
-          x: hx, y: hy, hx, hy, vx: 0, vy: 0,
-          r: 1.2 + Math.random() * 1.4,
-          op: 0.2 + Math.random() * 0.35,
-          phase: Math.random() * Math.PI * 2,
-        });
-      }
-    }
-
-    function resize() {
-      W = canvas.width = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
-      init(W, H);
-    }
-
-    function frame(ts) {
-      raf = requestAnimationFrame(frame);
-      ctx.clearRect(0, 0, W, H);
-      const col = '255,255,255';
-      const mouse = mouseRef?.current ?? { x: -9999, y: -9999 };
-
-      for (const n of nodes) {
-        n.vx += (n.hx - n.x) * 0.014;
-        n.vy += (n.hy - n.y) * 0.014;
-        const dx = n.x - mouse.x, dy = n.y - mouse.y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 140 && d > 0) {
-          const f = (1 - d / 140) * 0.055;
-          n.vx += (dx / d) * f * 50;
-          n.vy += (dy / d) * f * 50;
-        }
-        n.vx *= 0.87; n.vy *= 0.87;
-        n.x += n.vx; n.y += n.vy;
-        n.x = Math.max(0, Math.min(W, n.x));
-        n.y = Math.max(0, Math.min(H, n.y));
-      }
-
-      for (let i = 0; i < nodes.length; i++) {
-        const a = nodes[i];
-        for (let j = i + 1; j < nodes.length; j++) {
-          const b = nodes[j];
-          const dx = a.x - b.x, dy = a.y - b.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 130) {
-            ctx.strokeStyle = `rgba(${col},${(1 - dist / 130) * 0.16})`;
-            ctx.lineWidth = 0.4;
-            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-          }
-        }
-      }
-      for (const n of nodes) {
-        const flicker = 0.7 + 0.3 * Math.sin(ts * 0.001 + n.phase);
-        ctx.fillStyle = `rgba(${col},${n.op * flicker})`;
-        ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-    raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
-    />
-  );
-}
 
 /* ── HERO ── */
 function HomeHero() {
   const [in_, setIn] = useState(false);
-  const mouseRef = useRef({ x: -9999, y: -9999 });
   const sectionRef = useRef(null);
   const { t } = useLang();
   const isMobile = useIsMobile();
   useEffect(() => { const timer = setTimeout(() => setIn(true), 60); return () => clearTimeout(timer); }, []);
-
-  const onMouseMove = useCallback((e) => {
-    const rect = sectionRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  }, []);
-  const onMouseLeave = useCallback(() => { mouseRef.current = { x: -9999, y: -9999 }; }, []);
 
   const fade = (d, extra = {}) => ({
     opacity: in_ ? 1 : 0,
@@ -197,8 +28,6 @@ function HomeHero() {
   return (
     <section
       ref={sectionRef}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
       style={{
         minHeight: '100vh',
         display: 'flex',
@@ -212,9 +41,6 @@ function HomeHero() {
         background: 'transparent',
       }}
     >
-      <BackgroundCharts />
-      <HeroLocalCanvas mouseRef={mouseRef} />
-
       <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <h1 style={fade(0, {
           fontFamily: FONT,
@@ -266,7 +92,7 @@ function HowItWorks() {
     { n: '03', title: t.landing.step3Title, body: t.landing.step3Body },
   ];
   return (
-    <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+    <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent', contentVisibility: 'auto', containIntrinsicSize: '0 600px' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.stepsLabel} title={t.landing.stepsTitle} sub={t.landing.stepsSub} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
@@ -296,7 +122,7 @@ function BotsSection() {
     ...t.landing.arsenalBots[k],
   }));
   return (
-    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent', contentVisibility: 'auto', containIntrinsicSize: '0 800px' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden', alignItems: 'stretch' }}>
@@ -342,7 +168,7 @@ function RiskSection() {
   const isMobile = useIsMobile();
   const RISK = ['r1','r2','r3','r4'].map(k => t.landing.risks[k]);
   return (
-    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent', contentVisibility: 'auto', containIntrinsicSize: '0 500px' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.riskLabel} title={t.landing.riskTitle} sub={t.landing.riskSub} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
@@ -371,7 +197,7 @@ function Strategies() {
     ...t.landing.strats[k],
   }));
   return (
-    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent', contentVisibility: 'auto', containIntrinsicSize: '0 700px' }}>
       <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
         <SectionHeader label={t.landing.stratLabel} title={t.landing.stratTitle} sub={t.landing.stratSub} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
@@ -438,7 +264,7 @@ function CtaInner() {
 
 function CTA() {
   return (
-    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent', contentVisibility: 'auto', containIntrinsicSize: '0 500px' }}>
       <CtaInner />
     </section>
   );
