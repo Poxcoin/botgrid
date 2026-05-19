@@ -204,12 +204,7 @@ export default function UserDashboard() {
         padding: '10px 20px',
         display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
       }}>
-        <span style={{
-          fontSize: 11, color: muted,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-        }}>
-          {user.username || '—'}
-        </span>
+        <span style={{ flex: 1 }} />
         {/* gear → settings */}
         <button
           onClick={() => goTab('settings')}
@@ -321,7 +316,7 @@ export default function UserDashboard() {
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = borderHi; e.currentTarget.style.color = fg; }}
               onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted; } }}>
-                {user.username || 'Account'}
+                Account
               </button>
 
               {drop && (
