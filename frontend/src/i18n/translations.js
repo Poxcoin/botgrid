@@ -495,6 +495,13 @@ export const translations = {
       ctaLabel: 'Get Started',
       ctaTitle: 'Start trading with all eight bots.',
       ctaBtn:   'Get Started →',
+      bybitSectionLabel: 'BYBIT · CRYPTO FUTURES',
+      mt5SectionLabel:   'MT5 · FOREX & METALS',
+      mt5SectionSub:     'Event-driven bots for forex pairs and gold. Trade EURUSD, GBPUSD and XAUUSD on IC Markets via MetaTrader 5.',
+      mt5Bots: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: 'Macro Forex Bot', hook: 'Trades the moment macro data drops.', desc: 'Monitors US economic releases — CPI, NFP, Retail Sales, FOMC — via FRED and BLS APIs. When actual data deviates significantly from forecast, the bot enters EURUSD and GBPUSD simultaneously. All positions close after 20 minutes. R:R 1.33:1, SL 15 pips.', pills: ['Event-driven', '20min exit', 'SL 15 pips'] },
+        m2: { tag: 'XAUUSD · MT5', name: 'Gold Event Bot', hook: 'Hot US data is bearish for gold — and vice versa.', desc: 'Gold reacts sharply to US inflation and jobs surprises. The bot trades XAU/USD in the same window as macro events: short on hot US data (dollar strengthens), long on weak data. Exits after 20 minutes regardless of P&L. IC Markets demo account.', pills: ['Dollar-inverse', 'Macro-driven', 'IC Markets'] },
+      },
     },
     strategies: {
       badge:           '3 Strategies · Multi-Exchange',
@@ -1125,6 +1132,13 @@ export const translations = {
       ctaLabel: 'Empezar',
       ctaTitle: 'Empieza a operar con los ocho bots.',
       ctaBtn:   'Empezar →',
+      bybitSectionLabel: 'BYBIT · FUTUROS CRIPTO',
+      mt5SectionLabel:   'MT5 · FOREX Y METALES',
+      mt5SectionSub:     'Bots impulsados por eventos para pares de divisas y oro. Opera EURUSD, GBPUSD y XAUUSD en IC Markets vía MetaTrader 5.',
+      mt5Bots: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: 'Bot Forex Macro', hook: 'Opera en el momento en que caen los datos macro.', desc: 'Monitorea publicaciones económicas de EE.UU. — IPC, NFP, Ventas al por menor, FOMC — a través de las APIs FRED y BLS. Cuando los datos reales se desvían significativamente del pronóstico, el bot entra en EURUSD y GBPUSD simultáneamente. Todas las posiciones se cierran tras 20 minutos. R:R 1.33:1, SL 15 pips.', pills: ['Basado en eventos', 'Salida 20min', 'SL 15 pips'] },
+        m2: { tag: 'XAUUSD · MT5', name: 'Bot Oro por Eventos', hook: 'Datos fuertes de EE.UU. son bajistas para el oro — y viceversa.', desc: 'El oro reacciona con fuerza a sorpresas de inflación y empleo en EE.UU. El bot opera XAU/USD en la misma ventana que los eventos macro: vende en corto con datos fuertes (dólar sube) y compra con datos débiles. Sale a los 20 minutos independientemente del P&L. Cuenta demo IC Markets.', pills: ['Inverso al dólar', 'Macro-dirigido', 'IC Markets'] },
+      },
     },
     strategies: {
       badge:           '3 Estrategias · Multi-Exchange',
@@ -1755,6 +1769,13 @@ export const translations = {
       ctaLabel: 'Почати',
       ctaTitle: 'Почніть торгувати з усіма вісьмома ботами.',
       ctaBtn:   'Почати →',
+      bybitSectionLabel: 'BYBIT · КРИПТО Ф\'ЮЧЕРСИ',
+      mt5SectionLabel:   'MT5 · ФОРЕКС І МЕТАЛИ',
+      mt5SectionSub:     'Боти на макроподіях для валютних пар та золота. Торгують EURUSD, GBPUSD і XAUUSD на IC Markets через MetaTrader 5.',
+      mt5Bots: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: 'Макро Форекс Бот', hook: 'Торгує в момент виходу макроданих.', desc: 'Відстежує американські економічні публікації — CPI, NFP, Роздрібні продажі, FOMC — через API FRED і BLS. Коли фактичні дані значно відхиляються від прогнозу, бот одночасно входить в EURUSD і GBPUSD. Усі позиції закриваються через 20 хвилин. R:R 1.33:1, SL 15 пунктів.', pills: ['Подієвий', 'Вихід 20хв', 'SL 15 пунктів'] },
+        m2: { tag: 'XAUUSD · MT5', name: 'Бот Золото', hook: 'Сильні дані США — ведмежі для золота. І навпаки.', desc: 'Золото різко реагує на сюрпризи по інфляції та зайнятості в США. Бот торгує XAU/USD у тому ж вікні що й макроподії: продає при сильних даних (долар зростає), купує при слабких. Виходить через 20 хвилин незалежно від P&L. Демо-рахунок IC Markets.', pills: ['Зворотна до долара', 'Макро-керований', 'IC Markets'] },
+      },
     },
     strategies: {
       badge:           '3 Стратегії · Мульти-Біржа',
@@ -2385,6 +2406,13 @@ export const translations = {
       ctaLabel: 'Начать',
       ctaTitle: 'Начните торговать со всеми восемью ботами.',
       ctaBtn:   'Начать →',
+      bybitSectionLabel: 'BYBIT · КРИПТО ФЬЮЧЕРСЫ',
+      mt5SectionLabel:   'MT5 · ФОРЕКС И МЕТАЛЛЫ',
+      mt5SectionSub:     'Боты на макрособытиях для валютных пар и золота. Торгуют EURUSD, GBPUSD и XAUUSD на IC Markets через MetaTrader 5.',
+      mt5Bots: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: 'Макро Форекс Бот', hook: 'Торгует в момент выхода макроданных.', desc: 'Отслеживает американские экономические публикации — CPI, NFP, Розничные продажи, FOMC — через API FRED и BLS. Когда фактические данные значительно отклоняются от прогноза, бот одновременно входит в EURUSD и GBPUSD. Все позиции закрываются через 20 минут. R:R 1.33:1, SL 15 пунктов.', pills: ['Событийный', 'Выход 20мин', 'SL 15 пунктов'] },
+        m2: { tag: 'XAUUSD · MT5', name: 'Бот Золото', hook: 'Сильные данные США — медвежьи для золота. И наоборот.', desc: 'Золото резко реагирует на сюрпризы по инфляции и занятости в США. Бот торгует XAU/USD в том же окне что и макрособытия: продаёт при сильных данных (доллар растёт), покупает при слабых. Выходит через 20 минут независимо от P&L. Демо-счёт IC Markets.', pills: ['Обратная к доллару', 'Макро-управляемый', 'IC Markets'] },
+      },
     },
     strategies: {
       badge:           '3 Стратегии · Мульти-Биржа',
@@ -3015,6 +3043,13 @@ export const translations = {
       ctaLabel: 'Starten',
       ctaTitle: 'Starten Sie das Trading mit allen acht Bots.',
       ctaBtn:   'Starten →',
+      bybitSectionLabel: 'BYBIT · KRYPTO-FUTURES',
+      mt5SectionLabel:   'MT5 · FOREX & METALLE',
+      mt5SectionSub:     'Ereignisgesteuerte Bots für Währungspaare und Gold. Handel mit EURUSD, GBPUSD und XAUUSD bei IC Markets über MetaTrader 5.',
+      mt5Bots: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: 'Makro-Forex-Bot', hook: 'Handelt in dem Moment, wenn Makrodaten veröffentlicht werden.', desc: 'Überwacht US-Wirtschaftspublikationen — VPI, NFP, Einzelhandelsumsätze, FOMC — über die FRED- und BLS-APIs. Wenn die tatsächlichen Daten erheblich von der Prognose abweichen, tritt der Bot gleichzeitig in EURUSD und GBPUSD ein. Alle Positionen schließen nach 20 Minuten. R:R 1,33:1, SL 15 Pips.', pills: ['Ereignisgesteuert', 'Ausstieg 20min', 'SL 15 Pips'] },
+        m2: { tag: 'XAUUSD · MT5', name: 'Gold-Ereignis-Bot', hook: 'Starke US-Daten sind bärisch für Gold — und umgekehrt.', desc: 'Gold reagiert stark auf Überraschungen bei der US-Inflation und den Beschäftigungszahlen. Der Bot handelt XAU/USD im gleichen Zeitfenster wie Makroereignisse: verkauft bei starken Daten (Dollar steigt), kauft bei schwachen Daten. Schließt nach 20 Minuten unabhängig vom P&L. IC Markets Demokonto.', pills: ['Dollar-invers', 'Makro-gesteuert', 'IC Markets'] },
+      },
     },
     strategies: {
       badge:           '3 Strategien · Multi-Exchange',
@@ -3645,6 +3680,13 @@ export const translations = {
       ctaLabel: '立即开始',
       ctaTitle: '让全部八个机器人开始为您交易。',
       ctaBtn:   '立即开始 →',
+      bybitSectionLabel: 'BYBIT · 加密货币期货',
+      mt5SectionLabel:   'MT5 · 外汇与贵金属',
+      mt5SectionSub:     '基于宏观事件的外汇对和黄金交易机器人。通过MetaTrader 5在IC Markets上交易EURUSD、GBPUSD和XAUUSD。',
+      mt5Bots: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: '宏观外汇机器人', hook: '在宏观数据发布的瞬间交易。', desc: '通过FRED和BLS API监控美国经济数据发布——CPI、NFP、零售销售、FOMC。当实际数据与预测出现显著偏差时，机器人同时进入EURUSD和GBPUSD。所有持仓在20分钟后自动平仓。R:R 1.33:1，止损15点。', pills: ['事件驱动', '20分钟退出', '止损15点'] },
+        m2: { tag: 'XAUUSD · MT5', name: '黄金事件机器人', hook: '美国数据强劲对黄金利空——反之亦然。', desc: '黄金对美国通胀和就业惊喜反应敏锐。该机器人在宏观事件同一时间窗口内交易XAU/USD：数据强劲时做空（美元走强），数据疲软时做多。无论P&L如何，20分钟后退出。IC Markets模拟账户。', pills: ['美元反向', '宏观驱动', 'IC Markets'] },
+      },
     },
     strategies: {
       badge:           '3 策略 · 多交易所',

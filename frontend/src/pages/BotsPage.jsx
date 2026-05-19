@@ -131,6 +131,13 @@ export default function BotsPage() {
     ...t.landing.arsenalBots[k],
   }));
 
+  const MT5_IDS = ['macro-forex-bot', 'gold-event-bot'];
+  const MT5_BOTS = ['m1', 'm2'].map((k, i) => ({
+    num: String(i + 1).padStart(2, '0'),
+    id: MT5_IDS[i],
+    ...t.bots.mt5Bots[k],
+  }));
+
   const STATS = STAT_KEYS.map(s => ({ value: s.value, label: t.bots.stats[s.key] }));
 
   const PIPELINE = ['p1','p2','p3','p4'].map((k, i) => ({
@@ -203,8 +210,22 @@ export default function BotsPage() {
         </div>
       </div>
 
-      {/* Bots grid */}
-      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 100 }}>
+      {/* Bybit bots grid */}
+      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 56 }}>
+        <div style={{
+          fontFamily: FONT_MONO,
+          fontSize: 10,
+          color: '#444',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <span>{t.bots.bybitSectionLabel}</span>
+          <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+        </div>
         <div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
           style={{
@@ -215,6 +236,40 @@ export default function BotsPage() {
           }}
         >
           {BOTS.map((bot) => (
+            <BotCard key={bot.num} bot={bot} />
+          ))}
+        </div>
+      </div>
+
+      {/* MT5 bots grid */}
+      <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 100 }}>
+        <div style={{
+          fontFamily: FONT_MONO,
+          fontSize: 10,
+          color: '#444',
+          letterSpacing: '0.14em',
+          textTransform: 'uppercase',
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <span>{t.bots.mt5SectionLabel}</span>
+          <span style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+        </div>
+        <p style={{ fontSize: 13, color: '#555', marginBottom: 24, fontFamily: FONT_MONO }}>
+          {t.bots.mt5SectionSub}
+        </p>
+        <div
+          className="grid grid-cols-1 md:grid-cols-2"
+          style={{
+            gap: 1,
+            background: 'rgba(255,255,255,0.06)',
+            borderRadius: 16,
+            overflow: 'hidden',
+          }}
+        >
+          {MT5_BOTS.map((bot) => (
             <BotCard key={bot.num} bot={bot} />
           ))}
         </div>
