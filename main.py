@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timezone
 from modules.decision_maker import generate_signal, generate_whale_signal, generate_smart_wallet_signal
-from modules.trader import execute_trade, get_free_usdt, close_all_positions, _init_exchange
+from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, close_all_positions, _init_exchange
 from modules.tg_notifier import send_telegram_message, send_telegram_photo_or_text, get_telegram_updates
 from modules import daily_guard, position_monitor, pnl_tracker, unified_pnl
 from modules.tg_commander import start_commander
@@ -549,7 +549,7 @@ def run_signal_engine():
     # ─── Инициализация guard-модулей ──────────────────────────────────────────
     try:
         ex_init = _init_exchange()
-        start_bal = get_free_usdt(ex_init)
+        start_bal = get_wallet_usdt(ex_init)
     except Exception:
         start_bal = 0.0
     daily_guard.init(current_balance=start_bal)

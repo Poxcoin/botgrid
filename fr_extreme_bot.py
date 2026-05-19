@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from modules.market_data import get_funding_rate, get_open_interest
-from modules.trader import execute_trade, get_free_usdt, _init_exchange
+from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, FR_EXTREME_TRADING
@@ -103,7 +103,7 @@ def run_fr_extreme_engine() -> None:
 
     try:
         ex_init   = _init_exchange()
-        start_bal = get_free_usdt(ex_init)
+        start_bal = get_wallet_usdt(ex_init)
     except Exception:
         start_bal = 0.0
 
@@ -136,12 +136,13 @@ def run_fr_extreme_engine() -> None:
             try:
                 exchange = _init_exchange()
                 balance  = get_free_usdt(exchange)
+                wallet   = get_wallet_usdt(exchange)
             except Exception as e:
                 print(f"[FRE] ❌ Balance fetch failed: {e}")
                 time.sleep(SCAN_SLEEP)
                 continue
 
-            if not daily_guard.check(balance):
+            if not daily_guard.check(wallet):
                 print(f"[FRE] Daily loss limit hit — skipping scan")
                 time.sleep(SCAN_SLEEP)
                 continue

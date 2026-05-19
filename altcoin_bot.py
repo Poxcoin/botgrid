@@ -16,7 +16,7 @@ from datetime import datetime
 import httpx
 
 from modules.decision_maker import generate_listing_signal
-from modules.trader import execute_trade, get_free_usdt, _init_exchange
+from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules.exchange_announcements import start_announcements_monitor, ann_queue
 from modules import daily_guard, position_monitor, pnl_tracker
@@ -153,7 +153,7 @@ def run_alt_engine():
     # Если ALT стартует раньше main, запускаем здесь.
     try:
         ex_init = _init_exchange()
-        start_bal = get_free_usdt(ex_init)
+        start_bal = get_wallet_usdt(ex_init)
     except Exception:
         start_bal = 0.0
     daily_guard.init(current_balance=start_bal)

@@ -121,6 +121,32 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
         return 0.0
 
 
+def get_wallet_usdt(exchange: ccxt.Exchange) -> float:
+    """Returns walletBalance (realized equity, unaffected by open position margin).
+    Use for daily loss tracking — unlike get_free_usdt, does not drop when positions are open."""
+    def _parse_wallet_balance(account_type: str) -> float | None:
+        try:
+            r = exchange.private_get_v5_account_wallet_balance(params={'accountType': account_type})
+            coins = r.get('result', {}).get('list', [{}])[0].get('coin', [])
+            for c in coins:
+                if c.get('coin') == 'USDT':
+                    v = float(c.get('walletBalance') or c.get('availableToWithdraw') or 0)
+                    if v > 0:
+                        return v
+        except Exception:
+            pass
+        return None
+
+    try:
+        for acct_type in ('UNIFIED', 'CONTRACT'):
+            v = _parse_wallet_balance(acct_type)
+            if v is not None:
+                return v
+        return get_free_usdt(exchange)
+    except Exception:
+        return 0.0
+
+
 def _init_exchange() -> ccxt.Exchange:
     """Створює та налаштовує об'єкт біржі. Markets завантажуються одразу."""
     exchange = ccxt.bybit({
@@ -309,8 +335,9 @@ def execute_trade(
 
     # ─── Проверка 3: дневной лимит убытков ───────────────────────────────────
     free_check = get_free_usdt(exchange)
-    if free_check > 0 and not daily_guard.check(free_check):
-        dg = daily_guard.get_status(free_check)
+    _wallet_check = get_wallet_usdt(exchange)
+    if _wallet_check > 0 and not daily_guard.check(_wallet_check):
+        dg = daily_guard.get_status(_wallet_check)
         msg = (
             f"🛑 <b>Торговля остановлена — дневной лимит убытков</b>\n"
             f"Потеряно {dg['loss_pct']:.1f}% за сегодня (лимит {daily_guard.MAX_DAILY_LOSS_PCT}%)\n"
