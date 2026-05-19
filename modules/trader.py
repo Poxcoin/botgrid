@@ -122,29 +122,21 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
 
 
 def get_wallet_usdt(exchange: ccxt.Exchange) -> float:
-    """Returns walletBalance (realized equity, unaffected by open position margin).
-    Use for daily loss tracking — unlike get_free_usdt, does not drop when positions are open."""
-    def _parse_wallet_balance(account_type: str) -> float | None:
+    """Returns total account equity in USDT terms (totalWalletBalance).
+    Works correctly for Unified accounts with BTC/ETH collateral — not just USDT coin balance.
+    Use for daily loss tracking."""
+    for acct_type in ('UNIFIED', 'CONTRACT'):
         try:
-            r = exchange.private_get_v5_account_wallet_balance(params={'accountType': account_type})
-            coins = r.get('result', {}).get('list', [{}])[0].get('coin', [])
-            for c in coins:
-                if c.get('coin') == 'USDT':
-                    v = float(c.get('walletBalance') or c.get('availableToWithdraw') or 0)
-                    if v > 0:
-                        return v
+            r = exchange.private_get_v5_account_wallet_balance(params={'accountType': acct_type})
+            items = r.get('result', {}).get('list', [])
+            if not items:
+                continue
+            v = float(items[0].get('totalWalletBalance') or 0)
+            if v > 0:
+                return v
         except Exception:
             pass
-        return None
-
-    try:
-        for acct_type in ('UNIFIED', 'CONTRACT'):
-            v = _parse_wallet_balance(acct_type)
-            if v is not None:
-                return v
-        return get_free_usdt(exchange)
-    except Exception:
-        return 0.0
+    return get_free_usdt(exchange)
 
 
 def _init_exchange() -> ccxt.Exchange:
