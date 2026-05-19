@@ -794,6 +794,22 @@ async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCr
     return {"ok": True}
 
 
+@app.post("/api/users/change-password")
+async def change_password(body: dict, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    old_pw  = (body.get("old_password") or "").strip()
+    new_pw  = (body.get("new_password") or "").strip()
+    if not old_pw or not new_pw:
+        raise HTTPException(status_code=400, detail="Both fields required")
+    if not verify_password(old_pw, user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    if len(new_pw) < 8:
+        raise HTTPException(status_code=400, detail="Min 8 characters")
+    user.password_hash = hash_password(new_pw[:72])
+    db.commit()
+    return {"ok": True}
+
+
 # ─── GDPR endpoints ──────────────────────────────────────────────────────────
 @app.delete("/api/users/me")
 async def delete_account(

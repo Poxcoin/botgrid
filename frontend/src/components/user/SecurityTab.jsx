@@ -301,6 +301,54 @@ function SecurityRow({ label, status, action, actionLabel, description }) {
   );
 }
 
+function ChangePasswordRow() {
+  const [open,    setOpen]    = useState(false);
+  const [oldPw,   setOldPw]   = useState('');
+  const [newPw,   setNewPw]   = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [msg,     setMsg]     = useState('');
+
+  const inpSt = { width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '9px 12px', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', borderRadius: 4 };
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!oldPw || !newPw) { setMsg('Fill both fields'); return; }
+    if (newPw.length < 8) { setMsg('Min 8 characters'); return; }
+    setSaving(true); setMsg('');
+    try {
+      await API('/api/users/change-password', { method: 'POST', body: JSON.stringify({ old_password: oldPw, new_password: newPw }) });
+      setMsg('✓ Password changed');
+      setOldPw(''); setNewPw('');
+      setTimeout(() => { setOpen(false); setMsg(''); }, 2000);
+    } catch(e) { setMsg(typeof e === 'string' ? e : 'Incorrect password'); }
+    setSaving(false);
+  }
+
+  return (
+    <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>Password</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Change your account password.</div>
+        </div>
+        <button onClick={() => { setOpen(o => !o); setMsg(''); }} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)', padding: '6px 14px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          {open ? 'Cancel' : 'Change'}
+        </button>
+      </div>
+      {open && (
+        <form onSubmit={submit} style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360 }}>
+          <input type="password" placeholder="Current password" value={oldPw} onChange={e => setOldPw(e.target.value)} style={inpSt} autoComplete="current-password" autoFocus />
+          <input type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} style={inpSt} autoComplete="new-password" />
+          {msg && <div style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--text-secondary)' : 'var(--accent-red)', fontFamily: 'var(--font-mono)' }}>{msg}</div>}
+          <button type="submit" disabled={saving} style={{ alignSelf: 'flex-start', background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, borderRadius: 4 }}>
+            {saving ? 'Saving…' : 'Update password'}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export default function SecurityTab() {
   const { t } = useLang();
   const [me, setMe]             = useState(null);
@@ -321,7 +369,6 @@ export default function SecurityTab() {
 
         <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16, fontFamily: 'var(--font-mono)' }}>{t.dashboard.security.header}</div>
 
-        {/* Security rows — flat list */}
         <div style={{ borderTop: '1px solid var(--border-subtle)' }}>
           <SecurityRow
             label={t.dashboard.security.twoFactorAuth}
@@ -330,6 +377,8 @@ export default function SecurityTab() {
             action={() => setModal2fa(me?.totp_enabled ? 'disable' : 'setup')}
             actionLabel={me?.totp_enabled ? t.dashboard.security.disable : t.dashboard.security.enable}
           />
+
+          <ChangePasswordRow />
 
           <SecurityRow
             label={t.dashboard.security.bybitKeysHeader}

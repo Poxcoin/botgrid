@@ -302,74 +302,122 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
 
 // ── MT5 Keys ───────────────────────────────────────────────────────────────
 function Mt5KeysSection() {
-  const [data,    setData]    = React.useState(null);
-  const [login,   setLogin]   = React.useState('');
-  const [pass,    setPass]    = React.useState('');
-  const [server,  setServer]  = React.useState('');
-  const [saving,  setSaving]  = React.useState(false);
-  const [msg,     setMsg]     = React.useState('');
+  const [data,      setData]      = React.useState(null);
+  const [showForm,  setShowForm]  = React.useState(false);
+  const [login,     setLogin]     = React.useState('');
+  const [pass,      setPass]      = React.useState('');
+  const [server,    setServer]    = React.useState('');
+  const [saving,    setSaving]    = React.useState(false);
+  const [deleting,  setDeleting]  = React.useState(false);
+  const [msg,       setMsg]       = React.useState('');
 
   React.useEffect(() => {
     API('/api/users/mt5-keys').then(d => {
       setData(d);
-      if (d.configured) { setLogin(d.login); setServer(d.server); }
+      if (d.configured) setServer(d.server);
     }).catch(() => {});
   }, []);
 
+  const maskLogin = (l) => {
+    const s = String(l);
+    if (s.length <= 4) return '••••••••';
+    return s.slice(0, 2) + '•'.repeat(Math.max(s.length - 4, 3)) + s.slice(-2);
+  };
+
   const save = async () => {
     if (!login || !pass || !server) { setMsg('Fill all fields'); return; }
-    setSaving(true);
+    setSaving(true); setMsg('');
     try {
       await API('/api/users/mt5-keys', { method: 'POST', body: JSON.stringify({ login, password: pass, server }) });
       setData({ configured: true, login, server });
       setMsg('✓ MT5 credentials saved');
-      setPass('');
+      setLogin(''); setPass(''); setShowForm(false);
     } catch(e) { setMsg(e.message); }
     setSaving(false);
   };
 
   const remove = async () => {
+    if (!confirm('Remove MT5 credentials? The macro bot will stop trading.')) return;
+    setDeleting(true);
     await API('/api/users/mt5-keys', { method: 'DELETE' }).catch(() => {});
-    setData({ configured: false }); setLogin(''); setPass(''); setServer(''); setMsg('Removed');
+    setData({ configured: false }); setLogin(''); setPass(''); setServer('');
+    setShowForm(false); setMsg(''); setDeleting(false);
   };
+
+  const inpSt = { background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '8px 12px', fontFamily: FM, fontSize: 12, color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' };
 
   return (
     <div style={{ border: '1px solid var(--border-default)', borderRadius: 10, overflow: 'hidden', marginTop: 24 }}>
       <div style={{ padding: '14px 18px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: FM, fontSize: 13, fontWeight: 600 }}>MT5 / MetaApi Integration</span>
-        {data?.configured && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: FM }}>Connected</span>}
+        <span style={{ fontFamily: FF, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>MT5 / MetaApi Integration</span>
+        {data?.configured && !showForm && (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', fontFamily: FM }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--border-strong)', display: 'inline-block' }}/>
+            CONNECTED
+          </span>
+        )}
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: FF, lineHeight: 1.5 }}>
           Connect your IC Markets MT5 demo account to trade EURUSD, GBPUSD, XAUUSD on macro news events (CPI, NFP, PCE).
         </div>
-        {[
-          { label: 'MT5 Login (account number)', val: login, set: setLogin, ph: '52886576', type: 'text' },
-          { label: 'MT5 Password', val: pass, set: setPass, ph: '••••••••••', type: 'password' },
-          { label: 'MT5 Server', val: server, set: setServer, ph: 'ICMarketsSC-Demo', type: 'text' },
-        ].map(({ label, val, set, ph, type }) => (
-          <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: FM, letterSpacing: '0.05em' }}>{label}</label>
-            <input
-              type={type}
-              value={val}
-              onChange={e => set(e.target.value)}
-              placeholder={ph}
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '8px 12px', fontFamily: FM, fontSize: 12, color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            />
+
+        {/* Connected card */}
+        {data?.configured && !showForm && (
+          <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: 8, padding: '12px 16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>LOGIN</span>
+                <span style={{ fontFamily: FM, fontSize: 12, color: 'var(--text-primary)', letterSpacing: '0.06em' }}>{maskLogin(data.login)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>PASSWORD</span>
+                <span style={{ fontFamily: FM, fontSize: 12, color: 'var(--text-muted)' }}>••••••••••</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>SERVER</span>
+                <span style={{ fontFamily: FM, fontSize: 12, color: 'var(--text-primary)' }}>{data.server}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button onClick={() => { setShowForm(true); setMsg(''); }} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>Replace</button>
+              <button onClick={remove} disabled={deleting} style={{ background: 'none', border: '1px solid rgba(255,77,109,0.25)', color: 'var(--accent-red)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: deleting ? 'not-allowed' : 'pointer', borderRadius: 5, opacity: deleting ? 0.5 : 1 }}>
+                {deleting ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
           </div>
-        ))}
-        {msg && <div style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--accent-green)' : 'var(--accent-red)', fontFamily: FM }}>{msg}</div>}
-        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <button onClick={save} disabled={saving} style={{ flex: 1, padding: '10px 0', background: 'var(--accent-green)', color: '#000', border: 'none', borderRadius: 6, fontFamily: FM, fontSize: 12, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Saving…' : data?.configured ? 'Update' : 'Connect MT5'}
-          </button>
-          {data?.configured && (
-            <button onClick={remove} style={{ padding: '10px 16px', background: 'transparent', color: 'var(--accent-red)', border: '1px solid var(--accent-red)', borderRadius: 6, fontFamily: FM, fontSize: 12, cursor: 'pointer' }}>
-              Remove
-            </button>
-          )}
-        </div>
+        )}
+
+        {/* Form */}
+        {(!data?.configured || showForm) && (
+          <>
+            {showForm && (
+              <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
+                Replace credentials
+              </div>
+            )}
+            {[
+              { label: 'MT5 Login (account number)', val: login, set: setLogin, ph: 'Account number', type: 'text' },
+              { label: 'MT5 Password', val: pass, set: setPass, ph: '••••••••••', type: 'password' },
+              { label: 'MT5 Server', val: server, set: setServer, ph: 'ICMarketsSC-Demo', type: 'text' },
+            ].map(({ label, val, set, ph, type }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: FM, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</label>
+                <input type={type} value={val} onChange={e => set(e.target.value)} placeholder={ph} style={inpSt} autoComplete="new-password" />
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button onClick={save} disabled={saving} style={{ background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: FF, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Saving…' : data?.configured ? 'Update MT5' : 'Connect MT5'}
+              </button>
+              {showForm && (
+                <button onClick={() => { setShowForm(false); setMsg(''); setLogin(''); setPass(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontFamily: FF, fontSize: 13, cursor: 'pointer', padding: '10px 0' }}>Cancel</button>
+              )}
+            </div>
+          </>
+        )}
+
+        {msg && <div style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--text-secondary)' : 'var(--accent-red)', fontFamily: FM }}>{msg}</div>}
       </div>
     </div>
   );
