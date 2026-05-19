@@ -3054,7 +3054,12 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
                     b         = await asyncio.wait_for(
                         asyncio.to_thread(_bybit_balance, ex), timeout=8
                     )
-                    balance   = {"usdt_wallet": b["wallet"], "unrealized_pnl": b["unrealized_pnl"]}
+                    balance   = {
+                        "usdt_wallet":    b["wallet"],
+                        "usdt_equity":    b["equity"],
+                        "usdt_free":      b["usdt_free"],
+                        "unrealized_pnl": b["unrealized_pnl"],
+                    }
                     positions = await asyncio.wait_for(
                         asyncio.to_thread(_bybit_positions, ex), timeout=8
                     )
