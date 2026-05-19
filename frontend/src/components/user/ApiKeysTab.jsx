@@ -393,30 +393,15 @@ export default function ApiKeysTab() {
         </div>
       </div>
 
-      {/* Guide */}
-      <SetupGuide />
-
-      {/* Live + Demo side by side */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
-        <KeySection
-          title="Live Account"
-          badge={{ text: 'MAINNET' }}
-          subtitle="Real funds. The bot will trade with real money once this key is connected."
-          isTestnet={false}
-          maskedKey={me?.bybit_live_key_masked || null}
-          onSaved={reload}
-          onDeleted={reload}
-        />
-        <KeySection
-          title="Demo Account"
-          badge={{ text: 'DEMO' }}
-          subtitle="Paper trading. Safe for testing strategies without real funds."
-          isTestnet={true}
-          maskedKey={me?.bybit_demo_key_masked || null}
-          onSaved={reload}
-          onDeleted={reload}
-        />
-      </div>
+      {/* Live Account only */}
+      <KeySection
+        title="Live Account"
+        subtitle="Real funds. The bot will trade with real money once this key is connected."
+        isTestnet={false}
+        maskedKey={me?.bybit_live_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
 
       {/* Security note */}
       <div style={{ padding: '16px 18px', border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-surface)' }}>

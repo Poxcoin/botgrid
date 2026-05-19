@@ -223,9 +223,9 @@ function BillingBlock({ plan, trialDaysLeft }) {
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
           {t.dashboard.settings.trialDesc}
         </div>
-        <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
+        <button onClick={() => window.open('mailto:support@kadoclub.net', '_blank')} style={btn}>
           {t.dashboard.settings.upgradeBtn}
-        </a>
+        </button>
       </div>
     );
   }
@@ -237,9 +237,9 @@ function BillingBlock({ plan, trialDaysLeft }) {
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
           {t.dashboard.settings.freeDesc}
         </div>
-        <a href="mailto:support@kadoclub.net" style={{ ...btn, textDecoration: 'none', display: 'inline-block' }}>
+        <button onClick={() => window.open('mailto:support@kadoclub.net', '_blank')} style={btn}>
           {t.dashboard.settings.startTradingBtn}
-        </a>
+        </button>
       </div>
     );
   }
