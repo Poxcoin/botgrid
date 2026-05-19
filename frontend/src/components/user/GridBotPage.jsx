@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { init, dispose } from 'klinecharts';
+import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { authFetch } from '@/lib/api';
 
 const COINS = [
@@ -22,104 +22,29 @@ const fmtUSD  = v => v != null && !isNaN(+v) ? `$${parseFloat(v).toLocaleString(
 const pclr    = v => +v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 const dstr    = s => s ? new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
-const CHART_STYLES = {
-  grid: {
-    horizontal: { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
-    vertical:   { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
-  },
-  candle: {
-    type: 'candle_solid',
-    bar: {
-      upColor: '#00d4aa',   downColor: '#ff4d6d',   noChangeColor: '#888',
-      upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888',
-      upWickColor: '#00d4aa',   downWickColor: '#ff4d6d',   noChangeWickColor: '#888',
-    },
-    tooltip: { showRule: 'follow_cross', showType: 'standard', labels: ['O', 'H', 'L', 'C', 'Vol'] },
-  },
-  indicator: {
-    ohlc: { upColor: '#00d4aa', downColor: '#ff4d6d', noChangeColor: '#888' },
-    bars: [{ upColor: 'rgba(0,212,170,0.5)', downColor: 'rgba(255,77,109,0.5)', noChangeColor: 'rgba(136,136,136,0.5)' }],
-  },
-  xAxis: {
-    axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
-    tickLine:  { show: true, color: 'rgba(255,255,255,0.08)', size: 1, length: 3 },
-    tickText:  { show: true, color: 'rgba(240,242,245,0.3)',  size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
-  },
-  yAxis: {
-    axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
-    tickLine:  { show: true, color: 'rgba(255,255,255,0.08)', size: 1, length: 3 },
-    tickText:  { show: true, color: 'rgba(240,242,245,0.3)',  size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
-  },
-  separator: { size: 1, color: 'rgba(255,255,255,0.06)', activeBackgroundColor: 'rgba(255,255,255,0.04)' },
-  crosshair: {
-    show: true,
-    horizontal: {
-      line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(255,255,255,0.2)' },
-      text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: '#fff', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 2, backgroundColor: '#1a1a1a' },
-    },
-    vertical: {
-      line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(255,255,255,0.2)' },
-      text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: '#fff', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 2, backgroundColor: '#1a1a1a' },
-    },
-  },
-  overlay: {
-    point: { backgroundColor: '#00d4aa', borderColor: '#00d4aa', activeBackgroundColor: '#fff', activeBorderColor: '#fff' },
-    line:  { size: 1, color: '#00d4aa' },
-    text:  { color: '#fff', size: 12, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
-  },
-};
+const C_UP = '#00d4aa';
+const C_DN = '#ff4d6d';
 
-const DRAW_TOOLS = [
-  { id: null,                    icon: <CursorIcon />,    title: 'Default cursor' },
-  { id: 'segment',               icon: <TrendIcon />,     title: 'Trend line' },
-  { id: 'horizontalStraightLine',icon: <HLineIcon />,     title: 'Horizontal line' },
-  { id: 'rayLine',               icon: <RayIcon />,       title: 'Ray' },
-  { id: 'fibonacciLine',         icon: <FibIcon />,       title: 'Fibonacci' },
-];
-
-const INDS_CANDLE = ['MA', 'EMA', 'BOLL'];
-const INDS_PANE   = ['VOL', 'MACD', 'RSI'];
-const ALL_INDS    = [...INDS_CANDLE, ...INDS_PANE];
-
-function CursorIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <path d="M2 2l4 10 2-4 4-2L2 2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-    </svg>
-  );
+function sma(bars, n) {
+  return bars.map((_, i) => {
+    if (i < n - 1) return null;
+    const sl = bars.slice(i - n + 1, i + 1);
+    return sl.reduce((acc, b) => acc + b.close, 0) / n;
+  });
 }
-function TrendIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
+function calcEma(bars, n) {
+  const k = 2 / (n + 1);
+  let ema = null;
+  return bars.map(b => { ema = ema == null ? b.close : b.close * k + ema * (1 - k); return ema; });
 }
-function HLineIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    </svg>
-  );
-}
-function RayIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-      <circle cx="2" cy="12" r="1.5" fill="currentColor"/>
-    </svg>
-  );
-}
-function FibIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <line x1="1" y1="3"  x2="13" y2="3"  stroke="currentColor" strokeWidth="1" opacity="0.5"/>
-      <line x1="1" y1="7"  x2="13" y2="7"  stroke="currentColor" strokeWidth="1.5"/>
-      <line x1="1" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
-      <line x1="3" y1="3" x2="3" y2="11" stroke="currentColor" strokeWidth="1.2"/>
-      <line x1="11" y1="3" x2="11" y2="11" stroke="currentColor" strokeWidth="1.2"/>
-    </svg>
-  );
+function boll(bars, n = 20, mult = 2) {
+  const mid = sma(bars, n);
+  return bars.map((_, i) => {
+    if (mid[i] == null) return { upper: null, mid: null, lower: null };
+    const sl  = bars.slice(Math.max(0, i - n + 1), i + 1);
+    const std = Math.sqrt(sl.reduce((s, b) => s + (b.close - mid[i]) ** 2, 0) / sl.length);
+    return { upper: mid[i] + mult * std, mid: mid[i], lower: mid[i] - mult * std };
+  });
 }
 
 
@@ -292,186 +217,225 @@ function OrderBook({ coin }) {
 }
 
 
-// ── Chart type configs ────────────────────────────────────────
-
-const CHART_TYPES = [
-  { id: 'candle_solid',     label: 'Candles',  title: 'Solid candles (colored)'      },
-  { id: 'candle_up_stroke', label: 'B&W',      title: 'Classic B&W (hollow up)'      },
-  { id: 'candle_stroke',    label: 'Hollow',   title: 'Hollow candles'               },
-  { id: 'area',             label: 'Line',     title: 'Line / Area chart'            },
-];
-
-const COL_GREEN = '#00d4aa';
-const COL_RED   = '#ff4d6d';
-const CHART_TYPE_CFG = {
-  candle_solid: {
-    bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' },
-    vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }],
-  },
-  candle_up_stroke: {
-    bar: { upColor: 'transparent', downColor: 'rgba(255,255,255,0.85)', noChangeColor: 'rgba(255,255,255,0.4)', upBorderColor: 'rgba(255,255,255,0.85)', downBorderColor: 'rgba(255,255,255,0.85)', noChangeBorderColor: 'rgba(255,255,255,0.4)', upWickColor: 'rgba(255,255,255,0.55)', downWickColor: 'rgba(255,255,255,0.55)', noChangeWickColor: 'rgba(255,255,255,0.3)' },
-    vol: [{ upColor: 'rgba(255,255,255,0.18)', downColor: 'rgba(255,255,255,0.09)', noChangeColor: 'rgba(255,255,255,0.12)' }],
-  },
-  candle_stroke: {
-    bar: { upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' },
-    vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }],
-  },
-  area: {
-    bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' },
-    vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }],
-  },
-};
-
-
 // ── KlineChart ────────────────────────────────────────────────
 
 function KlineChart({ coin, tf }) {
   const elRef      = useRef(null);
   const chartRef   = useRef(null);
-  const panesRef   = useRef({});
-  const timerRef   = useRef(null);
-  const [activeTool,    setActiveTool]    = useState(null);
-  const [activeInds,    setActiveInds]    = useState({});
-  const [chartType,     setChartType]     = useState('candle_solid');
+  const candleRef  = useRef(null);
+  const volRef     = useRef(null);
+  const areaRef    = useRef(null);
+  const indRefs    = useRef({});
+  const wsRef      = useRef(null);
+  const barsRef    = useRef([]);
+  const loadingRef = useRef(false);
+  const coinRef    = useRef(coin);
+  const tfRef      = useRef(tf);
+  const showLRef   = useRef(false);
+
+  const [showLine,   setShowLine]   = useState(false);
+  const [activeInds, setActiveInds] = useState({});
+
+  coinRef.current = coin;
+  tfRef.current   = tf;
+
+  async function fetchBars(c, tfV, endMs) {
+    let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${c}USDT&interval=${tfV}&limit=1000`;
+    if (endMs) url += `&end=${endMs}`;
+    try {
+      const d = await (await fetch(url)).json();
+      return (d.result?.list || []).slice().reverse().map(k => ({
+        time: Math.trunc(+k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], value: +k[5],
+      })).filter(b => b.open > 0 && b.high > 0 && b.low > 0 && b.close > 0 && b.high >= b.low);
+    } catch { return []; }
+  }
+
+  function refreshInds(bars) {
+    const refs = indRefs.current;
+    if (refs.MA?.[0]) {
+      const v = sma(bars, 20);
+      refs.MA[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
+    }
+    if (refs.EMA?.[0]) {
+      const v = calcEma(bars, 20);
+      refs.EMA[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i] })));
+    }
+    if (refs.BOLL?.[0]) {
+      const v = boll(bars);
+      refs.BOLL[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i].upper })).filter(d => d.value != null));
+      refs.BOLL[1].setData(bars.map((b, i) => ({ time: b.time, value: v[i].mid   })).filter(d => d.value != null));
+      refs.BOLL[2].setData(bars.map((b, i) => ({ time: b.time, value: v[i].lower })).filter(d => d.value != null));
+    }
+  }
+
+  function applyData(bars) {
+    barsRef.current = bars;
+    if (!candleRef.current) return;
+    const candle = bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
+    const vol    = bars.map(b => ({ time: b.time, value: b.value, color: b.close >= b.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' }));
+    if (showLRef.current && areaRef.current) {
+      areaRef.current.setData(candle.map(b => ({ time: b.time, value: b.close })));
+    } else {
+      candleRef.current.setData(candle);
+    }
+    volRef.current?.setData(vol);
+    refreshInds(bars);
+  }
+
+  function connectWS(c, tfV) {
+    wsRef.current?.close();
+    const topic = `kline.${tfV}.${c}USDT`;
+    let closed = false;
+    let pingId = null;
+    const tryConnect = () => {
+      if (closed) return;
+      const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+      ws.onopen = () => {
+        if (closed) { ws.close(); return; }
+        ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+        pingId = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('{"op":"ping"}'), 18000);
+      };
+      ws.onmessage = e => {
+        if (closed) return;
+        try {
+          const m = JSON.parse(e.data);
+          if (m.topic === topic && m.data?.[0]) {
+            const k = m.data[0];
+            const bar = { time: Math.trunc(+k.start / 1000), open: +k.open, high: +k.high, low: +k.low, close: +k.close, value: +k.volume };
+            if (bar.open <= 0 || bar.high < bar.low) return;
+            const bars = barsRef.current;
+            const last = bars[bars.length - 1];
+            if (last && last.time === bar.time) bars[bars.length - 1] = bar;
+            else bars.push(bar);
+            const cBar = { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
+            const vBar = { time: bar.time, value: bar.value, color: bar.close >= bar.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' };
+            try {
+              if (showLRef.current && areaRef.current) areaRef.current.update({ time: bar.time, value: bar.close });
+              else candleRef.current?.update(cBar);
+              volRef.current?.update(vBar);
+              refreshInds(bars);
+            } catch {}
+          }
+        } catch {}
+      };
+      ws.onclose = () => { if (pingId) clearInterval(pingId); if (!closed) setTimeout(tryConnect, 3000); };
+      ws.onerror = () => {};
+      wsRef.current = { close: () => { closed = true; if (pingId) clearInterval(pingId); ws.close(); } };
+    };
+    tryConnect();
+  }
 
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
+    const chart = createChart(el, {
+      autoSize: true,
+      layout: { background: { color: 'transparent' }, textColor: 'rgba(240,242,245,0.4)', fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
+      grid:    { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+      crosshair: { mode: CrosshairMode.Normal, vertLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1a1a1a' }, horzLine: { color: 'rgba(255,255,255,0.3)', labelBackgroundColor: '#1a1a1a' } },
+      rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
+      timeScale: { borderColor: 'rgba(255,255,255,0.08)', timeVisible: true, secondsVisible: false },
+    });
+    chartRef.current = chart;
 
-    let mounted = true;
-    let ro = null;
+    const candle = chart.addCandlestickSeries({ upColor: C_UP, downColor: C_DN, borderUpColor: C_UP, borderDownColor: C_DN, wickUpColor: C_UP, wickDownColor: C_DN });
+    candleRef.current = candle;
 
-    const setup = () => {
-      if (!mounted) return;
-      const { width, height } = el.getBoundingClientRect();
-      if (width === 0 || height === 0) { requestAnimationFrame(setup); return; }
+    const vol = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
+    vol.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    volRef.current = vol;
 
-      const chart = init(el, { styles: CHART_STYLES, locale: 'en-US' });
-      chartRef.current = chart;
-
-      const pp = coin === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(coin) ? 4 : 2;
-      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: pp, volumePrecision: 4 });
-      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
-      chart.setDataLoader({
-        getBars: async ({ type, period, timestamp, callback }) => {
-          if (type !== 'init' && type !== 'backward') { callback([], false); return; }
-          try {
-            const parse = list => list.slice().reverse().map(k => ({
-              timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-            }));
-            const fetchPage = async end => {
-              let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${period.text}&limit=1000`;
-              if (end) url += `&end=${end}`;
-              const r = await fetch(url);
-              const d = await r.json();
-              return parse(d.result?.list || []);
-            };
-            if (type === 'init') {
-              let all = [];
-              let end = undefined;
-              for (let i = 0; i < 5; i++) {
-                const page = await fetchPage(end);
-                if (!page.length) break;
-                all = [...page, ...all];
-                end = page[0].timestamp - 1;
-                if (page.length < 1000) break;
-              }
-              callback(all, { backward: all.length >= 1000, forward: false });
-            } else {
-              const page = await fetchPage(timestamp - 1);
-              callback(page, { backward: page.length >= 1000, forward: false });
-            }
-          } catch { callback([], false); }
-        },
-        subscribeBar: ({ period, callback: cb }) => {
-          const topic = `kline.${period.text}.${coin}USDT`;
-          let closed = false;
-          const tryConnect = () => {
-            if (closed) return;
-            const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-            ws.onopen = () => {
-              if (closed) { ws.close(); return; }
-              ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
-            };
-            ws.onmessage = e => {
-              if (closed) return;
-              try {
-                const m = JSON.parse(e.data);
-                if (m.topic === topic && Array.isArray(m.data) && m.data[0]) {
-                  const k = m.data[0];
-                  cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
-                }
-              } catch {}
-            };
-            ws.onclose = () => { if (!closed) setTimeout(tryConnect, 3000); };
-            ws.onerror = () => {};
-            timerRef.current = { close: () => { closed = true; ws.close(); } };
-          };
-          tryConnect();
-        },
-        unsubscribeBar: () => {
-          timerRef.current?.close?.();
-          timerRef.current = null;
-        },
-      });
-
-      requestAnimationFrame(() => { try { chart.zoomAtCoordinate?.(-5); } catch {} });
-
-      ro = new ResizeObserver(() => { try { chartRef.current?.resize(); } catch {} });
-      ro.observe(el);
-    };
-
-    requestAnimationFrame(setup);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (!range || loadingRef.current) return;
+      if (range.from < 10) {
+        const oldest = barsRef.current[0];
+        if (!oldest) return;
+        loadingRef.current = true;
+        fetchBars(coinRef.current, tfRef.current, oldest.time * 1000 - 1).then(older => {
+          if (older.length) {
+            const merged = [...older, ...barsRef.current];
+            const seen = new Set();
+            const deduped = merged.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
+            applyData(deduped);
+          }
+          loadingRef.current = false;
+        });
+      }
+    });
 
     return () => {
-      mounted = false;
-      timerRef.current?.close?.();
-      timerRef.current = null;
-      if (ro) ro.disconnect();
-      try { dispose(el); } catch {}
+      wsRef.current?.close();
+      wsRef.current = null;
+      indRefs.current = {};
+      try { chart.remove(); } catch {}
       chartRef.current = null;
-      panesRef.current = {};
+      candleRef.current = null;
+      volRef.current = null;
+      areaRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    let cancelled = false;
+    wsRef.current?.close();
+    barsRef.current = [];
+    fetchBars(coin, tf, undefined).then(bars => {
+      if (cancelled || !candleRef.current) return;
+      applyData(bars);
+      chartRef.current?.timeScale().fitContent();
+      connectWS(coin, tf);
+    });
+    return () => { cancelled = true; };
   }, [coin, tf]);
 
-  function applyChartType(typeId) {
-    setChartType(typeId);
-    const cfg = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
-    try { chartRef.current?.setStyles({ candle: { type: typeId, bar: cfg.bar }, indicator: { bars: cfg.vol } }); } catch {}
-  }
-
-  function selectTool(toolId) {
+  useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    if (activeTool === toolId) {
-      setActiveTool(null);
-      try { chart.removeOverlay(); } catch {}
+    showLRef.current = showLine;
+    if (showLine) {
+      if (!areaRef.current) {
+        const area = chart.addAreaSeries({ lineColor: C_UP, topColor: 'rgba(0,212,170,0.25)', bottomColor: 'rgba(0,212,170,0)', lineWidth: 2 });
+        areaRef.current = area;
+      }
+      areaRef.current.setData(barsRef.current.map(b => ({ time: b.time, value: b.close })));
+      areaRef.current.applyOptions({ visible: true });
+      candleRef.current?.applyOptions({ visible: false });
     } else {
-      setActiveTool(toolId);
-      if (toolId) try { chart.createOverlay({ name: toolId, lock: false }); } catch {}
-      else try { chart.removeOverlay(); } catch {}
+      areaRef.current?.applyOptions({ visible: false });
+      candleRef.current?.applyOptions({ visible: true });
     }
-  }
+  }, [showLine]);
 
   function toggleInd(name) {
     const chart = chartRef.current;
     if (!chart) return;
     if (activeInds[name]) {
-      const paneId = panesRef.current[name];
-      try {
-        if (INDS_CANDLE.includes(name)) chart.removeIndicator('candle_pane', name);
-        else if (paneId) chart.removeIndicator(paneId, name);
-      } catch {}
-      delete panesRef.current[name];
+      (indRefs.current[name] || []).forEach(s => { try { chart.removeSeries(s); } catch {} });
+      delete indRefs.current[name];
       setActiveInds(p => ({ ...p, [name]: false }));
     } else {
+      const bars = barsRef.current;
       try {
-        if (INDS_CANDLE.includes(name)) {
-          chart.createIndicator(name, false, { id: 'candle_pane' });
-          panesRef.current[name] = 'candle_pane';
-        } else {
-          const paneId = chart.createIndicator(name, false, { height: 80 });
-          panesRef.current[name] = paneId;
+        if (name === 'MA') {
+          const s = chart.addLineSeries({ color: '#f5a623', lineWidth: 1 });
+          const v = sma(bars, 20);
+          s.setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
+          indRefs.current.MA = [s];
+        } else if (name === 'EMA') {
+          const s = chart.addLineSeries({ color: '#9b59b6', lineWidth: 1 });
+          const v = calcEma(bars, 20);
+          s.setData(bars.map((b, i) => ({ time: b.time, value: v[i] })));
+          indRefs.current.EMA = [s];
+        } else if (name === 'BOLL') {
+          const upper = chart.addLineSeries({ color: 'rgba(100,180,255,0.7)', lineWidth: 1 });
+          const mid   = chart.addLineSeries({ color: 'rgba(100,180,255,0.4)', lineWidth: 1, lineStyle: LineStyle.Dashed });
+          const lower = chart.addLineSeries({ color: 'rgba(100,180,255,0.7)', lineWidth: 1 });
+          const v = boll(bars);
+          upper.setData(bars.map((b, i) => ({ time: b.time, value: v[i].upper })).filter(d => d.value != null));
+          mid.setData(bars.map((b, i) => ({ time: b.time, value: v[i].mid   })).filter(d => d.value != null));
+          lower.setData(bars.map((b, i) => ({ time: b.time, value: v[i].lower })).filter(d => d.value != null));
+          indRefs.current.BOLL = [upper, mid, lower];
         }
         setActiveInds(p => ({ ...p, [name]: true }));
       } catch {}
@@ -483,65 +447,19 @@ function KlineChart({ coin, tf }) {
 
       {/* Toolbar */}
       <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-
-        {/* Chart type */}
-        {CHART_TYPES.map(ct => (
-          <button key={ct.id} title={ct.title} onClick={() => applyChartType(ct.id)} style={{
-            height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer',
-            fontFamily: MONO, fontSize: 11,
-            background: chartType === ct.id ? 'var(--bg-elevated)' : 'transparent',
-            border: `1px solid ${chartType === ct.id ? 'var(--border-strong)' : 'transparent'}`,
-            color: chartType === ct.id ? 'var(--text-primary)' : 'var(--text-muted)',
-          }}>{ct.label}</button>
-        ))}
-
+        <button onClick={() => { showLRef.current = false; setShowLine(false); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: MONO, fontSize: 11, background: !showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${!showLine ? 'var(--border-strong)' : 'transparent'}`, color: !showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Candles</button>
+        <button onClick={() => { showLRef.current = true; setShowLine(true); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: MONO, fontSize: 11, background: showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${showLine ? 'var(--border-strong)' : 'transparent'}`, color: showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Line</button>
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
-
-        {/* Indicators */}
         <span style={{ fontFamily: SANS, fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Ind</span>
-        {ALL_INDS.map(name => (
-          <button key={name} onClick={() => toggleInd(name)} style={{
-            height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer',
-            fontFamily: MONO, fontSize: 10,
-            background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent',
-            border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`,
-            color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)',
-          }}>{name}</button>
+        {['MA','EMA','BOLL'].map(name => (
+          <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: MONO, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
         ))}
-
         <div style={{ flex: 1 }} />
-        {activeTool && (
-          <button onClick={() => { setActiveTool(null); try { chartRef.current?.removeOverlay(); } catch {} }} style={{
-            height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer',
-            fontFamily: SANS, fontSize: 10, background: 'transparent',
-            border: '1px solid var(--border-subtle)', color: 'var(--text-muted)',
-          }}>Clear</button>
-        )}
       </div>
 
-      {/* Chart area + order book */}
+      {/* Chart area */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-
-        {/* Left drawing toolbar */}
-        <div style={{ width: 34, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 6, gap: 2, borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-          {DRAW_TOOLS.map(t => (
-            <button key={t.id ?? 'cursor'} title={t.title} onClick={() => selectTool(t.id)} style={{
-              width: 26, height: 26, borderRadius: 3, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: activeTool === t.id ? 'var(--bg-elevated)' : 'transparent',
-              border: `1px solid ${activeTool === t.id ? 'var(--border-strong)' : 'transparent'}`,
-              color: activeTool === t.id ? 'var(--text-primary)' : 'var(--text-muted)',
-              padding: 0,
-            }}>{t.icon}</button>
-          ))}
-        </div>
-
-        {/* Chart canvas — absolute-fill wrapper ensures klinecharts gets correct dimensions */}
-        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
-          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: 'var(--bg-base)' }} />
-        </div>
-
-        {/* Order book */}
+        <div ref={elRef} style={{ flex: 1, minWidth: 0, background: 'var(--bg-base)' }} />
         <OrderBook coin={coin} />
       </div>
     </div>

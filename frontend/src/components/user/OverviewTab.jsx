@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { init as klInit, dispose as klDispose } from 'klinecharts';
+import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { useLiveStream } from '@/lib/useLiveStream';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { useTheme } from '@/lib/ThemeContext';
@@ -107,100 +107,31 @@ const BOT_COINS = {
   cascade: ['ETH','SOL','DOGE','LINK','BTC','XRP','ADA','AVAX','DOT','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
 };
 
-const CHART_STYLES = {
-  grid: {
-    horizontal: { show: true, size: 1, color: 'rgba(128,128,128,0.1)', style: 'dashed', dashedValue: [3, 3] },
-    vertical:   { show: true, size: 1, color: 'rgba(128,128,128,0.1)', style: 'dashed', dashedValue: [3, 3] },
-  },
-  candle: {
-    type: 'candle_solid',
-    bar: { upColor: '#00d4aa', downColor: '#ff4d6d', noChangeColor: '#888', upBorderColor: '#00d4aa', downBorderColor: '#ff4d6d', noChangeBorderColor: '#888', upWickColor: '#00d4aa', downWickColor: '#ff4d6d', noChangeWickColor: '#888' },
-    tooltip: { showRule: 'follow_cross', showType: 'standard', labels: ['O', 'H', 'L', 'C', 'Vol'] },
-  },
-  indicator: {
-    ohlc: { upColor: '#00d4aa', downColor: '#ff4d6d', noChangeColor: '#888' },
-    bars: [{ upColor: 'rgba(0,212,170,0.5)', downColor: 'rgba(255,77,109,0.5)', noChangeColor: 'rgba(136,136,136,0.5)' }],
-  },
-  xAxis: {
-    axisLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1 },
-    tickLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1, length: 3 },
-    tickText: { show: true, color: 'rgba(10,10,10,0.35)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
-  },
-  yAxis: {
-    axisLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1 },
-    tickLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1, length: 3 },
-    tickText: { show: true, color: 'rgba(10,10,10,0.35)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
-  },
-  separator: { size: 1, color: 'rgba(128,128,128,0.12)', activeBackgroundColor: 'rgba(128,128,128,0.08)' },
-  crosshair: {
-    show: true,
-    horizontal: { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(128,128,128,0.3)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: 'var(--text-primary)', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'var(--border-default)', borderRadius: 2, backgroundColor: 'var(--bg-elevated)' } },
-    vertical:   { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(128,128,128,0.3)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: 'var(--text-primary)', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'var(--border-default)', borderRadius: 2, backgroundColor: 'var(--bg-elevated)' } },
-  },
-  overlay: {
-    point: { backgroundColor: '#00d4aa', borderColor: '#00d4aa', activeBackgroundColor: '#fff', activeBorderColor: '#fff' },
-    line:  { size: 1, color: '#00d4aa' },
-    text:  { color: 'var(--text-primary)', size: 12, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
-  },
-};
+const C_UP = '#00d4aa';
+const C_DN = '#ff4d6d';
+const TF_LABELS = { '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' };
 
-const CHART_TYPES = [
-  { id: 'candle_solid',     label: 'Candles' },
-  { id: 'candle_up_stroke', label: 'B&W'     },
-  { id: 'candle_stroke',    label: 'Hollow'  },
-  { id: 'area',             label: 'Line'    },
-];
-const COL_GREEN = '#00d4aa';
-const COL_RED   = '#ff4d6d';
-const CHART_TYPE_CFG = {
-  candle_solid:     { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
-  candle_up_stroke: { bar: { upColor: 'transparent', downColor: '#c8c8c8', noChangeColor: 'rgba(200,200,200,0.3)', upBorderColor: '#c8c8c8', downBorderColor: '#c8c8c8', noChangeBorderColor: 'rgba(200,200,200,0.4)', upWickColor: '#888888', downWickColor: '#888888', noChangeWickColor: 'rgba(200,200,200,0.5)' }, vol: [{ upColor: 'rgba(200,200,200,0.12)', downColor: 'rgba(200,200,200,0.3)', noChangeColor: 'rgba(200,200,200,0.2)' }] },
-  candle_stroke:    { bar: { upColor: 'transparent', downColor: 'transparent', noChangeColor: 'transparent', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
-  area:             { bar: { upColor: COL_GREEN, downColor: COL_RED, noChangeColor: '#888', upBorderColor: COL_GREEN, downBorderColor: COL_RED, noChangeBorderColor: '#888', upWickColor: COL_GREEN, downWickColor: COL_RED, noChangeWickColor: '#888' }, vol: [{ upColor: 'rgba(0,212,170,0.45)', downColor: 'rgba(255,77,109,0.45)', noChangeColor: 'rgba(136,136,136,0.45)' }] },
-};
-
-const INDS_CANDLE = ['MA', 'EMA', 'BOLL'];
-const INDS_PANE   = ['VOL', 'MACD', 'RSI'];
-const ALL_INDS    = [...INDS_CANDLE, ...INDS_PANE];
-
-const THEME_DARK = {
-  bg: 'var(--bg-base)',
-  grid: { horizontal: { color: 'rgba(255,255,255,0.04)' }, vertical: { color: 'rgba(255,255,255,0.04)' } },
-  xAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
-  yAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
-  crosshair: {
-    horizontal: { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
-    vertical:   { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
-  },
-};
-const THEME_BW = {
-  bg: '#000000',
-  grid: { horizontal: { color: 'rgba(255,255,255,0.04)' }, vertical: { color: 'rgba(255,255,255,0.04)' } },
-  xAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
-  yAxis: { axisLine: { color: 'rgba(255,255,255,0.08)' }, tickLine: { color: 'rgba(255,255,255,0.08)' }, tickText: { color: 'rgba(240,242,245,0.3)' } },
-  crosshair: {
-    horizontal: { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
-    vertical:   { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
-  },
-};
-const THEME_LIGHT = {
-  bg: 'var(--bg-base)',
-  grid: { horizontal: { color: 'rgba(10,10,10,0.06)' }, vertical: { color: 'rgba(10,10,10,0.06)' } },
-  xAxis: { axisLine: { color: 'rgba(10,10,10,0.10)' }, tickLine: { color: 'rgba(10,10,10,0.10)' }, tickText: { color: 'rgba(10,10,10,0.45)' } },
-  yAxis: { axisLine: { color: 'rgba(10,10,10,0.10)' }, tickLine: { color: 'rgba(10,10,10,0.10)' }, tickText: { color: 'rgba(10,10,10,0.45)' } },
-  crosshair: {
-    horizontal: { line: { color: 'rgba(10,10,10,0.25)' }, text: { color: '#0A0A0A', backgroundColor: '#F2F2F2', borderColor: 'rgba(10,10,10,0.15)' } },
-    vertical:   { line: { color: 'rgba(10,10,10,0.25)' }, text: { color: '#0A0A0A', backgroundColor: '#F2F2F2', borderColor: 'rgba(10,10,10,0.15)' } },
-  },
-};
-
-const DRAW_TOOLS = [
-  { id: null,                     icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l4 10 2-4 4-2L2 2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>, title: 'Default cursor' },
-  { id: 'segment',                icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>, title: 'Trend line' },
-  { id: 'horizontalStraightLine', icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>, title: 'Horizontal line' },
-  { id: 'rayLine',                icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><circle cx="2" cy="12" r="1.5" fill="currentColor"/></svg>, title: 'Ray' },
-  { id: 'fibonacciLine',          icon: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="1" y1="3" x2="13" y2="3" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" strokeWidth="1.5"/><line x1="1" y1="11" x2="13" y2="11" stroke="currentColor" strokeWidth="1" opacity="0.5"/><line x1="3" y1="3" x2="3" y2="11" stroke="currentColor" strokeWidth="1.2"/><line x1="11" y1="3" x2="11" y2="11" stroke="currentColor" strokeWidth="1.2"/></svg>, title: 'Fibonacci' },
-];
+function sma(bars, n) {
+  return bars.map((_, i) => {
+    if (i < n - 1) return null;
+    const sl = bars.slice(i - n + 1, i + 1);
+    return sl.reduce((acc, b) => acc + b.close, 0) / n;
+  });
+}
+function calcEma(bars, n) {
+  const k = 2 / (n + 1);
+  let ema = null;
+  return bars.map(b => { ema = ema == null ? b.close : b.close * k + ema * (1 - k); return ema; });
+}
+function boll(bars, n = 20, mult = 2) {
+  const mid = sma(bars, n);
+  return bars.map((_, i) => {
+    if (mid[i] == null) return { upper: null, mid: null, lower: null };
+    const sl  = bars.slice(Math.max(0, i - n + 1), i + 1);
+    const std = Math.sqrt(sl.reduce((s, b) => s + (b.close - mid[i]) ** 2, 0) / sl.length);
+    return { upper: mid[i] + mult * std, mid: mid[i], lower: mid[i] - mult * std };
+  });
+}
 
 function OrderBook({ coin }) {
   const [book, setBook] = useState({ b: [], a: [] });
@@ -379,256 +310,276 @@ function CoinTicker({ coins, selected, onSelect }) {
 /* ══════════════════════════════════════════════════════════════════
    KLINECHART — full candlestick chart with order book, indicators
 ══════════════════════════════════════════════════════════════════ */
-function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, isMobile = false }) {
+function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = false }) {
   const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const dark = theme !== 'light';
 
-  const elRef        = useRef(null);
-  const chartRef     = useRef(null);
-  const panesRef     = useRef({});
-  const wsSubRef     = useRef(null);
-  const entryOvRef   = useRef(null);
-  const slOvRef      = useRef(null);
-  const tpOvRef      = useRef(null);
-  const coinRef      = useRef(coin);
-  const tfRef        = useRef('60');
-  const prevCoinRef  = useRef(coin);
-  const prevTfRef    = useRef('60');
-  // Last good close price — used to reject outlier bars from the
-  // stream and to skip overlays whose value is wildly off-range.
-  const lastCloseRef = useRef(0);
+  const elRef      = useRef(null);
+  const chartRef   = useRef(null);
+  const candleRef  = useRef(null);
+  const volRef     = useRef(null);
+  const areaRef    = useRef(null);
+  const indRefs    = useRef({});
+  const wsRef      = useRef(null);
+  const barsRef    = useRef([]);
+  const loadingRef = useRef(false);
+  const coinRef    = useRef(coin);
+  const tfRef      = useRef('60');
+  const showLRef   = useRef(false);
+  const plRef      = useRef({ entry: null, sl: null, tp: null });
 
-  const [tf,           setTf]           = useState('60');
-  const [activeTool,   setActiveTool]   = useState(null);
-  const [activeInds,   setActiveInds]   = useState({});
-  const [chartType,    setChartType]    = useState('candle_solid');
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [chartBg,      setChartBg]      = useState('var(--bg-base)');
+  const [tf,         setTf]         = useState('60');
+  const [showLine,   setShowLine]   = useState(false);
+  const [activeInds, setActiveInds] = useState({});
+  const [isFS,       setIsFS]       = useState(false);
 
   coinRef.current = coin;
   tfRef.current   = tf;
 
-  const prec = c => c === 'BTC' ? 1 : ['DOGE','ADA','XRP','PEPE','LINK','TON'].includes(c) ? 4 : 2;
+  async function fetchBars(c, tfV, endMs) {
+    let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${c}USDT&interval=${tfV}&limit=1000`;
+    if (endMs) url += `&end=${endMs}`;
+    try {
+      const d = await (await fetch(url)).json();
+      return (d.result?.list || []).slice().reverse().map(k => ({
+        time: Math.trunc(+k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], value: +k[5],
+      })).filter(b => b.open > 0 && b.high > 0 && b.low > 0 && b.close > 0 && b.high >= b.low);
+    } catch { return []; }
+  }
 
+  function refreshInds(bars) {
+    const refs = indRefs.current;
+    if (refs.MA?.[0]) {
+      const v = sma(bars, 20);
+      refs.MA[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
+    }
+    if (refs.EMA?.[0]) {
+      const v = calcEma(bars, 20);
+      refs.EMA[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i] })));
+    }
+    if (refs.BOLL?.[0]) {
+      const v = boll(bars);
+      refs.BOLL[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i].upper })).filter(d => d.value != null));
+      refs.BOLL[1].setData(bars.map((b, i) => ({ time: b.time, value: v[i].mid   })).filter(d => d.value != null));
+      refs.BOLL[2].setData(bars.map((b, i) => ({ time: b.time, value: v[i].lower })).filter(d => d.value != null));
+    }
+  }
+
+  function applyData(bars) {
+    barsRef.current = bars;
+    if (!candleRef.current) return;
+    const candle = bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
+    const vol    = bars.map(b => ({ time: b.time, value: b.value, color: b.close >= b.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' }));
+    if (showLRef.current && areaRef.current) {
+      areaRef.current.setData(candle.map(b => ({ time: b.time, value: b.close })));
+    } else {
+      candleRef.current.setData(candle);
+    }
+    volRef.current?.setData(vol);
+    refreshInds(bars);
+  }
+
+  function connectWS(c, tfV) {
+    wsRef.current?.close();
+    const topic = `kline.${tfV}.${c}USDT`;
+    let closed = false;
+    let pingId = null;
+    const tryConnect = () => {
+      if (closed) return;
+      const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+      ws.onopen = () => {
+        if (closed) { ws.close(); return; }
+        ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+        pingId = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('{"op":"ping"}'), 18000);
+      };
+      ws.onmessage = e => {
+        if (closed) return;
+        try {
+          const m = JSON.parse(e.data);
+          if (m.topic === topic && m.data?.[0]) {
+            const k = m.data[0];
+            const bar = { time: Math.trunc(+k.start / 1000), open: +k.open, high: +k.high, low: +k.low, close: +k.close, value: +k.volume };
+            if (bar.open <= 0 || bar.high < bar.low) return;
+            const bars = barsRef.current;
+            const last = bars[bars.length - 1];
+            if (last && last.time === bar.time) bars[bars.length - 1] = bar;
+            else bars.push(bar);
+            const cBar = { time: bar.time, open: bar.open, high: bar.high, low: bar.low, close: bar.close };
+            const vBar = { time: bar.time, value: bar.value, color: bar.close >= bar.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' };
+            try {
+              if (showLRef.current && areaRef.current) areaRef.current.update({ time: bar.time, value: bar.close });
+              else candleRef.current?.update(cBar);
+              volRef.current?.update(vBar);
+              refreshInds(bars);
+            } catch {}
+          }
+        } catch {}
+      };
+      ws.onclose = () => { if (pingId) clearInterval(pingId); if (!closed) setTimeout(tryConnect, 3000); };
+      ws.onerror = () => {};
+      wsRef.current = { close: () => { closed = true; if (pingId) clearInterval(pingId); ws.close(); } };
+    };
+    tryConnect();
+  }
+
+  // Create chart on mount
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-
-    const chart = klInit(el, { styles: CHART_STYLES, locale: 'en-US' });
+    const isDark = theme !== 'light';
+    const tClr = isDark ? 'rgba(240,242,245,0.4)' : 'rgba(10,10,10,0.4)';
+    const gClr = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+    const bClr = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    const lBg  = isDark ? '#1a1a1a' : '#f0f0f0';
+    const chart = createChart(el, {
+      autoSize: true,
+      layout: { background: { color: 'transparent' }, textColor: tClr, fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
+      grid:    { vertLines: { color: gClr }, horzLines: { color: gClr } },
+      crosshair: { mode: CrosshairMode.Normal, vertLine: { color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg }, horzLine: { color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg } },
+      rightPriceScale: { borderColor: bClr },
+      timeScale: { borderColor: bClr, timeVisible: true, secondsVisible: false },
+    });
     chartRef.current = chart;
-    panesRef.current = {};
-    entryOvRef.current = null;
 
-    chart.setSymbol({ shortName: `${coinRef.current}USDT`, pricePrecision: prec(coinRef.current), volumePrecision: 4 });
-    chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tfRef.current });
+    const candle = chart.addCandlestickSeries({ upColor: C_UP, downColor: C_DN, borderUpColor: C_UP, borderDownColor: C_DN, wickUpColor: C_UP, wickDownColor: C_DN });
+    candleRef.current = candle;
 
-    // Sanity filter — reject bars with non-positive prices or hi/lo inversion.
-    // Bybit streams sometimes ship partial frames where one of the OHLC fields
-    // is 0; letting them through forces the chart to autoscale Y to include 0,
-    // which is what users see as the chart "jumping" between renders.
-    const isValidBar = b =>
-      Number.isFinite(b.open) && Number.isFinite(b.high) &&
-      Number.isFinite(b.low)  && Number.isFinite(b.close) &&
-      b.open > 0 && b.high > 0 && b.low > 0 && b.close > 0 &&
-      b.high >= b.low;
+    const vol = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
+    vol.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    volRef.current = vol;
 
-    chart.setDataLoader({
-      getBars: async ({ type, period, timestamp, callback }) => {
-        if (type !== 'init' && type !== 'backward') { callback([], false); return; }
-        const c = coinRef.current;
-        try {
-          const parse = list => list.slice().reverse()
-            .map(k => ({
-              timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-            }))
-            .filter(isValidBar);
-          const fetchPage = async (end, limit) => {
-            let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${c}USDT&interval=${period.text}&limit=${limit}`;
-            if (end) url += `&end=${end}`;
-            return parse((await (await fetch(url)).json()).result?.list || []);
-          };
-          if (type === 'init') {
-            const page = await fetchPage(undefined, 200);
-            if (page.length) lastCloseRef.current = page[page.length - 1].close;
-            callback(page, { backward: page.length >= 200, forward: false });
-          } else {
-            const page = await fetchPage(timestamp - 1, 1000);
-            callback(page, { backward: page.length >= 1000, forward: false });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (!range || loadingRef.current) return;
+      if (range.from < 10) {
+        const oldest = barsRef.current[0];
+        if (!oldest) return;
+        loadingRef.current = true;
+        fetchBars(coinRef.current, tfRef.current, oldest.time * 1000 - 1).then(older => {
+          if (older.length) {
+            const merged = [...older, ...barsRef.current];
+            const seen = new Set();
+            const deduped = merged.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
+            applyData(deduped);
           }
-        } catch { callback([], false); }
-      },
-      subscribeBar: ({ period, callback: cb }) => {
-        const symStr = coinRef.current;
-        const topic = `kline.${period.text}.${symStr}USDT`;
-        let closed = false;
-        const tryConnect = () => {
-          if (closed) return;
-          const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-          let pingId = null;
-          ws.onopen = () => {
-            if (closed) { ws.close(); return; }
-            ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
-            pingId = setInterval(() => {
-              if (ws.readyState === WebSocket.OPEN) ws.send('{"op":"ping"}');
-            }, 18000);
-          };
-          ws.onmessage = e => {
-            if (closed) return;
-            try {
-              const m = JSON.parse(e.data);
-              if (m.topic === topic && Array.isArray(m.data) && m.data[0]) {
-                const k = m.data[0];
-                const bar = {
-                  timestamp: +k.start, open: +k.open, high: +k.high,
-                  low: +k.low, close: +k.close, volume: +k.volume,
-                };
-                if (!isValidBar(bar)) return;
-                lastCloseRef.current = bar.close;
-                cb(bar);
-              }
-            } catch {}
-          };
-          ws.onclose = () => { if (pingId) clearInterval(pingId); if (!closed) setTimeout(tryConnect, 3000); };
-          ws.onerror = () => {};
-          wsSubRef.current = { close: () => { closed = true; if (pingId) clearInterval(pingId); ws.close(); } };
-        };
-        tryConnect();
-      },
-      unsubscribeBar: () => { wsSubRef.current?.close(); wsSubRef.current = null; },
+          loadingRef.current = false;
+        });
+      }
     });
-
-    let resizeRaf = null;
-    const ro = new ResizeObserver(() => {
-      cancelAnimationFrame(resizeRaf);
-      resizeRaf = requestAnimationFrame(() => { try { chart.resize(); } catch {} });
-    });
-    ro.observe(el);
 
     return () => {
-      wsSubRef.current?.close();
-      wsSubRef.current = null;
-      cancelAnimationFrame(resizeRaf);
-      ro.disconnect();
-      try { klDispose(el); } catch {}
+      wsRef.current?.close();
+      wsRef.current = null;
+      indRefs.current = {};
+      plRef.current = { entry: null, sl: null, tp: null };
+      try { chart.remove(); } catch {}
       chartRef.current = null;
-      panesRef.current = {};
-      entryOvRef.current = null;
+      candleRef.current = null;
+      volRef.current = null;
+      areaRef.current = null;
     };
   }, []);
 
+  // Load data when coin or tf changes
   useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    if (coin !== prevCoinRef.current) {
-      chart.setSymbol({ shortName: `${coin}USDT`, pricePrecision: prec(coin), volumePrecision: 4 });
-      prevCoinRef.current = coin;
-    }
-    if (tf !== prevTfRef.current) {
-      chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
-      prevTfRef.current = tf;
-    }
+    if (!chartRef.current) return;
+    let cancelled = false;
+    wsRef.current?.close();
+    barsRef.current = [];
+    fetchBars(coin, tf, undefined).then(bars => {
+      if (cancelled || !candleRef.current) return;
+      applyData(bars);
+      chartRef.current?.timeScale().fitContent();
+      connectWS(coin, tf);
+    });
+    return () => { cancelled = true; };
   }, [coin, tf]);
 
+  // Theme changes
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    // An overlay placed on a price far from the visible candles forces
-    // KLineChart to expand the Y-axis to include it — that's the "jumping"
-    // users see. Reject overlays whose value isn't within 30% of the last
-    // close (stale entry from a coin switch, partially-loaded position, etc.).
-    const last = lastCloseRef.current;
-    const inRange = v => last > 0 && v > 0 && Math.abs(v - last) / last < 0.30;
-    try {
-      if (entryOvRef.current) { chart.removeOverlay?.(entryOvRef.current); entryOvRef.current = null; }
-      if (slOvRef.current)    { chart.removeOverlay?.(slOvRef.current);    slOvRef.current    = null; }
-      if (tpOvRef.current)    { chart.removeOverlay?.(tpOvRef.current);    tpOvRef.current    = null; }
-      if (inRange(entryPrice)) {
-        entryOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: entryPrice }], styles: { line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.9)' } }, extendData: `Entry $${entryPrice}`, lock: true }) ?? null;
-      }
-      if (inRange(stopLoss)) {
-        slOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: stopLoss }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(255,77,109,0.9)' } }, extendData: `SL $${stopLoss}`, lock: true }) ?? null;
-      }
-      if (inRange(takeProfit)) {
-        tpOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: takeProfit }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(0,212,170,0.9)' } }, extendData: `TP $${takeProfit}`, lock: true }) ?? null;
-      }
-    } catch {}
+    const tClr = dark ? 'rgba(240,242,245,0.4)' : 'rgba(10,10,10,0.4)';
+    const gClr = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+    const bClr = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    const lBg  = dark ? '#1a1a1a' : '#f0f0f0';
+    chart.applyOptions({
+      layout: { textColor: tClr },
+      grid:   { vertLines: { color: gClr }, horzLines: { color: gClr } },
+      crosshair: { vertLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg }, horzLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg } },
+      rightPriceScale: { borderColor: bClr },
+      timeScale: { borderColor: bClr },
+    });
+  }, [dark]);
+
+  // Price lines for entry / SL / TP
+  useEffect(() => {
+    const cs = candleRef.current;
+    if (!cs) return;
+    const { entry, sl, tp } = plRef.current;
+    try { if (entry) cs.removePriceLine(entry); } catch {}
+    try { if (sl)    cs.removePriceLine(sl);    } catch {}
+    try { if (tp)    cs.removePriceLine(tp);    } catch {}
+    plRef.current = { entry: null, sl: null, tp: null };
+    if (entryPrice > 0) plRef.current.entry = cs.createPriceLine({ price: entryPrice, color: 'rgba(251,191,36,0.9)', lineStyle: LineStyle.Dashed, lineWidth: 1, title: 'Entry' });
+    if (stopLoss   > 0) plRef.current.sl    = cs.createPriceLine({ price: stopLoss,   color: 'rgba(255,77,109,0.9)',  lineStyle: LineStyle.Dashed, lineWidth: 1, title: 'SL'    });
+    if (takeProfit > 0) plRef.current.tp    = cs.createPriceLine({ price: takeProfit,  color: 'rgba(0,212,170,0.9)',   lineStyle: LineStyle.Dashed, lineWidth: 1, title: 'TP'    });
   }, [entryPrice, stopLoss, takeProfit]);
 
-  React.useEffect(() => {
-    const h = e => { if (e.key === 'Escape') setIsFullscreen(false); };
+  // Candle / Line area toggle
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    showLRef.current = showLine;
+    if (showLine) {
+      if (!areaRef.current) {
+        const area = chart.addAreaSeries({ lineColor: C_UP, topColor: 'rgba(0,212,170,0.25)', bottomColor: 'rgba(0,212,170,0)', lineWidth: 2 });
+        areaRef.current = area;
+      }
+      areaRef.current.setData(barsRef.current.map(b => ({ time: b.time, value: b.close })));
+      areaRef.current.applyOptions({ visible: true });
+      candleRef.current?.applyOptions({ visible: false });
+    } else {
+      areaRef.current?.applyOptions({ visible: false });
+      candleRef.current?.applyOptions({ visible: true });
+    }
+  }, [showLine]);
+
+  // Escape fullscreen
+  useEffect(() => {
+    const h = e => e.key === 'Escape' && setIsFS(false);
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, []);
-
-  React.useEffect(() => {
-    const t = setTimeout(() => { try { chartRef.current?.resize(); } catch {} }, 60);
-    return () => clearTimeout(t);
-  }, [isFullscreen]);
-
-  function applyChartType(typeId) {
-    setChartType(typeId);
-    onTypeChange?.(typeId);
-    const cfg = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
-    const t   = typeId === 'candle_up_stroke' ? THEME_BW : (isDark ? THEME_DARK : THEME_LIGHT);
-    setChartBg(t.bg);
-    try {
-      chartRef.current?.setStyles({
-        candle:    { type: typeId, bar: cfg.bar },
-        indicator: { bars: cfg.vol },
-        grid:      t.grid,
-        xAxis:     t.xAxis,
-        yAxis:     t.yAxis,
-        crosshair: t.crosshair,
-      });
-    } catch {}
-  }
-
-  useEffect(() => {
-    if (!chartRef.current) return;
-    const t = chartType === 'candle_up_stroke' ? THEME_BW : (isDark ? THEME_DARK : THEME_LIGHT);
-    setChartBg(t.bg);
-    try {
-      chartRef.current.setStyles({
-        grid:      t.grid,
-        xAxis:     t.xAxis,
-        yAxis:     t.yAxis,
-        crosshair: t.crosshair,
-      });
-    } catch {}
-  }, [isDark]);
-
-  function selectTool(toolId) {
-    const chart = chartRef.current;
-    if (!chart) return;
-    if (activeTool === toolId) {
-      setActiveTool(null);
-      try { chart.removeOverlay(); } catch {}
-    } else {
-      setActiveTool(toolId);
-      if (toolId) try { chart.createOverlay({ name: toolId, lock: false }); } catch {}
-      else try { chart.removeOverlay(); } catch {}
-    }
-  }
 
   function toggleInd(name) {
     const chart = chartRef.current;
     if (!chart) return;
     if (activeInds[name]) {
-      const paneId = panesRef.current[name];
-      try {
-        if (INDS_CANDLE.includes(name)) chart.removeIndicator('candle_pane', name);
-        else if (paneId) chart.removeIndicator(paneId, name);
-      } catch {}
-      delete panesRef.current[name];
+      (indRefs.current[name] || []).forEach(s => { try { chart.removeSeries(s); } catch {} });
+      delete indRefs.current[name];
       setActiveInds(p => ({ ...p, [name]: false }));
     } else {
+      const bars = barsRef.current;
       try {
-        if (INDS_CANDLE.includes(name)) {
-          chart.createIndicator(name, false, { id: 'candle_pane' });
-          panesRef.current[name] = 'candle_pane';
-        } else {
-          const paneId = chart.createIndicator(name, false, { height: 80 });
-          panesRef.current[name] = paneId;
+        if (name === 'MA') {
+          const s = chart.addLineSeries({ color: '#f5a623', lineWidth: 1 });
+          const v = sma(bars, 20);
+          s.setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
+          indRefs.current.MA = [s];
+        } else if (name === 'EMA') {
+          const s = chart.addLineSeries({ color: '#9b59b6', lineWidth: 1 });
+          const v = calcEma(bars, 20);
+          s.setData(bars.map((b, i) => ({ time: b.time, value: v[i] })));
+          indRefs.current.EMA = [s];
+        } else if (name === 'BOLL') {
+          const upper = chart.addLineSeries({ color: 'rgba(100,180,255,0.7)', lineWidth: 1 });
+          const mid   = chart.addLineSeries({ color: 'rgba(100,180,255,0.4)', lineWidth: 1, lineStyle: LineStyle.Dashed });
+          const lower = chart.addLineSeries({ color: 'rgba(100,180,255,0.7)', lineWidth: 1 });
+          const v = boll(bars);
+          upper.setData(bars.map((b, i) => ({ time: b.time, value: v[i].upper })).filter(d => d.value != null));
+          mid.setData(bars.map((b, i) => ({ time: b.time, value: v[i].mid   })).filter(d => d.value != null));
+          lower.setData(bars.map((b, i) => ({ time: b.time, value: v[i].lower })).filter(d => d.value != null));
+          indRefs.current.BOLL = [upper, mid, lower];
         }
         setActiveInds(p => ({ ...p, [name]: true }));
       } catch {}
@@ -636,35 +587,25 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 260px)', minHeight: 480, border: '1px solid var(--border-subtle)', background: chartBg, overflow: 'hidden', ...(isFullscreen ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 260px)', minHeight: 480, border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden', ...(isFS ? { position: 'fixed', inset: 0, zIndex: 9999, border: 'none', height: '100vh', minHeight: '100vh' } : {}) }}>
 
-      {/* Top toolbar: chart type + indicators + TF */}
+      {/* Toolbar */}
       <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {CHART_TYPES.map(ct => (
-          <button key={ct.id} onClick={() => applyChartType(ct.id)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: chartType === ct.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${chartType === ct.id ? 'var(--border-strong)' : 'transparent'}`, color: chartType === ct.id ? 'var(--text-primary)' : 'var(--text-muted)' }}>{ct.label}</button>
-        ))}
+        <button onClick={() => { showLRef.current = false; setShowLine(false); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: !showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${!showLine ? 'var(--border-strong)' : 'transparent'}`, color: !showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Candles</button>
+        <button onClick={() => { showLRef.current = true; setShowLine(true); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${showLine ? 'var(--border-strong)' : 'transparent'}`, color: showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Line</button>
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
         <span style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Ind</span>
-        {ALL_INDS.map(name => (
+        {['MA','EMA','BOLL'].map(name => (
           <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
         ))}
         <div style={{ flex: 1 }} />
-        {activeTool && (
-          <button onClick={() => { setActiveTool(null); try { chartRef.current?.removeOverlay(); } catch {} }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FF, fontSize: 10, background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>Clear</button>
-        )}
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
         {['1','5','15','60','240','D'].map(t => (
-          <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{{ '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' }[t]}</button>
+          <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{TF_LABELS[t]}</button>
         ))}
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
-        <button
-          onClick={() => setIsFullscreen(v => !v)}
-          title={isFullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
-          style={{ height: 22, width: 22, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isFullscreen ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${isFullscreen ? 'var(--border-strong)' : 'transparent'}`, color: isFullscreen ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0, flexShrink: 0 }}
-          onMouseEnter={e => { if (!isFullscreen) e.currentTarget.style.color = 'var(--text-primary)'; }}
-          onMouseLeave={e => { if (!isFullscreen) e.currentTarget.style.color = 'var(--text-muted)'; }}
-        >
-          {isFullscreen
+        <button onClick={() => setIsFS(v => !v)} title={isFS ? 'Exit fullscreen (Esc)' : 'Fullscreen'} style={{ height: 22, width: 22, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isFS ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${isFS ? 'var(--border-strong)' : 'transparent'}`, color: isFS ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0, flexShrink: 0 }}>
+          {isFS
             ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 1H1v3M8 1h3v3M4 11H1V8M8 11h3V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 4V1h3M8 1h3v3M1 8v3h3M8 11h3V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           }
@@ -673,17 +614,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
 
       {/* Chart area */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        {/* Left draw toolbar */}
-        <div style={{ width: 34, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 6, gap: 2, borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-          {DRAW_TOOLS.map(t => (
-            <button key={t.id ?? 'cursor'} title={t.title} onClick={() => selectTool(t.id)} style={{ width: 26, height: 26, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: activeTool === t.id ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeTool === t.id ? 'var(--border-strong)' : 'transparent'}`, color: activeTool === t.id ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0 }}>{t.icon}</button>
-          ))}
-        </div>
-        {/* Canvas */}
-        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
-          <div ref={elRef} style={{ position: 'absolute', inset: 0, background: chartBg }} />
-        </div>
-        {/* Order book */}
+        <div ref={elRef} style={{ flex: 1, minWidth: 0, background: 'var(--bg-base)' }} />
         {!isMobile && <OrderBook coin={coin} />}
       </div>
     </div>
