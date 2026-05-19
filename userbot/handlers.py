@@ -297,6 +297,70 @@ async def cmd_positions(message: Message):
     await _send_positions(message)
 
 
+# ── /status — compact overview: balance + open positions + bot state ─────────
+@router.message(Command("status"))
+async def cmd_status(message: Message):
+    user, db = _linked_user(str(message.chat.id))
+    try:
+        if not user:
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            return
+
+        key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+        if not key_row:
+            await message.answer(
+                "<b>KADO Status</b>\n\n"
+                "⚠️ Bybit API keys not connected.\n"
+                "Go to Settings → API Keys to link your account.",
+                parse_mode="HTML",
+                reply_markup=_webapp_kb(),
+            )
+            return
+
+        ex = init_user_exchange(key_row)
+        if not ex:
+            await message.answer(texts.EXCHANGE_ERROR, parse_mode="HTML")
+            return
+
+        try:
+            b = await asyncio.wait_for(asyncio.to_thread(bybit_balance, ex), timeout=8)
+            positions = await asyncio.wait_for(asyncio.to_thread(bybit_positions, ex), timeout=8)
+        except Exception:
+            await message.answer(texts.EXCHANGE_ERROR, parse_mode="HTML")
+            return
+
+        upnl    = b["unrealized_pnl"]
+        upnl_s  = f"+{upnl:.2f}" if upnl >= 0 else f"{upnl:.2f}"
+        pos_cnt = len(positions)
+
+        open_lines = ""
+        if positions:
+            lines = []
+            for p in positions[:5]:
+                icon = "🟢" if p["side"] == "LONG" else "🔴"
+                pnl  = p["unrealized_pnl"]
+                sign = "+" if pnl >= 0 else ""
+                lines.append(f"{icon} {p['symbol']} {sign}{pnl:.2f}")
+            open_lines = "\n".join(lines)
+            if pos_cnt > 5:
+                open_lines += f"\n<i>+{pos_cnt - 5} more…</i>"
+
+        net_tag = " (testnet)" if key_row.is_testnet else ""
+
+        text = (
+            f"<b>KADO Status{net_tag}</b>\n\n"
+            f"💵 Balance: <b>{b['wallet']:.2f} USDT</b>\n"
+            f"📊 uPnL: <b>{upnl_s} USDT</b>\n"
+            f"📂 Open positions: <b>{pos_cnt}</b>\n"
+        )
+        if open_lines:
+            text += f"\n{open_lines}\n"
+
+        await message.answer(text, parse_mode="HTML", reply_markup=_webapp_kb())
+    finally:
+        db.close()
+
+
 # ── /pnl — closed-trade statistics ───────────────────────────────────────────
 @router.message(Command("pnl"))
 async def cmd_pnl(message: Message):

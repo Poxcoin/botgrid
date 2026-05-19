@@ -40,6 +40,7 @@ async def main():
     log.info("Bot online as @%s (id=%s)", me.username, me.id)
 
     await bot.set_my_commands([
+        {"command": "status",    "description": "Баланс + позиції + стан бота"},
         {"command": "menu",      "description": "Главное меню"},
         {"command": "account",   "description": "Информация об аккаунте"},
         {"command": "balance",   "description": "Баланс Bybit"},
