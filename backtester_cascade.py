@@ -12,7 +12,8 @@ from collections import defaultdict
 SYMBOLS = [
     "ETH/USDT:USDT",
     "SOL/USDT:USDT",
-    "XRP/USDT:USDT",
+    "DOGE/USDT:USDT",
+    "LINK/USDT:USDT",
 ]
 TIMEFRAME = "15m"
 DAYS = 90

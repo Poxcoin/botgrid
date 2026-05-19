@@ -13,7 +13,7 @@ when price retraces into the zone.
 
   OB invalidated if any candle CLOSES beyond the SL edge after the BOS.
 
-  Symbols:  BTC / ETH / SOL  |  TF: 4h  |  Scan: 15 min
+  Symbols:  BTC  |  TF: 4h  |  Scan: 15 min  (SOL removed: 20% WR backtest)
   Leverage: 3x  |  Size: 5%  |  Cooldown: 12h  |  Max concurrent: 2
 """
 import time
@@ -30,7 +30,6 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OB_TRADING
 
 SYMBOLS = [
     "BTC/USDT:USDT",
-    "SOL/USDT:USDT",
 ]
 
 LEVERAGE    = 5

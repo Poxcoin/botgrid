@@ -16,14 +16,14 @@ TIMEFRAME = "1h"
 DAYS = 90
 CANDLES_LIMIT = DAYS * 24 + 100
 
-TP_PCT = 0.004   # 0.4%
+TP_PCT = 0.010   # 1.0% — raised from 0.4% to clear fees and capture move
 SL_PCT = 0.015   # 1.5%
-MAX_HOLD = 3
+MAX_HOLD = 8     # 8h (one full funding cycle) — raised from 3h to hit TP
 SIZE_PCT = 0.05
 
-# Bybit-adapted thresholds (original spec 0.18%/-0.05% never hit on Bybit)
-FR_SHORT_THRESH = 0.00008   # >=0.008% → SHORT (near Bybit positive cap)
-FR_LONG_THRESH  = -0.00005  # <=-0.005% → LONG (negative funding)
+# Bybit-adapted thresholds — lowered to get more signals with better edge
+FR_SHORT_THRESH = 0.00006   # >=0.006% → SHORT (was 0.008%)
+FR_LONG_THRESH  = -0.00004  # <=-0.004% → LONG (was -0.005%)
 
 def fetch_funding_history(exchange, symbol):
     try:
