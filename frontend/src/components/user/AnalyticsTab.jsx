@@ -215,7 +215,7 @@ function TradeRow({ tr }) {
           {tr.source && <span style={{ marginLeft: 6, opacity: 0.6 }}>{tr.source}</span>}
         </div>
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+      <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
         {pnl >= 0 ? '+' : ''}{pnl}
       </div>
     </div>
@@ -229,6 +229,66 @@ function Skeleton({ w = '100%', h = 18 }) {
       background: 'var(--bg-elevated)',
       animation: 'kado-skeleton 1.4s ease-in-out infinite',
     }} />
+  );
+}
+
+function CoinCard({ r, maxAbsPnl }) {
+  const [hovered, setHovered] = React.useState(false);
+  const pnl = parseFloat(r.pnl) || 0;
+  const pos = pnl >= 0;
+  const wr = r.trades ? Math.round(r.wins / r.trades * 100) : 0;
+  const barW = maxAbsPnl > 0 ? Math.abs(pnl) / maxAbsPnl : 0;
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 5,
+        padding: '10px 12px 10px',
+        background: hovered ? 'var(--bg-elevated)' : 'transparent',
+        border: `1px solid ${hovered ? 'var(--border-strong)' : 'var(--border-default)'}`,
+        textAlign: 'left', minWidth: 112,
+        transition: 'background 120ms, border-color 120ms',
+        cursor: 'default',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{r.coin}</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: pos ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>
+          {pos ? '+' : ''}{pnl.toFixed(2)}
+        </span>
+      </div>
+      {/* PnL bar */}
+      <div style={{ height: 2, background: 'var(--border-subtle)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{
+          position: 'absolute', top: 0, left: pos ? '50%' : `${(0.5 - barW * 0.5) * 100}%`,
+          width: `${barW * 50}%`,
+          height: '100%',
+          background: pos ? 'var(--accent-green)' : 'var(--accent-red)',
+          opacity: 0.8,
+        }} />
+        <div style={{ position: 'absolute', top: 0, left: '50%', width: 1, height: '100%', background: 'var(--border-default)' }} />
+      </div>
+      <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)' }}>
+        <span style={{ color: 'var(--accent-green)', marginRight: 4 }}>{r.wins}W</span>
+        <span style={{ color: 'var(--accent-red)', marginRight: 4 }}>{r.trades - r.wins}L</span>
+        <span style={{ color: wr >= 50 ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{wr}%</span>
+      </div>
+      <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+        {r.trades} trades
+      </div>
+    </div>
+  );
+}
+
+function CoinGrid({ coins }) {
+  const sorted = [...coins].sort((a, b) => parseFloat(b.pnl) - parseFloat(a.pnl));
+  const maxAbsPnl = Math.max(...sorted.map(r => Math.abs(parseFloat(r.pnl) || 0)), 0.01);
+  return (
+    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+      {sorted.map(r => <CoinCard key={r.coin} r={r} maxAbsPnl={maxAbsPnl} />)}
+    </div>
   );
 }
 
@@ -404,6 +464,14 @@ export default function AnalyticsTab() {
         />
       </div>
 
+      {/* By coin — card grid like bot CoinTicker */}
+      {by_coin && by_coin.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionLabel title={t.dashboard.analytics.byCoin} right={`${by_coin.length} ${t.dashboard.analytics.coinsSort}`} />
+          <CoinGrid coins={by_coin} />
+        </div>
+      )}
+
       {/* By bot source */}
       {(data?.by_source?.length > 0) && (
         <div style={{ marginBottom: 32 }}>
@@ -412,17 +480,9 @@ export default function AnalyticsTab() {
             right={`${data.by_source.length} ${t.dashboard.analytics.sources}`}
           />
           <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
-            <DataTable cols={botCols} rows={data.by_source} />
-          </div>
-        </div>
-      )}
-
-      {/* By coin */}
-      {by_coin && by_coin.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <SectionLabel title={t.dashboard.analytics.byCoin} right={`${by_coin.length} · ${t.dashboard.analytics.coinsSort}`} />
-          <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
-            <DataTable cols={coinCols} rows={by_coin} />
+            <DataTable cols={botCols} rows={data.by_source}
+              getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
+            />
           </div>
         </div>
       )}
@@ -457,6 +517,7 @@ export default function AnalyticsTab() {
             <DataTable
               cols={allTradesCols}
               rows={[...allTrades].sort((a, b) => parseInt(b.closed_at) - parseInt(a.closed_at))}
+              getRowColor={(k, r) => k === 'pnl' ? ((r.pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
             />
           </div>
         </div>
