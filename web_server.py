@@ -3028,9 +3028,13 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
             try:
                 ex = _init_user_exchange(key_row)
                 if ex:
-                    b         = _bybit_balance(ex)
+                    b         = await asyncio.wait_for(
+                        asyncio.to_thread(_bybit_balance, ex), timeout=8
+                    )
                     balance   = {"usdt_wallet": b["wallet"], "unrealized_pnl": b["unrealized_pnl"]}
-                    positions = _bybit_positions(ex)
+                    positions = await asyncio.wait_for(
+                        asyncio.to_thread(_bybit_positions, ex), timeout=8
+                    )
             except Exception:
                 pass
 
