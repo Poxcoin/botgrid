@@ -46,8 +46,8 @@ export default function GlobalNeural() {
   const location = useLocation();
   useEffect(() => { themeRef.current = theme; }, [theme]);
 
-  // Дашборд — без нейросети, только данные
-  if (location.pathname === '/dashboard') return null;
+  // Дашборд і акаунт — без нейросети, только данные
+  if (location.pathname === '/dashboard' || location.pathname === '/account') return null;
 
   useEffect(() => {
     const canvas = canvasRef.current;

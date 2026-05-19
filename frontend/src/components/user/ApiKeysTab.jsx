@@ -40,7 +40,7 @@ const STEPS = [
   {
     n: 1,
     title: 'Open Bybit API Management',
-    body: 'Log in to Bybit → click your avatar (top right) → select API Management.',
+    body: 'Log in to Bybit → click your avatar (top right) → select API Management. For Demo: go to testnet.bybit.com instead of bybit.com.',
   },
   {
     n: 2,
@@ -437,16 +437,25 @@ export default function ApiKeysTab() {
       <div>
         <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>API Keys</div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          Connect your Bybit account so the bot can open and close trades on your behalf. Keys are encrypted with AES-256 and never stored in plain text.
+          Connect your Bybit account so the bot can open and close trades on your behalf. Supports both live and demo accounts. Keys are encrypted with AES-256 and never stored in plain text.
         </div>
       </div>
 
-      {/* Live Account only */}
       <KeySection
         title="Live Account"
         subtitle="Real funds. The bot will trade with real money once this key is connected."
         isTestnet={false}
         maskedKey={me?.bybit_live_key_masked || null}
+        onSaved={reload}
+        onDeleted={reload}
+      />
+
+      <KeySection
+        title="Demo Account"
+        badge={{ text: 'DEMO' }}
+        subtitle="Bybit Demo account — practice trading with virtual funds. Bots will use demo keys when no live key is connected."
+        isTestnet={true}
+        maskedKey={me?.bybit_demo_key_masked || null}
         onSaved={reload}
         onDeleted={reload}
       />

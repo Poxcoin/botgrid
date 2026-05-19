@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { init as klInit, dispose as klDispose } from 'klinecharts';
 import { useLiveStream } from '@/lib/useLiveStream';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { useTheme } from '@/lib/ThemeContext';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
@@ -107,8 +108,8 @@ const BOT_COINS = {
 
 const CHART_STYLES = {
   grid: {
-    horizontal: { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
-    vertical:   { show: true, size: 1, color: 'rgba(255,255,255,0.04)', style: 'dashed', dashedValue: [3, 3] },
+    horizontal: { show: true, size: 1, color: 'rgba(128,128,128,0.1)', style: 'dashed', dashedValue: [3, 3] },
+    vertical:   { show: true, size: 1, color: 'rgba(128,128,128,0.1)', style: 'dashed', dashedValue: [3, 3] },
   },
   candle: {
     type: 'candle_solid',
@@ -120,25 +121,25 @@ const CHART_STYLES = {
     bars: [{ upColor: 'rgba(0,212,170,0.5)', downColor: 'rgba(255,77,109,0.5)', noChangeColor: 'rgba(136,136,136,0.5)' }],
   },
   xAxis: {
-    axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
-    tickLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1, length: 3 },
-    tickText: { show: true, color: 'rgba(240,242,245,0.3)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
+    axisLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1 },
+    tickLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1, length: 3 },
+    tickText: { show: true, color: 'rgba(10,10,10,0.35)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
   },
   yAxis: {
-    axisLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1 },
-    tickLine: { show: true, color: 'rgba(255,255,255,0.08)', size: 1, length: 3 },
-    tickText: { show: true, color: 'rgba(240,242,245,0.3)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
+    axisLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1 },
+    tickLine: { show: true, color: 'rgba(128,128,128,0.15)', size: 1, length: 3 },
+    tickText: { show: true, color: 'rgba(10,10,10,0.35)', size: 10, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
   },
-  separator: { size: 1, color: 'rgba(255,255,255,0.06)', activeBackgroundColor: 'rgba(255,255,255,0.04)' },
+  separator: { size: 1, color: 'rgba(128,128,128,0.12)', activeBackgroundColor: 'rgba(128,128,128,0.08)' },
   crosshair: {
     show: true,
-    horizontal: { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(255,255,255,0.2)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: '#fff', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 2, backgroundColor: '#1a1a1a' } },
-    vertical:   { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(255,255,255,0.2)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: '#fff', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 2, backgroundColor: '#1a1a1a' } },
+    horizontal: { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(128,128,128,0.3)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: 'var(--text-primary)', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'var(--border-default)', borderRadius: 2, backgroundColor: 'var(--bg-elevated)' } },
+    vertical:   { line: { show: true, style: 'dashed', dashedValue: [4, 2], size: 1, color: 'rgba(128,128,128,0.3)' }, text: { show: true, size: 10, family: 'JetBrains Mono, Courier New, monospace', color: 'var(--text-primary)', paddingLeft: 4, paddingRight: 4, paddingTop: 3, paddingBottom: 3, borderSize: 1, borderColor: 'var(--border-default)', borderRadius: 2, backgroundColor: 'var(--bg-elevated)' } },
   },
   overlay: {
     point: { backgroundColor: '#00d4aa', borderColor: '#00d4aa', activeBackgroundColor: '#fff', activeBorderColor: '#fff' },
     line:  { size: 1, color: '#00d4aa' },
-    text:  { color: '#fff', size: 12, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
+    text:  { color: 'var(--text-primary)', size: 12, family: 'JetBrains Mono, Courier New, monospace', weight: 'normal' },
   },
 };
 
@@ -179,6 +180,16 @@ const THEME_BW = {
   crosshair: {
     horizontal: { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
     vertical:   { line: { color: 'rgba(255,255,255,0.2)' }, text: { color: '#fff', backgroundColor: '#1a1a1a', borderColor: 'rgba(255,255,255,0.15)' } },
+  },
+};
+const THEME_LIGHT = {
+  bg: 'var(--bg-base)',
+  grid: { horizontal: { color: 'rgba(10,10,10,0.06)' }, vertical: { color: 'rgba(10,10,10,0.06)' } },
+  xAxis: { axisLine: { color: 'rgba(10,10,10,0.10)' }, tickLine: { color: 'rgba(10,10,10,0.10)' }, tickText: { color: 'rgba(10,10,10,0.45)' } },
+  yAxis: { axisLine: { color: 'rgba(10,10,10,0.10)' }, tickLine: { color: 'rgba(10,10,10,0.10)' }, tickText: { color: 'rgba(10,10,10,0.45)' } },
+  crosshair: {
+    horizontal: { line: { color: 'rgba(10,10,10,0.25)' }, text: { color: '#0A0A0A', backgroundColor: '#F2F2F2', borderColor: 'rgba(10,10,10,0.15)' } },
+    vertical:   { line: { color: 'rgba(10,10,10,0.25)' }, text: { color: '#0A0A0A', backgroundColor: '#F2F2F2', borderColor: 'rgba(10,10,10,0.15)' } },
   },
 };
 
@@ -368,6 +379,9 @@ function CoinTicker({ coins, selected, onSelect }) {
    KLINECHART — full candlestick chart with order book, indicators
 ══════════════════════════════════════════════════════════════════ */
 function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, isMobile = false }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   const elRef       = useRef(null);
   const chartRef    = useRef(null);
   const panesRef    = useRef({});
@@ -525,20 +539,34 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
   function applyChartType(typeId) {
     setChartType(typeId);
     onTypeChange?.(typeId);
-    const cfg   = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
-    const theme = typeId === 'candle_up_stroke' ? THEME_BW : THEME_DARK;
-    setChartBg(theme.bg);
+    const cfg = CHART_TYPE_CFG[typeId] || CHART_TYPE_CFG.candle_solid;
+    const t   = typeId === 'candle_up_stroke' ? THEME_BW : (isDark ? THEME_DARK : THEME_LIGHT);
+    setChartBg(t.bg);
     try {
       chartRef.current?.setStyles({
         candle:    { type: typeId, bar: cfg.bar },
         indicator: { bars: cfg.vol },
-        grid:      theme.grid,
-        xAxis:     theme.xAxis,
-        yAxis:     theme.yAxis,
-        crosshair: theme.crosshair,
+        grid:      t.grid,
+        xAxis:     t.xAxis,
+        yAxis:     t.yAxis,
+        crosshair: t.crosshair,
       });
     } catch {}
   }
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const t = chartType === 'candle_up_stroke' ? THEME_BW : (isDark ? THEME_DARK : THEME_LIGHT);
+    setChartBg(t.bg);
+    try {
+      chartRef.current.setStyles({
+        grid:      t.grid,
+        xAxis:     t.xAxis,
+        yAxis:     t.yAxis,
+        crosshair: t.crosshair,
+      });
+    } catch {}
+  }, [isDark]);
 
   function selectTool(toolId) {
     const chart = chartRef.current;
@@ -833,7 +861,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
     <th style={{ padding: '6px 14px', fontFamily: FM, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, textAlign: r ? 'right' : 'left', background: 'var(--bg-base)', position: 'sticky', top: 0, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{v}</th>
   );
   const Td = ({ v, hi, r }) => (
-    <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: hi || 'var(--text-secondary)', textAlign: r ? 'right' : 'left', whiteSpace: 'nowrap', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{v ?? '—'}</td>
+    <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: hi || 'var(--text-secondary)', textAlign: r ? 'right' : 'left', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{v ?? '—'}</td>
   );
   const Empty = () => (
     <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>EMPTY</div>
