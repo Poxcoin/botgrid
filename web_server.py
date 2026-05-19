@@ -24,7 +24,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from pydantic import EmailStr
 from typing import Annotated
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID, USERBOT_TOKEN
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key
@@ -3001,7 +3001,7 @@ async def serve_webapp():
 
 @app.post("/api/webapp/init")
 async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
-    bot_token = TG_BOT_TOKEN or ""
+    bot_token = USERBOT_TOKEN or ""
     tg_user   = None
 
     if body.init_data and bot_token:
