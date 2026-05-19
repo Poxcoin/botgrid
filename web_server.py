@@ -221,6 +221,7 @@ async def add_security_headers(request: Request, call_next):
             "https://api.bybit.com wss://stream.bybit.com "
             "https://cloudflareinsights.com https://www.facebook.com; "
             "img-src 'self' data: https:; "
+            "frame-src https://s.tradingview.com; "
             "frame-ancestors 'none'; "
             "upgrade-insecure-requests;"
         )

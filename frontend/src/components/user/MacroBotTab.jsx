@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTheme } from '@/lib/ThemeContext';
 
 const MONO  = "'Courier New','SF Mono',monospace";
 const B     = 'rgba(255,255,255,0.06)';
@@ -9,6 +10,58 @@ const api = p =>
     .then(r => r.ok ? r.json() : null)
     .catch(() => null);
 
+/* ── TradingView chart iframe ─────────────────────────────────── */
+const TV_SYMBOLS = {
+  macro: [
+    { label: 'EUR/USD', sym: 'FX:EURUSD' },
+    { label: 'GBP/USD', sym: 'FX:GBPUSD' },
+  ],
+  gold: [
+    { label: 'XAU/USD', sym: 'TVC:GOLD' },
+  ],
+};
+
+function TvChart({ botId }) {
+  const { theme } = useTheme();
+  const dark = theme !== 'light';
+  const options = TV_SYMBOLS[botId] || TV_SYMBOLS.gold;
+  const [idx, setIdx] = useState(0);
+  const sym = options[idx].sym;
+
+  const src =
+    `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sym)}` +
+    `&interval=60&theme=${dark ? 'dark' : 'light'}&style=1&locale=en` +
+    `&toolbar_bg=${encodeURIComponent(dark ? '#060606' : '#ffffff')}` +
+    `&hide_side_toolbar=0&save_image=0&allow_symbol_change=0&details=0`;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: 420, marginBottom: 24, background: 'var(--bg-base)', border: `1px solid ${B}` }}>
+      {/* symbol toggle */}
+      {options.length > 1 && (
+        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 4 }}>
+          {options.map((o, i) => (
+            <button key={o.sym} onClick={() => setIdx(i)} style={{
+              fontFamily: MONO, fontSize: 9, padding: '3px 10px',
+              border: `1px solid ${B}`, borderRadius: 100, cursor: 'pointer',
+              background: i === idx ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.6)',
+              color: i === idx ? '#fff' : '#555',
+              letterSpacing: '0.1em', textTransform: 'uppercase',
+            }}>{o.label}</button>
+          ))}
+        </div>
+      )}
+      <iframe
+        key={src}
+        src={src}
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+        allowFullScreen
+        title={`${sym} chart`}
+      />
+    </div>
+  );
+}
+
+/* ── stat box ─────────────────────────────────────────────────── */
 function StatBox({ label, value, color }) {
   return (
     <div style={{
@@ -23,6 +76,7 @@ function StatBox({ label, value, color }) {
   );
 }
 
+/* ── no MT5 key banner ────────────────────────────────────────── */
 function NoKeyBanner() {
   return (
     <div style={{ border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
@@ -47,18 +101,16 @@ function NoKeyBanner() {
   );
 }
 
+/* ── main ─────────────────────────────────────────────────────── */
 export default function MacroBotTab({ botId }) {
-  const [stats,  setStats]  = useState(null);
   const [trades, setTrades] = useState([]);
   const [mt5,    setMt5]    = useState(undefined);
 
   useEffect(() => {
     Promise.all([
-      api('/api/macro/stats?days=30'),
       api('/api/macro/trades?limit=100'),
       api('/api/users/mt5-keys'),
-    ]).then(([s, t, m]) => {
-      setStats(s || {});
+    ]).then(([t, m]) => {
       setTrades(Array.isArray(t) ? t : []);
       setMt5(m || null);
     });
@@ -74,23 +126,20 @@ export default function MacroBotTab({ botId }) {
   const winRate = closed.length ? Math.round(wins / closed.length * 100) : null;
 
   const title   = isGold ? 'Gold Event Bot' : 'Macro Forex Bot';
-  const desc    = isGold
-    ? 'XAUUSD · MT5 · IC Markets'
-    : 'EURUSD · GBPUSD · MT5 · IC Markets';
+  const desc    = isGold ? 'XAUUSD · MT5 · IC Markets' : 'EURUSD · GBPUSD · MT5 · IC Markets';
 
   if (mt5 === undefined) return null;
 
   return (
     <div style={{ padding: '0 0 40px' }}>
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, marginBottom: 6 }}>
-          {desc}
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
-          {title}
-        </div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, marginBottom: 6 }}>{desc}</div>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{title}</div>
       </div>
+
+      {/* Chart */}
+      <TvChart botId={botId} />
 
       {!mt5 && <NoKeyBanner />}
 
@@ -164,7 +213,6 @@ export default function MacroBotTab({ botId }) {
         )}
       </div>
 
-      {/* Info footer */}
       <div style={{ fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.08em', lineHeight: 1.8 }}>
         Event-driven · SL 15 pips · TP 20 pips · 20min auto-exit · R:R 1.33:1
       </div>
