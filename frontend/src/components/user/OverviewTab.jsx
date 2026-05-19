@@ -383,17 +383,20 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const elRef       = useRef(null);
-  const chartRef    = useRef(null);
-  const panesRef    = useRef({});
-  const wsSubRef    = useRef(null);
-  const entryOvRef  = useRef(null);
-  const slOvRef     = useRef(null);
-  const tpOvRef     = useRef(null);
-  const coinRef     = useRef(coin);
-  const tfRef       = useRef('60');
-  const prevCoinRef = useRef(coin);
-  const prevTfRef   = useRef('60');
+  const elRef        = useRef(null);
+  const chartRef     = useRef(null);
+  const panesRef     = useRef({});
+  const wsSubRef     = useRef(null);
+  const entryOvRef   = useRef(null);
+  const slOvRef      = useRef(null);
+  const tpOvRef      = useRef(null);
+  const coinRef      = useRef(coin);
+  const tfRef        = useRef('60');
+  const prevCoinRef  = useRef(coin);
+  const prevTfRef    = useRef('60');
+  // Last good close price — used to reject outlier bars from the
+  // stream and to skip overlays whose value is wildly off-range.
+  const lastCloseRef = useRef(0);
 
   const [tf,           setTf]           = useState('60');
   const [activeTool,   setActiveTool]   = useState(null);
@@ -419,14 +422,26 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
     chart.setSymbol({ shortName: `${coinRef.current}USDT`, pricePrecision: prec(coinRef.current), volumePrecision: 4 });
     chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tfRef.current });
 
+    // Sanity filter — reject bars with non-positive prices or hi/lo inversion.
+    // Bybit streams sometimes ship partial frames where one of the OHLC fields
+    // is 0; letting them through forces the chart to autoscale Y to include 0,
+    // which is what users see as the chart "jumping" between renders.
+    const isValidBar = b =>
+      Number.isFinite(b.open) && Number.isFinite(b.high) &&
+      Number.isFinite(b.low)  && Number.isFinite(b.close) &&
+      b.open > 0 && b.high > 0 && b.low > 0 && b.close > 0 &&
+      b.high >= b.low;
+
     chart.setDataLoader({
       getBars: async ({ type, period, timestamp, callback }) => {
         if (type !== 'init' && type !== 'forward') { callback([], false); return; }
         const c = coinRef.current;
         try {
-          const parse = list => list.slice().reverse().map(k => ({
-            timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
-          }));
+          const parse = list => list.slice().reverse()
+            .map(k => ({
+              timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+            }))
+            .filter(isValidBar);
           const fetchPage = async (end, limit) => {
             let url = `https://api.bybit.com/v5/market/kline?category=linear&symbol=${c}USDT&interval=${period.text}&limit=${limit}`;
             if (end) url += `&end=${end}`;
@@ -434,6 +449,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
           };
           if (type === 'init') {
             const page = await fetchPage(undefined, 200);
+            if (page.length) lastCloseRef.current = page[page.length - 1].close;
             callback(page, { backward: false, forward: page.length >= 200 });
           } else {
             const page = await fetchPage(timestamp - 1, 1000);
@@ -462,7 +478,13 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
               const m = JSON.parse(e.data);
               if (m.topic === topic && Array.isArray(m.data) && m.data[0]) {
                 const k = m.data[0];
-                cb({ timestamp: +k.start, open: +k.open, high: +k.high, low: +k.low, close: +k.close, volume: +k.volume });
+                const bar = {
+                  timestamp: +k.start, open: +k.open, high: +k.high,
+                  low: +k.low, close: +k.close, volume: +k.volume,
+                };
+                if (!isValidBar(bar)) return;
+                lastCloseRef.current = bar.close;
+                cb(bar);
               }
             } catch {}
           };
@@ -510,17 +532,23 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
+    // An overlay placed on a price far from the visible candles forces
+    // KLineChart to expand the Y-axis to include it — that's the "jumping"
+    // users see. Reject overlays whose value isn't within 30% of the last
+    // close (stale entry from a coin switch, partially-loaded position, etc.).
+    const last = lastCloseRef.current;
+    const inRange = v => last > 0 && v > 0 && Math.abs(v - last) / last < 0.30;
     try {
       if (entryOvRef.current) { chart.removeOverlay?.(entryOvRef.current); entryOvRef.current = null; }
       if (slOvRef.current)    { chart.removeOverlay?.(slOvRef.current);    slOvRef.current    = null; }
       if (tpOvRef.current)    { chart.removeOverlay?.(tpOvRef.current);    tpOvRef.current    = null; }
-      if (entryPrice > 0) {
+      if (inRange(entryPrice)) {
         entryOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: entryPrice }], styles: { line: { style: 'dashed', dashedValue: [4, 4], size: 1, color: 'rgba(251,191,36,0.9)' } }, extendData: `Entry $${entryPrice}`, lock: true }) ?? null;
       }
-      if (stopLoss > 0) {
+      if (inRange(stopLoss)) {
         slOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: stopLoss }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(255,77,109,0.9)' } }, extendData: `SL $${stopLoss}`, lock: true }) ?? null;
       }
-      if (takeProfit > 0) {
+      if (inRange(takeProfit)) {
         tpOvRef.current = chart.createOverlay?.({ name: 'horizontalStraightLine', points: [{ value: takeProfit }], styles: { line: { style: 'dashed', dashedValue: [2, 4], size: 1, color: 'rgba(0,212,170,0.9)' } }, extendData: `TP $${takeProfit}`, lock: true }) ?? null;
       }
     } catch {}
