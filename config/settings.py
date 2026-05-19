@@ -148,3 +148,6 @@ SWEEP_TRADING = os.getenv("SWEEP_TRADING", "True").lower() == "true"
 
 # ── Order Block (SMC) Bot (BTC/ETH/SOL) ──────────────────────────────────────
 OB_TRADING = os.getenv("OB_TRADING", "True").lower() == "true"
+
+# ── Funding Rate Extreme Reversal Bot ─────────────────────────────────────────
+FR_EXTREME_TRADING = os.getenv("FR_EXTREME_TRADING", "True").lower() == "true"
