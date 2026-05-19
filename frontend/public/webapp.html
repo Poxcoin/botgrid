@@ -198,8 +198,13 @@ a{-webkit-tap-highlight-color:transparent}
 .skel{background:var(--bg3);animation:sk 1.4s ease-in-out infinite;border-radius:1px}
 @keyframes sk{0%,100%{opacity:.3}50%{opacity:.7}}
 
+/* ── bg canvas ── */
+#bg-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1}
+#splash{z-index:999}
+
 /* ── splash ── */
-#splash{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
+#splash{position:fixed;inset:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
 .sp-logo{font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:.35em;margin-bottom:20px}
 .sp-msg{font-family:var(--mono);font-size:10px;color:var(--fg3);letter-spacing:.1em}
 .sp-err{padding:28px 20px;text-align:center}
@@ -208,6 +213,8 @@ a{-webkit-tap-highlight-color:transparent}
 </style>
 </head>
 <body>
+
+<canvas id="bg-canvas"></canvas>
 
 <!-- SPLASH -->
 <div id="splash">
@@ -986,6 +993,113 @@ async function init(){
     $('app').style.display='flex';
   }catch(e){showErr('Connection Error',e?.message||String(e))}
 }
+
+/* ── background canvas ── */
+(function(){
+  const cv=document.getElementById('bg-canvas');
+  const ctx=cv.getContext('2d');
+  let W,H,pts,candles;
+
+  function resize(){
+    W=cv.width=window.innerWidth;
+    H=cv.height=window.innerHeight;
+  }
+
+  function initPts(){
+    const N=Math.min(55,Math.floor(W*H/12000));
+    pts=Array.from({length:N},()=>({
+      x:Math.random()*W, y:Math.random()*H,
+      vx:(Math.random()-.5)*.22, vy:(Math.random()-.5)*.22,
+      r:1+Math.random()*1.8,
+      a:0.06+Math.random()*.18,
+      blink:0, blinkTimer:Math.random()*300
+    }));
+  }
+
+  function initCandles(){
+    const n=38,cw=W/n;
+    let price=0.4+Math.random()*.2;
+    candles=Array.from({length:n},(_,i)=>{
+      const chg=(Math.random()-.48)*.06;
+      const open=price, close=price+chg;
+      const hi=Math.max(open,close)+Math.random()*.04;
+      const lo=Math.min(open,close)-Math.random()*.04;
+      price=close;
+      return{x:i*cw+cw/2, open, close, hi, lo, w:cw*.55};
+    });
+  }
+
+  let offset=0;
+
+  function drawCandles(){
+    const cw=W/candles.length;
+    ctx.save();
+    ctx.globalAlpha=0.07;
+    ctx.strokeStyle='#f0f2f5';
+    ctx.lineWidth=1;
+    const scaleY=H*.45;
+    const baseY=H*.72;
+    candles.forEach(c=>{
+      const x=c.x-offset;
+      const yo=v=>baseY-v*scaleY;
+      ctx.beginPath();ctx.moveTo(x,yo(c.hi));ctx.lineTo(x,yo(c.lo));ctx.stroke();
+      const top=yo(Math.max(c.open,c.close));
+      const bot=yo(Math.min(c.open,c.close));
+      const bh=Math.max(bot-top,1);
+      ctx.strokeRect(x-c.w/2,top,c.w,bh);
+    });
+    ctx.restore();
+  }
+
+  function drawPts(){
+    pts.forEach((p,i)=>{
+      /* blink */
+      p.blinkTimer--;
+      if(p.blinkTimer<=0){p.blink=1;p.blinkTimer=200+Math.random()*400}
+      if(p.blink>0){p.blink=Math.max(0,p.blink-.04)}
+      const a=p.a+p.blink*.5;
+
+      /* move */
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>W)p.vx*=-1;
+      if(p.y<0||p.y>H)p.vy*=-1;
+
+      /* dot */
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(240,242,245,${a})`;
+      ctx.fill();
+
+      /* connections */
+      for(let j=i+1;j<pts.length;j++){
+        const q=pts[j];
+        const dx=p.x-q.x, dy=p.y-q.y;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        if(d<110){
+          ctx.beginPath();
+          ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+          ctx.strokeStyle=`rgba(240,242,245,${.045*(1-d/110)})`;
+          ctx.lineWidth=.6;
+          ctx.stroke();
+        }
+      }
+    });
+  }
+
+  function frame(){
+    ctx.clearRect(0,0,W,H);
+    offset=(offset+.25)%(W/candles.length);
+    drawCandles();
+    drawPts();
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  initPts();
+  initCandles();
+  frame();
+  window.addEventListener('resize',()=>{resize();initPts();initCandles()});
+})();
 
 init();
 </script>
