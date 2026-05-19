@@ -61,7 +61,7 @@
 
   /* ── Dark theme ── */
   .dark {
-    --bg-base:     #050505;
+    --bg-base:     #020202;
     --bg-surface:  #0a0a0a;
     --bg-elevated: #111111;
     --bg-overlay:  #161616;
@@ -74,15 +74,15 @@
     --border-default: rgba(255,255,255,0.08);
     --border-strong:  rgba(255,255,255,0.16);
 
-    --accent-green:     #00d4aa;
-    --accent-green-dim: rgba(0,212,170,0.12);
-    --accent-red:       #ff4d6d;
-    --accent-red-dim:   rgba(255,77,109,0.12);
+    --accent-green:     #00ff88;
+    --accent-green-dim: rgba(0,255,136,0.12);
+    --accent-red:       #ff1744;
+    --accent-red-dim:   rgba(255,23,68,0.12);
     --accent-blue:      #4299e1;
     --accent-amber:     #f59e0b;
     --accent-amber-dim: rgba(245,158,11,0.15);
 
-    --brand-glow: rgba(0,212,170,0.22);
+    --brand-glow: rgba(0,255,136,0.22);
 
     --site-bg-glass: rgba(5,5,5,0.85);
   }

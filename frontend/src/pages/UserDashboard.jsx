@@ -239,7 +239,7 @@ export default function UserDashboard() {
   return (
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
-      position: 'relative', zIndex: 1,
+      background: bg,
       color: fg,
       fontFamily: 'var(--font-sans)',
     }}>

@@ -22,8 +22,8 @@ const fmtUSD  = v => v != null && !isNaN(+v) ? `$${parseFloat(v).toLocaleString(
 const pclr    = v => +v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 const dstr    = s => s ? new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
-const C_UP = '#00d4aa';
-const C_DN = '#ff4d6d';
+const C_UP = '#00ff88';
+const C_DN = '#ff1744';
 
 function sma(bars, n) {
   return bars.map((_, i) => {
