@@ -30,14 +30,13 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OB_TRADING
 
 SYMBOLS = [
     "BTC/USDT:USDT",
-    "ETH/USDT:USDT",
     "SOL/USDT:USDT",
 ]
 
-LEVERAGE    = 3
+LEVERAGE    = 5
 TP_RATIO    = 3.0      # TP = SL_distance × TP_RATIO (3:1 → break-even at 25% WR)
 SL_BUFFER   = 0.002    # 0.2% beyond OB edge for SL
-SIZE_PCT    = 10.0     # 10% per trade — meaningful on $10k balance
+SIZE_PCT    = 20.0     # 20% per trade
 MAX_POS     = 2
 COOLDOWN    = 12 * 3600
 SCAN_SLEEP  = 15 * 60

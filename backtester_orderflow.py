@@ -21,8 +21,8 @@ VWAP_WINDOW    = 24     # 4-day rolling VWAP
 RSI_PERIOD     = 14
 TP_PCT         = 0.015  # 1.5% TP (partial VWAP gap recovery)
 SL_PCT         = 0.010  # 1.0% SL
-LEVERAGE       = 3
-SIZE_PCT       = 0.10
+LEVERAGE       = 5
+SIZE_PCT       = 0.20
 MAX_HOLD       = 12     # 48h max
 
 VWAP_DEV_MIN   = 0.4    # price at least 0.4% away from VWAP

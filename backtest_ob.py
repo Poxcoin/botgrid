@@ -8,14 +8,14 @@ import time as tmod
 from datetime import datetime, timezone
 from collections import defaultdict
 
-SYMBOLS = ["BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT"]
+SYMBOLS = ["BTC/USDT:USDT", "SOL/USDT:USDT"]
 TIMEFRAME = "4h"
 DAYS = 90
 
-LEVERAGE        = 3
-TP_RATIO        = 3.0      # 3:1 R:R → break-even at 25% WR (vs 33% for 2:1)
+LEVERAGE        = 5
+TP_RATIO        = 3.0      # 3:1 R:R → break-even at 25% WR at 5x
 SL_BUFFER       = 0.002    # 0.2% beyond OB edge
-SIZE_PCT        = 0.10
+SIZE_PCT        = 0.20
 MAX_HOLD        = 12       # 12×4h = 48h timeout
 COOLDOWN_BARS   = 12       # bars equivalent of cooldown
 

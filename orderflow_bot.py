@@ -25,10 +25,10 @@ SYMBOLS = [
     "SOL/USDT:USDT",
 ]
 
-LEVERAGE   = 3
+LEVERAGE   = 5
 TP_PCT     = 2.0
 SL_PCT     = 1.0
-SIZE_PCT   = 10.0    # 10% per trade — meaningful on $10k balance
+SIZE_PCT   = 20.0    # 20% per trade
 MAX_POS    = 2
 COOLDOWN   = 2 * 3600
 SCAN_SLEEP = 180

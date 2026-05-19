@@ -50,12 +50,12 @@ from config.settings import (
 
 # ─── Конфіг ───────────────────────────────────────────────────────────────────
 
-WATCHLIST = ["ETH", "SOL", "XRP", "DOGE", "LINK"]
+WATCHLIST = ["ETH", "SOL", "DOGE", "LINK"]
 
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
 LEVERAGE  = 5
-SIZE_PCT  = 10.0  # % від вільного балансу — 10% для значущого P&L на $10k
+SIZE_PCT  = 20.0  # % від вільного балансу
 
 MAX_POSITIONS      = 4        # 4 позиції одночасно (дозволяє паралельно торгувати некорельовані пари)
 COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу

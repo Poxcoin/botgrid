@@ -12,13 +12,12 @@ from collections import defaultdict
 SYMBOLS_MAJOR = [
     "BTC/USDT:USDT",
     "ETH/USDT:USDT",
-    "BNB/USDT:USDT",
 ]
 
-LEVERAGE  = 3
+LEVERAGE  = 5
 TP_PCT    = 0.025   # 2.5% — bigger move needed for true FR extremes
-SL_PCT    = 0.010   # 1.0%  R:R = 2.5:1 → break-even at 29% WR
-SIZE_PCT  = 0.10
+SL_PCT    = 0.010   # 1.0%  R:R = 2.5:1 → break-even at 31% WR at 5x
+SIZE_PCT  = 0.20
 MAX_HOLD  = 16      # 16h candles — give more time for reversal to play out
 
 # Raw fundingRate thresholds (not %)

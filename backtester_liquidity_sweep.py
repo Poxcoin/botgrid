@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import time
 
 # ─── Config ─────────────────────────────────────────────────────────────────
-SYMBOLS        = ["BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT"]
+SYMBOLS        = ["ETH/USDT:USDT", "SOL/USDT:USDT"]
 TIMEFRAME      = "4h"
 DAYS_HISTORY   = 90
 SWING_LOOKBACK = 3          # candles each side for pivot detection
@@ -25,10 +25,10 @@ TP_MIN_PCT     = 1.50 / 100 # minimum TP = 1.5% from entry
 TP_MULT        = 1.5        # TP = 1.5 × sweep distance (take larger)
 MAX_HOLD       = 24         # max candles to hold
 
-LEVERAGE   = 3
-SIZE_PCT   = 0.10    # 10% per trade
+LEVERAGE   = 5
+SIZE_PCT   = 0.25    # 25% per trade — best strategy gets more capital
 TAKER_FEE  = 0.00055
-FEE_COST   = TAKER_FEE * 2 * LEVERAGE  # 0.33% round-trip at 3x
+FEE_COST   = TAKER_FEE * 2 * LEVERAGE  # 0.55% round-trip at 5x
 
 # ─── Data Download ───────────────────────────────────────────────────────────
 def fetch_ohlcv(symbol: str) -> pd.DataFrame:
@@ -306,7 +306,7 @@ def main():
     account_pnl = total_pnl * SIZE_PCT
     monthly_pnl = account_pnl / 3  # 90 days ≈ 3 months
 
-    print(f"\n All Symbols Combined  (3x lev, 10% size, fees inc)")
+    print(f"\n All Symbols Combined  (5x lev, 25% size, fees inc)")
     print(f"   Total trades  : {total}")
     print(f"   TP / SL / TO  : {wins} / {losses} / {timeouts}")
     print(f"   Win Rate       : {wr:.1f}%")

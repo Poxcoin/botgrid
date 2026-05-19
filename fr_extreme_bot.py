@@ -33,16 +33,15 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, FR_EXTREME_TRADING
 SYMBOLS_MAJOR = [
     "BTC/USDT:USDT",
     "ETH/USDT:USDT",
-    "BNB/USDT:USDT",
 ]
 
 ALL_SYMBOLS = SYMBOLS_MAJOR
 
 # ── Trade parameters ───────────────────────────────────────────────────────────
-LEVERAGE     = 3
+LEVERAGE     = 5
 TP_PCT       = 2.5     # 2.5% — bigger move needed for true FR extremes
 SL_PCT       = 1.0     # 1.0% — R:R 2.5:1 → break-even at 29% WR
-SIZE_PCT     = 10.0    # 10% per trade — meaningful on $10k balance
+SIZE_PCT     = 20.0    # 20% per trade
 MAX_POS      = 2
 COOLDOWN     = 24 * 3600   # 24h — prevents firing on consecutive 8h events
 SCAN_SLEEP   = 30 * 60

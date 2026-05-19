@@ -22,7 +22,7 @@ CANDLES_NEEDED = DAYS * CANDLES_PER_DAY + 50
 TP_PCT = 0.02
 SL_PCT = 0.006
 LEVERAGE = 5
-SIZE_PCT = 0.10     # 10% per trade for meaningful P&L on $10k
+SIZE_PCT = 0.20     # 20% per trade for meaningful P&L on $10k
 MAX_HOLD = 18       # 18×15m = 4.5h — enough time for 2% TP to hit
 BODY_THRESH = 0.012  # 1.2% min body — filter weak momentum candles
 

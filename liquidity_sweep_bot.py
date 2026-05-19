@@ -24,8 +24,8 @@ SYMBOLS = [
     "SOL/USDT:USDT",
 ]
 
-LEVERAGE    = 3
-SIZE_PCT    = 5.0
+LEVERAGE    = 5
+SIZE_PCT    = 25.0   # 25% per trade — best strategy gets max capital
 COOLDOWN    = 8 * 3600    # seconds
 SCAN_SLEEP  = 30 * 60     # seconds
 
