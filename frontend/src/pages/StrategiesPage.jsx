@@ -99,6 +99,234 @@ function StrategyCard({ strategy, estMonthlyLabel }) {
   );
 }
 
+// ── Bot performance data (90-day backtests, fees included) ───────────────────
+const BOTS = [
+  {
+    name: 'News Intelligence',
+    tag: 'ALTCOINS · AI',
+    symbols: 'Altcoins only',
+    tf: '—',
+    desc: 'Monitors crypto news in real time and scores each event across 9 market factors (sentiment, RSI, funding, OI, liquidations, volume, whale activity, on-chain, mood). Only altcoins where information propagates slowly enough to act on.',
+    wr: '66%',
+    monthly: '+55% / trade',
+    period: 'Live demo',
+    status: 'live',
+    statusColor: '#4ade80',
+    note: '4 trades, $220 PnL on Bybit demo',
+  },
+  {
+    name: 'Liquidity Sweep',
+    tag: 'ETH · SOL · 4H',
+    symbols: 'ETH / SOL',
+    tf: '4h',
+    desc: 'Detects wick breakouts beyond key highs/lows followed by rejection — a classic institutional liquidity hunt. Enters reversal when price sweeps the level and closes back inside range. EMA trend filter blocks longs in downtrends.',
+    wr: '52.9%',
+    monthly: '+9.5%',
+    period: '90d backtest',
+    status: 'live',
+    statusColor: '#4ade80',
+    note: 'ETH 59.0% · SOL 51.4%',
+  },
+  {
+    name: 'Order Block (SMC)',
+    tag: 'BTC · 4H · SMC',
+    symbols: 'BTC only',
+    tf: '4h',
+    desc: 'Smart Money Concepts — identifies institutional order blocks: the last bearish candle before a ≥2.5% bullish break of structure (and vice versa). Enters when price retraces into the OB zone. R:R 3:1. SOL removed (20% WR backtest).',
+    wr: '55.6%',
+    monthly: '+2.38%',
+    period: '90d backtest',
+    status: 'live',
+    statusColor: '#4ade80',
+    note: '9 trades, EMA200 filter',
+  },
+  {
+    name: 'Funding Rate Extreme',
+    tag: 'BTC · ETH · 8H',
+    symbols: 'BTC / ETH',
+    tf: '8h',
+    desc: 'Fires when perpetual funding reaches extreme levels (≥0.009% SHORT, ≤-0.006% LONG) — a sign of over-leveraged positioning. Enters a reversal trade expecting funding to normalize. Position closes automatically at next funding settlement.',
+    wr: '37.3%',
+    monthly: '+2.38%',
+    period: '90d backtest',
+    status: 'live',
+    statusColor: '#4ade80',
+    note: '51 trades, break-even at 31.6% WR',
+  },
+  {
+    name: 'Liquidation Cascade',
+    tag: 'ETH · SOL · DOGE · LINK',
+    symbols: 'ETH / SOL / DOGE / LINK',
+    tf: 'Real-time',
+    desc: 'Connects to the Binance liquidation WebSocket and accumulates forced orders within a 60-second window. When a symbol breaches its threshold ($300K+ for ETH), the bot enters in the cascade direction — following the momentum, not fighting it.',
+    wr: '~34%',
+    monthly: '—',
+    period: 'Proxy estimate',
+    status: 'live',
+    statusColor: '#4ade80',
+    note: 'Real liquidation data — OHLCV proxy not representative',
+  },
+  {
+    name: 'CVD Divergence',
+    tag: 'BTC · ETH · SOL · 15M',
+    symbols: 'BTC / ETH / SOL',
+    tf: '15m',
+    desc: 'Detects divergence between price action and Cumulative Volume Delta: price at a 20-bar high but buy-side CVD in the bottom 47% → bearish signal. Real-time mode uses WebSocket trades for precise CVD; backtest approximation is weaker.',
+    wr: '39.3%',
+    monthly: 'Optimizing',
+    period: '90d backtest',
+    status: 'testing',
+    statusColor: '#facc15',
+    note: 'OHLCV-approximated CVD underperforms — params under review',
+  },
+  {
+    name: 'Grid Trading',
+    tag: 'BTC · ETH · SOL',
+    symbols: 'BTC / ETH / SOL',
+    tf: '15m',
+    desc: 'Adaptive range grids using 8 limit levels. Hurst exponent (H<0.58) filters out trending markets. EMA50/200 and RSI determine LONG or SHORT mode. Currently frozen — all three coins are in EMA downtrend. Will resume when macro recovers.',
+    wr: '5.5%',
+    monthly: '—',
+    period: 'Live demo (frozen)',
+    status: 'frozen',
+    statusColor: '#f87171',
+    note: '36 trades — FROZEN: EMA50 < EMA200',
+  },
+  {
+    name: 'Macro Forex',
+    tag: 'EURUSD · GBPUSD · XAUUSD',
+    symbols: 'Forex / Gold',
+    tf: 'Event',
+    desc: 'Trades macro news events (CPI, NFP, PCE, PPI, GDP) on IC Markets via MT5. Waits for the initial spike, then enters in the continuation direction with risk-based lot sizing. Position size scales with balance × 1.5% risk per SL.',
+    wr: 'Active',
+    monthly: '—',
+    period: 'IC Markets demo',
+    status: 'live',
+    statusColor: '#4ade80',
+    note: 'EURUSD / GBPUSD / XAUUSD — $10K demo',
+  },
+];
+
+const STATUS_LABELS = { live: 'Active', testing: 'In Testing', frozen: 'Frozen' };
+
+function BotCard({ bot, t }) {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: hovered ? '#0f0f0f' : '#090909',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 12,
+        padding: '28px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        transition: 'background 200ms',
+      }}
+    >
+      {/* Header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: '#555', letterSpacing: '0.1em', marginBottom: 6 }}>
+            {bot.tag}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '-0.02em' }}>
+            {bot.name}
+          </div>
+        </div>
+        <span style={{
+          fontFamily: FONT_MONO,
+          fontSize: 9,
+          background: `${bot.statusColor}18`,
+          color: bot.statusColor,
+          border: `1px solid ${bot.statusColor}44`,
+          borderRadius: 100,
+          padding: '3px 10px',
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}>
+          {STATUS_LABELS[bot.status]}
+        </span>
+      </div>
+
+      {/* Description */}
+      <p style={{ fontSize: 12, color: '#555', lineHeight: 1.7, margin: 0 }}>
+        {bot.desc}
+      </p>
+
+      {/* Metrics */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: 1,
+        background: 'rgba(255,255,255,0.04)',
+        borderRadius: 8,
+        overflow: 'hidden',
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        {[
+          { label: t.strategies.perfWr, val: bot.wr },
+          { label: t.strategies.perfMonthly, val: bot.monthly },
+          { label: t.strategies.perfPeriod, val: bot.period },
+        ].map(({ label, val }) => (
+          <div key={label} style={{ padding: '10px 12px', background: '#0a0a0a' }}>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 8, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+              {label}
+            </div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 700, color: '#ccc' }}>
+              {val}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Note */}
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: '#444', lineHeight: 1.5 }}>
+        {bot.note}
+      </div>
+    </div>
+  );
+}
+
+function BotPerfSection({ t }) {
+  return (
+    <section style={{ paddingTop: 100, paddingBottom: 100, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-5 md:px-14" style={{ width: '100%' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 64 }}>
+          <div style={{
+            fontSize: 11, color: '#666', letterSpacing: '0.12em',
+            textTransform: 'uppercase', marginBottom: 16, fontFamily: FONT_MONO,
+          }}>
+            {t.strategies.perfLabel}
+          </div>
+          <h2 style={{
+            fontSize: 'clamp(36px,4.5vw,52px)', fontWeight: 700,
+            letterSpacing: '-0.04em', lineHeight: 1.0, margin: '0 0 16px',
+          }}>
+            How each bot works.
+          </h2>
+          <p style={{ fontSize: 13, color: '#555', margin: 0 }}>
+            {t.strategies.perfSub}
+          </p>
+        </div>
+
+        {/* Bot grid */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+          style={{ gap: 12 }}
+        >
+          {BOTS.map((bot) => (
+            <BotCard key={bot.name} bot={bot} t={t} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function StrategiesPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   const { t } = useLang();
@@ -258,6 +486,9 @@ export default function StrategiesPage() {
           </div>
         </div>
       </section>
+
+      {/* Bot Performance Section */}
+      <BotPerfSection t={t} />
 
       {/* Risk disclaimer */}
       <div className="px-5 md:px-14" style={{ width: '100%', paddingBottom: 80, textAlign: 'center' }}>
