@@ -350,7 +350,6 @@ function TelegramBlock({ me, onChange }) {
     return (
       <div>
         <div style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
-          <span style={{ color: 'var(--text-secondary)', marginRight: 6 }}>✓</span>
           {me.tg_username
             ? <>{t.dashboard.settings.connectedAs} <span style={{ fontFamily: 'var(--font-mono)' }}>@{me.tg_username}</span></>
             : t.dashboard.settings.connectedShort}
@@ -445,7 +444,7 @@ export default function AccountTab() {
         <div>
           <div style={{ ...rowValue, marginBottom: 10 }}>
             {me?.totp_enabled
-              ? <span style={{ color: 'var(--text-secondary)' }}>✓ {t.dashboard.account.enabled}</span>
+              ? <span style={{ color: 'var(--text-secondary)' }}>{t.dashboard.account.enabled}</span>
               : <span style={{ color: 'var(--text-muted)' }}>{t.dashboard.account.disabled}</span>}
           </div>
           <button
