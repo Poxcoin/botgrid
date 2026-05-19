@@ -1537,13 +1537,18 @@ async def get_bot_heartbeat(
 
 _BOT_LABELS = {
     "news":        "Signal Bot",
+    "signal":      "Signal Bot",
     "fr":          "Funding Rate",
+    "fr_extreme":  "Funding Rate",
     "grid":        "Grid Bot",
     "listing":     "CEX Sniper",
     "whale":       "Whale Tracker",
     "liq_cascade": "Liq Cascade",
     "cascade":     "Cascade Bot",
     "orderflow":   "Orderflow",
+    "sweep":       "Liq Sweep",
+    "ob":          "Order Block",
+    "orderblock":  "Order Block",
     "sniper":      "DEX Sniper",
     "bybit":       "Bybit Import",
     "altcoin":     "Altcoin Bot",

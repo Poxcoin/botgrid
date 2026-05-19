@@ -1021,14 +1021,14 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 // Maps botId → one or more source values stored in user_trades.source
 // cascade_bot.py saves 'cascade', main.py liq pipeline saves 'liq_cascade'
 const BOT_SOURCES = {
-  signal:    ['news', 'dex'],
+  signal:    ['news', 'signal', 'dex'],
   sweep:     ['sweep'],
   cascade:   ['liq_cascade', 'cascade'],
   fr:        ['fr', 'fr_extreme'],
   grid:      ['grid'],
   altcoin:   ['altcoin'],
   orderflow: ['orderflow'],
-  ob:        ['ob'],
+  ob:        ['ob', 'orderblock'],
   macro:     ['macro'],
   listing:   ['listing'],
   dex:       ['dex'],
@@ -1036,17 +1036,17 @@ const BOT_SOURCES = {
 };
 
 const ALL_BOTS_CONFIG = [
-  { id: 'signal',    label: 'Signal',    source: BOT_SOURCES.signal[0] },
-  { id: 'sweep',     label: 'Sweep',     source: BOT_SOURCES.sweep[0] },
-  { id: 'cascade',   label: 'Cascade',   source: BOT_SOURCES.cascade[0] },
-  { id: 'fr',        label: 'Funding',   source: BOT_SOURCES.fr[0] },
-  { id: 'grid',      label: 'Grid',      source: BOT_SOURCES.grid[0] },
-  { id: 'altcoin',   label: 'Alt',       source: BOT_SOURCES.altcoin[0] },
-  { id: 'orderflow', label: 'Orderflow', source: BOT_SOURCES.orderflow[0] },
-  { id: 'ob',        label: 'OB',        source: BOT_SOURCES.ob[0] },
-  { id: 'macro',     label: 'Macro',     source: BOT_SOURCES.macro[0] },
-  { id: 'listing',   label: 'Listing',   source: BOT_SOURCES.listing[0] },
-  { id: 'dex',       label: 'DEX',       source: BOT_SOURCES.dex[0] },
+  { id: 'signal',    label: 'Signal',    source: 'news' },
+  { id: 'sweep',     label: 'Sweep',     source: 'sweep' },
+  { id: 'cascade',   label: 'Cascade',   source: 'liq_cascade' },
+  { id: 'fr',        label: 'Funding',   source: 'fr_extreme' },
+  { id: 'grid',      label: 'Grid',      source: 'grid' },
+  { id: 'altcoin',   label: 'Alt',       source: 'altcoin' },
+  { id: 'orderflow', label: 'Orderflow', source: 'orderflow' },
+  { id: 'ob',        label: 'OB',        source: 'orderblock' },
+  { id: 'macro',     label: 'Macro',     source: 'macro' },
+  { id: 'listing',   label: 'Listing',   source: 'listing' },
+  { id: 'dex',       label: 'DEX',       source: 'dex' },
 ];
 
 export default function OverviewTab({ botId = 'signal', allowedBots = null }) {

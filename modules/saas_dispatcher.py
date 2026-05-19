@@ -82,7 +82,7 @@ def _get_active_users(source: str) -> list[dict]:
                 "is_testnet":      key_row.is_testnet,
                 "api_key":         api_key,
                 "secret":          secret,
-                "trade_size_pct":  u.trade_size_percent,  # None = use risk-based auto
+                "trade_size_pct":  None,  # risk-based auto sizing
             })
         return result
     finally:
