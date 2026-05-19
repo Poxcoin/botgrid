@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import OverviewTab      from '@/components/user/OverviewTab';
 import SettingsTab      from '@/components/user/SettingsTab';
 import AccountTab       from '@/components/user/AccountTab';
 import SecurityTab      from '@/components/user/SecurityTab';
 import ApiKeysTab       from '@/components/user/ApiKeysTab';
-import AssetsTab        from '@/components/user/AssetsTab';
+const AssetsTab = lazy(() => import('@/components/user/AssetsTab'));
 import AnalyticsTab     from '@/components/user/AnalyticsTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
@@ -49,7 +49,7 @@ function Page({ tab, allowedBots }) {
     case 'api-keys':  return <ApiKeysTab />;
     case 'security':  return <SecurityTab />;
     case 'settings':  return <SettingsTab />;
-    case 'assets':    return <AssetsTab />;
+    case 'assets':    return <Suspense fallback={null}><AssetsTab /></Suspense>;
     default:          return null;
   }
 }
