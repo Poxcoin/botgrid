@@ -404,18 +404,6 @@ export default function AccountTab() {
       <div style={sectionHeader}>Profile</div>
       <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
 
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 16 }}>
-        <span style={rowLabel}>{t.dashboard.settings.email}</span>
-        <input
-          type="text"
-          id="account-email"
-          aria-label="Email address"
-          value={maskEmail(me?.email)}
-          disabled
-          readOnly
-          style={{ ...inp, opacity: 0.45, cursor: 'not-allowed', flex: 1 }}
-        />
-      </div>
 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 16 }}>
         <span style={rowLabel}>{t.dashboard.settings.plan}</span>

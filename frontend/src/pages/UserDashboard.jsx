@@ -204,7 +204,7 @@ export default function UserDashboard() {
           fontSize: 11, color: muted,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
         }}>
-          {user.username || user.email?.split('@')[0] || '—'}
+          {user.username || '—'}
         </span>
         {/* gear → settings */}
         <button
@@ -317,7 +317,7 @@ export default function UserDashboard() {
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = borderHi; e.currentTarget.style.color = fg; }}
               onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted; } }}>
-                {user.username || user.email?.split('@')[0] || 'Account'}
+                {user.username || 'Account'}
               </button>
 
               {drop && (
@@ -325,9 +325,6 @@ export default function UserDashboard() {
                   position: 'absolute', top: 'calc(100% + 4px)', right: 0, width: 180,
                   background: bgEl, border: `1px solid ${borderHi}`, zIndex: 100,
                 }}>
-                  <div style={{ padding: '10px 14px', borderBottom: `1px solid ${border}`, fontSize: 11, color: muted }}>
-                    {user.email ? user.email[0] + '***@***' + user.email.slice(user.email.lastIndexOf('.')) : '—'}
-                  </div>
                   {/* theme in dropdown (mobile) */}
                   {isMobile && (
                     <button onClick={toggle}

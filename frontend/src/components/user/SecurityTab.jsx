@@ -347,10 +347,6 @@ export default function SecurityTab() {
             status={t.dashboard.security.active}
           />
 
-          <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{t.dashboard.security.accountEmail}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{maskEmail(me?.email)}</div>
-          </div>
         </div>
 
       </div>
