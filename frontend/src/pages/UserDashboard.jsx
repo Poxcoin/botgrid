@@ -6,6 +6,7 @@ import SecurityTab      from '@/components/user/SecurityTab';
 import ApiKeysTab       from '@/components/user/ApiKeysTab';
 const AssetsTab = lazy(() => import('@/components/user/AssetsTab'));
 import AnalyticsTab     from '@/components/user/AnalyticsTab';
+import MacroBotTab      from '@/components/user/MacroBotTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
 import { useTheme }     from '@/lib/ThemeContext';
@@ -18,6 +19,8 @@ const BOTS = [
   { id: 'cascade',   label: 'Cascade'        },
   { id: 'orderflow', label: 'Orderflow'      },
   { id: 'ob',        label: 'Order Block'    },
+  { id: 'macro',     label: 'Macro Forex'    },
+  { id: 'gold',      label: 'Gold'           },
   { id: 'history',   label: 'History'        },
 ];
 const BOT_IDS = BOTS.map(b => b.id);
@@ -44,6 +47,7 @@ function usePlanFeatures() {
 }
 
 function Page({ tab, allowedBots }) {
+  if (tab === 'macro' || tab === 'gold') return <MacroBotTab botId={tab} />;
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} allowedBots={allowedBots} />;
   switch (tab) {
     case 'analytics': return <AnalyticsTab />;
