@@ -1035,7 +1035,7 @@ def _run_single(cfg: dict) -> None:
     else:
         rebuilds_today = 0
     rebuild_day       = datetime.now(timezone.utc).date()
-    trend_check_tick  = 0
+    trend_check_tick  = TREND_RECHECK_TICKS - 1  # trigger Hurst check on first tick
     _trend_short_count = 0  # кількість послідовних SHORT-читань (для підтвердження)
     _trend_long_count  = 0  # кількість послідовних LONG-читань (для short→long flip)
     _rsi_4h           = 50.0  # кешований RSI(14,4h), оновлюється разом з трендом
@@ -1050,7 +1050,10 @@ def _run_single(cfg: dict) -> None:
         _ema20_4h       = _calc_ema(_closes_init, 20)
         _ema50_4h       = _calc_ema(_closes_init, 50)
         _ema200_4h      = _calc_ema(_closes_init, 200) if len(_closes_init) >= 200 else 0.0
-        _log(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f}")
+        _hurst_4h = _calc_hurst(_closes_init[-60:])
+        _log(f"[GRID:{symbol}] Initial RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f} Hurst={_hurst_4h:.3f}")
+        if _hurst_4h > HURST_FILTER:
+            _log(f"[GRID:{symbol}] ⚠️ Startup: Hurst={_hurst_4h:.3f} > {HURST_FILTER} — trending market, нові ордери заморожені")
     except Exception:
         pass
 
