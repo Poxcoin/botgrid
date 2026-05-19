@@ -6,10 +6,19 @@ from datetime import datetime
 
 from aiogram import Router
 from aiogram.filters import CommandStart, Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import (
+    Message, InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo,
+)
 
 from database import SessionLocal, User, TgLinkToken, UserTrade
 from userbot import texts
+
+WEBAPP_URL = "https://kadoclub.net/webapp"
+
+def _webapp_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="📊 Open Dashboard", web_app=WebAppInfo(url=WEBAPP_URL))
+    ]])
 
 router = Router()
 
@@ -53,6 +62,7 @@ async def cmd_start_with_token(message: Message, command: CommandObject):
         await message.answer(
             texts.WELCOME_LINKED.format(name=display_name, plan=user.effective_plan.upper()),
             parse_mode="HTML",
+            reply_markup=_webapp_kb(),
         )
     finally:
         db.close()
@@ -70,6 +80,7 @@ async def cmd_start_plain(message: Message):
             await message.answer(
                 texts.WELCOME_ALREADY_LINKED.format(email=user.email),
                 parse_mode="HTML",
+                reply_markup=_webapp_kb(),
             )
         else:
             await message.answer(texts.START_NOT_LINKED, parse_mode="HTML")

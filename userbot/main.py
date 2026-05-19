@@ -12,9 +12,10 @@ import sys
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
 from config.settings import USERBOT_TOKEN
-from userbot.handlers import router
+from userbot.handlers import router, WEBAPP_URL
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +43,10 @@ async def main():
         {"command": "menu", "description": "Главное меню"},
         {"command": "help", "description": "Помощь"},
     ])
+
+    await bot.set_chat_menu_button(
+        menu_button=MenuButtonWebApp(text="Dashboard", web_app=WebAppInfo(url=WEBAPP_URL))
+    )
 
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
