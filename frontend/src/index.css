@@ -61,30 +61,30 @@
 
   /* ── Dark theme ── */
   .dark {
-    --bg-base:     #020202;
-    --bg-surface:  #0a0a0a;
-    --bg-elevated: #111111;
-    --bg-overlay:  #161616;
+    --bg-base:     #000000;
+    --bg-surface:  #030303;
+    --bg-elevated: #070707;
+    --bg-overlay:  #0c0c0c;
 
     --text-primary:   #f0f2f5;
     --text-secondary: #8b95a8;
     --text-muted:     #4a5568;
 
-    --border-subtle:  rgba(255,255,255,0.08);
-    --border-default: rgba(255,255,255,0.08);
-    --border-strong:  rgba(255,255,255,0.16);
+    --border-subtle:  rgba(255,255,255,0.07);
+    --border-default: rgba(255,255,255,0.07);
+    --border-strong:  rgba(255,255,255,0.14);
 
-    --accent-green:     #00ff88;
-    --accent-green-dim: rgba(0,255,136,0.12);
-    --accent-red:       #ff1744;
-    --accent-red-dim:   rgba(255,23,68,0.12);
+    --accent-green:     #0ecb81;
+    --accent-green-dim: rgba(14,203,129,0.12);
+    --accent-red:       #f6465d;
+    --accent-red-dim:   rgba(246,70,93,0.12);
     --accent-blue:      #4299e1;
     --accent-amber:     #f59e0b;
     --accent-amber-dim: rgba(245,158,11,0.15);
 
-    --brand-glow: rgba(0,255,136,0.22);
+    --brand-glow: rgba(14,203,129,0.20);
 
-    --site-bg-glass: rgba(5,5,5,0.85);
+    --site-bg-glass: rgba(0,0,0,0.92);
   }
 
   html, body {

@@ -107,8 +107,8 @@ const BOT_COINS = {
   cascade: ['ETH','SOL','DOGE','LINK','BTC','XRP','ADA','AVAX','DOT','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
 };
 
-const C_UP = '#00ff88';
-const C_DN = '#ff1744';
+const C_UP = '#0ecb81';
+const C_DN = '#f6465d';
 const TF_LABELS = { '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' };
 
 function sma(bars, n) {
@@ -230,7 +230,7 @@ function MiniChart({ coin }) {
     <svg width={W} height={H} style={{ display: 'block' }}>
       {candles.map((c, i) => {
         const isUp = c.c >= c.o;
-        const col  = isUp ? '#00ff88' : '#ff1744';
+        const col  = isUp ? '#0ecb81' : '#f6465d';
         const cx   = i * cw + cw / 2;
         const top  = sy(Math.max(c.o, c.c));
         const bh   = Math.max(1, sy(Math.min(c.o, c.c)) - top);
@@ -345,6 +345,21 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
         time: Math.trunc(+k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4], value: +k[5],
       })).filter(b => b.open > 0 && b.high > 0 && b.low > 0 && b.close > 0 && b.high >= b.low);
     } catch { return []; }
+  }
+
+  async function fetchAllBars(c, tfV) {
+    const MAX_PAGES = 10;
+    let all = [];
+    let endMs;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const chunk = await fetchBars(c, tfV, endMs);
+      if (!chunk.length) break;
+      all = [...chunk, ...all];
+      if (chunk.length < 1000) break;
+      endMs = chunk[0].time * 1000 - 1;
+    }
+    const seen = new Set();
+    return all.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
   }
 
   function refreshInds(bars) {
@@ -485,7 +500,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     let cancelled = false;
     wsRef.current?.close();
     barsRef.current = [];
-    fetchBars(coin, tf, undefined).then(bars => {
+    fetchAllBars(coin, tf).then(bars => {
       if (cancelled || !candleRef.current) return;
       applyData(bars);
       chartRef.current?.timeScale().fitContent();
@@ -532,7 +547,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     showLRef.current = showLine;
     if (showLine) {
       if (!areaRef.current) {
-        const area = chart.addAreaSeries({ lineColor: C_UP, topColor: 'rgba(0,255,136,0.25)', bottomColor: 'rgba(0,255,136,0)', lineWidth: 2 });
+        const area = chart.addAreaSeries({ lineColor: C_UP, topColor: 'rgba(14,203,129,0.25)', bottomColor: 'rgba(14,203,129,0)', lineWidth: 2 });
         areaRef.current = area;
       }
       areaRef.current.setData(barsRef.current.map(b => ({ time: b.time, value: b.close })));
@@ -652,7 +667,7 @@ function EquityCurve({ data }) {
     const maxV  = Math.max(...vals, 0);
     const range = maxV - minV || 1;
     const isPos = (vals[vals.length - 1] ?? 0) >= 0;
-    const color = isPos ? '#00ff88' : '#ff1744';
+    const color = isPos ? '#0ecb81' : '#f6465d';
 
     const chartW = w - PAD.left - PAD.right;
     const chartH = H - PAD.top - PAD.bottom;

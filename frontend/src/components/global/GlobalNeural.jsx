@@ -164,7 +164,7 @@ export default function GlobalNeural() {
           const y = wy + Math.sin(perp) * wave + (cd > 0 ? (cdy / cd) * warp : 0);
           seg === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-        const axonMult = isDashRef.current ? 0.4 : 1.0;
+        const axonMult = isDashRef.current ? 0.12 : 1.0;
         ctx.strokeStyle = `rgba(${rgb},${s.op * axonMult * (0.7 + 0.3 * Math.sin(t * 0.7 + s.phase))})`;
         ctx.lineWidth = s.w;
         ctx.stroke();

@@ -22,8 +22,8 @@ const fmtUSD  = v => v != null && !isNaN(+v) ? `$${parseFloat(v).toLocaleString(
 const pclr    = v => +v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 const dstr    = s => s ? new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
-const C_UP = '#00ff88';
-const C_DN = '#ff1744';
+const C_UP = '#0ecb81';
+const C_DN = '#f6465d';
 
 function sma(bars, n) {
   return bars.map((_, i) => {
@@ -250,6 +250,21 @@ function KlineChart({ coin, tf }) {
     } catch { return []; }
   }
 
+  async function fetchAllBars(c, tfV) {
+    const MAX_PAGES = 10;
+    let all = [];
+    let endMs;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const chunk = await fetchBars(c, tfV, endMs);
+      if (!chunk.length) break;
+      all = [...chunk, ...all];
+      if (chunk.length < 1000) break;
+      endMs = chunk[0].time * 1000 - 1;
+    }
+    const seen = new Set();
+    return all.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
+  }
+
   function refreshInds(bars) {
     const refs = indRefs.current;
     if (refs.MA?.[0]) {
@@ -380,7 +395,7 @@ function KlineChart({ coin, tf }) {
     let cancelled = false;
     wsRef.current?.close();
     barsRef.current = [];
-    fetchBars(coin, tf, undefined).then(bars => {
+    fetchAllBars(coin, tf).then(bars => {
       if (cancelled || !candleRef.current) return;
       applyData(bars);
       chartRef.current?.timeScale().fitContent();

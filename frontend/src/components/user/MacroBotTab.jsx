@@ -5,8 +5,8 @@ import { useTheme } from '@/lib/ThemeContext';
 const MONO  = "'Courier New','SF Mono',monospace";
 const B     = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
-const C_UP  = '#00ff88';
-const C_DN  = '#ff1744';
+const C_UP  = '#0ecb81';
+const C_DN  = '#f6465d';
 
 const TF_LABELS = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', 'D': '1D' };
 
