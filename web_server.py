@@ -26,7 +26,7 @@ from pydantic import EmailStr
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email, send_welcome_email, _smtp_enabled
@@ -806,6 +806,43 @@ async def change_password(body: dict, credentials: HTTPAuthorizationCredentials 
     if len(new_pw) < 8:
         raise HTTPException(status_code=400, detail="Min 8 characters")
     user.password_hash = hash_password(new_pw[:72])
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/users/mt5-keys")
+async def get_mt5_keys(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    row = db.query(UserMt5Key).filter_by(user_id=user.id).first()
+    if not row:
+        return {"configured": False}
+    login = decrypt_field(row.login_enc)
+    return {"configured": True, "login": login, "server": row.server}
+
+
+@app.post("/api/users/mt5-keys")
+async def save_mt5_keys(body: dict, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    login    = str(body.get("login", "")).strip()
+    password = str(body.get("password", "")).strip()
+    server   = str(body.get("server", "")).strip()
+    if not login or not password or not server:
+        raise HTTPException(status_code=400, detail="All fields required")
+    row = db.query(UserMt5Key).filter_by(user_id=user.id).first()
+    if row:
+        row.login_enc    = encrypt_field(login)
+        row.password_enc = encrypt_field(password)
+        row.server       = server
+    else:
+        db.add(UserMt5Key(user_id=user.id, login_enc=encrypt_field(login), password_enc=encrypt_field(password), server=server))
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/users/mt5-keys")
+async def delete_mt5_keys(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    user = _get_user_from_token(credentials.credentials, db)
+    db.query(UserMt5Key).filter_by(user_id=user.id).delete()
     db.commit()
     return {"ok": True}
 

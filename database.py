@@ -259,6 +259,20 @@ class UserApiKey(Base):
     user = relationship("User", back_populates="api_keys")
 
 
+# ── MT5 / MetaApi credentials (encrypted) ────────────────────────────────────
+class UserMt5Key(Base):
+    __tablename__ = "user_mt5_keys"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+    login_enc    = Column(String, nullable=False)   # Fernet encrypted account number
+    password_enc = Column(String, nullable=False)   # Fernet encrypted
+    server       = Column(String, nullable=False)   # plain text (not secret)
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")
+
+
 # ── Trades (per user) ─────────────────────────────────────────────────────────
 class UserTrade(Base):
     __tablename__ = "user_trades"
