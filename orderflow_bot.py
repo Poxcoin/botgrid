@@ -1,10 +1,13 @@
 """
 orderflow_bot.py — Orderflow Bot (BTC / ETH / SOL).
 
-Стратегія: VWAP deviation + OI delta + CVD confluence.
-  TP = 1.0%  SL = 0.5%  Плечо = 3x  Розмір = 3% балансу
-  Cooldown: 2h на символ  |  Scan interval: 3 хв
-  Max concurrent positions: 2
+Three signal types:
+  1. OF Classic:    price deviation from 8h VWAP + OI growth + CVD bias
+  2. AVWAP Bounce:  price tests Anchored VWAP level (swing-anchored) + CVD confirms
+  3. CVD Divergence: price new high/low not confirmed by CVD → reversal
+
+TP = 2.0%  SL = 1.0%  Leverage = 3x  Size = 3% balance
+Cooldown: 2h  |  Scan: 3 min  |  Max concurrent: 2
 """
 import time
 import threading
@@ -27,18 +30,29 @@ TP_PCT     = 2.0
 SL_PCT     = 1.0
 SIZE_PCT   = 3.0
 MAX_POS    = 2
-COOLDOWN   = 2 * 3600   # seconds
-SCAN_SLEEP = 180        # seconds
+COOLDOWN   = 2 * 3600
+SCAN_SLEEP = 180
 
-# Entry thresholds — tuned for meaningful signals
-_OI_MIN      = 0.5    # OI must grow ≥0.5% in 5 min (real money entering)
-_CVD_LONG    = 68.0   # ≥62% of recent volume was net buying
-_CVD_SHORT   = 32.0   # ≤38% of recent volume was net selling
-_VWAP_MIN    = 0.05   # price at least 0.05% away from VWAP (not at VWAP)
-_VWAP_MAX    = 0.7    # price not more than 0.7% from VWAP (not extended)
+# ── Signal thresholds ─────────────────────────────────────────────────────────
+
+# 1. OF Classic — VWAP + OI + CVD
+_OI_MIN    = 0.5    # OI must grow ≥0.5% in 5 min
+_CVD_LONG  = 68.0   # ≥68% net buying
+_CVD_SHORT = 32.0   # ≤32% net selling
+_VWAP_MIN  = 0.05   # price at least 0.05% from VWAP
+_VWAP_MAX  = 0.7    # price not more than 0.7% from VWAP
+
+# 2. AVWAP Bounce — price at anchored VWAP support/resistance
+# Condition: ctx["at_bull_support"] or ctx["at_bear_resist"] already checks 0–0.35% proximity
+_AVWAP_OI_MIN   = 0.3   # lower OI threshold — level-based signal needs less conviction
+_AVWAP_CVD_LONG  = 60.0
+_AVWAP_CVD_SHORT = 40.0
+
+# 3. CVD Divergence
+_CVD_DIV_OI_MIN = 0.0   # divergence signal doesn't require OI growth — price action enough
 
 
-def _check_long(ctx: dict) -> bool:
+def _check_of_long(ctx: dict) -> bool:
     return (
         ctx["oi_delta_pct"] >= _OI_MIN
         and ctx["cvd_ratio_pct"] >= _CVD_LONG
@@ -46,7 +60,7 @@ def _check_long(ctx: dict) -> bool:
     )
 
 
-def _check_short(ctx: dict) -> bool:
+def _check_of_short(ctx: dict) -> bool:
     return (
         ctx["oi_delta_pct"] >= _OI_MIN
         and ctx["cvd_ratio_pct"] <= _CVD_SHORT
@@ -54,10 +68,105 @@ def _check_short(ctx: dict) -> bool:
     )
 
 
+def _check_avwap_long(ctx: dict) -> bool:
+    """Price bouncing off AVWAP bull support with CVD confirmation."""
+    return (
+        ctx["at_bull_support"]
+        and ctx["oi_delta_pct"] >= _AVWAP_OI_MIN
+        and ctx["cvd_ratio_pct"] >= _AVWAP_CVD_LONG
+    )
+
+
+def _check_avwap_short(ctx: dict) -> bool:
+    """Price rejecting at AVWAP bear resistance with CVD confirmation."""
+    return (
+        ctx["at_bear_resist"]
+        and ctx["oi_delta_pct"] >= _AVWAP_OI_MIN
+        and ctx["cvd_ratio_pct"] <= _AVWAP_CVD_SHORT
+    )
+
+
+def _check_cvd_div_long(ctx: dict) -> bool:
+    """Price at new low but CVD not confirming → accumulation → LONG."""
+    return ctx["cvd_bullish_div"]
+
+
+def _check_cvd_div_short(ctx: dict) -> bool:
+    """Price at new high but CVD not confirming → distribution → SHORT."""
+    return ctx["cvd_bearish_div"]
+
+
+def _detect_signal(ctx: dict) -> tuple[str | None, str | None]:
+    """
+    Check all signal types in priority order.
+    Returns (direction, signal_type) or (None, None).
+    Priority: AVWAP Bounce > CVD Divergence > OF Classic
+    """
+    # AVWAP Bounce (highest confidence — at a defined level)
+    if _check_avwap_long(ctx):
+        return "LONG", "AVWAP"
+    if _check_avwap_short(ctx):
+        return "SHORT", "AVWAP"
+
+    # CVD Divergence (structural reversal signal)
+    if _check_cvd_div_long(ctx):
+        return "LONG", "DIV"
+    if _check_cvd_div_short(ctx):
+        return "SHORT", "DIV"
+
+    # OF Classic (momentum + flow signal)
+    if _check_of_long(ctx):
+        return "LONG", "OF"
+    if _check_of_short(ctx):
+        return "SHORT", "OF"
+
+    return None, None
+
+
+def _build_tg_msg(direction: str, sig_type: str, symbol: str, ctx: dict) -> str:
+    """Build a readable Telegram notification per signal type."""
+    price = ctx["price"]
+
+    if sig_type == "AVWAP":
+        avwap_level = ctx["avwap_bull"] if direction == "LONG" else ctx["avwap_bear"]
+        dev_pct     = ctx["bull_dev_pct"] if direction == "LONG" else ctx["bear_dev_pct"]
+        label       = "support" if direction == "LONG" else "resistance"
+        return (
+            f"<b>[OF/AVWAP] {direction} {symbol}</b>\n"
+            f"Price: <code>{price:.4f}</code> | "
+            f"AVWAP {label}: <code>{avwap_level:.4f}</code> "
+            f"(<code>{dev_pct:+.3f}%</code>)\n"
+            f"OI delta: <code>{ctx['oi_delta_pct']:+.3f}%</code> | "
+            f"CVD bias: <code>{ctx['cvd_ratio_pct']:.1f}%</code>\n"
+            f"TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}"
+        )
+
+    if sig_type == "DIV":
+        return (
+            f"<b>[OF/DIV] {direction} {symbol}</b>\n"
+            f"Price: <code>{price:.4f}</code> | "
+            f"CVD ratio: <code>{ctx['cvd_div_ratio']:.1f}%</code> "
+            f"({'bearish div' if direction == 'SHORT' else 'bullish div'})\n"
+            f"OI delta: <code>{ctx['oi_delta_pct']:+.3f}%</code>\n"
+            f"TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}"
+        )
+
+    # OF Classic
+    return (
+        f"<b>[OF] {direction} {symbol}</b>\n"
+        f"Price: <code>{price:.4f}</code> | "
+        f"VWAP dev: <code>{ctx['vwap_dev_pct']:+.2f}%</code>\n"
+        f"OI delta: <code>{ctx['oi_delta_pct']:+.3f}%</code> | "
+        f"CVD bias: <code>{ctx['cvd_ratio_pct']:.1f}%</code>\n"
+        f"TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}"
+    )
+
+
 def run_orderflow_engine() -> None:
     print(f"[{datetime.now().strftime('%H:%M:%S')}] [OF] ORDERFLOW BOT ЗАПУЩЕН!")
     print(f"   Symbols: {', '.join(SYMBOLS)}")
     print(f"   TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}  Size={SIZE_PCT}%")
+    print(f"   Signals: OF Classic | AVWAP Bounce | CVD Divergence")
     print(f"   Trading={'ON' if ORDERFLOW_TRADING else 'OFF (dry-run)'}  "
           f"{'[DEMO]' if IS_DEMO_TRADING else '[LIVE]'}\n")
 
@@ -79,13 +188,14 @@ def run_orderflow_engine() -> None:
     send_telegram_message(
         f"<b>[OF] Orderflow Bot запущен</b>\n"
         f"BTC / ETH / SOL | TP={TP_PCT}% SL={SL_PCT}% x{LEVERAGE}\n"
+        f"Signals: OF | AVWAP Bounce | CVD Divergence\n"
         f"{'Demo режим' if IS_DEMO_TRADING else 'Live режим'} | "
         f"Торгівля: {'ON' if ORDERFLOW_TRADING else 'OFF (dry-run)'}",
         TG_CHAT_ID,
     )
 
     _cooldowns: dict[str, float] = {}
-    _open_symbols: set = set()   # tracks only orderflow's own open positions
+    _open_symbols: set = set()
     last_error_tg = 0.0
 
     while True:
@@ -94,7 +204,7 @@ def run_orderflow_engine() -> None:
 
             try:
                 exchange = _init_exchange()
-                balance = get_free_usdt(exchange)
+                balance  = get_free_usdt(exchange)
             except Exception as e:
                 print(f"[OF] ❌ Balance fetch failed: {e}")
                 time.sleep(SCAN_SLEEP)
@@ -105,7 +215,6 @@ def run_orderflow_engine() -> None:
                 time.sleep(SCAN_SLEEP)
                 continue
 
-            # Sync _open_symbols against real exchange positions
             try:
                 real_pos = {
                     p["symbol"].replace("USDT", "/USDT:USDT")
@@ -113,9 +222,9 @@ def run_orderflow_engine() -> None:
                     if float(p.get("contracts", 0) or 0) > 0
                 }
                 if _open_symbols:
-                    _open_symbols &= real_pos  # remove symbols closed since last scan
+                    _open_symbols &= real_pos
                 else:
-                    _open_symbols = {s for s in real_pos if s in SYMBOLS}  # init after restart
+                    _open_symbols = {s for s in real_pos if s in SYMBOLS}
             except Exception:
                 pass
 
@@ -144,35 +253,40 @@ def run_orderflow_engine() -> None:
                     print(f"[OF] ❌ Context fetch failed for {symbol}: {e}")
                     continue
 
-                is_long  = _check_long(ctx)
-                is_short = _check_short(ctx)
+                direction, sig_type = _detect_signal(ctx)
 
-                if not is_long and not is_short:
+                if direction is None:
+                    print(
+                        f"[OF] {symbol} | VWAP={ctx['vwap_dev_pct']:+.2f}% "
+                        f"OI={ctx['oi_delta_pct']:+.3f}% CVD={ctx['cvd_ratio_pct']:.0f}% "
+                        f"AVWAP_B={ctx['bull_dev_pct']:+.2f}% AVWAP_R={ctx['bear_dev_pct']:+.2f}% "
+                        f"div={'B' if ctx['cvd_bearish_div'] else ''}{'L' if ctx['cvd_bullish_div'] else ''}"
+                    )
                     continue
 
-                direction = "LONG" if is_long else "SHORT"
-                action = direction
-
                 print(f"\n[OF] {'='*44}")
-                print(f"[OF] SIGNAL  {direction}  {symbol}")
-                print(f"[OF] context: {ctx}")
+                print(f"[OF] SIGNAL  {direction}  {symbol}  [{sig_type}]")
+                print(f"[OF] VWAP_dev={ctx['vwap_dev_pct']:+.2f}%  "
+                      f"OI={ctx['oi_delta_pct']:+.3f}%  CVD={ctx['cvd_ratio_pct']:.1f}%")
+                if sig_type == "AVWAP":
+                    print(f"[OF] AVWAP_bull={ctx['avwap_bull']:.4f}  "
+                          f"AVWAP_bear={ctx['avwap_bear']:.4f}")
+                if sig_type == "DIV":
+                    print(f"[OF] CVD div_ratio={ctx['cvd_div_ratio']:.1f}%")
                 print(f"[OF] {'='*44}\n")
 
-                tg_body = (
-                    f"<b>[OF] {direction} {symbol}</b>\n"
-                    f"Price: <code>{ctx['price']:.4f}</code> | "
-                    f"VWAP dev: <code>{ctx['vwap_dev_pct']:+.2f}%</code>\n"
-                    f"OI delta: <code>{ctx['oi_delta_pct']:+.3f}%</code> | "
-                    f"CVD bias: <code>{ctx['cvd_ratio_pct']:.1f}%</code>\n"
-                    f"TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}"
-                )
-
+                tg_body = _build_tg_msg(direction, sig_type, symbol, ctx)
                 _cooldowns[symbol] = now
 
                 if ORDERFLOW_TRADING:
                     try:
                         coin = symbol.replace("/USDT:USDT", "")
-                        sig = {"coin": coin, "action": action, "total_score": 1, "size_multiplier": 1.0}
+                        sig = {
+                            "coin":            coin,
+                            "action":          direction,
+                            "total_score":     1,
+                            "size_multiplier": 1.0,
+                        }
                         execute_trade(
                             sig,
                             leverage_override=LEVERAGE,
@@ -200,10 +314,7 @@ def run_orderflow_engine() -> None:
                         print(f"[OF] ❌ execute_trade error {symbol}: {e}")
                 else:
                     print(f"[OF] DRY-RUN — trading disabled, no order placed")
-                    send_telegram_message(
-                        f"[OF] DRY-RUN\n{tg_body}",
-                        TG_CHAT_ID,
-                    )
+                    send_telegram_message(f"[OF] DRY-RUN\n{tg_body}", TG_CHAT_ID)
 
             time.sleep(SCAN_SLEEP)
 
