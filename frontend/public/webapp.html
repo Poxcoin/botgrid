@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>KADO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 <style>
 :root{
@@ -17,8 +20,8 @@
   --bhi:rgba(255,255,255,.1);
   --g:#00d4aa;
   --r:#ff4d6d;
-  --mono:'SF Mono','Courier New',monospace;
-  --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',monospace;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --nav-h:56px;
   --hdr-h:50px;
 }
@@ -55,21 +58,32 @@ a{-webkit-tap-highlight-color:transparent}
 .page.active{display:block}
 
 /* ── bottom nav ── */
-.nav-bar{height:var(--nav-h);flex-shrink:0;border-top:1px solid var(--b);display:flex;padding-bottom:env(safe-area-inset-bottom)}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--fg3);transition:color .15s;padding:0}
+.nav-bar{min-height:var(--nav-h);flex-shrink:0;border-top:1px solid var(--b);display:flex;padding-top:7px;padding-bottom:calc(env(safe-area-inset-bottom) + 4px)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--fg3);transition:color .15s;padding:0}
 .nav-btn.on{color:var(--fg)}
 .nav-icon{display:block;width:20px;height:20px}
 
 /* ── home page ── */
-.home-balance{padding:36px 20px 24px;border-bottom:1px solid var(--b)}
-.home-bal-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:12px}
-.home-bal-val{font-family:var(--mono);font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--fg)}
-.home-bal-unit{font-family:var(--mono);font-size:11px;color:var(--fg3);margin-top:8px;letter-spacing:.08em}
+.home-balance{padding:32px 20px 20px;border-bottom:1px solid var(--b)}
+.home-bal-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:10px}
+.home-bal-val{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--fg)}
+.home-bal-unit{font-family:var(--mono);font-size:11px;color:var(--fg3);margin-top:6px;letter-spacing:.08em}
+.home-bot-status{display:inline-flex;align-items:center;gap:6px;margin-top:14px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--fg3);text-transform:uppercase}
+.hbs-dot{width:6px;height:6px;border-radius:50%;background:var(--fg3);flex-shrink:0;transition:background .3s}
+.hbs-dot.on{background:var(--g);box-shadow:0 0 6px rgba(0,212,170,.5)}
 .home-stats{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--b)}
-.home-stat{padding:18px 14px;border-right:1px solid var(--b)}
+.home-stat{padding:16px 14px;border-right:1px solid var(--b)}
 .home-stat:last-child{border-right:none}
-.home-stat-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:8px}
+.home-stat-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:7px}
 .home-stat-val{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.02em}
+/* home ticker strip */
+.home-ticker{display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--b)}
+.home-ticker::-webkit-scrollbar{display:none}
+.htick{flex:0 0 auto;padding:11px 14px;border-right:1px solid var(--b);cursor:pointer;transition:background .1s;min-width:80px}
+.htick:hover{background:rgba(255,255,255,.025)}
+.htick-coin{font-family:var(--mono);font-size:9px;font-weight:700;color:var(--fg2);letter-spacing:.05em;margin-bottom:3px}
+.htick-price{font-family:var(--mono);font-size:12px;font-weight:600}
+.htick-chg{font-family:var(--mono);font-size:9px;margin-top:2px}
 
 /* ── section header ── */
 .sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;border-bottom:1px solid var(--b)}
@@ -235,8 +249,13 @@ a{-webkit-tap-highlight-color:transparent}
       <!-- balance hero -->
       <div class="home-balance">
         <div class="home-bal-lbl">Total Balance</div>
-        <div class="home-bal-val" id="h-wallet"><span class="skel" style="width:140px;height:32px;display:inline-block"></span></div>
+        <div class="home-bal-val" id="h-wallet"><span class="skel" style="width:140px;height:36px;display:inline-block"></span></div>
         <div class="home-bal-unit">USDT</div>
+        <div class="home-bot-status"><span class="hbs-dot" id="hbs-dot"></span><span id="hbs-lbl">—</span></div>
+      </div>
+      <!-- mini market ticker -->
+      <div class="home-ticker" id="home-ticker">
+        <div style="padding:12px 16px;font-family:var(--mono);font-size:9px;color:var(--fg3)">Loading…</div>
       </div>
       <!-- stats row -->
       <div class="home-stats">
@@ -324,17 +343,6 @@ a{-webkit-tap-highlight-color:transparent}
           <div class="acc-field"><span class="acc-field-lbl">Username</span><span class="acc-field-val" id="a-user">—</span></div>
           <div class="acc-field"><span class="acc-field-lbl">Plan</span><span class="acc-field-val"><span class="plan-tag" id="a-plan">FREE</span></span></div>
         </div>
-        <!-- bot control -->
-        <div class="acc-section">
-          <div class="acc-section-t">Bot Control</div>
-          <div class="acc-field" style="border:none;padding-bottom:14px">
-            <span class="acc-field-lbl">Status</span>
-            <span id="a-bot-status" style="font-family:var(--mono);font-size:12px;color:var(--fg2)">—</span>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button id="a-pause-btn" class="btn btn-danger" onclick="togglePause()">⏸ Pause Bot</button>
-          </div>
-        </div>
         <!-- navigation rows -->
         <div class="acc-section" style="padding-bottom:0">
           <div class="acc-section-t">Settings</div>
@@ -352,9 +360,18 @@ a{-webkit-tap-highlight-color:transparent}
           API Keys
         </div>
         <div class="acc-section">
-          <div class="acc-field"><span class="acc-field-lbl">Bybit</span><span id="keys-status" style="font-family:var(--mono);font-size:11px">—</span></div>
-          <div style="margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.7">API key management is only available on the full dashboard.</div>
-          <div style="margin-top:14px"><a href="https://kadoclub.net/dashboard" target="_blank" class="btn btn-dark">Manage Keys →</a></div>
+          <div class="acc-section-t">Bybit</div>
+          <div class="acc-field"><span class="acc-field-lbl">Live</span><span id="keys-bybit" style="font-family:var(--mono);font-size:11px;color:var(--fg3)">—</span></div>
+          <div class="acc-field" style="border:none"><span class="acc-field-lbl">Demo / Testnet</span><span id="keys-demo" style="font-family:var(--mono);font-size:11px;color:var(--fg3)">—</span></div>
+        </div>
+        <div class="acc-section">
+          <div class="acc-section-t">MetaTrader 5</div>
+          <div class="acc-field"><span class="acc-field-lbl">Status</span><span id="keys-mt5" style="font-family:var(--mono);font-size:11px;color:var(--fg3)">—</span></div>
+          <div class="acc-field" style="border:none"><span class="acc-field-lbl">Server</span><span id="keys-mt5-server" style="font-family:var(--mono);font-size:11px;color:var(--fg2)">—</span></div>
+        </div>
+        <div class="acc-section" style="border-bottom:none">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.7;margin-bottom:14px">Key management available on full dashboard.</div>
+          <a href="https://kadoclub.net/dashboard" target="_blank" class="btn btn-dark">Manage Keys →</a>
         </div>
       </div>
 
@@ -533,11 +550,13 @@ function openSub(subId){
   if(sub)sub.classList.add('open');
   _activeSub=subId;
   if(subId==='sub-strategies')renderStrategies();
+  _syncBackBtn();
 }
 function closeSub(){
   document.querySelectorAll('.sub-page').forEach(s=>s.classList.remove('open'));
   $('acc-main').style.display='block';
   _activeSub=null;
+  _syncBackBtn();
 }
 
 /* ── home ── */
@@ -609,6 +628,7 @@ function openBotDetail(botId){
   _curCoin=bot.coins[0];
   $('bots-list-view').style.display='none';
   $('bot-detail-view').style.display='block';
+  _syncBackBtn();
   $('bot-detail-name').textContent=bot.label;
 
   /* coin pills */
@@ -631,6 +651,7 @@ function closeBotDetail(){
   $('bot-detail-view').style.display='none';
   $('bots-list-view').style.display='block';
   _curBot=null;
+  _syncBackBtn();
 }
 
 function selectBotCoin(c,btn){
@@ -674,6 +695,7 @@ async function loadMarkets(){
 
 function openMktChart(coin){
   _mktCoin=coin;
+  _syncBackBtn();
   const d=_mktData[coin]||{};
   $('mkt-list-view').style.display='none';
   $('mkt-chart-view').style.display='block';
@@ -694,6 +716,7 @@ function openMktChart(coin){
 function closeMktChart(){
   $('mkt-chart-view').style.display='none';
   $('mkt-list-view').style.display='block';
+  _syncBackBtn();
 }
 
 function selectMktTf(v,btn){
@@ -776,6 +799,16 @@ function buildSvgChart(cs,coin){
     s+=`<rect x="${x}" y="${bt}" width="${bw}" height="${bh}" fill="${col}"/>`;
   });
 
+  /* MA20 */
+  if(cs.length>=20){
+    const pts=[];
+    for(let i=19;i<cs.length;i++){
+      const avg=cs.slice(i-19,i+1).reduce((s,c)=>s+c.c,0)/20;
+      pts.push(`${i===19?'M':'L'}${PL+i*step+step/2},${yp(avg)}`);
+    }
+    s+=`<path d="${pts.join(' ')}" fill="none" stroke="rgba(248,196,96,.55)" stroke-width="1.2" stroke-linejoin="round"/>`;
+  }
+
   /* last price line */
   const last=cs[cs.length-1];
   const ly=yp(last.c);
@@ -791,6 +824,42 @@ function buildSvgChart(cs,coin){
   const d=document.createElement('div');
   d.innerHTML=s;
   return d.firstElementChild;
+}
+
+/* ── home ticker ── */
+async function loadHomeTicker(){
+  const COINS=['BTC','ETH','SOL','BNB','XRP','DOGE'];
+  try{
+    const r=await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
+    const j=await r.json();
+    const data={};
+    (j?.result?.list||[]).forEach(t=>{const c=t.symbol.replace('USDT','');if(COINS.includes(c))data[c]={p:+t.lastPrice,chg:+t.price24hPcnt*100}});
+    const el=$('home-ticker');
+    if(!el)return;
+    el.innerHTML=COINS.filter(c=>data[c]).map(c=>{
+      const d=data[c];
+      const pos=d.chg>=0;
+      const col=pos?'var(--g)':'var(--r)';
+      return`<div class="htick" onclick="goPage('markets')">
+        <div class="htick-coin">${c}</div>
+        <div class="htick-price" style="color:${col}">${pStr(d.p)}</div>
+        <div class="htick-chg" style="color:${col}">${pos?'+':''}${d.chg.toFixed(2)}%</div>
+      </div>`;
+    }).join('');
+  }catch(e){const el=$('home-ticker');if(el)el.innerHTML=''}
+}
+
+/* ── telegram back button ── */
+function _tgBack(){
+  if(_activeSub)closeSub();
+  else if($('bot-detail-view')?.style.display!=='none')closeBotDetail();
+  else if($('mkt-chart-view')?.style.display!=='none')closeMktChart();
+}
+function _syncBackBtn(){
+  if(!tg?.BackButton)return;
+  const need=_activeSub||$('bot-detail-view')?.style.display!=='none'||$('mkt-chart-view')?.style.display!=='none';
+  if(need){tg.BackButton.show();tg.BackButton.onClick(_tgBack)}
+  else{tg.BackButton.hide();tg.BackButton.offClick(_tgBack)}
 }
 
 /* ── news ── */
@@ -851,17 +920,16 @@ function renderAccount(){
   $('a-email').textContent=maskEmail(u.email);
   $('a-user').textContent=u.username||'—';
   $('a-plan').textContent=(u.plan||'free').toUpperCase();
+}
 
-  const statusEl=$('a-bot-status');
-  if(statusEl)statusEl.textContent=_paused?'Paused':'Active';
-
-  const pb=$('a-pause-btn');
-  if(pb){pb.textContent=_paused?'▶ Resume Bot':'⏸ Pause Bot';pb.className='btn '+ (_paused?'btn-confirm':'btn-danger')}
-
-  const keysEl=$('keys-status');
-  const connected=(_d?.positions?.length||0)>0||(_d?.balance?.usdt_wallet||0)>0;
-  if(keysEl)keysEl.textContent=connected?'Connected':'Not connected';
-  if(keysEl)keysEl.style.color=connected?'var(--g)':'var(--fg3)';
+function renderKeys(keys){
+  const k=keys||{};
+  const set=(id,ok,label)=>{const e=$(id);if(!e)return;e.textContent=ok?'Connected':'Not connected';e.style.color=ok?'var(--g)':'var(--fg3)'};
+  set('keys-bybit',k.bybit);
+  set('keys-demo',k.demo);
+  set('keys-mt5',k.mt5);
+  const srv=$('keys-mt5-server');
+  if(srv)srv.textContent=k.mt5_server||'—';
 }
 
 function renderStrategies(){
@@ -911,8 +979,17 @@ async function init(){
     $('acc-name-lbl').textContent=uLabel;
     $('acc-drop-user').textContent=uLabel;
 
+    /* home bot status */
+    const dot=$('hbs-dot'),lbl=$('hbs-lbl');
+    if(dot)dot.classList.toggle('on',!_paused);
+    if(lbl)lbl.textContent=_paused?'Bot Paused':'Bot Active';
+
+    /* keys */
+    renderKeys(_d.keys);
+
     renderHome(_d);
     renderBotsList();
+    loadHomeTicker();
 
     $('splash').style.display='none';
     $('app').style.display='flex';

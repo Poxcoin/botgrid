@@ -204,7 +204,8 @@ async def add_security_headers(request: Request, call_next):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://telegram.org; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
             "connect-src 'self' https://api.bybit.com wss://stream.bybit.com; "
             "img-src 'self' data: https:; "
             "frame-ancestors https://web.telegram.org https://*.telegram.org;"
@@ -3044,8 +3045,16 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
     signals   = []
     paused    = False
 
+    key_row  = None
+    mt5_row  = None
+    demo_row = None
+
     if user:
-        key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+        key_row  = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=False).first()
+        demo_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=True).first()
+        mt5_row  = db.query(UserMt5Key).filter_by(user_id=user.id).first()
+
+    if user:
         if key_row:
             try:
                 ex = _init_user_exchange(key_row)
@@ -3105,6 +3114,12 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
                 "email":    user.email    if user else None,
                 "username": user.username if user else None,
                 "plan":     user.effective_plan if user else None,
+            },
+            "keys": {
+                "bybit":      key_row  is not None,
+                "demo":       demo_row is not None,
+                "mt5":        mt5_row  is not None,
+                "mt5_server": mt5_row.server if mt5_row else None,
             },
         },
         headers={"Access-Control-Allow-Origin": "*"},
