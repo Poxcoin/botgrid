@@ -58,7 +58,7 @@ function TickerRow({ coin, setCoin, tf, setTf, ticker }) {
   const vol    = ticker?.volume24h     ? parseFloat(ticker.volume24h)         : null;
 
   return (
-    <div style={{ height: 52, display: 'flex', alignItems: 'stretch', flexShrink: 0, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+    <div style={{ height: 52, display: 'flex', alignItems: 'stretch', flexShrink: 0, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', overflowX: 'auto', scrollbarWidth: 'none' }}>
       <div style={{ display: 'flex', alignItems: 'stretch', borderRight: '1px solid var(--border-subtle)' }}>
         {COINS.map(c => (
           <button key={c.key} onClick={() => setCoin(c.key)} style={{
@@ -92,9 +92,7 @@ function TickerRow({ coin, setCoin, tf, setTf, ticker }) {
         </div>
       ))}
 
-      <div style={{ flex: 1 }} />
-
-      <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px', gap: 2, borderLeft: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '0 10px', gap: 2, borderLeft: '1px solid var(--border-subtle)', flexShrink: 0, marginLeft: 'auto' }}>
         {TFS.map(t => (
           <button key={t.v} onClick={() => setTf(t.v)} style={{
             fontFamily: MONO, fontSize: 11, height: 26, padding: '0 8px', borderRadius: 4, cursor: 'pointer',
@@ -467,7 +465,7 @@ function KlineChart({ coin, tf }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
       {/* Toolbar */}
-      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 2, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', overflowX: 'auto', scrollbarWidth: 'none' }}>
         <button onClick={() => { showLRef.current = false; setShowLine(false); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: MONO, fontSize: 11, background: !showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${!showLine ? 'var(--border-strong)' : 'transparent'}`, color: !showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Candles</button>
         <button onClick={() => { showLRef.current = true; setShowLine(true); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: MONO, fontSize: 11, background: showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${showLine ? 'var(--border-strong)' : 'transparent'}`, color: showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Line</button>
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
@@ -475,7 +473,6 @@ function KlineChart({ coin, tf }) {
         {['MA','EMA','BOLL'].map(name => (
           <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: MONO, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
         ))}
-        <div style={{ flex: 1 }} />
       </div>
 
       {/* Chart area */}

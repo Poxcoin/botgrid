@@ -620,8 +620,8 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
         {['MA','EMA','BOLL'].map(name => (
           <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
         ))}
-        <div style={{ flex: 1 }} />
-        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
+        <div style={{ width: 8, flexShrink: 0 }} />
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px', flexShrink: 0 }} />
         {['1','5','15','60','240','D'].map(t => (
           <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{TF_LABELS[t]}</button>
         ))}
@@ -1282,8 +1282,8 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       </div>
 
       {/* ── BOT STATUS ────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 2 }}>Bots</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', flexShrink: 0, alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none' }}>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 2, flexShrink: 0 }}>Bots</span>
         {ALL_BOTS_CONFIG.map(b => {
           const h = heartbeat[b.source];
           const ago = h?.last_trade_min_ago;
@@ -1292,7 +1292,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
           return (
             <div key={b.id} style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              padding: '3px 8px',
+              padding: '3px 8px', flexShrink: 0,
               border: `1px solid ${current ? 'var(--border-strong)' : 'var(--border-subtle)'}`,
               borderRadius: 3,
               background: current ? 'var(--bg-elevated)' : 'transparent',
