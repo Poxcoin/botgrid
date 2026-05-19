@@ -17,7 +17,7 @@ WEBAPP_URL = "https://kadoclub.net/webapp"
 
 def _webapp_kb():
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="📊 Open Dashboard", web_app=WebAppInfo(url=WEBAPP_URL))
+        InlineKeyboardButton(text="📊 Open App", web_app=WebAppInfo(url=WEBAPP_URL))
     ]])
 
 router = Router()

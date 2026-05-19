@@ -45,7 +45,7 @@ async def main():
     ])
 
     await bot.set_chat_menu_button(
-        menu_button=MenuButtonWebApp(text="Dashboard", web_app=WebAppInfo(url=WEBAPP_URL))
+        menu_button=MenuButtonWebApp(text="App", web_app=WebAppInfo(url=WEBAPP_URL))
     )
 
     try:

@@ -192,25 +192,38 @@ async def global_rate_limit(request: Request, call_next):
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
+    is_webapp = request.url.path.rstrip("/") == "/webapp"
+
     response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        # Cloudflare Web Analytics auto-injects beacon.min.js; Meta Pixel loads
-        # fbevents.js (only after the user accepts cookie consent).
-        "script-src 'self' https://static.cloudflareinsights.com https://connect.facebook.net; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173 "
-        "https://api.bybit.com wss://stream.bybit.com "
-        "https://cloudflareinsights.com https://www.facebook.com; "
-        "img-src 'self' data: https:; "
-        "frame-ancestors 'none'; "
-        "upgrade-insecure-requests;"
-    )
+
+    if is_webapp:
+        # Telegram Mini App: allow telegram.org SDK + framing from Telegram clients
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://telegram.org; "
+            "style-src 'self' 'unsafe-inline'; "
+            "connect-src 'self'; "
+            "img-src 'self' data: https:; "
+            "frame-ancestors https://web.telegram.org https://*.telegram.org;"
+        )
+    else:
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' https://static.cloudflareinsights.com https://connect.facebook.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173 "
+            "https://api.bybit.com wss://stream.bybit.com "
+            "https://cloudflareinsights.com https://www.facebook.com; "
+            "img-src 'self' data: https:; "
+            "frame-ancestors 'none'; "
+            "upgrade-insecure-requests;"
+        )
+
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
     if "server" in response.headers:
         del response.headers["server"]
