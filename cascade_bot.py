@@ -55,9 +55,9 @@ WATCHLIST = ["ETH", "SOL", "DOGE", "LINK"]
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
 LEVERAGE  = 5
-SIZE_PCT  = 20.0  # % від вільного балансу
+SIZE_PCT  = 15.0  # % від вільного балансу — reduced from 20% per risk audit
 
-MAX_POSITIONS      = 4        # 4 позиції одночасно (дозволяє паралельно торгувати некорельовані пари)
+MAX_POSITIONS      = 2        # max 2 позиції одночасно — обмежено з 4 для контролю ризику
 COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу
 TIME_STOP_MIN      = 15       # каскадний momentum згасає за 10-15 хв
 DAILY_LOSS_LIMIT   = 0.03     # зупинити день якщо PnL < -3% від балансу

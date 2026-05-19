@@ -21,8 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic import EmailStr
+from typing import Annotated
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
@@ -357,7 +358,8 @@ async def health_check(db: Session = Depends(get_db)):
         db.execute(text("SELECT 1"))
         return {"status": "ok", "timestamp": datetime.utcnow().isoformat() + "Z"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        import logging; logging.getLogger("kado").error("health_check DB error: %s", e)
+        raise HTTPException(status_code=503, detail="Database unavailable")
 
 
 @app.post("/api/backtest/start")
@@ -794,18 +796,19 @@ async def update_me(body: UpdateProfileRequest, credentials: HTTPAuthorizationCr
     return {"ok": True}
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: Annotated[str, Field(min_length=1, max_length=128)]
+    new_password: Annotated[str, Field(min_length=8, max_length=128)]
+
 @app.post("/api/users/change-password")
-async def change_password(body: dict, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def change_password(body: ChangePasswordRequest, request: Request, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"chpw:{ip}", window=300, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many attempts")
     user = _get_user_from_token(credentials.credentials, db)
-    old_pw  = (body.get("old_password") or "").strip()
-    new_pw  = (body.get("new_password") or "").strip()
-    if not old_pw or not new_pw:
-        raise HTTPException(status_code=400, detail="Both fields required")
-    if not verify_password(old_pw, user.password_hash):
+    if not verify_password(body.old_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect current password")
-    if len(new_pw) < 8:
-        raise HTTPException(status_code=400, detail="Min 8 characters")
-    user.password_hash = hash_password(new_pw[:72])
+    user.password_hash = hash_password(body.new_password[:72])
     db.commit()
     return {"ok": True}
 
@@ -817,7 +820,8 @@ async def get_mt5_keys(credentials: HTTPAuthorizationCredentials = Depends(secur
     if not row:
         return {"configured": False}
     login = decrypt_field(row.login_enc)
-    return {"configured": True, "login": login, "server": row.server}
+    masked_login = (login[:2] + "****" + login[-2:]) if len(login) > 4 else "****"
+    return {"configured": True, "login": masked_login, "server": row.server}
 
 
 @app.post("/api/users/mt5-keys")
@@ -1082,15 +1086,15 @@ async def reveal_api_keys(body: RevealKeyRequest, request: Request, credentials:
         raise HTTPException(status_code=404, detail="No API keys saved")
     api_key = decrypt_field(key_row.api_key_enc)
     secret  = decrypt_field(key_row.secret_enc)
-    # Mask secret: show first 6 + ••••• + last 4
-    masked_secret = (secret[:6] + "•" * max(0, len(secret) - 10) + secret[-4:]) if len(secret) > 10 else "•" * len(secret)
-    # Audit log
+    masked_key    = (api_key[:6] + "•" * max(0, len(api_key) - 10) + api_key[-4:]) if len(api_key) > 10 else "•" * len(api_key)
+    masked_secret = (secret[:6]  + "•" * max(0, len(secret)  - 10) + secret[-4:])  if len(secret)  > 10 else "•" * len(secret)
     try:
-        db.add(AuditLog(user_id=user.id, action="api_key_revealed", detail_enc=None))
+        ip_str = _real_ip(request) if hasattr(request, 'client') else "unknown"
+        db.add(AuditLog(user_id=user.id, action="api_key_revealed", detail_enc=encrypt_field(ip_str)))
         db.commit()
     except Exception:
         db.rollback()
-    return {"api_key": api_key, "masked_secret": masked_secret}
+    return {"api_key": masked_key, "masked_secret": masked_secret}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1368,7 +1372,8 @@ async def get_user_balance(
         return {"usdt_wallet": b["wallet"], "usdt_equity": b["equity"],
                 "unrealized_pnl": b["unrealized_pnl"], "usdt_free": b["wallet"]}
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        import logging; logging.getLogger("kado").error("exchange error: %s", e)
+        raise HTTPException(status_code=502, detail="Exchange request failed")
 
 
 @app.get("/api/users/positions")
@@ -1386,11 +1391,12 @@ async def get_user_positions(
     try:
         return _bybit_positions(ex)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        import logging; logging.getLogger("kado").error("exchange error: %s", e)
+        raise HTTPException(status_code=502, detail="Exchange request failed")
 
 
 class ClosePositionRequest(BaseModel):
-    symbol: str  # coin without USDT, e.g. "ETH"
+    symbol: Annotated[str, Field(pattern=r'^[A-Z0-9]{1,20}$')]
 
 @app.post("/api/users/close-position")
 async def close_user_position(
@@ -1425,7 +1431,8 @@ async def close_user_position(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        import logging; logging.getLogger("kado").error("exchange error: %s", e)
+        raise HTTPException(status_code=502, detail="Exchange request failed")
 
 
 @app.get("/api/users/open-orders")
@@ -1463,8 +1470,8 @@ async def get_user_open_orders(
 
 
 class CancelOrderRequest(BaseModel):
-    order_id: str
-    symbol: str  # coin without USDT, e.g. "ETH"
+    order_id: Annotated[str, Field(max_length=64, pattern=r'^[A-Za-z0-9\-]+$')]
+    symbol: Annotated[str, Field(pattern=r'^[A-Z0-9]{1,20}$')]
 
 @app.post("/api/users/cancel-order")
 async def cancel_user_order(
@@ -1487,7 +1494,8 @@ async def cancel_user_order(
         })
         return {"ok": True}
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        import logging; logging.getLogger("kado").error("exchange error: %s", e)
+        raise HTTPException(status_code=502, detail="Exchange request failed")
 
 
 @app.get("/api/users/bot-heartbeat")
@@ -1921,8 +1929,8 @@ async def billing_checkout(
         return {"url": url}
     except stripe_billing.stripe.error.StripeError:
         raise HTTPException(status_code=503, detail="Stripe unavailable")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid billing request")
 
 
 @app.post("/api/billing/portal")
@@ -1936,8 +1944,8 @@ async def billing_portal(
         return {"url": url}
     except stripe_billing.stripe.error.StripeError:
         raise HTTPException(status_code=503, detail="Stripe unavailable")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid billing request")
 
 
 @app.post("/api/webhooks/stripe")
@@ -2481,7 +2489,8 @@ async def get_bot_pnl(token: str = Depends(require_any_auth)):
         from modules.unified_pnl import get_report
         return get_report()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging; logging.getLogger("kado").error("unified_pnl error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @app.get("/api/bot-trades")
@@ -2511,7 +2520,8 @@ async def get_bot_trades(
         con.close()
         return {"trades": [dict(r) for r in rows]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging; logging.getLogger("kado").error("endpoint error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @app.get("/api/stats")
@@ -2633,7 +2643,8 @@ async def analytics_breakdown(token: str = Depends(require_any_auth)):
         return {"summary": summary, "by_bot": by_bot, "by_coin": by_coin,
                 "daily": daily, "best": best, "worst": worst}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging; logging.getLogger("kado").error("endpoint error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @app.get("/api/intel")
@@ -3068,7 +3079,8 @@ async def webapp_pause(
         else:
             dispatcher_sync_user(user_id, db)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import logging; logging.getLogger("kado").error("endpoint error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal error")
 
     return {"ok": True, "paused": body.pause}
 
@@ -3148,17 +3160,26 @@ def _fmt_trade_ws(t) -> dict:
 
 
 @app.websocket("/ws/live")
-async def ws_live(websocket: WebSocket, token: str = Query(...)):
+async def ws_live(websocket: WebSocket):
     """
     Live feed for the user dashboard.
     Sends 'init' snapshot on connect, then 'update' diff every 2 s.
-    Auth: JWT passed as ?token=<jwt> query param.
-    Close codes: 4001 auth, 4002 no API key, 4003 internal.
+    Auth: accept connection, then read JWT as first message (never in URL).
+    Close codes: 4001 auth, 4002 no API key, 4003 internal, 4029 rate limit.
     """
-    # ── auth ──────────────────────────────────────────────────────────────────
     ip = websocket.client.host if websocket.client else "unknown"
+    await websocket.accept()
+
     if not _check_rate_limit(f"ws:{ip}", window=60, max_hits=30):
         await websocket.close(code=4029)
+        return
+
+    # Read token from first message — keeps JWT out of server access logs
+    try:
+        auth_msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+        token = auth_msg.strip()
+    except (asyncio.TimeoutError, Exception):
+        await websocket.close(code=4001)
         return
 
     from database import SessionLocal as _SL
@@ -3193,8 +3214,6 @@ async def ws_live(websocket: WebSocket, token: str = Query(...)):
     if not ex:
         await websocket.close(code=4003)
         return
-
-    await websocket.accept()
 
     # ── initial trades load ───────────────────────────────────────────────────
     db2 = _SL()

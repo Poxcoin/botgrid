@@ -29,13 +29,14 @@ export function useLiveStream() {
 
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host  = window.location.host;
-    const url   = `${proto}//${host}/ws/live?token=${encodeURIComponent(token)}`;
+    const url   = `${proto}//${host}/ws/live`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
       if (!mountedRef.current) { ws.close(); return; }
+      ws.send(token);
       setConnected(true);
     };
 

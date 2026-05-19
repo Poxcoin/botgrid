@@ -25,7 +25,7 @@ SYMBOLS = [
 ]
 
 LEVERAGE    = 5
-SIZE_PCT    = 25.0   # 25% per trade — best strategy gets max capital
+SIZE_PCT    = 15.0   # 15% per trade — reduced from 25% per risk audit
 COOLDOWN    = 8 * 3600    # seconds
 SCAN_SLEEP  = 30 * 60     # seconds
 
@@ -33,7 +33,7 @@ SCAN_SLEEP  = 30 * 60     # seconds
 SWING_LOOKBACK  = 3       # candles each side for pivot detection
 MAX_SWINGS      = 15      # keep last N swings per symbol
 SWEEP_MIN_PCT   = 0.05    # min distance above/below swing level to count as sweep
-SWEEP_MAX_PCT   = 1.5     # max distance (no spike-hunting beyond this)
+SWEEP_MAX_PCT   = 0.5     # max distance — tightened to match backtest params (was 1.5)
 REVERSAL_CANDLES = 3      # price must close back within this many candles
 TP_MIN_PCT      = 1.5     # minimum TP regardless of sweep distance
 TP_MULTIPLIER   = 1.5     # TP = max(TP_MIN_PCT, sweep_distance * TP_MULTIPLIER)
