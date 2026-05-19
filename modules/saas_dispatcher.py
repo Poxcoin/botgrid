@@ -52,8 +52,8 @@ PLAN_BOTS = {
     "trial":       {"grid"},
     "free":        set(),
     "basic":       {"grid", "news"},
-    "pro":         {"grid", "news", "fr", "liq_cascade", "listing", "whale", "dex", "cascade", "orderflow"},
-    "performance": {"grid", "news", "fr", "liq_cascade", "listing", "whale", "dex", "cascade", "orderflow"},
+    "pro":         {"grid", "news", "fr", "liq_cascade", "listing", "whale", "dex", "cascade", "orderflow", "sweep", "fr_extreme"},
+    "performance": {"grid", "news", "fr", "liq_cascade", "listing", "whale", "dex", "cascade", "orderflow", "sweep", "fr_extreme"},
 }
 
 
