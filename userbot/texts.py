@@ -7,6 +7,7 @@ Mostly RU/UA — matches dashboard tone.
 BTN_ACCOUNT   = "👤 Акаунт"
 BTN_BALANCE   = "💰 Баланс"
 BTN_POSITIONS = "📊 Позиції"
+BTN_HISTORY   = "📅 Історія"
 
 
 WELCOME_LINKED = (
@@ -49,12 +50,14 @@ MENU = (
     "📊 <b>KADO Bot</b>\n\n"
     "👤 Акаунт — твій план, статус, реф-код\n"
     "💰 Баланс — депозит і нереалізований PnL на Bybit\n"
-    "📊 Позиції — відкриті угоди\n\n"
+    "📊 Позиції — відкриті угоди\n"
+    "📅 Історія — статистика за день / тиждень / місяць\n\n"
     "Команди:\n"
     "/account — акаунт\n"
     "/balance — баланс Bybit\n"
     "/positions — відкриті позиції\n"
-    "/pnl — статистика по закритих угодах\n"
+    "/history — історія угод\n"
+    "/pnl — статистика по всіх закритих угодах\n"
     "/help — ця довідка\n\n"
     "Сайт: kadoclub.net"
 )
@@ -108,4 +111,25 @@ NO_API_KEYS = (
 EXCHANGE_ERROR = (
     "⚠️ Не вдалося отримати дані з Bybit зараз.\n"
     "Спробуй за хвилину. Якщо повторюється — перевір ключі в особистому кабінеті."
+)
+
+
+# ── History view (new) ───────────────────────────────────────────────────────
+HISTORY_EMPTY = (
+    "📅 <b>Історія порожня.</b>\n\n"
+    "Закритих угод ще немає — як тільки бот закриє першу позицію, вона з'явиться тут."
+)
+
+HISTORY_INFO = (
+    "📅 <b>Історія угод</b>\n\n"
+    "<b>Сьогодні</b> (24h)\n"
+    "  Угод: {d_total}  ✅ {d_wins}W  ❌ {d_losses}L  WR {d_wr}%\n"
+    "  PnL: <b>{d_pnl_sign}{d_pnl:.2f}</b> USDT\n\n"
+    "<b>Тиждень</b> (7d)\n"
+    "  Угод: {w_total}  ✅ {w_wins}W  ❌ {w_losses}L  WR {w_wr}%\n"
+    "  PnL: <b>{w_pnl_sign}{w_pnl:.2f}</b> USDT\n\n"
+    "<b>Місяць</b> (30d)\n"
+    "  Угод: {m_total}  ✅ {m_wins}W  ❌ {m_losses}L  WR {m_wr}%\n"
+    "  PnL: <b>{m_pnl_sign}{m_pnl:.2f}</b> USDT\n\n"
+    "<i>Всього закритих угод: {all_total} · PnL {all_pnl_sign}{all_pnl:.2f} USDT</i>"
 )

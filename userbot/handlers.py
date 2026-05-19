@@ -6,7 +6,7 @@ WebApp: inline button to https://kadoclub.net/webapp under welcome messages.
 """
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
@@ -39,6 +39,7 @@ def _menu_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text=texts.BTN_ACCOUNT)],
             [KeyboardButton(text=texts.BTN_BALANCE), KeyboardButton(text=texts.BTN_POSITIONS)],
+            [KeyboardButton(text=texts.BTN_HISTORY)],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -297,6 +298,84 @@ async def cmd_pnl(message: Message):
         )
     finally:
         db.close()
+
+
+# ── /history — closed-trade stats by period (day / week / month) ─────────────
+def _stats(trades):
+    """Compute (count, wins, losses, win_rate, total_pnl) for a closed-trade slice."""
+    total = len(trades)
+    if not total:
+        return 0, 0, 0, 0.0, 0.0
+    total_pnl = sum(float(t.pnl_usdt or 0) for t in trades)
+    wins      = sum(1 for t in trades if float(t.pnl_usdt or 0) > 0)
+    losses    = total - wins
+    win_rate  = round(wins / total * 100, 1)
+    return total, wins, losses, win_rate, total_pnl
+
+
+async def _send_history(message: Message):
+    user, db = _linked_user(str(message.chat.id))
+    try:
+        if not user:
+            await message.answer(texts.NOT_LINKED, parse_mode="HTML")
+            return
+
+        closed = (
+            db.query(UserTrade)
+            .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
+            .all()
+        )
+        # Exclude ghost closes (pnl=0, exit≈entry) — same filter as /pnl
+        closed = [
+            t for t in closed
+            if not (
+                float(t.pnl_usdt or 0) == 0
+                and float(t.exit_price or 0) > 0
+                and float(t.entry_price or 0) > 0
+                and abs(float(t.exit_price) - float(t.entry_price)) / float(t.entry_price) < 0.0001
+            )
+        ]
+
+        if not closed:
+            await message.answer(texts.HISTORY_EMPTY, parse_mode="HTML")
+            return
+
+        now = datetime.utcnow()
+        day_cut   = now - timedelta(days=1)
+        week_cut  = now - timedelta(days=7)
+        month_cut = now - timedelta(days=30)
+
+        def _within(cut):
+            return [t for t in closed if t.closed_at and t.closed_at >= cut]
+
+        d_total, d_wins, d_losses, d_wr, d_pnl = _stats(_within(day_cut))
+        w_total, w_wins, w_losses, w_wr, w_pnl = _stats(_within(week_cut))
+        m_total, m_wins, m_losses, m_wr, m_pnl = _stats(_within(month_cut))
+        a_total, _, _, _, a_pnl                = _stats(closed)
+
+        def _sign(v):
+            return "+" if v >= 0 else ""
+
+        await message.answer(
+            texts.HISTORY_INFO.format(
+                d_total=d_total, d_wins=d_wins, d_losses=d_losses, d_wr=d_wr,
+                d_pnl=d_pnl, d_pnl_sign=_sign(d_pnl),
+                w_total=w_total, w_wins=w_wins, w_losses=w_losses, w_wr=w_wr,
+                w_pnl=w_pnl, w_pnl_sign=_sign(w_pnl),
+                m_total=m_total, m_wins=m_wins, m_losses=m_losses, m_wr=m_wr,
+                m_pnl=m_pnl, m_pnl_sign=_sign(m_pnl),
+                all_total=a_total, all_pnl=a_pnl, all_pnl_sign=_sign(a_pnl),
+            ),
+            parse_mode="HTML",
+        )
+    finally:
+        db.close()
+
+
+@router.message(Command("history"))
+@router.message(F.text == texts.BTN_HISTORY)
+async def cmd_history(message: Message):
+    await _send_history(message)
 
 
 # ── Catch-all fallback — last in the router, runs only if nothing else matched

@@ -44,6 +44,7 @@ async def main():
         {"command": "account",   "description": "Информация об аккаунте"},
         {"command": "balance",   "description": "Баланс Bybit"},
         {"command": "positions", "description": "Открытые позиции"},
+        {"command": "history",   "description": "История за день/неделю/месяц"},
         {"command": "pnl",       "description": "Статистика по закрытым сделкам"},
         {"command": "help",      "description": "Помощь"},
     ])
