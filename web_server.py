@@ -2508,6 +2508,64 @@ async def get_signals(
     }
 
 
+# ── Forex OHLCV proxy (Twelve Data) ──────────────────────────────────────────
+_forex_cache: dict = {}
+_TD_INTERVALS = {"1": "1min", "5": "5min", "15": "15min", "60": "1h", "240": "4h", "D": "1day"}
+
+@app.get("/api/forex/ohlcv")
+async def forex_ohlcv(
+    symbol: str = Query(...),
+    interval: str = Query("60"),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    _get_user_from_token(credentials.credentials, db)  # auth check only
+
+    td_interval = _TD_INTERVALS.get(interval, "1h")
+    cache_key = (symbol, td_interval)
+    now = datetime.now(timezone.utc)
+
+    cached = _forex_cache.get(cache_key)
+    if cached and cached["expires"] > now:
+        return cached["data"]
+
+    api_key = os.environ.get("TWELVEDATA_API_KEY", "")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="TWELVEDATA_API_KEY not configured")
+
+    url = (
+        f"https://api.twelvedata.com/time_series"
+        f"?symbol={symbol}&interval={td_interval}&outputsize=500&apikey={api_key}"
+    )
+    try:
+        r = requests.get(url, timeout=15)
+        raw = r.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Twelve Data fetch error: {e}")
+
+    if raw.get("status") == "error":
+        raise HTTPException(status_code=502, detail=raw.get("message", "Twelve Data API error"))
+
+    bars = []
+    for v in reversed(raw.get("values", [])):
+        dt_str = v["datetime"]
+        try:
+            dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            dt = datetime.strptime(dt_str, "%Y-%m-%d")
+        bars.append({
+            "time":   int(dt.replace(tzinfo=timezone.utc).timestamp()),
+            "open":   float(v["open"]),
+            "high":   float(v["high"]),
+            "low":    float(v["low"]),
+            "close":  float(v["close"]),
+            "volume": float(v.get("volume") or 0),
+        })
+
+    _forex_cache[cache_key] = {"data": bars, "expires": now + timedelta(minutes=30)}
+    return bars
+
+
 @app.get("/api/bot-pnl")
 async def get_bot_pnl(token: str = Depends(require_any_auth)):
     """Unified PnL report across ALL bots (signal + grid + funding)."""

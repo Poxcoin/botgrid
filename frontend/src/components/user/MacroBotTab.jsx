@@ -1,61 +1,144 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createChart, CrosshairMode } from 'lightweight-charts';
 import { useTheme } from '@/lib/ThemeContext';
 
 const MONO  = "'Courier New','SF Mono',monospace";
 const B     = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
+const C_UP  = '#00d4aa';
+const C_DN  = '#ff4d6d';
+
+const TF_LABELS = { '1': '1m', '5': '5m', '15': '15m', '60': '1h', '240': '4h', 'D': '1D' };
+
+const SYMBOLS = {
+  macro: [
+    { label: 'EUR/USD', sym: 'EUR/USD' },
+    { label: 'GBP/USD', sym: 'GBP/USD' },
+  ],
+  gold: [
+    { label: 'XAU/USD', sym: 'XAU/USD' },
+  ],
+};
 
 const api = p =>
   fetch(p, { headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` } })
     .then(r => r.ok ? r.json() : null)
     .catch(() => null);
 
-/* ── TradingView chart iframe ─────────────────────────────────── */
-const TV_SYMBOLS = {
-  macro: [
-    { label: 'EUR/USD', sym: 'FX:EURUSD' },
-    { label: 'GBP/USD', sym: 'FX:GBPUSD' },
-  ],
-  gold: [
-    { label: 'XAU/USD', sym: 'TVC:GOLD' },
-  ],
-};
-
-function TvChart({ botId }) {
+/* ── ForexChart ───────────────────────────────────────────────── */
+function ForexChart({ symbols }) {
   const { theme } = useTheme();
   const dark = theme !== 'light';
-  const options = TV_SYMBOLS[botId] || TV_SYMBOLS.gold;
-  const [idx, setIdx] = useState(0);
-  const sym = options[idx].sym;
+  const [symIdx, setSymIdx] = useState(0);
+  const [tf, setTf] = useState('60');
+  const elRef     = useRef(null);
+  const chartRef  = useRef(null);
+  const candleRef = useRef(null);
+  const volRef    = useRef(null);
+  const timerRef  = useRef(null);
 
-  const src =
-    `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(sym)}` +
-    `&interval=60&theme=${dark ? 'dark' : 'light'}&style=1&locale=en` +
-    `&toolbar_bg=${encodeURIComponent(dark ? '#060606' : '#ffffff')}` +
-    `&hide_side_toolbar=0&save_image=0&allow_symbol_change=0&details=0`;
+  const sym = symbols[symIdx]?.sym;
+
+  /* create chart once */
+  useEffect(() => {
+    if (!elRef.current) return;
+    const c = createChart(elRef.current, {
+      layout: { background: { color: 'transparent' }, textColor: '#888' },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      crosshair: { mode: CrosshairMode.Normal },
+      rightPriceScale: { borderColor: 'transparent' },
+      timeScale: { borderColor: 'transparent', timeVisible: true, secondsVisible: false },
+    });
+
+    const candles = c.addCandlestickSeries({
+      upColor: C_UP, downColor: C_DN,
+      borderUpColor: C_UP, borderDownColor: C_DN,
+      wickUpColor: C_UP, wickDownColor: C_DN,
+    });
+
+    const vol = c.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
+    vol.priceScale().applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+
+    chartRef.current  = c;
+    candleRef.current = candles;
+    volRef.current    = vol;
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      c.remove();
+      chartRef.current = null;
+    };
+  }, []);
+
+  /* theme changes */
+  useEffect(() => {
+    chartRef.current?.applyOptions({
+      layout: { textColor: dark ? '#888' : '#444' },
+      grid: {
+        vertLines: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' },
+        horzLines: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' },
+      },
+    });
+  }, [dark]);
+
+  /* load + poll on symbol / tf change */
+  useEffect(() => {
+    if (!candleRef.current || !sym) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const load = () =>
+      api(`/api/forex/ohlcv?symbol=${encodeURIComponent(sym)}&interval=${tf}`)
+        .then(bars => {
+          if (!Array.isArray(bars) || !candleRef.current) return;
+          candleRef.current.setData(bars.map(b => ({
+            time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+          })));
+          volRef.current?.setData(bars.map(b => ({
+            time: b.time, value: b.volume,
+            color: b.close >= b.open ? C_UP + '55' : C_DN + '55',
+          })));
+          chartRef.current?.timeScale().fitContent();
+        });
+
+    load();
+    timerRef.current = setInterval(load, 3 * 60 * 1000);
+    return () => clearInterval(timerRef.current);
+  }, [sym, tf]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: 420, marginBottom: 24, background: 'var(--bg-base)', border: `1px solid ${B}` }}>
-      {/* symbol toggle */}
-      {options.length > 1 && (
-        <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, display: 'flex', gap: 4 }}>
-          {options.map((o, i) => (
-            <button key={o.sym} onClick={() => setIdx(i)} style={{
+    <div style={{ marginBottom: 24 }}>
+      {/* toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {symbols.map((o, i) => (
+            <button key={o.sym} onClick={() => setSymIdx(i)} style={{
               fontFamily: MONO, fontSize: 9, padding: '3px 10px',
               border: `1px solid ${B}`, borderRadius: 100, cursor: 'pointer',
-              background: i === idx ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.6)',
-              color: i === idx ? '#fff' : '#555',
+              background: i === symIdx ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.6)',
+              color: i === symIdx ? '#fff' : MUTED,
               letterSpacing: '0.1em', textTransform: 'uppercase',
             }}>{o.label}</button>
           ))}
         </div>
-      )}
-      <iframe
-        key={src}
-        src={src}
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-        allowFullScreen
-        title={`${sym} chart`}
+        <div style={{ display: 'flex', gap: 3 }}>
+          {Object.entries(TF_LABELS).map(([v, l]) => (
+            <button key={v} onClick={() => setTf(v)} style={{
+              fontFamily: MONO, fontSize: 9, padding: '3px 8px',
+              border: `1px solid ${tf === v ? 'rgba(255,255,255,0.18)' : B}`,
+              borderRadius: 100, cursor: 'pointer',
+              background: tf === v ? 'rgba(255,255,255,0.10)' : 'transparent',
+              color: tf === v ? '#ccc' : MUTED,
+              letterSpacing: '0.08em',
+            }}>{l}</button>
+          ))}
+        </div>
+      </div>
+      <div
+        ref={elRef}
+        style={{ width: '100%', height: 380, background: 'var(--bg-base)', border: `1px solid ${B}` }}
       />
     </div>
   );
@@ -125,8 +208,8 @@ export default function MacroBotTab({ botId }) {
   const netPnl  = closed.reduce((acc, t) => acc + (t.profit_usd || 0), 0);
   const winRate = closed.length ? Math.round(wins / closed.length * 100) : null;
 
-  const title   = isGold ? 'Gold Event Bot' : 'Macro Forex Bot';
-  const desc    = isGold ? 'XAUUSD · MT5 · IC Markets' : 'EURUSD · GBPUSD · MT5 · IC Markets';
+  const title = isGold ? 'Gold Event Bot' : 'Macro Forex Bot';
+  const desc  = isGold ? 'XAUUSD · MT5 · IC Markets' : 'EURUSD · GBPUSD · MT5 · IC Markets';
 
   if (mt5 === undefined) return null;
 
@@ -139,7 +222,7 @@ export default function MacroBotTab({ botId }) {
       </div>
 
       {/* Chart */}
-      <TvChart botId={botId} />
+      <ForexChart symbols={SYMBOLS[botId] || SYMBOLS.gold} />
 
       {!mt5 && <NoKeyBanner />}
 
