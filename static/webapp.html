@@ -61,15 +61,15 @@ a{-webkit-tap-highlight-color:transparent}
 .nav-icon{display:block;width:20px;height:20px}
 
 /* ── home page ── */
-.home-balance{padding:28px 20px 20px;border-bottom:1px solid var(--b)}
-.home-bal-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:10px}
-.home-bal-val{font-family:var(--mono);font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--fg)}
-.home-bal-unit{font-family:var(--mono);font-size:11px;color:var(--fg3);margin-top:6px}
+.home-balance{padding:36px 20px 24px;border-bottom:1px solid var(--b)}
+.home-bal-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:12px}
+.home-bal-val{font-family:var(--mono);font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--fg)}
+.home-bal-unit{font-family:var(--mono);font-size:11px;color:var(--fg3);margin-top:8px;letter-spacing:.08em}
 .home-stats{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--b)}
-.home-stat{padding:16px 14px;border-right:1px solid var(--b)}
+.home-stat{padding:18px 14px;border-right:1px solid var(--b)}
 .home-stat:last-child{border-right:none}
-.home-stat-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:6px}
-.home-stat-val{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:-.02em}
+.home-stat-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:8px}
+.home-stat-val{font-family:var(--mono);font-size:17px;font-weight:600;letter-spacing:-.02em}
 
 /* ── section header ── */
 .sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;border-bottom:1px solid var(--b)}
@@ -173,13 +173,13 @@ a{-webkit-tap-highlight-color:transparent}
 .btn-confirm{background:var(--g);color:#050505}
 
 /* ── strat cards ── */
-.strat-card{padding:20px;border-bottom:1px solid var(--b)}
+.strat-card{padding:28px 20px;border-bottom:1px solid var(--b)}
 .strat-n{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-bottom:12px}
-.strat-name{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.strat-name{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
 .strat-desc{font-size:12px;color:var(--fg2);line-height:1.65;margin-bottom:12px}
 .strat-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px}
 .strat-tag{font-family:var(--mono);font-size:8px;border:1px solid var(--b);padding:2px 7px;color:var(--fg3)}
-.strat-price{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.03em}
+.strat-price{font-family:var(--mono);font-size:32px;font-weight:700;letter-spacing:-.03em}
 .strat-per{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:2px}
 
 /* ── misc ── */
@@ -461,6 +461,7 @@ const BOTS=[
 const PRICE_COINS=['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI','INJ','ARB','UNI','WLD'];
 const TFS=[{v:'1',l:'1m'},{v:'5',l:'5m'},{v:'15',l:'15m'},{v:'60',l:'1h'},{v:'240',l:'4h'},{v:'D',l:'1D'}];
 const CAT_IDS=['ALL','CRYPTO','MACRO','GEOPOLITICS','COMMODITIES','MARKETS','ON-CHAIN','LISTINGS'];
+const CAT_COLORS={CRYPTO:'#8b95a8',MACRO:'#f59e0b',GEOPOLITICS:'#ff4d6d',COMMODITIES:'#10b981',MARKETS:'#e8a000','ON-CHAIN':'#00d4aa',LISTINGS:'#a855f7'};
 
 const STRATEGIES=[
   {num:'01',name:'Steady',price:'$19',tags:['Grid Trading','Auto-Rebalance','Low Risk'],
@@ -836,7 +837,7 @@ function renderNews(){
     const ts=a.published_at||a.date;
     const url=a.link||a.url||'';
     return`<div class="n-card">
-      <div class="n-top"><span class="n-cat">${a._cat}</span>${ts?`<span class="n-age">${ageStr(ts)}</span>`:''}</div>
+      <div class="n-top"><span class="n-cat" style="color:${CAT_COLORS[a._cat]||'var(--fg3)'}">${a._cat}</span>${ts?`<span class="n-age">${ageStr(ts)}</span>`:''}</div>
       <div class="n-title">${a.title||'—'}</div>
       <div class="n-bot"><span class="n-src">${a.source||''}</span>${url?`<a href="${url}" target="_blank" class="n-link">↗ Open</a>`:''}</div>
       ${a.description?`<div class="n-desc">${a.description}</div>`:''}
