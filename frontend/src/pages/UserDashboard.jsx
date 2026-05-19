@@ -25,7 +25,11 @@ const BOTS = [
 const BOT_IDS = BOTS.map(b => b.id);
 
 function getUser() {
-  try { return JSON.parse(localStorage.getItem('kado_user') || '{}'); } catch { return {}; }
+  try {
+    const u = JSON.parse(localStorage.getItem('kado_user') || '{}');
+    if (u.username && u.username.includes('@')) u.username = u.username.split('@')[0];
+    return u;
+  } catch { return {}; }
 }
 
 function usePlanFeatures() {
