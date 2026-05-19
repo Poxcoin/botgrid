@@ -98,7 +98,7 @@ function RunDetail({ runId, onBack, t }) {
                   contentStyle={{ fontFamily: 'monospace', fontSize: 11, border: '1px solid #111', borderRadius: 0 }}
                 />
                 <Area type="monotone" dataKey="balance" stroke="#111" strokeWidth={1.5}
-                  fill="url(#eqGrad)" dot={false} />
+                  fill="url(#eqGrad)" dot={false} isAnimationActive={false} />
               </AreaChart>
             )}
           </div>

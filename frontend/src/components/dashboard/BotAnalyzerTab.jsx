@@ -37,7 +37,7 @@ function WinRateChart() {
           <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
           <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[40, 80]} />
           <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
-          <Line type="monotone" dataKey="winRate" stroke="#0A0A0A" strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="winRate" stroke="#0A0A0A" strokeWidth={2} dot={false} isAnimationActive={false} />
         </LineChart>
       )}
     </div>
@@ -54,7 +54,7 @@ function AvgScoreChart() {
           <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
           <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[5, 9]} />
           <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
-          <Bar dataKey="avgScore">
+          <Bar dataKey="avgScore" isAnimationActive={false}>
             {WIN_RATE_SERIES.map((_, i) => <Cell key={i} fill={i % 5 === 0 ? '#0047FF' : '#0A0A0A'} />)}
           </Bar>
         </BarChart>

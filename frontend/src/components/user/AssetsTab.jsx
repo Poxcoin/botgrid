@@ -388,6 +388,7 @@ function PnlChart({ hasKey }) {
                   stroke={isPos ? '#22c55e' : '#ef4444'} strokeWidth={1.5}
                   fill="url(#pnlGrad)" dot={false}
                   activeDot={{ r: 3, fill: isPos ? '#22c55e' : '#ef4444', strokeWidth: 0 }}
+                  isAnimationActive={false}
                 />
               </AreaChart>
             )}
