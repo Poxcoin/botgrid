@@ -217,7 +217,9 @@ async def cmd_balance(message: Message):
     await _send_balance(message)
 
 
-# ── Positions: /positions command + 📊 Позиції button (from UserTrade DB) ────
+# ── Positions: /positions command + 📊 Позиції button ────────────────────────
+# Live from Bybit (so manually-opened positions show up too). Falls back to the
+# UserTrade view only when the user has no API keys connected.
 async def _send_positions(message: Message):
     user, db = _linked_user(str(message.chat.id))
     try:
@@ -225,6 +227,43 @@ async def _send_positions(message: Message):
             await message.answer(texts.NOT_LINKED, parse_mode="HTML")
             return
 
+        key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+
+        # ── Live path: pull open positions straight from Bybit ───────────────
+        if key_row:
+            ex = init_user_exchange(key_row)
+            if ex is None:
+                await message.answer(texts.EXCHANGE_ERROR, parse_mode="HTML")
+                return
+            try:
+                positions = await asyncio.to_thread(bybit_positions, ex)
+            except Exception:
+                await message.answer(texts.EXCHANGE_ERROR, parse_mode="HTML")
+                return
+
+            if not positions:
+                await message.answer(texts.POSITIONS_EMPTY, parse_mode="HTML")
+                return
+
+            lines = []
+            for p in positions:
+                icon = "🟢" if p["side"] == "LONG" else "🔴"
+                lev  = f"x{p['leverage']}" if p["leverage"] else ""
+                ep   = f"@ {p['entry_price']:g}" if p["entry_price"] else ""
+                pnl  = p["unrealized_pnl"]
+                sign = "+" if pnl >= 0 else ""
+                lines.append(
+                    f"{icon} <b>{p['symbol']}</b> {p['side']} {lev} {ep}\n"
+                    f"   PnL: <b>{sign}{pnl:.2f}</b> USDT ({sign}{p['pnl_pct']:.2f}%)"
+                )
+
+            await message.answer(
+                texts.POSITIONS_LIST.format(count=len(positions), items="\n".join(lines)),
+                parse_mode="HTML",
+            )
+            return
+
+        # ── DB fallback for users without API keys ───────────────────────────
         trades = (
             db.query(UserTrade)
             .filter(UserTrade.user_id == user.id, UserTrade.status == "open")
