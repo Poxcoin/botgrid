@@ -75,11 +75,16 @@
 <div id="app">
   <div class="center" id="loading-screen">
     <div class="spinner"></div>
+    <div id="status-msg" style="font-size:11px;color:var(--muted);margin-top:12px;">Initializing…</div>
   </div>
 </div>
 
 <script>
 'use strict';
+function setStatus(msg) {
+  const el = document.getElementById('status-msg');
+  if (el) el.textContent = msg;
+}
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
@@ -249,22 +254,25 @@ async function togglePause() {
 // ── init ───────────────────────────────────────────────────────────────────
 async function init() {
   const initData = tg?.initData || '';
+  setStatus('Connecting to server…');
   try {
     const res = await fetch('/api/webapp/init', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ init_data: initData }),
+      signal:  AbortSignal.timeout(12000),
     });
+    setStatus('Verifying…');
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      showError(err.detail || 'Authentication failed');
+      showError(err.detail || 'Auth failed (' + res.status + ')');
       return;
     }
     const data = await res.json();
     _token = data.token;
     render(data);
-  } catch {
-    showError('Could not connect to server');
+  } catch (e) {
+    showError('Error: ' + (e?.message || String(e)));
   }
 }
 
