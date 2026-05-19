@@ -3011,6 +3011,17 @@ async def serve_webapp():
                         headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
 
 
+@app.options("/api/webapp/init")
+@app.options("/api/webapp/pause")
+async def webapp_cors_preflight():
+    from fastapi.responses import Response as _Resp
+    r = _Resp()
+    r.headers["Access-Control-Allow-Origin"] = "*"
+    r.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    r.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Webapp-Token"
+    return r
+
+
 @app.post("/api/webapp/init")
 async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
     bot_token = USERBOT_TOKEN or ""
@@ -3078,13 +3089,17 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
         "expires": time.time() + 3600,
     }
 
-    return {
-        "token":     token,
-        "paused":    paused,
-        "balance":   balance,
-        "positions": positions,
-        "signals":   signals,
-    }
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        content={
+            "token":     token,
+            "paused":    paused,
+            "balance":   balance,
+            "positions": positions,
+            "signals":   signals,
+        },
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
 
 
 @app.post("/api/webapp/pause")
