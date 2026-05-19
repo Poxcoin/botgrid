@@ -203,7 +203,7 @@ async def add_security_headers(request: Request, call_next):
         # Telegram Mini App: allow telegram.org SDK + framing from Telegram clients
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://telegram.org; "
+            "script-src 'self' 'unsafe-inline' https://telegram.org; "
             "style-src 'self' 'unsafe-inline'; "
             "connect-src 'self'; "
             "img-src 'self' data: https:; "
