@@ -55,7 +55,7 @@ WATCHLIST = ["ETH", "SOL", "XRP", "DOGE", "LINK"]
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
 LEVERAGE  = 5
-SIZE_PCT  = 5.0   # % від вільного балансу — було 2.0, demo account aggressive
+SIZE_PCT  = 10.0  # % від вільного балансу — 10% для значущого P&L на $10k
 
 MAX_POSITIONS      = 4        # 4 позиції одночасно (дозволяє паралельно торгувати некорельовані пари)
 COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу

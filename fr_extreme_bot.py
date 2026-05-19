@@ -11,10 +11,10 @@ OI confirmation: OI grew ≥ OI_CONFIRM_PCT while FR is extreme →
   fresh money piling in at extremes → size_multiplier 1.3x
 
 Bybit USDT perp FR range: normal ≈ ±0.001–0.005%; cap ≈ ±0.01% for BTC/ETH
-Extreme signals at: >0.008% (80% of cap) or < -0.004%
+Extreme signals at: >0.009% (90% of cap) or < -0.006%
 
-TP: 1.5%  SL: 0.75%  R:R 2:1
-Leverage: 3x  Size: 4%  Cooldown: 8h  Scan: 30 min
+TP: 2.5%  SL: 1.0%  R:R 2.5:1
+Leverage: 3x  Size: 10%  Cooldown: 24h  Scan: 30 min
 Max concurrent positions: 2
 """
 import time
@@ -33,48 +33,32 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, FR_EXTREME_TRADING
 SYMBOLS_MAJOR = [
     "BTC/USDT:USDT",
     "ETH/USDT:USDT",
-    "SOL/USDT:USDT",
     "BNB/USDT:USDT",
-    "XRP/USDT:USDT",
 ]
 
-# Tier 2 — higher FR volatility; apply separate (higher) thresholds
-SYMBOLS_ALT = [
-    "DOGE/USDT:USDT",
-    "LINK/USDT:USDT",
-    "AVAX/USDT:USDT",
-    "SUI/USDT:USDT",
-    "TON/USDT:USDT",
-]
-
-ALL_SYMBOLS = SYMBOLS_MAJOR + SYMBOLS_ALT
+ALL_SYMBOLS = SYMBOLS_MAJOR
 
 # ── Trade parameters ───────────────────────────────────────────────────────────
 LEVERAGE     = 3
-TP_PCT       = 1.5
-SL_PCT       = 0.75
-SIZE_PCT     = 4.0
+TP_PCT       = 2.5     # 2.5% — bigger move needed for true FR extremes
+SL_PCT       = 1.0     # 1.0% — R:R 2.5:1 → break-even at 29% WR
+SIZE_PCT     = 10.0    # 10% per trade — meaningful on $10k balance
 MAX_POS      = 2
-COOLDOWN     = 8 * 3600    # one full funding cycle
-SCAN_SLEEP   = 30 * 60     # 30 min — FR doesn't change faster than this
-COIN_SLEEP   = 1.0         # pause between symbols
+COOLDOWN     = 24 * 3600   # 24h — prevents firing on consecutive 8h events
+SCAN_SLEEP   = 30 * 60
+COIN_SLEEP   = 1.0
 
 # ── FR thresholds (Bybit USDT perps) ──────────────────────────────────────────
 # Normal range: ±0.001–0.005%.  Cap for BTC/ETH: ±0.01%.
-# For alts the cap can reach ±0.05% in volatile phases.
-FR_BULL_MAJOR  = 0.008    # major coins: >0.008% → short signal
-FR_BEAR_MAJOR  = 0.004    # major coins: <-0.004% → long signal
-FR_BULL_ALT    = 0.020    # alts: higher noise floor → higher threshold
-FR_BEAR_ALT    = 0.010    # alts: <-0.010% → long signal
+# Extreme = ≥90% of cap. get_funding_rate() returns value in percent (0.009 = 0.009%)
+FR_BULL_MAJOR  = 0.009    # >0.009% (90% of BTC/ETH hard cap) → SHORT
+FR_BEAR_MAJOR  = 0.006    # <-0.006% (unusually negative) → LONG
 
 OI_CONFIRM_PCT = 1.0      # OI grew ≥1% in last 4h → size_mult 1.3x
 
 
 def _get_thresholds(symbol: str) -> tuple[float, float]:
-    """Return (bull_threshold, bear_threshold) for a symbol."""
-    if symbol in SYMBOLS_MAJOR:
-        return FR_BULL_MAJOR, FR_BEAR_MAJOR
-    return FR_BULL_ALT, FR_BEAR_ALT
+    return FR_BULL_MAJOR, FR_BEAR_MAJOR
 
 
 def _check_signal(
@@ -112,10 +96,8 @@ def _check_signal(
 
 def run_fr_extreme_engine() -> None:
     print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] [FRE] FR EXTREME BOT ЗАПУЩЕН!")
-    print(f"   Majors: {', '.join(s.replace('/USDT:USDT','') for s in SYMBOLS_MAJOR)}")
-    print(f"   Alts:   {', '.join(s.replace('/USDT:USDT','') for s in SYMBOLS_ALT)}")
-    print(f"   Thresholds: majors ±{FR_BULL_MAJOR}/{FR_BEAR_MAJOR}%  "
-          f"alts ±{FR_BULL_ALT}/{FR_BEAR_ALT}%")
+    print(f"   Symbols: {', '.join(s.replace('/USDT:USDT','') for s in SYMBOLS_MAJOR)}")
+    print(f"   Thresholds: SHORT≥{FR_BULL_MAJOR}%  LONG≤-{FR_BEAR_MAJOR}%")
     print(f"   TP={TP_PCT}%  SL={SL_PCT}%  x{LEVERAGE}  Size={SIZE_PCT}%")
     print(f"   Trading={'ON' if FR_EXTREME_TRADING else 'OFF (dry-run)'}  "
           f"{'[DEMO]' if IS_DEMO_TRADING else '[LIVE]'}\n")

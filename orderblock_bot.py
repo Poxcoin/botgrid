@@ -35,9 +35,9 @@ SYMBOLS = [
 ]
 
 LEVERAGE    = 3
-TP_RATIO    = 2.0      # TP = SL_distance × TP_RATIO
-SL_BUFFER   = 0.0025   # 0.25% beyond OB edge for SL
-SIZE_PCT    = 5.0
+TP_RATIO    = 3.0      # TP = SL_distance × TP_RATIO (3:1 → break-even at 25% WR)
+SL_BUFFER   = 0.002    # 0.2% beyond OB edge for SL
+SIZE_PCT    = 10.0     # 10% per trade — meaningful on $10k balance
 MAX_POS     = 2
 COOLDOWN    = 12 * 3600
 SCAN_SLEEP  = 15 * 60
@@ -46,9 +46,9 @@ SCAN_SLEEP  = 15 * 60
 TF              = "4h"
 CANDLES         = 60       # total candles to fetch
 OB_LOOKBACK     = 50       # candles to scan for OBs
-BOS_MIN_PCT     = 0.015    # min move to confirm BOS: 1.5%
+BOS_MIN_PCT     = 0.025    # min move to confirm BOS: 2.5% (was 1.5% — too many weak signals)
 BOS_WINDOW      = 5        # candles after candidate to look for BOS
-MIN_OB_BODY_PCT = 0.001    # OB candle must have ≥0.1% body (filter doji)
+MIN_OB_BODY_PCT = 0.003    # OB candle must have ≥0.3% body (filter doji and weak candles)
 
 
 # ── Market-data exchange (no auth needed for OHLCV) ──────────────────────────
