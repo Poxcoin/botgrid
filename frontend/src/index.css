@@ -166,6 +166,9 @@
 
 /* v2 */
 
+/* Hide lightweight-charts TradingView attribution */
+a[href*="tradingview.com"][href*="lwc"] { display: none !important; }
+
 /* ── Mobile responsive ───────────────────────────────────────── */
 @media (max-width: 767px) {
   /* Tables scroll horizontally instead of overflowing */

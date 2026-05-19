@@ -239,7 +239,8 @@ export default function UserDashboard() {
   return (
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
-      background: bg, color: fg,
+      position: 'relative', zIndex: 1,
+      color: fg,
       fontFamily: 'var(--font-sans)',
     }}>
 
@@ -284,6 +285,7 @@ export default function UserDashboard() {
         {/* header */}
         <div style={{
           height: 56, flexShrink: 0,
+          background: bg,
           borderBottom: `1px solid ${border}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: isMobile ? '0 16px' : '0 28px',
