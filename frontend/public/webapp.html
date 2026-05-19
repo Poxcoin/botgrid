@@ -7,328 +7,602 @@
 <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 <style>
 :root {
-  --bg-base:     #050505;
-  --bg-surface:  #0a0a0a;
-  --bg-elevated: #111111;
-  --text-primary:   #f0f2f5;
-  --text-secondary: #8b95a8;
-  --text-muted:     #4a5568;
-  --border:    rgba(255,255,255,0.06);
-  --border-hi: rgba(255,255,255,0.1);
-  --green:     #00d4aa;
-  --green-dim: rgba(0,212,170,0.12);
-  --red:       #ff4d6d;
-  --red-dim:   rgba(255,77,109,0.12);
+  --bg:     #050505;
+  --bg2:    #0a0a0a;
+  --bg3:    #111111;
+  --bg4:    #161616;
+  --fg:     #f0f2f5;
+  --fg2:    #8b95a8;
+  --fg3:    #4a5568;
+  --border: rgba(255,255,255,0.06);
+  --hi:     rgba(255,255,255,0.10);
+  --green:  #00d4aa;
+  --gdim:   rgba(0,212,170,0.12);
+  --red:    #ff4d6d;
+  --rdim:   rgba(255,77,109,0.12);
+  --nav-h:  56px;
+  --hdr-h:  52px;
   --mono: 'SF Mono','Courier New',monospace;
-  --sans: -apple-system,BlinkMacSystemFont,'SF Pro Display',system-ui,sans-serif;
+  --sans: -apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg-base);color:var(--text-primary);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-body{padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
-#app{display:flex;flex-direction:column;min-height:100vh}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent}
 
-/* header */
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg-base);position:sticky;top:0;z-index:10}
-.logo{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.3em;text-transform:uppercase}
-.hdr-r{display:flex;align-items:center;gap:8px}
+/* ── layout shell ── */
+#shell{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+/* ── top header ── */
+#hdr{
+  height:var(--hdr-h);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg);
+}
+.logo{font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:.3em;text-transform:uppercase}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.live-badge{
+  display:flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);
+}
 .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
-.dot.psd{background:var(--red);box-shadow:0 0 6px var(--red)}
-.lbl{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted)}
+.dot.on {background:var(--green);box-shadow:0 0 7px var(--green)}
+.dot.off{background:var(--red);  box-shadow:0 0 7px var(--red)}
 
-/* tabs */
-.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg-base);position:sticky;top:45px;z-index:9}
-.tab{flex:1;padding:11px 8px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:color 150ms,border-color 150ms}
-.tab.on{color:var(--text-primary);border-bottom-color:var(--green)}
+/* ── scrollable body ── */
+#body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 
-/* content */
-.content{flex:1;overflow-y:auto;padding:20px}
-.panel{display:none}
-.panel.on{display:block}
+/* ── bottom nav ── */
+#nav{
+  height:var(--nav-h);flex-shrink:0;
+  display:flex;align-items:stretch;
+  border-top:1px solid var(--border);
+  background:var(--bg);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:none;border:none;cursor:pointer;
+  color:var(--fg3);transition:color 120ms;
+  padding:0;
+}
+.nav-btn.on{color:var(--fg)}
+.nav-icon{width:22px;height:22px;flex-shrink:0}
+.nav-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase}
 
-/* stat grid */
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:20px}
-.stat-box{background:var(--bg-surface);padding:16px 18px}
-.stat-label{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
-.stat-val{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1}
-.stat-sub{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-secondary);margin-top:6px}
+/* ── screens ── */
+.screen{display:none;padding:18px 16px;padding-bottom:8px}
+.screen.on{display:block}
 
-/* section header */
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 16px;border:1px solid var(--border);border-bottom:none;background:var(--bg-elevated)}
-.sec-title{font-family:var(--mono);font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--text-muted)}
-.sec-cnt{font-family:var(--mono);font-size:10px;color:var(--text-muted)}
+/* ── stat grid ── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:18px}
+.stat{background:var(--bg2);padding:14px 16px}
+.stat-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg3);margin-bottom:6px}
+.stat-val{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.stat-sub{font-family:var(--mono);font-size:9px;color:var(--fg2);margin-top:5px;letter-spacing:.08em}
 
-/* table */
-.tbl-wrap{overflow-x:auto;margin-bottom:20px;border:1px solid var(--border)}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+/* ── section header ── */
+.sec{
+  display:flex;align-items:center;justify-content:space-between;
+  height:34px;padding:0 14px;
+  border:1px solid var(--border);border-bottom:none;
+  background:var(--bg3);
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--fg3);
+}
+.sec-cnt{color:var(--fg2)}
+
+/* ── price chart card ── */
+.chart-card{
+  border:1px solid var(--border);background:var(--bg2);
+  padding:14px 16px;margin-bottom:18px;
+}
+.chart-row{display:flex;gap:12px}
+.chart-coin{flex:1}
+.chart-info{display:flex;align-items:baseline;gap:6px;margin-bottom:8px}
+.chart-sym{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg)}
+.chart-price{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg)}
+.chart-chg{font-family:var(--mono);font-size:10px}
+.chart-divider{width:1px;background:var(--border);flex-shrink:0}
+
+/* ── positions table ── */
+.tbl-wrap{overflow-x:auto;margin-bottom:18px;border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;min-width:480px}
 thead tr{border-bottom:1px solid var(--border)}
-th{padding:8px 14px;text-align:right;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-muted);font-weight:400;white-space:nowrap;background:var(--bg-elevated)}
-th.l{text-align:left}
-td{padding:10px 14px;text-align:right;border-bottom:1px solid rgba(255,255,255,.025);color:var(--text-secondary);white-space:nowrap}
-td.l{text-align:left;color:var(--text-primary);font-weight:700}
+th{
+  padding:8px 12px;text-align:right;
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--fg3);font-weight:400;white-space:nowrap;
+  background:var(--bg3);
+}
+th:first-child{text-align:left}
+td{padding:10px 12px;text-align:right;border-bottom:1px solid rgba(255,255,255,.03);color:var(--fg2);white-space:nowrap}
+td:first-child{text-align:left;color:var(--fg);font-weight:700}
 tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.025)}
 
-/* signals */
-.sig-wrap{border:1px solid var(--border);margin-bottom:20px}
-.sig-row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:10px 16px;font-family:var(--mono);border-bottom:1px solid rgba(255,255,255,.025)}
+/* ── signals ── */
+.sig-list{border:1px solid var(--border);margin-bottom:18px}
+.sig-row{
+  display:grid;grid-template-columns:52px 1fr auto auto;
+  align-items:center;gap:10px;
+  padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.03);
+}
 .sig-row:last-child{border-bottom:none}
+.sig-coin{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--fg)}
+.sig-time{font-family:var(--mono);font-size:9px;color:var(--fg3);letter-spacing:.04em}
 
-/* badges */
-.bdg{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.12em;padding:2px 7px;border:1px solid;text-transform:uppercase;flex-shrink:0}
-.bl{color:var(--green);border-color:rgba(0,212,170,.3);background:var(--green-dim)}
-.bs{color:var(--red);border-color:rgba(255,77,109,.3);background:var(--red-dim)}
-.bw{color:var(--green);border-color:rgba(0,212,170,.3);background:var(--green-dim)}
-.bx{color:var(--red);border-color:rgba(255,77,109,.3);background:var(--red-dim)}
+/* ── badges ── */
+.bdg{font-family:var(--mono);font-size:8px;font-weight:700;letter-spacing:.12em;padding:2px 7px;border:1px solid;text-transform:uppercase;display:inline-block}
+.bl{color:var(--green);border-color:rgba(0,212,170,.3);background:var(--gdim)}
+.bs{color:var(--red);  border-color:rgba(255,77,109,.3);background:var(--rdim)}
+.bw{color:var(--green);border-color:rgba(0,212,170,.3);background:var(--gdim)}
+.bx{color:var(--red);  border-color:rgba(255,77,109,.3);background:var(--rdim)}
 
-/* empty */
-.empty{padding:32px 20px;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-muted);border:1px solid var(--border);margin-bottom:20px}
+/* ── account tab ── */
+.acct-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid var(--border);
+}
+.acct-label{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg3);margin-bottom:3px}
+.acct-val{font-size:13px;font-weight:500;color:var(--fg)}
+.plan-badge{
+  font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  padding:3px 10px;border:1px solid;
+}
+.plan-pro{color:var(--green);border-color:rgba(0,212,170,.35);background:var(--gdim)}
+.plan-trial{color:var(--fg2);border-color:var(--border)}
+.plan-perf{color:#f59e0b;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.1)}
 
-/* footer */
-.footer{padding:16px 20px;padding-bottom:max(16px,env(safe-area-inset-bottom));border-top:1px solid var(--border);background:var(--bg-base)}
-#pbtn{width:100%;padding:13px;border:1px solid;background:none;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;cursor:pointer;transition:opacity 150ms}
+/* ── pause button ── */
+.pause-wrap{padding:16px}
+#pbtn{
+  width:100%;padding:13px;border:1px solid;background:none;
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;cursor:pointer;
+  transition:opacity 120ms;
+}
 #pbtn:disabled{opacity:.4;cursor:not-allowed}
-.brun{color:var(--red);border-color:rgba(255,77,109,.3);background:var(--red-dim)!important}
-.bpsd{color:var(--green);border-color:rgba(0,212,170,.3);background:var(--green-dim)!important}
+.brun{color:var(--red);  border-color:rgba(255,77,109,.3);background:var(--rdim)!important}
+.bpsd{color:var(--green);border-color:rgba(0,212,170,.3); background:var(--gdim)!important}
 
-/* loading/error */
-.center{display:flex;align-items:center;justify-content:center;min-height:60vh;flex-direction:column;gap:16px;padding:40px 24px}
-.spin{width:24px;height:24px;border:1.5px solid var(--border-hi);border-top-color:var(--text-primary);border-radius:50%;animation:sp .7s linear infinite}
+/* ── empty ── */
+.empty{
+  padding:32px 16px;text-align:center;font-family:var(--mono);
+  font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg3);
+  border:1px solid var(--border);margin-bottom:18px;
+}
+
+/* ── loading / error ── */
+#splash{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;
+}
+.spin{
+  width:24px;height:24px;
+  border:1.5px solid var(--hi);border-top-color:var(--fg);
+  border-radius:50%;animation:sp .7s linear infinite;
+}
 @keyframes sp{to{transform:rotate(360deg)}}
-.smsg{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted)}
-.err-box{border:1px solid var(--border-hi);background:var(--bg-surface);padding:24px;max-width:300px;width:100%;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
-.etag{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);border:1px solid rgba(255,77,109,.25);background:var(--red-dim);padding:3px 10px}
-.etitle{font-size:13px;font-weight:600;line-height:1.4}
-.edetail{font-family:var(--mono);font-size:10px;color:var(--text-secondary);line-height:1.6}
+.splash-msg{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
+.err-card{
+  border:1px solid var(--hi);background:var(--bg2);
+  padding:24px;max-width:300px;width:90%;
+  display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;
+}
+.err-tag{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);border:1px solid rgba(255,77,109,.25);background:var(--rdim);padding:3px 10px}
+.err-title{font-size:13px;font-weight:600;line-height:1.4}
+.err-msg{font-family:var(--mono);font-size:10px;color:var(--fg2);line-height:1.6}
 </style>
 </head>
 <body>
-<div id="app">
-  <div class="center" id="loading">
-    <div class="spin"></div>
-    <div id="smsg" class="smsg">Initializing…</div>
-  </div>
+
+<!-- splash -->
+<div id="splash">
+  <div class="spin"></div>
+  <div class="splash-msg" id="splash-msg">Initializing…</div>
 </div>
+
+<!-- app shell (hidden until loaded) -->
+<div id="shell" style="display:none">
+
+  <!-- header -->
+  <div id="hdr">
+    <div class="logo">KADO</div>
+    <div class="hdr-right">
+      <div class="live-badge">
+        <span id="st-lbl">Live</span>
+        <div class="dot on" id="st-dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- scrollable content -->
+  <div id="body">
+
+    <!-- OVERVIEW -->
+    <div class="screen on" id="s-overview">
+      <div class="stat-grid" id="stat-grid"></div>
+      <div id="charts-section"></div>
+      <div id="pos-preview"></div>
+    </div>
+
+    <!-- POSITIONS -->
+    <div class="screen" id="s-positions">
+      <div id="pos-full"></div>
+    </div>
+
+    <!-- SIGNALS -->
+    <div class="screen" id="s-signals">
+      <div id="sig-list"></div>
+    </div>
+
+    <!-- ACCOUNT -->
+    <div class="screen" id="s-account">
+      <div id="acct-content"></div>
+    </div>
+
+  </div>
+
+  <!-- bottom nav -->
+  <div id="nav">
+    <button class="nav-btn on" data-tab="overview" onclick="switchTab('overview')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      <span class="nav-lbl">Overview</span>
+    </button>
+    <button class="nav-btn" data-tab="positions" onclick="switchTab('positions')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      <span class="nav-lbl">Positions</span>
+    </button>
+    <button class="nav-btn" data-tab="signals" onclick="switchTab('signals')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span class="nav-lbl">Signals</span>
+    </button>
+    <button class="nav-btn" data-tab="account" onclick="switchTab('account')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      <span class="nav-lbl">Account</span>
+    </button>
+  </div>
+
+</div>
+
 <script>
 'use strict';
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-let _token = null, _paused = false;
+let _token = null, _paused = false, _userData = {};
 
-const $    = id => document.getElementById(id);
-const mk   = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
-const node = (tag, cls, t) => { const e = mk(tag, cls); e.textContent = t; return e; };
-const setS = m => { const e = $('smsg'); if (e) e.textContent = m; };
-const esc  = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+/* ── helpers ── */
+const $   = id => document.getElementById(id);
+const mk  = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+const txt = (e, t) => { e.textContent = t; return e; };
+const nd  = (tag, cls, t) => txt(mk(tag, cls), t);
 
-function fmt(n, d=2) { return Number(n ?? 0).toFixed(d); }
-function fmtP(v) { const n=+v; if (!n) return '—'; return n>=10000?n.toFixed(1):n>=100?n.toFixed(2):n.toFixed(4); }
-function sign(n)  { return +n >= 0 ? '+' : ''; }
+function fmt(n, d = 2) { return Number(n ?? 0).toFixed(d); }
+function fmtP(v) { const n = +v; if (!n) return '—'; return n >= 10000 ? n.toFixed(1) : n >= 100 ? n.toFixed(2) : n.toFixed(4); }
+function sign(n) { return +n >= 0 ? '+' : ''; }
 function ago(ts) {
   if (!ts) return '—';
   const m = Math.floor((Date.now() - new Date(ts)) / 60000);
   if (m < 1) return 'just now';
-  if (m < 60) return m + 'm ago';
-  if (m < 1440) return Math.floor(m/60) + 'h ago';
-  return Math.floor(m/1440) + 'd ago';
+  if (m < 60) return m + 'm';
+  if (m < 1440) return Math.floor(m / 60) + 'h';
+  return Math.floor(m / 1440) + 'd';
 }
 
-/* tab switching */
+/* ── tab switching ── */
 function switchTab(name) {
-  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + name));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 's-' + name));
+  $('body').scrollTop = 0;
 }
 
-/* stat box */
+/* ── stat box ── */
 function mkStat(label, value, sub, color) {
-  const box = mk('div','stat-box');
-  const lbl = node('div','stat-label', label);
-  const val = node('div','stat-val', value);
-  if (color) val.style.color = color;
-  box.appendChild(lbl);
-  box.appendChild(val);
-  if (sub) box.appendChild(node('div','stat-sub', sub));
+  const box = mk('div', 'stat');
+  const l = nd('div', 'stat-lbl', label);
+  const v = nd('div', 'stat-val', value);
+  if (color) v.style.color = color;
+  box.appendChild(l); box.appendChild(v);
+  if (sub) box.appendChild(nd('div', 'stat-sub', sub));
   return box;
 }
 
-/* section header */
-function mkSecHdr(title, cnt) {
-  const h = mk('div','sec-hdr');
-  h.appendChild(node('span','sec-title', title));
-  h.appendChild(node('span','sec-cnt', String(cnt)));
-  return h;
+/* ── SVG sparkline from Bybit kline data ── */
+function drawSparkline(candles, w, h) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  svg.style.display = 'block';
+  if (!candles.length) return svg;
+
+  const highs = candles.map(c => c.h), lows = candles.map(c => c.l);
+  const maxH = Math.max(...highs), minL = Math.min(...lows);
+  const range = maxH - minL || maxH * 0.001;
+  const n = candles.length, cw = w / n;
+  const sy = v => ((maxH - v) / range) * h;
+
+  candles.forEach((c, i) => {
+    const isUp = c.c >= c.o;
+    const col  = isUp ? '#00d4aa' : '#ff4d6d';
+    const cx   = i * cw + cw / 2;
+    const top  = sy(Math.max(c.o, c.c));
+    const bh   = Math.max(1, sy(Math.min(c.o, c.c)) - top);
+    const wick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    wick.setAttribute('x1', cx); wick.setAttribute('y1', sy(c.h));
+    wick.setAttribute('x2', cx); wick.setAttribute('y2', sy(c.l));
+    wick.setAttribute('stroke', col); wick.setAttribute('stroke-width', '0.8');
+    wick.setAttribute('opacity', '0.4');
+    const body = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    body.setAttribute('x', Math.max(0, cx - cw * 0.38));
+    body.setAttribute('y', top);
+    body.setAttribute('width', Math.max(1, cw * 0.76));
+    body.setAttribute('height', bh);
+    body.setAttribute('fill', col);
+    body.setAttribute('opacity', '0.85');
+    svg.appendChild(wick); svg.appendChild(body);
+  });
+  return svg;
 }
 
-/* positions table */
-function mkPosTable(positions) {
-  if (!positions?.length) return node('div','empty', 'No open positions');
-  const wrap = mk('div','tbl-wrap');
-  const tbl  = mk('table');
+/* ── fetch klines + build chart card ── */
+async function fetchAndBuildChart(symbol) {
+  const wrap = mk('div', 'chart-coin');
+  const info = mk('div', 'chart-info');
+  const symEl  = nd('span', 'chart-sym', symbol);
+  const priceEl = nd('span', 'chart-price', '—');
+  const chgEl   = nd('span', 'chart-chg', '');
+  info.appendChild(symEl); info.appendChild(priceEl); info.appendChild(chgEl);
+  wrap.appendChild(info);
 
-  /* head */
+  try {
+    const r = await fetch(
+      `https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}USDT&interval=60&limit=48`
+    );
+    const d = await r.json();
+    const raw = (d?.result?.list || []).slice().reverse().map(k => ({
+      o: +k[1], h: +k[2], l: +k[3], c: +k[4],
+    }));
+    if (raw.length) {
+      const last  = raw[raw.length - 1];
+      const first = raw[0];
+      const chgPct = ((last.c - first.o) / first.o) * 100;
+      priceEl.textContent = '$' + (last.c >= 1000 ? last.c.toFixed(0) : last.c.toFixed(2));
+      chgEl.textContent   = sign(chgPct) + chgPct.toFixed(2) + '%';
+      chgEl.style.color   = chgPct >= 0 ? 'var(--green)' : 'var(--red)';
+      wrap.appendChild(drawSparkline(raw, 120, 36));
+    }
+  } catch (_) {}
+  return wrap;
+}
+
+/* ── build charts section ── */
+async function buildCharts(container) {
+  const card = mk('div', 'chart-card');
+  const row  = mk('div', 'chart-row');
+  const [btc, eth] = await Promise.all([
+    fetchAndBuildChart('BTC'),
+    fetchAndBuildChart('ETH'),
+  ]);
+  const div = mk('div', 'chart-divider');
+  row.appendChild(btc); row.appendChild(div); row.appendChild(eth);
+  card.appendChild(row);
+  container.appendChild(card);
+}
+
+/* ── positions table ── */
+function mkPosTable(positions, limit) {
+  const rows = limit ? (positions || []).slice(0, limit) : (positions || []);
+  if (!rows.length) return nd('div', 'empty', 'No open positions');
+
+  const wrap  = mk('div', 'tbl-wrap');
+  const table = mk('table');
+
   const thead = mk('thead');
   const tr0   = mk('tr');
-  ['Symbol','Side','Lev','Entry','Mark','uPnL (USDT)','ROE%'].forEach((h, i) => {
-    const th = node('th', i === 0 ? 'l' : '', h);
+  ['Symbol', 'Side', 'Lev', 'Entry', 'Mark', 'uPnL', 'ROE%'].forEach((h, i) => {
+    const th = nd('th', '', h);
+    if (i === 0) th.style.textAlign = 'left';
     tr0.appendChild(th);
   });
   thead.appendChild(tr0);
-  tbl.appendChild(thead);
+  table.appendChild(thead);
 
-  /* body */
   const tbody = mk('tbody');
-  positions.forEach(p => {
-    const pnl  = +(p.unrealized_pnl ?? 0);
-    const isP  = pnl >= 0;
-    const pc   = isP ? 'var(--green)' : 'var(--red)';
-    const sc   = p.side === 'LONG' ? 'var(--green)' : 'var(--red)';
-    const row  = mk('tr');
-    row.onmouseenter = () => { row.style.background = 'rgba(255,255,255,0.025)'; };
-    row.onmouseleave = () => { row.style.background = ''; };
+  rows.forEach(p => {
+    const pnl = +(p.unrealized_pnl ?? 0);
+    const isP = pnl >= 0;
+    const pc  = isP ? 'var(--green)' : 'var(--red)';
+    const sc  = p.side === 'LONG' ? 'var(--green)' : 'var(--red)';
+    const row = mk('tr');
 
     const cells = [
-      { t: p.symbol,                        cls: 'l', extra: null },
-      { t: p.side,                          cls: '', extra: { color: sc, fontWeight: '700' } },
-      { t: (p.leverage ?? '—') + '×',       cls: '', extra: { color: 'var(--text-muted)' } },
-      { t: fmtP(p.entry_price),             cls: '', extra: { color: 'var(--text-secondary)' } },
-      { t: fmtP(p.mark_price),              cls: '', extra: { color: 'var(--text-secondary)' } },
-      { t: sign(pnl) + fmt(pnl),            cls: '', extra: { color: pc, fontWeight: '700' } },
-      { t: sign(p.pnl_pct) + fmt(p.pnl_pct) + '%', cls: '', extra: { color: pc } },
+      { t: p.symbol,                              style: null },
+      { t: p.side,                                style: { color: sc, fontWeight: '700' } },
+      { t: (p.leverage ?? '—') + '×',             style: { color: 'var(--fg3)' } },
+      { t: fmtP(p.entry_price),                   style: { color: 'var(--fg2)' } },
+      { t: fmtP(p.mark_price),                    style: { color: 'var(--fg2)' } },
+      { t: sign(pnl) + fmt(pnl),                  style: { color: pc, fontWeight: '700' } },
+      { t: sign(p.pnl_pct) + fmt(p.pnl_pct) + '%', style: { color: pc } },
     ];
 
-    cells.forEach(({ t, cls, extra }) => {
-      const td = node('td', cls, t);
-      if (extra) Object.assign(td.style, extra);
+    cells.forEach(({ t, style }, i) => {
+      const td = nd('td', i === 0 ? '' : '', t);
+      if (i === 0) { td.style.textAlign = 'left'; td.style.color = 'var(--fg)'; td.style.fontWeight = '700'; }
+      if (style) Object.assign(td.style, style);
       row.appendChild(td);
     });
     tbody.appendChild(row);
   });
-  tbl.appendChild(tbody);
-  wrap.appendChild(tbl);
+  table.appendChild(tbody);
+  wrap.appendChild(table);
   return wrap;
 }
 
-/* Overview panel */
-function mkOverview(data) {
+/* ── render overview ── */
+function renderOverview(data) {
   const { balance, positions } = data;
   const upnl = +(balance?.unrealized_pnl ?? 0);
-  const panel = mk('div','panel on');
-  panel.id = 'p-overview';
 
-  const grid = mk('div','stat-grid');
-  grid.appendChild(mkStat('Balance', '$' + fmt(balance?.usdt_wallet), 'USDT'));
-  grid.appendChild(mkStat('Unrealized PnL', sign(upnl) + fmt(upnl), 'USDT',
-    upnl > 0 ? 'var(--green)' : upnl < 0 ? 'var(--red)' : null));
+  const grid = $('stat-grid');
+  grid.textContent = '';
+  grid.appendChild(mkStat('Balance',        '$' + fmt(balance?.usdt_wallet), 'USDT'));
+  grid.appendChild(mkStat('Unrealized PnL', sign(upnl) + fmt(upnl),         'USDT', upnl > 0 ? 'var(--green)' : upnl < 0 ? 'var(--red)' : null));
   if (balance?.usdt_equity != null) {
-    grid.appendChild(mkStat('Equity', '$' + fmt(balance.usdt_equity), 'USDT'));
-    grid.appendChild(mkStat('Available', '$' + fmt(balance.usdt_free), 'USDT'));
+    grid.appendChild(mkStat('Equity',     '$' + fmt(balance.usdt_equity), 'USDT'));
+    grid.appendChild(mkStat('Available',  '$' + fmt(balance.usdt_free),   'USDT'));
   }
-  panel.appendChild(grid);
 
+  /* charts (async, non-blocking) */
+  const chartsEl = $('charts-section');
+  chartsEl.textContent = '';
+  buildCharts(chartsEl);
+
+  /* positions preview */
+  const prev = $('pos-preview');
+  prev.textContent = '';
   const cnt = (positions || []).length;
-  panel.appendChild(mkSecHdr('Open Positions', cnt));
-  panel.appendChild(mkPosTable((positions || []).slice(0, 8)));
-  return panel;
+  const secH = mk('div', 'sec');
+  secH.appendChild(nd('span', '', 'Open Positions'));
+  secH.appendChild(nd('span', 'sec-cnt', String(cnt)));
+  prev.appendChild(secH);
+  prev.appendChild(mkPosTable(positions, 4));
 }
 
-/* Positions panel */
-function mkPositions(positions) {
-  const panel = mk('div','panel');
-  panel.id = 'p-positions';
-  panel.appendChild(mkSecHdr('Open Positions', (positions || []).length));
-  panel.appendChild(mkPosTable(positions));
-  return panel;
+/* ── render positions ── */
+function renderPositions(positions) {
+  const el = $('pos-full');
+  el.textContent = '';
+  const secH = mk('div', 'sec');
+  secH.appendChild(nd('span', '', 'Open Positions'));
+  secH.appendChild(nd('span', 'sec-cnt', String((positions || []).length)));
+  el.appendChild(secH);
+  el.appendChild(mkPosTable(positions));
 }
 
-/* Signals panel */
-function mkSignals(signals) {
-  const panel = mk('div','panel');
-  panel.id = 'p-signals';
-  const list = (signals || []).slice(0, 25);
-  panel.appendChild(mkSecHdr('Recent Signals', list.length));
+/* ── render signals ── */
+function renderSignals(signals) {
+  const el = $('sig-list');
+  el.textContent = '';
+  const list = (signals || []).slice(0, 30);
+  const secH = mk('div', 'sec');
+  secH.appendChild(nd('span', '', 'Recent Signals'));
+  secH.appendChild(nd('span', 'sec-cnt', String(list.length)));
+  el.appendChild(secH);
   if (!list.length) {
-    panel.appendChild(node('div','empty', 'No signals yet'));
-  } else {
-    const wrap = mk('div','sig-wrap');
-    list.forEach(s => {
-      const row  = mk('div','sig-row');
-      const bdg  = node('span', 'bdg ' + (s.action === 'LONG' ? 'bl' : 'bs'), s.action || '—');
-      const coin = node('span', '', s.coin || '—');
-      coin.style.cssText = 'font-size:12px;font-weight:700;color:var(--text-primary)';
-      const res  = mk('span');
-      if (s.result) { res.className = 'bdg ' + (s.result === 'WIN' ? 'bw' : 'bx'); res.textContent = s.result; }
-      const t = node('span','', ago(s.timestamp));
-      t.style.cssText = 'font-size:9px;color:var(--text-muted);letter-spacing:.06em';
-      row.appendChild(bdg); row.appendChild(coin); row.appendChild(res); row.appendChild(t);
-      wrap.appendChild(row);
-    });
-    panel.appendChild(wrap);
+    el.appendChild(nd('div', 'empty', 'No signals yet'));
+    return;
   }
-  return panel;
+  const wrap = mk('div', 'sig-list');
+  wrap.style.border = '1px solid var(--border)';
+  wrap.style.marginBottom = '18px';
+  list.forEach(s => {
+    const row = mk('div', 'sig-row');
+    const bdg = nd('span', 'bdg ' + (s.action === 'LONG' ? 'bl' : 'bs'), s.action || '—');
+    const coin = nd('span', 'sig-coin', s.coin || '—');
+    const res = mk('span');
+    if (s.result) { res.className = 'bdg ' + (s.result === 'WIN' ? 'bw' : 'bx'); res.textContent = s.result; }
+    const t = nd('span', 'sig-time', ago(s.timestamp));
+    row.appendChild(bdg); row.appendChild(coin); row.appendChild(res); row.appendChild(t);
+    wrap.appendChild(row);
+  });
+  el.appendChild(wrap);
 }
 
-/* render */
-function render(data) {
-  _paused = data.paused;
-  const app = $('app');
-  app.textContent = '';
+/* ── render account ── */
+function renderAccount(data) {
+  const el = $('acct-content');
+  el.textContent = '';
+  const u = data.user || {};
 
-  /* header */
-  const hdr = mk('div','hdr');
-  hdr.appendChild(node('div','logo', 'KADO'));
-  const hr = mk('div','hdr-r');
-  const stLbl = node('span','lbl', _paused ? 'Paused' : 'Live'); stLbl.id = 'st-lbl';
-  const stDot = mk('div','dot ' + (_paused ? 'psd' : 'live')); stDot.id = 'st-dot';
-  hr.appendChild(stLbl); hr.appendChild(stDot);
-  hdr.appendChild(hr);
-  app.appendChild(hdr);
+  const planCls = u.plan === 'pro' ? 'plan-pro' : u.plan === 'performance' ? 'plan-perf' : 'plan-trial';
 
-  /* tabs */
-  const tabRow = mk('div','tabs');
-  [['overview','Overview'],['positions','Positions'],['signals','Signals']].forEach(([id,lbl]) => {
-    const b = node('button','tab' + (id==='overview'?' on':''), lbl);
-    b.dataset.tab = id; b.onclick = () => switchTab(id);
-    tabRow.appendChild(b);
+  const rows = [
+    { label: 'Email',    value: u.email    || '—' },
+    { label: 'Username', value: u.username || '—' },
+    { label: 'Plan',     value: (u.plan || 'trial').toUpperCase(), cls: planCls },
+  ];
+
+  const card = mk('div');
+  card.style.cssText = 'border:1px solid var(--border);margin-bottom:18px';
+  rows.forEach(({ label, value, cls }) => {
+    const row = mk('div', 'acct-row');
+    const left = mk('div');
+    left.appendChild(nd('div', 'acct-label', label));
+    if (cls) {
+      const v = nd('span', 'bdg ' + cls, value);
+      v.style.marginTop = '2px';
+      left.appendChild(v);
+    } else {
+      left.appendChild(nd('div', 'acct-val', value));
+    }
+    row.appendChild(left);
+    card.appendChild(row);
   });
-  app.appendChild(tabRow);
+  el.appendChild(card);
 
-  /* panels */
-  const content = mk('div','content');
-  content.appendChild(mkOverview(data));
-  content.appendChild(mkPositions(data.positions));
-  content.appendChild(mkSignals(data.signals));
-  app.appendChild(content);
-
-  /* footer */
-  const footer = mk('div','footer');
-  const btn = mk('button');
-  btn.id = 'pbtn'; btn.className = _paused ? 'bpsd' : 'brun';
+  /* pause button */
+  const wrap = mk('div', 'pause-wrap');
+  const btn  = mk('button');
+  btn.id = 'pbtn';
+  btn.className = _paused ? 'bpsd' : 'brun';
   btn.textContent = _paused ? '▶  Resume Bot' : '⏸  Pause Bot';
   btn.onclick = togglePause;
-  footer.appendChild(btn);
-  app.appendChild(footer);
+  wrap.appendChild(btn);
+  el.appendChild(wrap);
 }
 
-/* error */
+/* ── full render ── */
+function render(data) {
+  _paused   = data.paused;
+  _userData = data.user || {};
+
+  /* header status */
+  const lbl = $('st-lbl'), dot = $('st-dot');
+  if (lbl) lbl.textContent = _paused ? 'Paused' : 'Live';
+  if (dot) dot.className   = 'dot ' + (_paused ? 'off' : 'on');
+
+  renderOverview(data);
+  renderPositions(data.positions);
+  renderSignals(data.signals);
+  renderAccount(data);
+
+  /* show app */
+  $('splash').style.display = 'none';
+  $('shell').style.display  = 'flex';
+}
+
+/* ── error ── */
 function showError(msg) {
   const m = String(msg || '');
   const isBybit = /bybit|api key|not configured|keys/i.test(m);
   const isAuth  = /auth|401|403|token|unauthorized/i.test(m);
   const isTime  = /timeout|abort|timed out/i.test(m);
-  const title  = isBybit ? 'API keys not connected' : isAuth ? 'Authentication failed' : isTime ? 'Connection timeout' : 'Something went wrong';
-  const detail = isBybit ? 'Connect your Bybit API keys in Settings to enable the dashboard.'
-               : isAuth  ? 'Open this app through the Telegram bot.'
-               : isTime  ? 'Server took too long. Please try again.'
+  const title  = isBybit ? 'API keys not connected' : isAuth ? 'Auth failed' : isTime ? 'Connection timeout' : 'Something went wrong';
+  const detail = isBybit ? 'Connect Bybit API keys in Settings.'
+               : isAuth  ? 'Open via @KADO_c_BOT in Telegram.'
+               : isTime  ? 'Server slow. Try again.'
                : m || 'Unexpected error.';
-  const app = $('app'); app.textContent = '';
-  const wrap = mk('div','center'), box = mk('div','err-box');
-  box.appendChild(node('div','etag', 'Error'));
-  box.appendChild(node('div','etitle', title));
-  box.appendChild(node('div','edetail', detail));
-  wrap.appendChild(box); app.appendChild(wrap);
+
+  const splash = $('splash');
+  splash.textContent = '';
+  splash.style.display = 'flex';
+  const card = mk('div', 'err-card');
+  card.appendChild(nd('div', 'err-tag', 'Error'));
+  card.appendChild(nd('div', 'err-title', title));
+  card.appendChild(nd('div', 'err-msg', detail));
+  splash.appendChild(card);
 }
 
-/* pause toggle */
+/* ── pause toggle ── */
 async function togglePause() {
   if (!_token) return;
   const btn = $('pbtn');
@@ -341,19 +615,19 @@ async function togglePause() {
     });
     if (res.ok) {
       _paused = !_paused;
-      if (btn) { btn.className = _paused ? 'bpsd' : 'brun'; btn.textContent = _paused ? '▶  Resume Bot' : '⏸  Pause Bot'; }
-      const dot = $('st-dot'), lbl = $('st-lbl');
-      if (dot) dot.className = 'dot ' + (_paused ? 'psd' : 'live');
+      const lbl = $('st-lbl'), dot = $('st-dot');
       if (lbl) lbl.textContent = _paused ? 'Paused' : 'Live';
+      if (dot) dot.className   = 'dot ' + (_paused ? 'off' : 'on');
+      if (btn) { btn.className = _paused ? 'bpsd' : 'brun'; btn.textContent = _paused ? '▶  Resume Bot' : '⏸  Pause Bot'; }
     }
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
-/* init */
+/* ── init ── */
 async function init() {
-  setS('Connecting…');
+  $('splash-msg').textContent = 'Connecting…';
   try {
     const res = await fetch('/api/webapp/init', {
       method: 'POST',
@@ -361,14 +635,16 @@ async function init() {
       body: JSON.stringify({ init_data: tg?.initData || '' }),
       signal: AbortSignal.timeout(12000),
     });
-    setS('Verifying…');
+    $('splash-msg').textContent = 'Verifying…';
     if (!res.ok) {
       const e = await res.json().catch(() => ({}));
       showError(e.detail || 'Auth failed (' + res.status + ')');
       return;
     }
-    render(await res.json());
-  } catch(e) {
+    const data = await res.json();
+    _token = data.token;
+    render(data);
+  } catch (e) {
     showError(e?.message || String(e));
   }
 }

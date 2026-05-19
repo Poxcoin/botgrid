@@ -205,7 +205,7 @@ async def add_security_headers(request: Request, call_next):
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://telegram.org; "
             "style-src 'self' 'unsafe-inline'; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://api.bybit.com wss://stream.bybit.com; "
             "img-src 'self' data: https:; "
             "frame-ancestors https://web.telegram.org https://*.telegram.org;"
         )
@@ -3102,6 +3102,11 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
             "balance":   balance,
             "positions": positions,
             "signals":   signals,
+            "user": {
+                "email":    user.email    if user else None,
+                "username": user.username if user else None,
+                "plan":     user.effective_plan if user else None,
+            },
         },
         headers={"Access-Control-Allow-Origin": "*"},
     )
