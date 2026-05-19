@@ -1079,6 +1079,17 @@ def _run_single(cfg: dict) -> None:
                     _ema200_4h  = _calc_ema(_closes_rsi, 200) if len(_closes_rsi) >= 200 else _ema200_4h
                     _hurst_4h   = _calc_hurst(_closes_rsi[-60:])
                     _log(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f} Hurst={_hurst_4h:.3f}")
+                    # Cancel all pending limit orders when Hurst > filter — prevents
+                    # old pending orders from filling via closed-orders fallback during freeze
+                    if _hurst_4h > HURST_FILTER and pending_orders:
+                        _log(f"[GRID:{symbol}] 🧹 Hurst={_hurst_4h:.3f} > {HURST_FILTER} — скасовуємо {len(pending_orders)} pending ордерів")
+                        for _zone, _pord in list(pending_orders.items()):
+                            try:
+                                exchange.cancel_order(_pord["order_id"], symbol, params={"category": "linear"})
+                            except Exception:
+                                pass
+                        pending_orders.clear()
+                        _save_state(symbol, state, user_id)
                 except Exception:
                     pass
 
