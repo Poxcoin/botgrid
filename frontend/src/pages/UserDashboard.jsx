@@ -18,9 +18,6 @@ const BOTS = [
   { id: 'cascade',   label: 'Cascade'        },
   { id: 'orderflow', label: 'Orderflow'      },
   { id: 'ob',        label: 'Order Block'    },
-  { id: 'macro',     label: 'Macro'          },
-  { id: 'listing',   label: 'Listing Sniper' },
-  { id: 'dex',       label: 'DEX Sniper'     },
   { id: 'history',   label: 'History'        },
 ];
 const BOT_IDS = BOTS.map(b => b.id);

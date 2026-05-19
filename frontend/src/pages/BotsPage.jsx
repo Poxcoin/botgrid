@@ -124,7 +124,7 @@ export default function BotsPage() {
   const { t } = useLang();
   usePageTitle(t.nav.bots);
 
-  const BOT_IDS = ['signal-bot','grid-bot','listing-sniper','funding-rate-bot','liquidation-cascade','onchain-macro','whale-tracker','dex-sniper'];
+  const BOT_IDS = ['signal-bot','grid-bot','listing-sniper','funding-rate-bot','liquidation-cascade','orderflow-bot','sweep-bot','orderblock-bot'];
   const BOTS = ['b1','b2','b3','b4','b5','b6','b7','b8'].map((k, i) => ({
     num: String(i + 1).padStart(2, '0'),
     id: BOT_IDS[i],

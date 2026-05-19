@@ -44,7 +44,7 @@ const COLS = [
       { label: 'Grid Bot',         to: '/bots#grid-bot' },
       { label: 'Funding Rate Bot', to: '/bots#funding-rate-bot' },
       { label: 'Listing Sniper',   to: '/bots#listing-sniper' },
-      { label: 'DEX Sniper (BSC)', to: '/bots#dex-sniper' },
+      { label: 'Order Block Bot',   to: '/bots#orderblock-bot' },
       { label: 'All Bots',         to: '/bots' },
     ],
   },
