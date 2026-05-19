@@ -308,7 +308,7 @@ function ChangePasswordRow() {
   const [saving,  setSaving]  = useState(false);
   const [msg,     setMsg]     = useState('');
 
-  const inpSt = { width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '9px 12px', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', borderRadius: 4 };
+  const inpSt = { width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--fg)', padding: '9px 12px', fontSize: 13, fontFamily: 'var(--font-mono)', outline: 'none', boxSizing: 'border-box', borderRadius: 4 };
 
   async function submit(e) {
     e.preventDefault();
