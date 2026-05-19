@@ -5,6 +5,7 @@ Menu: persistent reply keyboard with Account / Balance / Positions buttons.
 WebApp: inline button to https://kadoclub.net/webapp under welcome messages.
 """
 import asyncio
+import logging
 from datetime import datetime
 
 from aiogram import F, Router
@@ -21,6 +22,8 @@ from aiogram.types import (
 from database import SessionLocal, TgLinkToken, User, UserApiKey, UserTrade
 from userbot import texts
 from userbot.exchange import bybit_balance, bybit_positions, init_user_exchange
+
+log = logging.getLogger("userbot")
 
 WEBAPP_URL = "https://kadoclub.net/webapp"
 
@@ -294,3 +297,13 @@ async def cmd_pnl(message: Message):
         )
     finally:
         db.close()
+
+
+# ── Catch-all fallback — last in the router, runs only if nothing else matched
+@router.message()
+async def cmd_fallback(message: Message):
+    log.info(
+        "fallback: chat=%s type=%s content_type=%s text=%r",
+        message.chat.id, message.chat.type, message.content_type, message.text,
+    )
+    await message.answer(texts.UNKNOWN_COMMAND, reply_markup=_menu_keyboard())

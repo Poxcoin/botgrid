@@ -40,8 +40,12 @@ async def main():
     log.info("Bot online as @%s (id=%s)", me.username, me.id)
 
     await bot.set_my_commands([
-        {"command": "menu", "description": "Главное меню"},
-        {"command": "help", "description": "Помощь"},
+        {"command": "menu",      "description": "Главное меню"},
+        {"command": "account",   "description": "Информация об аккаунте"},
+        {"command": "balance",   "description": "Баланс Bybit"},
+        {"command": "positions", "description": "Открытые позиции"},
+        {"command": "pnl",       "description": "Статистика по закрытым сделкам"},
+        {"command": "help",      "description": "Помощь"},
     ])
 
     await bot.set_chat_menu_button(
