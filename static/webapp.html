@@ -7,544 +7,763 @@
 <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 <style>
 :root{
-  --bg:#050505;--bg2:#0a0a0a;--bg3:#111111;--bg4:#161616;
-  --fg:#f0f2f5;--fg2:#8b95a8;--fg3:#4a5568;
-  --b:rgba(255,255,255,0.06);--bhi:rgba(255,255,255,0.10);
-  --g:#00d4aa;--gdim:rgba(0,212,170,0.12);
-  --r:#ff4d6d;--rdim:rgba(255,77,109,0.12);
+  --bg:#050505;
+  --bg2:#0a0a0a;
+  --bg3:#111;
+  --fg:#f0f2f5;
+  --fg2:#8b95a8;
+  --fg3:#4a5568;
+  --b:rgba(255,255,255,.06);
+  --bhi:rgba(255,255,255,.1);
+  --g:#00d4aa;
+  --r:#ff4d6d;
   --mono:'SF Mono','Courier New',monospace;
   --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;
+  --nav-h:56px;
+  --hdr-h:50px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
-button{font-family:inherit;-webkit-tap-highlight-color:transparent;cursor:pointer;border:none;background:none;color:inherit}
-a{color:inherit;text-decoration:none}
-#app{display:flex;flex-direction:column;height:100dvh;max-height:100dvh;padding-top:env(safe-area-inset-top)}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent;cursor:pointer;border:none;background:none;color:inherit;padding:0}
+a{-webkit-tap-highlight-color:transparent}
 
-/* header */
-.hdr{height:48px;flex-shrink:0;display:flex;align-items:center;padding:0 14px;gap:10px;border-bottom:1px solid var(--b)}
-.hdr-burger{font-size:19px;color:var(--fg2);padding:4px;line-height:1}
-.hdr-logo{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.35em}
-.hdr-page{flex:1;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--fg3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
-.hdr-status{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--fg3);flex-shrink:0}
-.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.dot-on{background:var(--g);box-shadow:0 0 5px var(--g)}
-.dot-off{background:var(--fg3)}
+/* ── shell ── */
+#app{display:flex;flex-direction:column;height:100dvh;padding-top:env(safe-area-inset-top)}
 
-/* scroll */
+/* ── header ── */
+.hdr{height:var(--hdr-h);flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:0;border-bottom:1px solid var(--b);position:relative}
+.hdr-logo{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.35em;color:var(--fg)}
+.hdr-title{position:absolute;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--fg2);pointer-events:none;white-space:nowrap}
+.hdr-right{margin-left:auto;position:relative}
+.acc-btn{font-family:var(--mono);font-size:11px;color:var(--fg2);padding:6px 10px;border:1px solid var(--b);display:flex;align-items:center;gap:5px;transition:border-color .15s,color .15s}
+.acc-btn:hover,.acc-btn.open{border-color:var(--bhi);color:var(--fg)}
+.acc-arr{font-size:8px;opacity:.6;transition:transform .15s}
+.acc-arr.open{transform:rotate(180deg)}
+.acc-drop{display:none;position:absolute;top:calc(100% + 5px);right:0;min-width:168px;background:var(--bg3);border:1px solid var(--bhi);z-index:50;padding:4px 0}
+.acc-drop.open{display:block}
+.acc-drop-item{display:block;width:100%;padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--fg2);text-align:left;transition:background .1s,color .1s;text-decoration:none}
+.acc-drop-item:hover{background:rgba(255,255,255,.04);color:var(--fg)}
+.acc-drop-sep{height:1px;background:var(--b);margin:4px 0}
+
+/* ── scroll ── */
 #scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--b) transparent}
+#scroll::-webkit-scrollbar{width:3px}
+#scroll::-webkit-scrollbar-thumb{background:var(--b)}
 
-/* pages */
-.page{display:none;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));min-height:100%}
+/* ── pages ── */
+.page{display:none;min-height:100%}
 .page.active{display:block}
 
-/* drawer */
-.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200}
-.backdrop.open{display:block}
-.drawer{position:fixed;top:0;left:0;bottom:0;width:264px;background:var(--bg);border-right:1px solid var(--b);display:flex;flex-direction:column;z-index:201;transform:translateX(-100%);transition:transform .22s ease}
-.drawer.open{transform:translateX(0)}
-.d-head{height:56px;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--b);justify-content:space-between;flex-shrink:0}
-.d-logo{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.35em}
-.d-close{font-size:20px;color:var(--fg3);padding:4px}
-.d-nav{flex:1;overflow-y:auto;scrollbar-width:none;padding:6px 0}
-.d-nav::-webkit-scrollbar{display:none}
-.d-div{height:1px;background:var(--b);margin:5px 0}
-.d-item{width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;min-height:42px;font-size:13px;color:var(--fg2);text-align:left;transition:background .1s,color .1s}
-.d-item:hover{color:var(--fg);background:rgba(255,255,255,.03)}
-.d-item.on{background:var(--fg);color:var(--bg)}
-.d-sub-item{padding-left:34px}
-.d-sub{overflow:hidden;max-height:0;transition:max-height .28s ease}
-.d-sub.open{max-height:700px}
-.d-foot{border-top:1px solid var(--b);padding:10px 18px;display:flex;align-items:center;gap:8px;flex-shrink:0}
-.d-username{flex:1;font-family:var(--mono);font-size:10px;color:var(--fg3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ── bottom nav ── */
+.nav-bar{height:var(--nav-h);flex-shrink:0;border-top:1px solid var(--b);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--fg3);transition:color .15s;padding:0}
+.nav-btn.on{color:var(--fg)}
+.nav-icon{display:block;width:20px;height:20px}
 
-/* stat cards */
-.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:18px}
-.sc{background:var(--bg2);border:1px solid var(--b);padding:18px 14px}
-.sc-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:10px}
-.sc-val{font-family:var(--mono);font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
-.sc-sub{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:5px}
-.col-g{color:var(--g)}
-.col-r{color:var(--r)}
+/* ── home page ── */
+.home-balance{padding:28px 20px 20px;border-bottom:1px solid var(--b)}
+.home-bal-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:10px}
+.home-bal-val{font-family:var(--mono);font-size:34px;font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--fg)}
+.home-bal-unit{font-family:var(--mono);font-size:11px;color:var(--fg3);margin-top:6px}
+.home-stats{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid var(--b)}
+.home-stat{padding:16px 14px;border-right:1px solid var(--b)}
+.home-stat:last-child{border-right:none}
+.home-stat-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);margin-bottom:6px}
+.home-stat-val{font-family:var(--mono);font-size:14px;font-weight:600;letter-spacing:-.02em}
 
-/* section label */
-.sl{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b);padding-bottom:9px;margin:18px 0 13px}
-.sl-t{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
-.sl-r{font-family:var(--mono);font-size:9px;color:var(--fg3)}
+/* ── section header ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;border-bottom:1px solid var(--b)}
+.sec-hdr-t{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
+.sec-hdr-r{font-family:var(--mono);font-size:10px;color:var(--fg2)}
 
-/* positions table */
-.pt{border:1px solid var(--b);margin-bottom:14px}
-.pt-hdr{height:36px;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--b)}
-.pt-hdr-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--fg3)}
-.pt-hdr-cnt{font-family:var(--mono);font-size:11px;color:var(--fg2)}
-.pt-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.pt table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;min-width:460px}
-.pt th{padding:7px 12px;text-align:right;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg3);font-weight:400;border-bottom:1px solid var(--b)}
-.pt th:first-child{text-align:left}
-.pt td{padding:9px 12px;text-align:right;color:var(--fg2);border-bottom:1px solid rgba(255,255,255,.025)}
-.pt td:first-child{text-align:left;color:var(--fg);font-weight:700}
-.pt tr:last-child td{border-bottom:none}
+/* ── positions table ── */
+.pos-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.pos-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;min-width:440px}
+.pos-table th{padding:8px 14px;text-align:right;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--fg3);font-weight:400;border-bottom:1px solid var(--b)}
+.pos-table th:first-child{text-align:left}
+.pos-table td{padding:10px 14px;text-align:right;color:var(--fg2);border-bottom:1px solid rgba(255,255,255,.025)}
+.pos-table td:first-child{text-align:left;color:var(--fg);font-weight:600}
+.pos-table tr:last-child td{border-bottom:none}
 
-/* signals */
-.sig-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--b);background:var(--bg2);margin-bottom:5px}
-.sig-coin{font-family:var(--mono);font-size:12px;color:var(--fg);font-weight:600}
-.sig-meta{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:2px}
-.side-l{font-family:var(--mono);font-size:9px;color:var(--g);background:var(--gdim);padding:2px 6px;margin-left:7px}
-.side-s{font-family:var(--mono);font-size:9px;color:var(--r);background:var(--rdim);padding:2px 6px;margin-left:7px}
-.sig-res{font-family:var(--mono);font-size:12px;font-weight:700}
+/* ── signal rows ── */
+.sig-row{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--b)}
+.sig-lhs{display:flex;flex-direction:column;gap:3px}
+.sig-coin{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--fg)}
+.sig-meta{font-family:var(--mono);font-size:9px;color:var(--fg3)}
+.side-l{font-family:var(--mono);font-size:8px;color:var(--g);border:1px solid rgba(0,212,170,.3);padding:2px 5px;margin-left:7px;letter-spacing:.04em}
+.side-s{font-family:var(--mono);font-size:8px;color:var(--r);border:1px solid rgba(255,77,109,.3);padding:2px 5px;margin-left:7px;letter-spacing:.04em}
+.sig-status{font-family:var(--mono);font-size:11px;font-weight:600}
 
-/* chart */
-.coin-pills{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;padding-bottom:3px;margin-bottom:10px}
-.coin-pills::-webkit-scrollbar{display:none}
-.c-pill{font-family:var(--mono);font-size:10px;padding:5px 9px;border:1px solid var(--b);color:var(--fg3);white-space:nowrap;flex-shrink:0;transition:all .1s}
-.c-pill:hover,.c-pill.on{border-color:var(--fg3);color:var(--fg)}
-.tf-pills{display:flex;gap:4px;margin-bottom:10px}
-.tf-pill{font-family:var(--mono);font-size:9px;padding:4px 8px;border:1px solid var(--b);color:var(--fg3);transition:all .1s}
-.tf-pill:hover,.tf-pill.on{border-color:var(--fg3);color:var(--fg)}
-.chart-box{background:var(--bg2);border:1px solid var(--b);margin-bottom:12px;overflow:hidden}
-.chart-loading{height:200px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--fg3)}
-.trades-box{height:180px;overflow-y:auto;border:1px solid var(--b);scrollbar-width:thin;scrollbar-color:var(--b) transparent}
-.trade-row{display:grid;grid-template-columns:1fr auto;padding:3px 12px;gap:8px}
+/* ── bots page ── */
+.bots-list{padding:0}
+.bot-row{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid var(--b);transition:background .1s;cursor:pointer}
+.bot-row:hover{background:rgba(255,255,255,.025)}
+.bot-row.on{background:rgba(255,255,255,.04)}
+.bot-name{font-size:13px;font-weight:500;color:var(--fg);flex:1}
+.bot-coins{font-family:var(--mono);font-size:9px;color:var(--fg3)}
+.bot-arr{font-size:11px;color:var(--fg3);margin-left:8px}
 
-/* news */
-.news-cats{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;padding-bottom:3px;margin-bottom:14px}
+/* ── bot detail ── */
+.bot-detail{display:none}
+.bot-detail.open{display:block}
+.bot-back{display:flex;align-items:center;gap:8px;padding:12px 20px;border-bottom:1px solid var(--b);font-family:var(--mono);font-size:11px;color:var(--fg2);cursor:pointer}
+.bot-back:hover{color:var(--fg)}
+.coin-bar{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;padding:12px 20px;border-bottom:1px solid var(--b)}
+.coin-bar::-webkit-scrollbar{display:none}
+.c-pill{font-family:var(--mono);font-size:10px;padding:5px 9px;border:1px solid var(--b);color:var(--fg3);white-space:nowrap;flex-shrink:0;transition:all .12s;background:none}
+.c-pill:hover,.c-pill.on{border-color:rgba(255,255,255,.25);color:var(--fg)}
+.tf-bar{display:flex;gap:4px;padding:10px 20px;border-bottom:1px solid var(--b)}
+.tf-pill{font-family:var(--mono);font-size:9px;padding:4px 8px;border:1px solid var(--b);color:var(--fg3);background:none;transition:all .12s}
+.tf-pill:hover,.tf-pill.on{border-color:rgba(255,255,255,.25);color:var(--fg)}
+.chart-box{background:var(--bg2);border-bottom:1px solid var(--b)}
+.chart-load{height:200px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--fg3)}
+
+/* ── markets ── */
+.mkt-hdr{display:grid;grid-template-columns:56px 1fr 62px 56px;padding:8px 16px;border-bottom:1px solid var(--b)}
+.mkt-hdr span{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
+.mkt-row{display:grid;grid-template-columns:56px 1fr 62px 56px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.025);align-items:center;cursor:pointer;transition:background .1s}
+.mkt-row:hover{background:rgba(255,255,255,.025)}
+.mkt-coin{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--fg)}
+.mkt-price{font-family:var(--mono);font-size:12px;font-weight:500;text-align:right}
+.mkt-chg{font-family:var(--mono);font-size:11px;font-weight:600;text-align:right}
+.mkt-vol{font-family:var(--mono);font-size:9px;color:var(--fg3);text-align:right}
+
+/* ── news ── */
+.news-cats{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;padding:12px 16px;border-bottom:1px solid var(--b)}
 .news-cats::-webkit-scrollbar{display:none}
-.cat-pill{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border:1px solid var(--b);color:var(--fg3);white-space:nowrap;flex-shrink:0;transition:all .1s}
-.cat-pill:hover,.cat-pill.on{border-color:var(--fg3);color:var(--fg)}
-.news-card{border:1px solid var(--b);padding:13px;margin-bottom:7px}
-.news-cat{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
-.news-title{font-size:13px;font-weight:600;line-height:1.44;color:var(--fg);margin:6px 0 5px}
-.news-source{font-family:var(--mono);font-size:9px;color:var(--fg3)}
-.news-desc{font-size:11px;color:var(--fg2);line-height:1.55;margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ncat{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border:1px solid var(--b);color:var(--fg3);white-space:nowrap;flex-shrink:0;background:none;transition:all .12s}
+.ncat:hover,.ncat.on{border-color:rgba(255,255,255,.2);color:var(--fg)}
+.n-card{padding:14px 16px;border-bottom:1px solid var(--b)}
+.n-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.n-cat{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3)}
+.n-age{font-family:var(--mono);font-size:8px;color:var(--fg3)}
+.n-title{font-size:13px;font-weight:600;line-height:1.44;color:var(--fg);margin-bottom:5px}
+.n-bot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.n-src{font-family:var(--mono);font-size:9px;color:var(--fg3)}
+.n-link{font-family:var(--mono);font-size:9px;color:var(--fg2);text-decoration:none;flex-shrink:0}
+.n-link:hover{color:var(--fg)}
+.n-desc{font-size:11px;color:var(--fg2);line-height:1.55;margin-top:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
-/* prices */
-.price-hdr{display:grid;grid-template-columns:64px 1fr 68px 62px;padding:7px 14px;border-bottom:1px solid var(--b)}
-.price-hdr span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3)}
-.price-row{display:grid;grid-template-columns:64px 1fr 68px 62px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.025);align-items:center}
-.price-coin{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--fg)}
-.price-val{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right}
-.price-chg{font-family:var(--mono);font-size:11px;font-weight:600;text-align:right}
-.price-vol{font-family:var(--mono);font-size:9px;color:var(--fg3);text-align:right}
+/* ── account page ── */
+.acc-section{padding:16px 20px;border-bottom:1px solid var(--b)}
+.acc-section-t{font-family:var(--mono);font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);margin-bottom:14px}
+.acc-field{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.acc-field:last-child{border-bottom:none}
+.acc-field-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg3)}
+.acc-field-val{font-size:13px;color:var(--fg)}
+.plan-tag{font-family:var(--mono);font-size:9px;border:1px solid rgba(255,255,255,.2);padding:2px 8px;color:var(--fg);letter-spacing:.06em;text-transform:uppercase}
+.acc-row-link{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:color .12s}
+.acc-row-link:last-child{border-bottom:none}
+.acc-row-link:hover .acc-row-lbl{color:var(--fg)}
+.acc-row-lbl{font-size:13px;color:var(--fg2);transition:color .12s}
+.acc-row-arr{font-family:var(--mono);font-size:11px;color:var(--fg3)}
 
-/* strategies */
-.strat-card{background:var(--bg2);border:1px solid var(--b);padding:22px 18px;margin-bottom:10px}
-.strat-num{font-family:var(--mono);font-size:9px;color:var(--fg3);letter-spacing:.08em;margin-bottom:14px}
-.strat-name{font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:7px}
-.strat-desc{font-size:12px;color:var(--fg2);line-height:1.65;margin-bottom:14px}
-.strat-tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:18px}
-.strat-tag{font-family:var(--mono);font-size:8px;background:var(--b);border:1px solid rgba(255,255,255,.1);padding:3px 8px;color:var(--fg3)}
-.strat-price{font-family:var(--mono);font-size:28px;font-weight:700;letter-spacing:-.03em;color:var(--fg)}
+/* ── sub pages ── */
+.sub-page{display:none}
+.sub-page.open{display:block}
+.sub-back{display:flex;align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--b);font-family:var(--mono);font-size:11px;color:var(--fg2);cursor:pointer}
+.sub-back:hover{color:var(--fg)}
+
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 22px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-decoration:none;border:none;transition:opacity .15s}
+.btn:active{opacity:.75}
+.btn-dark{background:var(--fg);color:var(--bg)}
+.btn-out{background:transparent;color:var(--fg);border:1px solid var(--b)}
+.btn-danger{background:var(--r);color:#fff}
+.btn-confirm{background:var(--g);color:#050505}
+
+/* ── strat cards ── */
+.strat-card{padding:20px;border-bottom:1px solid var(--b)}
+.strat-n{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-bottom:12px}
+.strat-name{font-size:17px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.strat-desc{font-size:12px;color:var(--fg2);line-height:1.65;margin-bottom:12px}
+.strat-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px}
+.strat-tag{font-family:var(--mono);font-size:8px;border:1px solid var(--b);padding:2px 7px;color:var(--fg3)}
+.strat-price{font-family:var(--mono);font-size:26px;font-weight:700;letter-spacing:-.03em}
 .strat-per{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:2px}
-.cmp-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
-.cmp-table th{padding:7px 10px;text-align:center;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);font-weight:400;border-bottom:1px solid var(--b)}
-.cmp-table th:first-child{text-align:left}
-.cmp-table td{padding:8px 10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.025);color:var(--fg2)}
-.cmp-table td:first-child{text-align:left;color:var(--fg)}
 
-/* account */
-.acc-row{display:flex;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--b);gap:12px}
-.acc-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg3);min-width:80px;flex-shrink:0;padding-top:3px}
-.acc-val{font-size:13px;color:var(--fg);line-height:1.5}
-.plan-badge{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border:1px solid var(--g);color:var(--g)}
-.btn-p{padding:11px 22px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:opacity .15s}
-.btn-p:active{opacity:.75}
-.btn-red{background:var(--r);color:#fff}
-.btn-grn{background:var(--g);color:var(--bg)}
-.btn-inv{background:transparent;color:var(--fg);border:1px solid var(--b)}
-.btn-wht{background:var(--fg);color:var(--bg)}
+/* ── misc ── */
+.empty{font-family:var(--mono);font-size:11px;color:var(--fg3);text-align:center;padding:40px 20px}
+.skel{background:var(--bg3);animation:sk 1.4s ease-in-out infinite;border-radius:1px}
+@keyframes sk{0%,100%{opacity:.3}50%{opacity:.7}}
 
-/* misc */
-.empty{font-family:var(--mono);font-size:11px;color:var(--fg3);text-align:center;padding:36px 0}
-.skel{background:var(--bg3);animation:skel 1.4s ease-in-out infinite}
-@keyframes skel{0%,100%{opacity:.35}50%{opacity:.75}}
-.info-box{border:1px solid var(--b);padding:14px;background:var(--bg2);margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--fg2);line-height:1.7}
-
-/* splash */
+/* ── splash ── */
 #splash{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
-.sp-logo{font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:.35em;margin-bottom:22px}
-.sp-msg{font-family:var(--mono);font-size:10px;color:var(--fg3);letter-spacing:.12em}
-.sp-err{text-align:center;padding:20px}
+.sp-logo{font-family:var(--mono);font-size:18px;font-weight:700;letter-spacing:.35em;margin-bottom:20px}
+.sp-msg{font-family:var(--mono);font-size:10px;color:var(--fg3);letter-spacing:.1em}
+.sp-err{padding:28px 20px;text-align:center}
 .sp-err-t{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--r);margin-bottom:8px}
 .sp-err-b{font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.7}
 </style>
 </head>
 <body>
 
+<!-- SPLASH -->
 <div id="splash">
   <div class="sp-logo">KADO</div>
   <div class="sp-msg" id="sp-msg">Connecting…</div>
 </div>
 
+<!-- APP -->
 <div id="app" style="display:none">
 
   <!-- HEADER -->
   <div class="hdr">
-    <button class="hdr-burger" onclick="openDrawer()">☰</button>
     <div class="hdr-logo">KADO</div>
-    <div class="hdr-page" id="hdr-page">Balance</div>
-    <div class="hdr-status">
-      <span class="dot dot-on" id="st-dot"></span>
-      <span id="st-lbl">Live</span>
-    </div>
-  </div>
-
-  <!-- BACKDROP -->
-  <div class="backdrop" id="backdrop" onclick="closeDrawer()"></div>
-
-  <!-- DRAWER -->
-  <div class="drawer" id="drawer">
-    <div class="d-head">
-      <span class="d-logo">KADO</span>
-      <button class="d-close" onclick="closeDrawer()">✕</button>
-    </div>
-    <div class="d-nav" id="d-nav"></div>
-    <div class="d-foot">
-      <span class="d-username" id="d-user">—</span>
+    <div class="hdr-title" id="hdr-title">Home</div>
+    <div class="hdr-right">
+      <button class="acc-btn" id="acc-btn" onclick="toggleAccMenu()">
+        <span id="acc-name-lbl">Account</span>
+        <span class="acc-arr" id="acc-arr">▾</span>
+      </button>
+      <div class="acc-drop" id="acc-drop">
+        <div style="padding:10px 14px 8px;font-family:var(--mono);font-size:10px;color:var(--fg3);border-bottom:1px solid var(--b)" id="acc-drop-user">—</div>
+        <a class="acc-drop-item" href="https://kadoclub.net/dashboard" target="_blank">Open Dashboard ↗</a>
+        <div class="acc-drop-sep"></div>
+        <button class="acc-drop-item" id="pause-btn-drop" onclick="togglePause()">⏸ Pause Bot</button>
+        <div class="acc-drop-sep"></div>
+        <button class="acc-drop-item" style="color:var(--fg3)" onclick="closeAccMenu()">Close</button>
+      </div>
     </div>
   </div>
 
   <!-- CONTENT -->
   <div id="scroll">
 
-    <!-- OVERVIEW / BALANCE -->
-    <div class="page active" id="page-overview">
-      <div class="sc-grid" id="ov-cards">
-        <div class="sc"><div class="sc-lbl">Wallet</div><div class="skel" style="height:22px;width:80%;margin-top:2px"></div></div>
-        <div class="sc"><div class="sc-lbl">Equity</div><div class="skel" style="height:22px;width:70%;margin-top:2px"></div></div>
-        <div class="sc"><div class="sc-lbl">Free</div><div class="skel" style="height:22px;width:60%;margin-top:2px"></div></div>
-        <div class="sc"><div class="sc-lbl">uPnL</div><div class="skel" style="height:22px;width:75%;margin-top:2px"></div></div>
+    <!-- ══ HOME ══ -->
+    <div class="page active" id="page-home">
+      <!-- balance hero -->
+      <div class="home-balance">
+        <div class="home-bal-lbl">Total Balance</div>
+        <div class="home-bal-val" id="h-wallet"><span class="skel" style="width:140px;height:32px;display:inline-block"></span></div>
+        <div class="home-bal-unit">USDT</div>
       </div>
-      <div class="sl"><span class="sl-t">Open Positions</span><span class="sl-r" id="ov-pos-cnt">—</span></div>
-      <div id="ov-positions"><div class="empty">Loading…</div></div>
-      <div class="sl"><span class="sl-t">Recent Signals</span></div>
-      <div id="ov-signals"><div class="empty">Loading…</div></div>
+      <!-- stats row -->
+      <div class="home-stats">
+        <div class="home-stat">
+          <div class="home-stat-lbl">Equity</div>
+          <div class="home-stat-val" id="h-equity">—</div>
+        </div>
+        <div class="home-stat">
+          <div class="home-stat-lbl">Free</div>
+          <div class="home-stat-val" id="h-free">—</div>
+        </div>
+        <div class="home-stat" style="border-right:none">
+          <div class="home-stat-lbl">uPnL</div>
+          <div class="home-stat-val" id="h-upnl">—</div>
+        </div>
+      </div>
+      <!-- positions -->
+      <div class="sec-hdr"><span class="sec-hdr-t">Open Positions</span><span class="sec-hdr-r" id="h-pos-cnt">—</span></div>
+      <div id="h-positions"><div class="empty">Loading…</div></div>
+      <!-- signals -->
+      <div class="sec-hdr" style="margin-top:8px"><span class="sec-hdr-t">Recent Signals</span></div>
+      <div id="h-signals"><div class="empty">Loading…</div></div>
     </div>
 
-    <!-- NEWS -->
+    <!-- ══ BOTS ══ -->
+    <div class="page" id="page-bots">
+      <!-- bot list -->
+      <div id="bots-list-view">
+        <div class="sec-hdr"><span class="sec-hdr-t">Active Bots</span></div>
+        <div id="bots-list"></div>
+      </div>
+      <!-- bot detail (shown when bot selected) -->
+      <div id="bot-detail-view" style="display:none">
+        <div class="bot-back" onclick="closeBotDetail()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Bots</span>
+        </div>
+        <div id="bot-detail-name" style="padding:14px 20px 0;font-size:15px;font-weight:600;color:var(--fg)"></div>
+        <div class="coin-bar" id="bot-coin-bar"></div>
+        <div class="tf-bar" id="bot-tf-bar"></div>
+        <div class="chart-box" id="bot-chart"><div class="chart-load">Loading chart…</div></div>
+        <div class="sec-hdr"><span class="sec-hdr-t">Open Positions</span></div>
+        <div id="bot-positions"><div class="empty">No open positions</div></div>
+      </div>
+    </div>
+
+    <!-- ══ MARKETS ══ -->
+    <div class="page" id="page-markets">
+      <!-- coin list -->
+      <div id="mkt-list-view">
+        <div class="sec-hdr"><span class="sec-hdr-t">Markets</span><span class="sec-hdr-r" id="mkt-ts">—</span></div>
+        <div class="mkt-hdr"><span>Coin</span><span style="text-align:right">Price</span><span style="text-align:right">24h</span><span style="text-align:right">Vol</span></div>
+        <div id="mkt-rows"><div class="empty">Loading…</div></div>
+      </div>
+      <!-- coin chart detail -->
+      <div id="mkt-chart-view" style="display:none">
+        <div class="bot-back" onclick="closeMktChart()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Markets</span>
+        </div>
+        <div style="padding:12px 20px 0;display:flex;align-items:baseline;gap:10px">
+          <span id="mkt-chart-coin" style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--fg)"></span>
+          <span id="mkt-chart-price" style="font-family:var(--mono);font-size:13px;color:var(--fg2)"></span>
+          <span id="mkt-chart-chg" style="font-family:var(--mono);font-size:12px;font-weight:600"></span>
+        </div>
+        <div class="tf-bar" id="mkt-tf-bar" style="margin-top:10px"></div>
+        <div class="chart-box" id="mkt-chart-box"><div class="chart-load">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ NEWS ══ -->
     <div class="page" id="page-news">
       <div class="news-cats" id="news-cats"></div>
       <div id="news-list"><div class="empty">Loading…</div></div>
     </div>
 
-    <!-- PRICES -->
-    <div class="page" id="page-prices">
-      <div class="sl"><span class="sl-t">Market Prices</span><span class="sl-r" id="prices-ts">—</span></div>
-      <div id="prices-list"><div class="empty">Loading…</div></div>
-    </div>
-
-    <!-- STRATEGIES -->
-    <div class="page" id="page-strategies">
-      <div id="strat-inner"></div>
-    </div>
-
-    <!-- ACCOUNT -->
+    <!-- ══ ACCOUNT ══ -->
     <div class="page" id="page-account">
-      <div class="sl"><span class="sl-t">Account</span></div>
-      <div id="acc-inner"><div class="empty">Loading…</div></div>
+      <!-- sub-page: profile (default) -->
+      <div id="acc-main">
+        <!-- profile -->
+        <div class="acc-section">
+          <div class="acc-section-t">Profile</div>
+          <div class="acc-field"><span class="acc-field-lbl">Email</span><span class="acc-field-val" id="a-email">—</span></div>
+          <div class="acc-field"><span class="acc-field-lbl">Username</span><span class="acc-field-val" id="a-user">—</span></div>
+          <div class="acc-field"><span class="acc-field-lbl">Plan</span><span class="acc-field-val"><span class="plan-tag" id="a-plan">FREE</span></span></div>
+        </div>
+        <!-- bot control -->
+        <div class="acc-section">
+          <div class="acc-section-t">Bot Control</div>
+          <div class="acc-field" style="border:none;padding-bottom:14px">
+            <span class="acc-field-lbl">Status</span>
+            <span id="a-bot-status" style="font-family:var(--mono);font-size:12px;color:var(--fg2)">—</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="a-pause-btn" class="btn btn-danger" onclick="togglePause()">⏸ Pause Bot</button>
+          </div>
+        </div>
+        <!-- navigation rows -->
+        <div class="acc-section" style="padding-bottom:0">
+          <div class="acc-section-t">Settings</div>
+          <div class="acc-row-link" onclick="openSub('sub-apikeys')"><span class="acc-row-lbl">API Keys</span><span class="acc-row-arr">›</span></div>
+          <div class="acc-row-link" onclick="openSub('sub-security')"><span class="acc-row-lbl">Security</span><span class="acc-row-arr">›</span></div>
+          <div class="acc-row-link" onclick="openSub('sub-strategies')"><span class="acc-row-lbl">Strategies</span><span class="acc-row-arr">›</span></div>
+          <div class="acc-row-link" style="border-bottom:none" onclick="window.open('https://kadoclub.net/dashboard','_blank')"><span class="acc-row-lbl">Open Full Dashboard</span><span class="acc-row-arr" style="font-size:12px">↗</span></div>
+        </div>
+      </div>
+
+      <!-- sub: API Keys -->
+      <div class="sub-page" id="sub-apikeys">
+        <div class="sub-back" onclick="closeSub()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          API Keys
+        </div>
+        <div class="acc-section">
+          <div class="acc-field"><span class="acc-field-lbl">Bybit</span><span id="keys-status" style="font-family:var(--mono);font-size:11px">—</span></div>
+          <div style="margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.7">API key management is only available on the full dashboard.</div>
+          <div style="margin-top:14px"><a href="https://kadoclub.net/dashboard" target="_blank" class="btn btn-dark">Manage Keys →</a></div>
+        </div>
+      </div>
+
+      <!-- sub: Security -->
+      <div class="sub-page" id="sub-security">
+        <div class="sub-back" onclick="closeSub()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Security
+        </div>
+        <div class="acc-section">
+          <div class="acc-field"><span class="acc-field-lbl">2FA</span><span style="font-family:var(--mono);font-size:11px;color:var(--fg2)">TOTP Authenticator</span></div>
+          <div class="acc-field" style="border:none"><span class="acc-field-lbl">Password</span><span style="font-family:var(--mono);font-size:12px;color:var(--fg3)">••••••••</span></div>
+          <div style="margin-top:14px;font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.7">2FA setup and password changes are only available on the full dashboard.</div>
+          <div style="margin-top:14px"><a href="https://kadoclub.net/dashboard" target="_blank" class="btn btn-dark">Open Security →</a></div>
+        </div>
+      </div>
+
+      <!-- sub: Strategies -->
+      <div class="sub-page" id="sub-strategies">
+        <div class="sub-back" onclick="closeSub()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Strategies
+        </div>
+        <div id="strat-list"></div>
+        <div style="padding:20px;border-top:1px solid var(--b)">
+          <a href="https://kadoclub.net/#pricing" target="_blank" class="btn btn-dark">View Full Pricing →</a>
+        </div>
+      </div>
     </div>
 
-    <!-- API KEYS -->
-    <div class="page" id="page-api-keys">
-      <div class="sl"><span class="sl-t">API Keys</span></div>
-      <div id="keys-inner"></div>
-    </div>
+  </div><!-- /scroll -->
 
-    <!-- SECURITY -->
-    <div class="page" id="page-security">
-      <div class="sl"><span class="sl-t">Security</span></div>
-      <div id="sec-inner"></div>
-    </div>
+  <!-- BOTTOM NAV -->
+  <div class="nav-bar">
 
-    <!-- SETTINGS -->
-    <div class="page" id="page-settings">
-      <div class="sl"><span class="sl-t">Settings</span></div>
-      <div class="info-box">Full settings (language, notifications, theme) are available on the dashboard at <a href="https://kadoclub.net/dashboard" target="_blank" style="color:var(--g)">kadoclub.net</a></div>
-    </div>
+    <button class="nav-btn on" id="nav-home" onclick="goPage('home')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      Home
+    </button>
 
-    <!-- BOT PAGES injected dynamically -->
+    <button class="nav-btn" id="nav-bots" onclick="goPage('bots')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="6" height="6" rx="1"/><rect x="9" y="3" width="6" height="6" rx="1"/><rect x="16" y="3" width="6" height="6" rx="1"/>
+        <rect x="2" y="10" width="6" height="6" rx="1"/><rect x="9" y="10" width="6" height="6" rx="1"/><rect x="16" y="10" width="6" height="6" rx="1"/>
+        <rect x="2" y="17" width="6" height="6" rx="1"/><rect x="9" y="17" width="6" height="6" rx="1"/>
+      </svg>
+      Bots
+    </button>
+
+    <button class="nav-btn" id="nav-markets" onclick="goPage('markets')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      Markets
+    </button>
+
+    <button class="nav-btn" id="nav-news" onclick="goPage('news')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a4 4 0 01-4-4V6"/>
+        <line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/>
+      </svg>
+      News
+    </button>
+
+    <button class="nav-btn" id="nav-account" onclick="goPage('account')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      Account
+    </button>
 
   </div>
-</div>
+</div><!-- /app -->
 
 <script>
-/* ─── Telegram ─── */
-const tg = window.Telegram?.WebApp;
-if (tg) { tg.ready(); tg.expand(); }
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand()}
 
-/* ─── state ─── */
-let _token='', _paused=false, _data=null;
-let _newsCat='ALL', _newsAll=[], _newsLoaded=false;
-let _curBot='', _curCoin='BTC', _curTf='15';
-let _tradeWs=null, _activePage='overview';
+/* ── state ── */
+let _d=null,_token='',_paused=false;
+let _activePage='home',_activeSub=null;
+let _newsCat='ALL',_newsAll=[],_newsLoaded=false;
+let _curBot=null,_curCoin='BTC',_curTf='15';
+let _mktData={},_mktCoin='',_mktTf='15';
+let _accOpen=false;
 
-/* ─── bot defs ─── */
+/* ── bots ── */
 const BOTS=[
-  {id:'signal',    label:'Signal',         coins:['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV']},
-  {id:'sweep',     label:'Liq Sweep',      coins:['ETH','SOL']},
-  {id:'fr',        label:'Funding Rate',   coins:['INJ','ONDO','WLD','JUP','ARB','UNI','LDO','LINK','BTC','ETH','SOL']},
-  {id:'grid',      label:'Grid',           coins:['BTC','ETH','SOL']},
-  {id:'cascade',   label:'Cascade',        coins:['ETH','SOL','DOGE','LINK','BTC','XRP','ADA','AVAX','INJ','SUI']},
-  {id:'orderflow', label:'Orderflow',      coins:['BTC','ETH','SOL']},
-  {id:'ob',        label:'Order Block',    coins:['BTC','ETH']},
-  {id:'macro',     label:'Macro',          coins:['BTC','ETH','SOL']},
-  {id:'listing',   label:'Listing Sniper', coins:['BTC','ETH','SOL','BNB']},
-  {id:'dex',       label:'DEX Sniper',     coins:['BTC','ETH','SOL','AVAX']},
-  {id:'history',   label:'History',        coins:['BTC','ETH','SOL','XRP','LINK','INJ','WLD','JUP']},
+  {id:'signal',   label:'Signal Bot',      coins:['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI']},
+  {id:'sweep',    label:'Liq Sweep',        coins:['ETH','SOL']},
+  {id:'fr',       label:'Funding Rate',     coins:['INJ','ONDO','WLD','JUP','ARB','UNI','LDO','LINK','BTC','ETH','SOL']},
+  {id:'grid',     label:'Grid',             coins:['BTC','ETH','SOL']},
+  {id:'cascade',  label:'Cascade DCA',      coins:['ETH','SOL','DOGE','LINK','BTC','XRP','ADA','AVAX','INJ','SUI']},
+  {id:'orderflow',label:'Orderflow',        coins:['BTC','ETH','SOL']},
+  {id:'ob',       label:'Order Block',      coins:['BTC','ETH']},
+  {id:'macro',    label:'Macro',            coins:['BTC','ETH','SOL']},
+  {id:'listing',  label:'Listing Sniper',   coins:['BTC','ETH','SOL','BNB']},
+  {id:'dex',      label:'DEX Sniper',       coins:['BTC','ETH','SOL','AVAX']},
+  {id:'history',  label:'History',          coins:['BTC','ETH','SOL','XRP','LINK','INJ']},
 ];
 
 const PRICE_COINS=['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI','INJ','ARB','UNI','WLD'];
 const TFS=[{v:'1',l:'1m'},{v:'5',l:'5m'},{v:'15',l:'15m'},{v:'60',l:'1h'},{v:'240',l:'4h'},{v:'D',l:'1D'}];
+const CAT_IDS=['ALL','CRYPTO','MACRO','GEOPOLITICS','COMMODITIES','MARKETS','ON-CHAIN','LISTINGS'];
 
 const STRATEGIES=[
-  {num:'01',name:'Steady',price:'$19',
-   summary:'Grid trading with automated range rebalancing. Low-risk, consistent yield for stable conditions.',
-   tags:['Grid Trading','Auto-Rebalance','Low Risk']},
-  {num:'02',name:'Balanced',price:'$49',
-   summary:'Combines Grid, Funding Rate Arb and Liquidation Cascade for diversified returns across market cycles.',
-   tags:['Grid Trading','Funding Rate','Cascade','Balanced Risk']},
-  {num:'03',name:'Full Suite',price:'$89',
-   summary:'All active strategies including Listing Sniper, On-chain Macro, DEX Sniper and more.',
-   tags:['All Bots','Listing Sniper','DEX Sniper','Macro','Max Yield']},
+  {num:'01',name:'Steady',price:'$19',tags:['Grid Trading','Auto-Rebalance','Low Risk'],
+   desc:'Grid trading with automated range rebalancing. Consistent yield for stable market conditions.'},
+  {num:'02',name:'Balanced',price:'$49',tags:['Grid','Funding Rate','Cascade'],
+   desc:'Combines Grid, Funding Rate Arb and Liquidation Cascade for diversified returns.'},
+  {num:'03',name:'Full Suite',price:'$89',tags:['All Bots','Listing Sniper','DEX Sniper','Macro'],
+   desc:'All active strategies including Listing Sniper, On-chain Macro, DEX Sniper and more.'},
 ];
 
-const CMP_ROWS=[
-  ['Grid Trading',     true, true, true],
-  ['Funding Rate Arb', false,true, true],
-  ['Cascade DCA',      false,true, true],
-  ['Listing Sniper',   false,false,true],
-  ['On-chain Macro',   false,false,true],
-  ['Orderflow',        false,false,true],
-  ['Order Block',      false,false,true],
-  ['DEX Sniper',       false,false,true],
-];
-
-const CAT_IDS=['ALL','CRYPTO','MACRO','GEOPOLITICS','COMMODITIES','MARKETS','ON-CHAIN','LISTINGS'];
-const CAT_BG={
-  GEOPOLITICS:'linear-gradient(135deg,#1a0808,#2a1010)',
-  MACRO:       'linear-gradient(135deg,#08081a,#10102a)',
-  COMMODITIES: 'linear-gradient(135deg,#081a08,#102a10)',
-  MARKETS:     'linear-gradient(135deg,#1a1a08,#2a2a10)',
-  'ON-CHAIN':  'linear-gradient(135deg,#081a1a,#102a2a)',
-  LISTINGS:    'linear-gradient(135deg,#1a081a,#2a102a)',
-  CRYPTO:      'linear-gradient(135deg,#080818,#001028)',
-};
-
-/* ─── utils ─── */
+/* ── utils ── */
 const $=id=>document.getElementById(id);
 function html(id,s){const e=$(id);if(e)e.innerHTML=s}
 function fmt(n,d=2){return n==null||isNaN(+n)?'—':(+n).toFixed(d)}
 function sign(n,d=2){const v=+n;return isNaN(v)?'—':(v>=0?'+':'')+v.toFixed(d)}
-function fmtK(n){const v=+n;if(isNaN(v))return '—';if(v>=1e9)return(v/1e9).toFixed(2)+'B';if(v>=1e6)return(v/1e6).toFixed(2)+'M';if(v>=1e3)return(v/1e3).toFixed(1)+'K';return v.toFixed(2)}
-function dt(ts){if(!ts)return '—';return new Date(ts).toLocaleDateString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-function age(ts){const d=(Date.now()-new Date(ts))/1000;if(d<60)return Math.floor(d)+'s';if(d<3600)return Math.floor(d/60)+'m';if(d<86400)return Math.floor(d/3600)+'h';return Math.floor(d/86400)+'d'}
+function fmtK(n){const v=+n;if(isNaN(v))return '—';if(v>=1e9)return(v/1e9).toFixed(1)+'B';if(v>=1e6)return(v/1e6).toFixed(2)+'M';if(v>=1e3)return(v/1e3).toFixed(1)+'K';return v.toFixed(2)}
 function pdp(v){if(!v)return 4;if(+v>=10000)return 1;if(+v>=100)return 2;return 4}
 function maskEmail(e){if(!e)return '—';const[l,d]=e.split('@');const ext=d?d.slice(d.lastIndexOf('.')):'';return(l?.[0]||'*')+'***@***'+ext}
+function dtStr(ts){if(!ts)return '—';return new Date(ts).toLocaleDateString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+function ageStr(ts){const s=(Date.now()-new Date(ts))/1000;if(s<60)return Math.floor(s)+'s';if(s<3600)return Math.floor(s/60)+'m';if(s<86400)return Math.floor(s/3600)+'h';return Math.floor(s/86400)+'d'}
+function pStr(v){return +v>=1000?((+v).toFixed(2)):+v>=1?((+v).toFixed(4)):((+v).toFixed(6))}
 
-/* ─── splash ─── */
+/* ── splash ── */
 function setMsg(m){const e=$('sp-msg');if(e)e.textContent=m}
 function showErr(t,b){const s=$('splash');if(s)s.innerHTML=`<div class="sp-err"><div class="sp-err-t">${t}</div><div class="sp-err-b">${b||''}</div></div>`}
 
-/* ─── drawer ─── */
-function openDrawer(){$('drawer').classList.add('open');$('backdrop').classList.add('open')}
-function closeDrawer(){$('drawer').classList.remove('open');$('backdrop').classList.remove('open')}
-
-/* ─── nav build ─── */
-function buildNav(){
-  const nav=$('d-nav');
-  nav.innerHTML='';
-  nav.appendChild(dItem('overview','Balance'));
-  nav.appendChild(dDiv());
-
-  /* Bots group */
-  const grp=ce('button','d-item');
-  grp.innerHTML='<span>Bots</span><span id="bots-arr" style="font-size:9px;opacity:.5">▾</span>';
-  grp.onclick=()=>{
-    const sub=$('d-sub-bots');
-    sub.classList.toggle('open');
-    $('bots-arr').textContent=sub.classList.contains('open')?'▾':'▸';
-  };
-  nav.appendChild(grp);
-  const sub=ce('div','d-sub open');
-  sub.id='d-sub-bots';
-  BOTS.forEach(b=>sub.appendChild(dItem('bot-'+b.id,b.label,true)));
-  nav.appendChild(sub);
-
-  nav.appendChild(dDiv());
-  nav.appendChild(dItem('news','News'));
-  nav.appendChild(dItem('prices','Prices'));
-  nav.appendChild(dItem('strategies','Strategies'));
-  nav.appendChild(dDiv());
-  nav.appendChild(dItem('account','Account'));
-  nav.appendChild(dItem('api-keys','API Keys'));
-  nav.appendChild(dItem('security','Security'));
-  nav.appendChild(dItem('settings','Settings'));
-  updateNavHL();
+/* ── account dropdown ── */
+function toggleAccMenu(){
+  _accOpen=!_accOpen;
+  $('acc-drop').classList.toggle('open',_accOpen);
+  $('acc-btn').classList.toggle('open',_accOpen);
+  $('acc-arr').classList.toggle('open',_accOpen);
 }
-
-function ce(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e}
-function dItem(page,label,sub=false){
-  const b=ce('button','d-item'+(sub?' d-sub-item':''));
-  b.textContent=label;b.dataset.page=page;
-  b.onclick=()=>goPage(page);
-  return b;
+function closeAccMenu(){
+  _accOpen=false;
+  $('acc-drop').classList.remove('open');
+  $('acc-btn').classList.remove('open');
+  $('acc-arr').classList.remove('open');
 }
-function dDiv(){return ce('div','d-div')}
+document.addEventListener('click',e=>{
+  const btn=$('acc-btn'),drop=$('acc-drop');
+  if(!btn?.contains(e.target)&&!drop?.contains(e.target))closeAccMenu();
+});
 
-function updateNavHL(){
-  document.querySelectorAll('.d-item').forEach(e=>{
-    e.classList.toggle('on',e.dataset.page===_activePage);
-  });
-}
-
-/* ─── navigate ─── */
-const PAGE_LABELS={
-  overview:'Balance', news:'News', prices:'Prices',
-  strategies:'Strategies', account:'Account', 'api-keys':'API Keys',
-  security:'Security', settings:'Settings',
-};
-BOTS.forEach(b=>{PAGE_LABELS['bot-'+b.id]=b.label});
+/* ── navigation ── */
+const PAGE_TITLES={home:'Home',bots:'Bots',markets:'Markets',news:'News',account:'Account'};
 
 function goPage(id){
+  if(_activeSub)closeSub();
   _activePage=id;
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-
-  // ensure bot page exists
-  if(id.startsWith('bot-')&&!$('page-'+id)) createBotPage(id);
-
   const pg=$('page-'+id);
   if(pg){pg.classList.add('active');$('scroll').scrollTop=0}
-
-  const lbl=PAGE_LABELS[id]||id;
-  const hpg=$('hdr-page');
-  if(hpg)hpg.textContent=lbl;
-
-  updateNavHL();
-  closeDrawer();
-
-  if(id==='news')       loadNews();
-  if(id==='prices')     loadPrices();
-  if(id==='strategies') renderStrategies();
-  if(id==='account')    renderAccount();
-  if(id==='api-keys')   renderApiKeys();
-  if(id==='security')   renderSecurity();
-  if(id.startsWith('bot-')){
-    _curBot=id.replace('bot-','');
-    loadBotPage(id);
-  }
+  ['home','bots','markets','news','account'].forEach(n=>{
+    $('nav-'+n)?.classList.toggle('on',n===id);
+  });
+  $('hdr-title').textContent=PAGE_TITLES[id]||id;
+  closeAccMenu();
+  if(id==='news')loadNews();
+  if(id==='markets')loadMarkets();
+  if(id==='account')renderAccount();
 }
 
-/* ─── bot page ─── */
-function createBotPage(pageId){
-  const botId=pageId.replace('bot-','');
-  const bot=BOTS.find(b=>b.id===botId)||{coins:['BTC','ETH','SOL']};
-  const div=ce('div','page');
-  div.id='page-'+pageId.replace('bot-','bot-');  // same as pageId
-  div.innerHTML=`
-    <div class="coin-pills" id="${pageId}-cps"></div>
-    <div class="tf-pills"   id="${pageId}-tfs"></div>
-    <div class="chart-box"  id="${pageId}-chart"><div class="chart-loading">Loading chart…</div></div>
-    <div class="sl"><span class="sl-t">Live Trades</span><span class="sl-r" id="${pageId}-plbl">—</span></div>
-    <div class="trades-box" id="${pageId}-trades"><div class="empty">Connecting…</div></div>
-    <div class="sl" style="margin-top:16px"><span class="sl-t">Open Positions</span></div>
-    <div id="${pageId}-pos"></div>
-  `;
-  $('scroll').appendChild(div);
+/* ── sub-pages (account) ── */
+function openSub(subId){
+  $('acc-main').style.display='none';
+  document.querySelectorAll('.sub-page').forEach(s=>s.classList.remove('open'));
+  const sub=$(subId);
+  if(sub)sub.classList.add('open');
+  _activeSub=subId;
+  if(subId==='sub-strategies')renderStrategies();
+}
+function closeSub(){
+  document.querySelectorAll('.sub-page').forEach(s=>s.classList.remove('open'));
+  $('acc-main').style.display='block';
+  _activeSub=null;
 }
 
-function loadBotPage(pageId){
-  const botId=pageId.replace('bot-','');
-  const bot=BOTS.find(b=>b.id===botId)||{coins:['BTC','ETH','SOL']};
-  const coins=bot.coins?.length?bot.coins:['BTC'];
-  _curCoin=coins[0];
+/* ── home ── */
+function renderHome(d){
+  const b=d.balance||{};
+  const upnl=+(b.unrealized_pnl??0);
+  $('h-wallet').textContent='$'+fmt(b.usdt_wallet);
+  $('h-equity').textContent='$'+fmt(b.usdt_equity);
+  $('h-free').textContent='$'+fmt(b.usdt_free);
+  const upnlEl=$('h-upnl');
+  if(upnlEl){upnlEl.textContent=sign(upnl);upnlEl.style.color=upnl>=0?'var(--g)':'var(--r)'}
+
+  const pos=d.positions||[];
+  $('h-pos-cnt').textContent=pos.length;
+  html('h-positions',pos.length?buildPosTable(pos):'<div class="empty">No open positions</div>');
+
+  const sigs=d.signals||[];
+  html('h-signals',sigs.length?sigs.map(s=>{
+    const lng=(s.action||'').toUpperCase()==='LONG';
+    const res=s.result;
+    return`<div class="sig-row">
+      <div class="sig-lhs">
+        <div><span class="sig-coin">${s.coin}</span><span class="${lng?'side-l':'side-s'}">${lng?'LONG':'SHORT'}</span></div>
+        <div class="sig-meta">${dtStr(s.timestamp)}</div>
+      </div>
+      <span class="sig-status" style="color:${res==='WIN'?'var(--g)':res==='LOSS'?'var(--r)':'var(--fg3)'}">${res||'OPEN'}</span>
+    </div>`;
+  }).join(''):'<div class="empty">No recent signals</div>');
+}
+
+function buildPosTable(pos){
+  return`<div class="pos-wrap"><table class="pos-table">
+    <thead><tr><th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Mark</th><th>uPnL</th><th>SL</th><th>TP</th></tr></thead>
+    <tbody>${pos.map(p=>{
+      const lng=p.side==='LONG';
+      const up=+(p.unrealized_pnl??0);
+      return`<tr>
+        <td>${p.symbol||'—'}</td>
+        <td style="color:${lng?'var(--g)':'var(--r)'}">${p.side||'—'}</td>
+        <td style="color:var(--fg3)">${p.leverage??'—'}×</td>
+        <td>${fmt(p.entry_price,pdp(p.entry_price))}</td>
+        <td>${fmt(p.mark_price,pdp(p.mark_price))}</td>
+        <td style="color:${up>=0?'var(--g)':'var(--r)'};font-weight:600">${sign(up)}</td>
+        <td style="color:var(--fg3)">${p.sl_price?fmt(p.sl_price,pdp(p.sl_price)):'—'}</td>
+        <td style="color:var(--fg3)">${p.tp_price?fmt(p.tp_price,pdp(p.tp_price)):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+/* ── bots page ── */
+function renderBotsList(){
+  const el=$('bots-list');
+  if(!el)return;
+  el.innerHTML=BOTS.map(b=>`
+    <div class="bot-row" onclick="openBotDetail('${b.id}')">
+      <div>
+        <div class="bot-name">${b.label}</div>
+        <div class="bot-coins">${b.coins.slice(0,6).join(' · ')}${b.coins.length>6?' …':''}</div>
+      </div>
+      <span class="bot-arr">›</span>
+    </div>`).join('');
+}
+
+function openBotDetail(botId){
+  const bot=BOTS.find(b=>b.id===botId);
+  if(!bot)return;
+  _curBot=botId;
+  _curCoin=bot.coins[0];
+  $('bots-list-view').style.display='none';
+  $('bot-detail-view').style.display='block';
+  $('bot-detail-name').textContent=bot.label;
 
   /* coin pills */
-  const cpsEl=$(pageId+'-cps');
-  if(cpsEl){
-    cpsEl.innerHTML='';
-    coins.forEach((c,i)=>{
-      const p=ce('button','c-pill'+(i===0?' on':''));
-      p.textContent=c;
-      p.onclick=()=>{
-        cpsEl.querySelectorAll('.c-pill').forEach(x=>x.classList.remove('on'));
-        p.classList.add('on');
-        _curCoin=c;
-        fetchChart(pageId,c,_curTf);
-        connectTrades(pageId,c);
-      };
-      cpsEl.appendChild(p);
-    });
-  }
+  const cb=$('bot-coin-bar');
+  cb.innerHTML=bot.coins.map((c,i)=>`<button class="c-pill${i===0?' on':''}" onclick="selectBotCoin('${c}',this)">${c}</button>`).join('');
 
   /* TF pills */
-  const tfsEl=$(pageId+'-tfs');
-  if(tfsEl){
-    tfsEl.innerHTML='';
-    TFS.forEach(tf=>{
-      const p=ce('button','tf-pill'+(tf.v===_curTf?' on':''));
-      p.textContent=tf.l;
-      p.onclick=()=>{
-        tfsEl.querySelectorAll('.tf-pill').forEach(x=>x.classList.remove('on'));
-        p.classList.add('on');
-        _curTf=tf.v;
-        fetchChart(pageId,_curCoin,tf.v);
-      };
-      tfsEl.appendChild(p);
-    });
-  }
+  const tb=$('bot-tf-bar');
+  tb.innerHTML=TFS.map(t=>`<button class="tf-pill${t.v===_curTf?' on':''}" onclick="selectBotTf('${t.v}',this)">${t.l}</button>`).join('');
 
   /* positions */
-  renderBotPositions(pageId);
+  const pos=(_d?.positions||[]);
+  html('bot-positions',pos.length?buildPosTable(pos):'<div class="empty">No open positions</div>');
 
-  /* load data */
-  fetchChart(pageId,_curCoin,_curTf);
-  connectTrades(pageId,_curCoin);
+  fetchChart('bot-chart',_curCoin,_curTf);
+  $('scroll').scrollTop=0;
 }
 
-/* ─── candlestick chart ─── */
-async function fetchChart(pageId,coin,tf){
-  const box=$(pageId+'-chart');
+function closeBotDetail(){
+  $('bot-detail-view').style.display='none';
+  $('bots-list-view').style.display='block';
+  _curBot=null;
+}
+
+function selectBotCoin(c,btn){
+  document.querySelectorAll('#bot-coin-bar .c-pill').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  _curCoin=c;
+  fetchChart('bot-chart',c,_curTf);
+}
+
+function selectBotTf(v,btn){
+  document.querySelectorAll('#bot-tf-bar .tf-pill').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  _curTf=v;
+  fetchChart('bot-chart',_curCoin,v);
+}
+
+/* ── markets ── */
+async function loadMarkets(){
+  html('mkt-rows','<div class="empty">Loading…</div>');
+  try{
+    const r=await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
+    const j=await r.json();
+    _mktData={};
+    (j?.result?.list||[]).forEach(t=>{
+      const c=t.symbol.replace('USDT','');
+      if(PRICE_COINS.includes(c))_mktData[c]={p:+t.lastPrice,chg:+t.price24hPcnt*100,vol:+t.volume24h};
+    });
+    $('mkt-ts').textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    html('mkt-rows',PRICE_COINS.filter(c=>_mktData[c]).map(c=>{
+      const d=_mktData[c];
+      const pos=d.chg>=0;
+      return`<div class="mkt-row" onclick="openMktChart('${c}')">
+        <span class="mkt-coin">${c}</span>
+        <span class="mkt-price" style="color:${pos?'var(--g)':'var(--r)'}">${pStr(d.p)}</span>
+        <span class="mkt-chg" style="color:${pos?'var(--g)':'var(--r)'}">${pos?'+':''}${d.chg.toFixed(2)}%</span>
+        <span class="mkt-vol">${fmtK(d.vol)}</span>
+      </div>`;
+    }).join(''));
+  }catch(e){html('mkt-rows','<div class="empty">Failed to load</div>')}
+}
+
+function openMktChart(coin){
+  _mktCoin=coin;
+  const d=_mktData[coin]||{};
+  $('mkt-list-view').style.display='none';
+  $('mkt-chart-view').style.display='block';
+  $('mkt-chart-coin').textContent=coin+'/USDT';
+  $('mkt-chart-price').textContent=pStr(d.p||0);
+  const chgEl=$('mkt-chart-chg');
+  const pos=(d.chg||0)>=0;
+  chgEl.textContent=(pos?'+':'')+(d.chg||0).toFixed(2)+'%';
+  chgEl.style.color=pos?'var(--g)':'var(--r)';
+
+  const tb=$('mkt-tf-bar');
+  tb.innerHTML=TFS.map(t=>`<button class="tf-pill${t.v===_mktTf?' on':''}" onclick="selectMktTf('${t.v}',this)">${t.l}</button>`).join('');
+
+  fetchChart('mkt-chart-box',coin,_mktTf);
+  $('scroll').scrollTop=0;
+}
+
+function closeMktChart(){
+  $('mkt-chart-view').style.display='none';
+  $('mkt-list-view').style.display='block';
+}
+
+function selectMktTf(v,btn){
+  document.querySelectorAll('#mkt-tf-bar .tf-pill').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  _mktTf=v;
+  fetchChart('mkt-chart-box',_mktCoin,v);
+}
+
+/* ── chart ── */
+async function fetchChart(boxId,coin,tf){
+  const box=$(boxId);
   if(!box)return;
-  box.innerHTML='<div class="chart-loading">Loading…</div>';
+  box.innerHTML='<div class="chart-load">Loading…</div>';
   try{
     const r=await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${coin}USDT&interval=${tf}&limit=80`);
     const j=await r.json();
     const raw=j?.result?.list||[];
-    if(!raw.length){box.innerHTML='<div class="chart-loading">No data</div>';return}
-    const candles=raw.reverse().map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));
+    if(!raw.length){box.innerHTML='<div class="chart-load">No data</div>';return}
+    const cs=raw.reverse().map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5]}));
     box.innerHTML='';
-    box.appendChild(buildChartSvg(candles,coin));
-  }catch(e){
-    box.innerHTML='<div class="chart-loading">Failed to load</div>';
-  }
+    box.appendChild(buildSvgChart(cs,coin));
+  }catch(e){box.innerHTML='<div class="chart-load">Failed</div>'}
 }
 
-function buildChartSvg(candles,coin){
-  const W=800,H=240,PL=56,PR=12,PT=20,PB=32;
+function buildSvgChart(cs,coin){
+  const W=800,H=260,PL=58,PR=14,PT=20,PB=36;
   const cW=W-PL-PR,cH=H-PT-PB;
-  const n=candles.length;
-  const step=cW/n;
+  const n=cs.length,step=cW/n;
   const bw=Math.max(2,Math.floor(step)-1);
-  const hi=Math.max(...candles.map(c=>c.h));
-  const lo=Math.min(...candles.map(c=>c.l));
+  const hi=Math.max(...cs.map(c=>c.h)),lo=Math.min(...cs.map(c=>c.l));
   const range=hi-lo||1;
   const yp=v=>PT+(1-(v-lo)/range)*cH;
-  const maxV=Math.max(...candles.map(c=>c.v),1);
-  const VH=32;
-  const ticks=[lo,lo+range*.25,lo+range*.5,lo+range*.75,hi];
+  const maxV=Math.max(...cs.map(c=>c.v),1);
+  const VH=36;
+  const ticks=5;
 
   let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">`;
   s+=`<rect width="${W}" height="${H}" fill="#0a0a0a"/>`;
 
-  // grid + y-labels
-  ticks.forEach(v=>{
+  /* grid + y-labels */
+  for(let i=0;i<=ticks;i++){
+    const v=lo+(range*i/ticks);
     const y=yp(v);
-    s+=`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="rgba(128,128,128,.1)" stroke-width=".7" stroke-dasharray="3 4"/>`;
-    const lbl=v>=10000?(v/1000).toFixed(1)+'k':v>=100?v.toFixed(0):v>=1?v.toFixed(2):v.toFixed(4);
+    s+=`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-width=".8"/>`;
+    const lbl=v>=10000?(v/1000).toFixed(1)+'k':v>=1?v.toFixed(v>=100?0:2):v.toFixed(4);
     s+=`<text x="${PL-5}" y="${y+3.5}" text-anchor="end" font-family="Courier New,monospace" font-size="9" fill="#4a5568">${lbl}</text>`;
+  }
+
+  /* x-axis labels */
+  const xStep=Math.max(1,Math.floor(n/6));
+  cs.forEach((c,i)=>{
+    if(i%xStep===0){
+      const x=PL+i*step+step/2;
+      const d=new Date(c.t);
+      const lbl=`${d.getMonth()+1}/${d.getDate()}`;
+      s+=`<text x="${x}" y="${H-6}" text-anchor="middle" font-family="Courier New,monospace" font-size="8" fill="#4a5568">${lbl}</text>`;
+    }
   });
 
-  // candles + volume
-  candles.forEach((c,i)=>{
+  /* volume bars */
+  cs.forEach((c,i)=>{
+    const x=PL+i*step+(step-bw)/2;
+    const up=c.c>=c.o;
+    const col=up?'#00d4aa':'#ff4d6d';
+    const vh=(c.v/maxV)*VH;
+    s+=`<rect x="${x}" y="${H-PB-vh}" width="${bw}" height="${vh}" fill="${col}" opacity=".2"/>`;
+  });
+
+  /* candles */
+  cs.forEach((c,i)=>{
     const x=PL+i*step+(step-bw)/2;
     const mx=PL+i*step+step/2;
     const up=c.c>=c.o;
@@ -552,22 +771,20 @@ function buildChartSvg(candles,coin){
     const bt=yp(Math.max(c.o,c.c));
     const bb=yp(Math.min(c.o,c.c));
     const bh=Math.max(bb-bt,1);
-    s+=`<line x1="${mx}" y1="${yp(c.h)}" x2="${mx}" y2="${yp(c.l)}" stroke="${col}" stroke-width="1"/>`;
+    s+=`<line x1="${mx}" y1="${yp(c.h)}" x2="${mx}" y2="${yp(c.l)}" stroke="${col}" stroke-width=".9"/>`;
     s+=`<rect x="${x}" y="${bt}" width="${bw}" height="${bh}" fill="${col}"/>`;
-    const vh=(c.v/maxV)*VH;
-    s+=`<rect x="${x}" y="${H-PB-vh}" width="${bw}" height="${vh}" fill="${col}" opacity=".22"/>`;
   });
 
-  // current price dashed line
-  const last=candles[candles.length-1];
+  /* last price line */
+  const last=cs[cs.length-1];
   const ly=yp(last.c);
-  const lpr=last.c>=1000?last.c.toFixed(2):last.c>=1?last.c.toFixed(3):last.c.toFixed(5);
-  s+=`<line x1="${PL}" y1="${ly}" x2="${W-PR}" y2="${ly}" stroke="#00d4aa" stroke-width=".8" stroke-dasharray="4 3" opacity=".6"/>`;
-  s+=`<rect x="${W-PR-52}" y="${ly-9}" width="52" height="18" fill="rgba(0,212,170,.12)"/>`;
-  s+=`<text x="${W-PR-4}" y="${ly+4.5}" text-anchor="end" font-family="Courier New,monospace" font-size="9" fill="#00d4aa">${lpr}</text>`;
+  const lpr=pStr(last.c);
+  s+=`<line x1="${PL}" y1="${ly}" x2="${W-PR}" y2="${ly}" stroke="rgba(255,255,255,.18)" stroke-width=".8" stroke-dasharray="4 3"/>`;
+  s+=`<rect x="${W-PR-48}" y="${ly-8}" width="48" height="16" fill="rgba(255,255,255,.06)"/>`;
+  s+=`<text x="${W-PR-4}" y="${ly+4.5}" text-anchor="end" font-family="Courier New,monospace" font-size="9" fill="#f0f2f5">${lpr}</text>`;
 
-  // coin label
-  s+=`<text x="${PL+6}" y="${PT+13}" font-family="Courier New,monospace" font-size="11" font-weight="700" fill="#f0f2f5" letter-spacing="1">${coin}USDT</text>`;
+  /* coin label */
+  s+=`<text x="${PL+8}" y="${PT+14}" font-family="Courier New,monospace" font-size="11" font-weight="700" fill="#f0f2f5" letter-spacing="1">${coin}/USDT</text>`;
   s+='</svg>';
 
   const d=document.createElement('div');
@@ -575,113 +792,18 @@ function buildChartSvg(candles,coin){
   return d.firstElementChild;
 }
 
-/* ─── live trades ws ─── */
-function connectTrades(pageId,coin){
-  if(_tradeWs){try{_tradeWs.close()}catch(e){}_tradeWs=null}
-  const plbl=$(pageId+'-plbl');
-  const box=$(pageId+'-trades');
-  if(!box)return;
-  box.innerHTML='<div class="empty">Connecting…</div>';
-  let rows=[],pingId=null;
-
-  const ws=new WebSocket('wss://stream.bybit.com/v5/public/linear');
-  _tradeWs=ws;
-  ws.onopen=()=>{
-    ws.send(JSON.stringify({op:'subscribe',args:[`publicTrade.${coin}USDT`]}));
-    pingId=setInterval(()=>{if(ws.readyState===1)ws.send('{"op":"ping"}')},18000);
-  };
-  ws.onmessage=e=>{
-    try{
-      const m=JSON.parse(e.data);
-      if(m.topic&&m.data){
-        rows=[...m.data.map(t=>({p:t.p,q:t.v,buy:t.S==='Buy'})),...rows].slice(0,60);
-        if(plbl&&rows[0]){
-          const v=+rows[0].p;
-          plbl.textContent=v>=1000?v.toFixed(2):v>=1?v.toFixed(4):v.toFixed(6);
-          plbl.style.color=rows[0].buy?'var(--g)':'var(--r)';
-        }
-        box.innerHTML=rows.map(r=>{
-          const v=+r.p;
-          const pStr=v>=1000?v.toFixed(2):v>=1?v.toFixed(4):v.toFixed(6);
-          return `<div class="trade-row"><span style="font-family:var(--mono);font-size:10px;color:${r.buy?'var(--g)':'var(--r)'}">${pStr}</span><span style="font-family:var(--mono);font-size:10px;color:var(--fg3)">${(+r.q).toFixed(3)}</span></div>`;
-        }).join('');
-      }
-    }catch(err){}
-  };
-  ws.onclose=()=>{if(pingId)clearInterval(pingId)};
-  ws.onerror=()=>{};
-}
-
-function renderBotPositions(pageId){
-  const el=$(pageId+'-pos');
-  if(!el)return;
-  const pos=_data?.positions||[];
-  el.innerHTML=pos.length?buildPosTable(pos):'<div class="empty">No open positions</div>';
-}
-
-/* ─── overview ─── */
-function renderOverview(d){
-  const b=d.balance||{};
-  const upnl=b.unrealized_pnl??0;
-  html('ov-cards',`
-    <div class="sc"><div class="sc-lbl">Wallet</div><div class="sc-val">$${fmt(b.usdt_wallet)}</div><div class="sc-sub">USDT</div></div>
-    <div class="sc"><div class="sc-lbl">Equity</div><div class="sc-val">$${fmt(b.usdt_equity)}</div></div>
-    <div class="sc"><div class="sc-lbl">Free</div><div class="sc-val">$${fmt(b.usdt_free)}</div></div>
-    <div class="sc"><div class="sc-lbl">uPnL</div><div class="sc-val ${upnl>=0?'col-g':'col-r'}">${sign(upnl)}</div></div>
-  `);
-
-  const pos=d.positions||[];
-  $('ov-pos-cnt').textContent=pos.length||'0';
-  html('ov-positions',pos.length?buildPosTable(pos):'<div class="empty">No open positions</div>');
-
-  const sigs=d.signals||[];
-  html('ov-signals',sigs.length?sigs.map(s=>{
-    const long=(s.action||'').toUpperCase()==='LONG';
-    const res=s.result;
-    return `<div class="sig-row">
-      <div><div><span class="sig-coin">${s.coin}</span><span class="${long?'side-l':'side-s'}">${long?'LONG':'SHORT'}</span></div>
-      <div class="sig-meta">${dt(s.timestamp)}</div></div>
-      <div class="sig-res" style="color:${res==='WIN'?'var(--g)':res==='LOSS'?'var(--r)':'var(--fg3)'}">${res||'OPEN'}</div>
-    </div>`;
-  }).join(''):'<div class="empty">No recent signals</div>');
-}
-
-function buildPosTable(pos){
-  return `<div class="pt">
-    <div class="pt-hdr"><span class="pt-hdr-lbl">Open Positions</span><span class="pt-hdr-cnt">${pos.length}</span></div>
-    <div class="pt-wrap"><table>
-      <thead><tr><th>Symbol</th><th>Side</th><th>Lev</th><th>Entry</th><th>Mark</th><th>uPnL</th><th>ROE%</th><th>SL</th><th>TP</th></tr></thead>
-      <tbody>${pos.map(p=>{
-        const lng=p.side==='LONG';
-        const up=p.unrealized_pnl??0;
-        return`<tr>
-          <td>${p.symbol||'—'}</td>
-          <td style="color:${lng?'var(--g)':'var(--r)'}">${p.side||'—'}</td>
-          <td style="color:var(--fg3)">${p.leverage??'—'}×</td>
-          <td>${fmt(p.entry_price,pdp(p.entry_price))}</td>
-          <td>${fmt(p.mark_price,pdp(p.mark_price))}</td>
-          <td style="color:${up>=0?'var(--g)':'var(--r)'};font-weight:700">${sign(up)}</td>
-          <td style="color:${up>=0?'var(--g)':'var(--r)'}">${fmt(p.roe_pct)}%</td>
-          <td style="color:var(--fg3)">${p.sl_price?fmt(p.sl_price,pdp(p.sl_price)):'—'}</td>
-          <td style="color:var(--fg3)">${p.tp_price?fmt(p.tp_price,pdp(p.tp_price)):'—'}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>
-  </div>`;
-}
-
-/* ─── news ─── */
-function categorize(src='',title='',desc=''){
-  const s=src.toLowerCase(),tx=(title+' '+(desc||'')).toLowerCase();
+/* ── news ── */
+function categorize(src,title,desc){
+  const s=(src||'').toLowerCase(),tx=((title||'')+' '+(desc||'')).toLowerCase();
   if(/whale[_ ]alert|lookonchain|smart wallet/.test(s))return 'ON-CHAIN';
   if(/oilprice|mining\.com|kitco/.test(s))return 'COMMODITIES';
-  if(/marketwatch|yahoo finance|barrons/.test(s))return 'MARKETS';
+  if(/marketwatch|yahoo finance/.test(s))return 'MARKETS';
   if(/al jazeera/.test(s))return 'GEOPOLITICS';
   if(/federal reserve/.test(s))return 'MACRO';
   if(/(binance|bybit).*(blog|announcement)/.test(s))return 'LISTINGS';
   if(/war |warfare|military|sanctions|nato|ukraine|russia|missile/.test(tx))return 'GEOPOLITICS';
-  if(/inflation|recession|federal reserve| fed |interest rate| cpi | gdp /.test(tx))return 'MACRO';
-  if(/crude oil|wti |brent|gold price|silver|per barrel|opec/.test(tx))return 'COMMODITIES';
+  if(/inflation|recession| fed |interest rate| cpi | gdp /.test(tx))return 'MACRO';
+  if(/crude oil|wti |brent|gold price|per barrel|opec/.test(tx))return 'COMMODITIES';
   if(/stock market|s&p|nasdaq|dow jones|wall street|earnings/.test(tx))return 'MARKETS';
   if(/on-chain|whale|defi|smart contract|tvl|dex volume/.test(tx))return 'ON-CHAIN';
   if(/binance|bybit|coinbase|okx/.test(s))return 'LISTINGS';
@@ -689,188 +811,107 @@ function categorize(src='',title='',desc=''){
 }
 
 async function loadNews(){
-  if(_newsLoaded){renderNewsPage();return}
+  if(_newsLoaded){renderNews();return}
   html('news-list','<div class="empty">Loading…</div>');
   try{
     const r=await fetch('/api/news/public?limit=80');
     const j=await r.json();
-    _newsAll=(j?.items||j?.articles||[]).map(a=>({...a,_cat:categorize(a.source||'',a.title||'',a.description||'')}));
+    _newsAll=(j?.items||[]).map(a=>({...a,_cat:categorize(a.source,a.title,a.description)}));
     _newsLoaded=true;
-    buildNewsCats();
-    renderNewsPage();
-  }catch(e){html('news-list','<div class="empty">Failed to load news</div>')}
+    html('news-cats',CAT_IDS.map(c=>`<button class="ncat${c===_newsCat?' on':''}" onclick="setNewsCat('${c}')">${c}</button>`).join(''));
+    renderNews();
+  }catch{html('news-list','<div class="empty">Failed to load</div>')}
 }
 
-function buildNewsCats(){
-  html('news-cats',CAT_IDS.map(c=>`<button class="cat-pill${c===_newsCat?' on':''}" onclick="setNewsCat('${c}')">${c}</button>`).join(''));
+function setNewsCat(c){
+  _newsCat=c;
+  document.querySelectorAll('.ncat').forEach(el=>el.classList.toggle('on',el.textContent===c));
+  renderNews();
 }
-function setNewsCat(c){_newsCat=c;buildNewsCats();renderNewsPage()}
 
-function renderNewsPage(){
+function renderNews(){
   const list=_newsCat==='ALL'?_newsAll:_newsAll.filter(a=>a._cat===_newsCat);
-  if(!list.length){html('news-list','<div class="empty">No news in this category</div>');return}
+  if(!list.length){html('news-list','<div class="empty">No articles</div>');return}
   html('news-list',list.slice(0,40).map(a=>{
-    const bg=CAT_BG[a._cat]||'var(--bg2)';
-    const ts=a.published_at||a.publishedAt||a.date;
+    const ts=a.published_at||a.date;
     const url=a.link||a.url||'';
-    return`<div class="news-card" style="background:${bg}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-        <span class="news-cat">${a._cat}</span>
-        ${ts?`<span style="font-family:var(--mono);font-size:9px;color:var(--fg3)">${age(ts)}</span>`:''}
-      </div>
-      <div class="news-title">${a.title||'—'}</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <span class="news-source">${a.source||''}</span>
-        ${url?`<a href="${url}" target="_blank" style="font-family:var(--mono);font-size:9px;color:var(--g);flex-shrink:0">↗ Open</a>`:''}
-      </div>
-      ${a.description?`<div class="news-desc">${a.description}</div>`:''}
+    return`<div class="n-card">
+      <div class="n-top"><span class="n-cat">${a._cat}</span>${ts?`<span class="n-age">${ageStr(ts)}</span>`:''}</div>
+      <div class="n-title">${a.title||'—'}</div>
+      <div class="n-bot"><span class="n-src">${a.source||''}</span>${url?`<a href="${url}" target="_blank" class="n-link">↗ Open</a>`:''}</div>
+      ${a.description?`<div class="n-desc">${a.description}</div>`:''}
     </div>`;
   }).join(''));
 }
 
-/* ─── prices ─── */
-async function loadPrices(){
-  html('prices-list','<div class="empty">Loading…</div>');
-  try{
-    const r=await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
-    const j=await r.json();
-    const map={};
-    (j?.result?.list||[]).forEach(t=>{
-      const c=t.symbol.replace('USDT','');
-      if(PRICE_COINS.includes(c))map[c]={p:+t.lastPrice,chg:+t.price24hPcnt*100,vol:+t.volume24h};
-    });
-    const ts=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    $('prices-ts').textContent='Updated '+ts;
-    const rows=PRICE_COINS.filter(c=>map[c]).map(c=>{
-      const d=map[c];
-      const pos=d.chg>=0;
-      const pStr=d.p>=1000?d.p.toFixed(2):d.p>=1?d.p.toFixed(4):d.p.toFixed(6);
-      return`<div class="price-row">
-        <span class="price-coin">${c}</span>
-        <span class="price-val" style="color:${pos?'var(--g)':'var(--r)'}">${pStr}</span>
-        <span class="price-chg" style="color:${pos?'var(--g)':'var(--r)'}">${pos?'+':''}${d.chg.toFixed(2)}%</span>
-        <span class="price-vol">${fmtK(d.vol)}</span>
-      </div>`;
-    }).join('');
-    html('prices-list',`<div style="border:1px solid var(--b)">
-      <div class="price-hdr"><span>Coin</span><span style="text-align:right">Price</span><span style="text-align:right">24h</span><span style="text-align:right">Vol</span></div>
-      ${rows}
-    </div>`);
-  }catch(e){html('prices-list','<div class="empty">Failed to load prices</div>')}
-}
-
-/* ─── strategies ─── */
-function renderStrategies(){
-  const el=$('strat-inner');
-  if(!el||el.children.length)return;
-  el.innerHTML=`
-    <div class="sl"><span class="sl-t">Strategies & Pricing</span></div>
-    ${STRATEGIES.map(s=>`
-      <div class="strat-card">
-        <div class="strat-num">${s.num}</div>
-        <div class="strat-name">${s.name}</div>
-        <div class="strat-desc">${s.summary}</div>
-        <div class="strat-tags">${s.tags.map(t=>`<span class="strat-tag">${t}</span>`).join('')}</div>
-        <div class="strat-price">${s.price}<span style="font-size:12px;color:var(--fg3);font-weight:400">/mo</span></div>
-        <div class="strat-per">per month</div>
-      </div>`).join('')}
-    <div class="sl" style="margin-top:20px"><span class="sl-t">Bot Comparison</span></div>
-    <div style="border:1px solid var(--b);overflow-x:auto;margin-bottom:16px">
-    <table class="cmp-table">
-      <thead><tr><th>Bot</th><th>Steady</th><th>Balanced</th><th>Full Suite</th></tr></thead>
-      <tbody>${CMP_ROWS.map(([n,...v])=>`<tr><td>${n}</td>${v.map(x=>`<td>${x?'<span style="color:var(--g)">✓</span>':'<span style="color:var(--fg3)">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody>
-    </table></div>
-    <div style="text-align:center;padding:16px 0 4px">
-      <a href="https://kadoclub.net/#pricing" target="_blank" class="btn-p btn-wht" style="display:inline-block;text-decoration:none">View Full Pricing →</a>
-    </div>`;
-}
-
-/* ─── account ─── */
+/* ── account ── */
 function renderAccount(){
-  const el=$('acc-inner');
-  if(!el)return;
-  const u=_data?.user||{};
-  const plan=u.plan||'free';
-  el.innerHTML=`
-    <div class="acc-row"><span class="acc-lbl">Email</span><span class="acc-val">${maskEmail(u.email)}</span></div>
-    <div class="acc-row"><span class="acc-lbl">Username</span><span class="acc-val">${u.username||'—'}</span></div>
-    <div class="acc-row"><span class="acc-lbl">Plan</span><span class="acc-val"><span class="plan-badge">${plan.toUpperCase()}</span></span></div>
-    <div class="acc-row">
-      <span class="acc-lbl">Bot Status</span>
-      <span style="display:flex;align-items:center;gap:6px">
-        <span class="dot ${_paused?'dot-off':'dot-on'}"></span>
-        <span style="font-family:var(--mono);font-size:11px;color:var(--fg2)">${_paused?'Paused':'Live'}</span>
-      </span>
-    </div>
-    <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:20px">
-      <button id="pbtn" class="btn-p ${_paused?'btn-grn':'btn-red'}" onclick="togglePause()">${_paused?'▶ Resume Bot':'⏸ Pause Bot'}</button>
-      <a href="https://kadoclub.net/dashboard" target="_blank" class="btn-p btn-inv" style="display:inline-flex;align-items:center;text-decoration:none">Dashboard ↗</a>
-    </div>`;
+  const u=_d?.user||{};
+  $('a-email').textContent=maskEmail(u.email);
+  $('a-user').textContent=u.username||'—';
+  $('a-plan').textContent=(u.plan||'free').toUpperCase();
+
+  const statusEl=$('a-bot-status');
+  if(statusEl)statusEl.textContent=_paused?'Paused':'Active';
+
+  const pb=$('a-pause-btn');
+  if(pb){pb.textContent=_paused?'▶ Resume Bot':'⏸ Pause Bot';pb.className='btn '+ (_paused?'btn-confirm':'btn-danger')}
+
+  const keysEl=$('keys-status');
+  const connected=(_d?.positions?.length||0)>0||(_d?.balance?.usdt_wallet||0)>0;
+  if(keysEl)keysEl.textContent=connected?'Connected':'Not connected';
+  if(keysEl)keysEl.style.color=connected?'var(--g)':'var(--fg3)';
 }
 
-/* ─── api keys ─── */
-function renderApiKeys(){
-  const el=$('keys-inner');
-  if(!el)return;
-  const connected=(_data?.positions?.length||0)>0||(_data?.balance?.usdt_wallet||0)>0;
-  el.innerHTML=`
-    <div class="acc-row">
-      <span class="acc-lbl">Bybit</span>
-      <span style="font-family:var(--mono);font-size:11px;color:${connected?'var(--g)':'var(--fg3)'}">${connected?'● Connected':'○ Not connected'}</span>
-    </div>
-    <div class="info-box" style="margin-top:12px">API key management (add/revoke/reveal) is only available on the full dashboard.</div>
-    <a href="https://kadoclub.net/dashboard" target="_blank" class="btn-p btn-wht" style="display:inline-block;text-decoration:none;margin-top:4px">Manage API Keys →</a>`;
+function renderStrategies(){
+  const el=$('strat-list');
+  if(!el||el.children.length)return;
+  el.innerHTML=STRATEGIES.map(s=>`
+    <div class="strat-card">
+      <div class="strat-n">${s.num}</div>
+      <div class="strat-name">${s.name}</div>
+      <div class="strat-desc">${s.desc}</div>
+      <div class="strat-tags">${s.tags.map(t=>`<span class="strat-tag">${t}</span>`).join('')}</div>
+      <div class="strat-price">${s.price}<span style="font-size:12px;color:var(--fg3);font-weight:400"> / mo</span></div>
+      <div class="strat-per">per month</div>
+    </div>`).join('');
 }
 
-/* ─── security ─── */
-function renderSecurity(){
-  const el=$('sec-inner');
-  if(!el)return;
-  el.innerHTML=`
-    <div class="acc-row"><span class="acc-lbl">2FA</span><span class="acc-val">TOTP authenticator</span></div>
-    <div class="acc-row"><span class="acc-lbl">Password</span><span class="acc-val">•••••••••</span></div>
-    <div class="info-box" style="margin-top:12px">2FA setup, password changes and active session management are only available on the full dashboard.</div>
-    <a href="https://kadoclub.net/dashboard" target="_blank" class="btn-p btn-wht" style="display:inline-block;text-decoration:none;margin-top:4px">Open Security Settings →</a>`;
-}
-
-/* ─── pause ─── */
+/* ── pause ── */
 async function togglePause(){
   if(!_token)return;
-  const btn=$('pbtn');
-  if(btn)btn.disabled=true;
+  closeAccMenu();
+  const btns=[document.getElementById('pbtn'),document.getElementById('a-pause-btn'),document.getElementById('pause-btn-drop')];
+  btns.forEach(b=>{if(b)b.disabled=true});
   try{
     const r=await fetch('/api/webapp/pause',{method:'POST',headers:{'Content-Type':'application/json','X-Webapp-Token':_token},body:JSON.stringify({pause:!_paused})});
     if(r.ok){
       _paused=!_paused;
-      const dot=$('st-dot'),lbl=$('st-lbl');
-      if(dot)dot.className='dot '+(_paused?'dot-off':'dot-on');
-      if(lbl)lbl.textContent=_paused?'Paused':'Live';
-      renderAccount();
+      const dropBtn=$('pause-btn-drop');
+      if(dropBtn)dropBtn.textContent=(_paused?'▶ Resume Bot':'⏸ Pause Bot');
+      if(_activePage==='account')renderAccount();
     }
-  }finally{if($('pbtn'))$('pbtn').disabled=false}
+  }finally{btns.forEach(b=>{if(b)b.disabled=false})}
 }
 
-/* ─── init ─── */
+/* ── init ── */
 async function init(){
   setMsg('Connecting…');
   try{
     const r=await fetch('/api/webapp/init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({init_data:tg?.initData||''}),signal:AbortSignal.timeout(12000)});
     setMsg('Loading…');
     if(!r.ok){const e=await r.json().catch(()=>({}));showErr('Auth Failed',e.detail||'Status '+r.status);return}
-    _data=await r.json();
-    _token=_data.token||'';
-    _paused=_data.paused||false;
+    _d=await r.json();
+    _token=_d.token||'';
+    _paused=_d.paused||false;
 
-    const dot=$('st-dot'),lbl=$('st-lbl');
-    if(dot)dot.className='dot '+(_paused?'dot-off':'dot-on');
-    if(lbl)lbl.textContent=_paused?'Paused':'Live';
+    const u=_d.user||{};
+    const uLabel=u.username||(u.email?u.email.split('@')[0]:null)||'Account';
+    $('acc-name-lbl').textContent=uLabel;
+    $('acc-drop-user').textContent=uLabel;
 
-    const u=_data.user||{};
-    const du=$('d-user');
-    if(du)du.textContent=u.username||u.email||'Account';
-
-    buildNav();
-    renderOverview(_data);
+    renderHome(_d);
+    renderBotsList();
 
     $('splash').style.display='none';
     $('app').style.display='flex';
