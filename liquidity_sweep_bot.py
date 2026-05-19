@@ -25,7 +25,7 @@ SYMBOLS = [
 ]
 
 LEVERAGE    = 5
-SIZE_PCT    = 15.0   # 15% per trade — reduced from 25% per risk audit
+SIZE_PCT    = 25.0   # 25% per trade — restored to backtest-calibrated value
 COOLDOWN    = 8 * 3600    # seconds
 SCAN_SLEEP  = 30 * 60     # seconds
 
