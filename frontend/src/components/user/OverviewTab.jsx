@@ -347,19 +347,9 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     } catch { return []; }
   }
 
-  async function fetchAllBars(c, tfV) {
-    const MAX_PAGES = 10;
-    let all = [];
-    let endMs;
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const chunk = await fetchBars(c, tfV, endMs);
-      if (!chunk.length) break;
-      all = [...chunk, ...all];
-      if (chunk.length < 1000) break;
-      endMs = chunk[0].time * 1000 - 1;
-    }
+  function dedup(bars) {
     const seen = new Set();
-    return all.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
+    return bars.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
   }
 
   function refreshInds(bars) {
@@ -500,11 +490,28 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     let cancelled = false;
     wsRef.current?.close();
     barsRef.current = [];
-    fetchAllBars(coin, tf).then(bars => {
+    fetchBars(coin, tf, undefined).then(async bars => {
       if (cancelled || !candleRef.current) return;
       applyData(bars);
       chartRef.current?.timeScale().fitContent();
       connectWS(coin, tf);
+      // Background: fetch remaining history (up to 9 more pages)
+      if (bars.length >= 1000) {
+        let all = [...bars];
+        let endMs = bars[0].time * 1000 - 1;
+        for (let page = 0; page < 9; page++) {
+          if (cancelled) break;
+          const chunk = await fetchBars(coin, tf, endMs);
+          if (!chunk.length) break;
+          all = dedup([...chunk, ...all]);
+          if (!cancelled && candleRef.current) {
+            barsRef.current = all;
+            applyData(all);
+          }
+          if (chunk.length < 1000) break;
+          endMs = chunk[0].time * 1000 - 1;
+        }
+      }
     });
     return () => { cancelled = true; };
   }, [coin, tf]);
