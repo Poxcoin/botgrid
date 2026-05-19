@@ -77,11 +77,12 @@ def _get_active_users(source: str) -> list[dict]:
             if not api_key or not secret:
                 continue
             result.append({
-                "user_id":    u.user_id if hasattr(u, "user_id") else u.id,
-                "tg_chat_id": u.tg_chat_id,
-                "is_testnet": key_row.is_testnet,
-                "api_key":    api_key,
-                "secret":     secret,
+                "user_id":         u.user_id if hasattr(u, "user_id") else u.id,
+                "tg_chat_id":      u.tg_chat_id,
+                "is_testnet":      key_row.is_testnet,
+                "api_key":         api_key,
+                "secret":          secret,
+                "trade_size_pct":  u.trade_size_percent,  # None = use risk-based auto
             })
         return result
     finally:
@@ -193,8 +194,14 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
 
         ex = _build_exchange(user["api_key"], user["secret"], user["is_testnet"])
 
-        # Balance → position size
-        balance  = _get_free_usdt(ex)
+        # Balance → position size (risk-based: 1% of balance per trade)
+        balance = _get_free_usdt(ex)
+        user_custom = user.get("trade_size_pct")
+        if user_custom:
+            size_pct = float(user_custom)
+        else:
+            # Auto: size = 1% risk / (leverage × sl_pct), capped at 25%
+            size_pct = min(1.0 * 100 / (leverage * sl_pct), 25.0)
         size_usd = balance * (size_pct / 100) * leverage
 
         # Market price
