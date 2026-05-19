@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KADO Dashboard</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js" async></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -85,6 +85,9 @@ function setStatus(msg) {
   const el = document.getElementById('status-msg');
   if (el) el.textContent = msg;
 }
+
+// Telegram injects window.Telegram.WebApp natively before page load.
+// The external script is a polyfill — we don't wait for it.
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
