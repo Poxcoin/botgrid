@@ -35,19 +35,36 @@ function Trades({ coin }) {
         buf.current = list; setRows(list);
       }).catch(() => {});
 
-    const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-    ws.onopen = () => ws.send(JSON.stringify({ op: 'subscribe', args: [`publicTrade.${coin}USDT`] }));
-    ws.onmessage = e => {
-      try {
-        const m = JSON.parse(e.data);
-        if (m.topic === `publicTrade.${coin}USDT` && Array.isArray(m.data)) {
-          buf.current = [...m.data.map(t => ({ id: t.i, p: t.p, q: t.v, buy: t.S === 'Buy' })), ...buf.current].slice(0, 80);
-          setRows([...buf.current]);
-        }
-      } catch {}
+    let alive = true;
+    let pingId = null;
+    let wsInst = null;
+    const connect = () => {
+      if (!alive) return;
+      const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+      wsInst = ws;
+      const topic = `publicTrade.${coin}USDT`;
+      ws.onopen = () => {
+        if (!alive) { ws.close(); return; }
+        ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+        pingId = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send('{"op":"ping"}');
+        }, 18000);
+      };
+      ws.onmessage = e => {
+        if (!alive) return;
+        try {
+          const m = JSON.parse(e.data);
+          if (m.topic === topic && Array.isArray(m.data)) {
+            buf.current = [...m.data.map(t => ({ id: t.i, p: t.p, q: t.v, buy: t.S === 'Buy' })), ...buf.current].slice(0, 80);
+            setRows([...buf.current]);
+          }
+        } catch {}
+      };
+      ws.onclose = () => { if (pingId) clearInterval(pingId); if (alive) setTimeout(connect, 3000); };
+      ws.onerror = () => {};
     };
-    ws.onerror = ws.onclose = () => {};
-    return () => ws.close();
+    connect();
+    return () => { alive = false; if (pingId) clearInterval(pingId); wsInst?.close(); };
   }, [coin]);
 
   return (
@@ -416,9 +433,13 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
         const tryConnect = () => {
           if (closed) return;
           const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+          let pingId = null;
           ws.onopen = () => {
             if (closed) { ws.close(); return; }
             ws.send(JSON.stringify({ op: 'subscribe', args: [topic] }));
+            pingId = setInterval(() => {
+              if (ws.readyState === WebSocket.OPEN) ws.send('{"op":"ping"}');
+            }, 18000);
           };
           ws.onmessage = e => {
             if (closed) return;
@@ -430,9 +451,9 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
               }
             } catch {}
           };
-          ws.onclose = () => { if (!closed) setTimeout(tryConnect, 3000); };
+          ws.onclose = () => { if (pingId) clearInterval(pingId); if (!closed) setTimeout(tryConnect, 3000); };
           ws.onerror = () => {};
-          wsSubRef.current = { close: () => { closed = true; ws.close(); } };
+          wsSubRef.current = { close: () => { closed = true; if (pingId) clearInterval(pingId); ws.close(); } };
         };
         tryConnect();
       },
