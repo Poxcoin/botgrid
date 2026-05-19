@@ -685,39 +685,53 @@ function EquityCurve({ data }) {
   const H = 300;
   const PAD = { top: 12, right: 8, bottom: 28, left: 56 };
 
-  const vals = data.map(d => d.v);
-  const minV = Math.min(...vals, 0);
-  const maxV = Math.max(...vals, 0);
-  const range = maxV - minV || 1;
-  const isPos = (vals[vals.length - 1] ?? 0) >= 0;
-  const color = isPos ? '#00d4aa' : '#ff4d6d';
+  // All chart geometry depends only on `data` and width `w` — recompute
+  // only when those change, not on every hover-driven re-render.
+  const geom = useMemo(() => {
+    const vals  = data.map(d => d.v);
+    const minV  = Math.min(...vals, 0);
+    const maxV  = Math.max(...vals, 0);
+    const range = maxV - minV || 1;
+    const isPos = (vals[vals.length - 1] ?? 0) >= 0;
+    const color = isPos ? '#00d4aa' : '#ff4d6d';
 
-  const chartW = w - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom;
+    const chartW = w - PAD.left - PAD.right;
+    const chartH = H - PAD.top - PAD.bottom;
 
-  const sx = i => PAD.left + (i / Math.max(data.length - 1, 1)) * chartW;
-  const sy = v => PAD.top + chartH - ((v - minV) / range) * chartH;
+    const sx = i => PAD.left + (i / Math.max(data.length - 1, 1)) * chartW;
+    const sy = v => PAD.top + chartH - ((v - minV) / range) * chartH;
 
-  const pts = data.map((d, i) => `${sx(i)},${sy(d.v)}`).join(' ');
-  const zeroY = sy(0);
+    const pts   = data.map((d, i) => `${sx(i)},${sy(d.v)}`).join(' ');
+    const zeroY = sy(0);
 
-  const areaPath = data.length > 1
-    ? `M${sx(0)},${zeroY} ` +
-      data.map((d, i) => `L${sx(i)},${sy(d.v)}`).join(' ') +
-      ` L${sx(data.length - 1)},${zeroY} Z`
-    : '';
+    const areaPath = data.length > 1
+      ? `M${sx(0)},${zeroY} ` +
+        data.map((d, i) => `L${sx(i)},${sy(d.v)}`).join(' ') +
+        ` L${sx(data.length - 1)},${zeroY} Z`
+      : '';
 
-  /* Y-axis ticks */
-  const yTicks = [];
-  const tickCount = 5;
-  for (let i = 0; i <= tickCount; i++) {
-    const v = minV + (range * i) / tickCount;
-    yTicks.push({ v, y: sy(v) });
-  }
+    const yTicks = [];
+    for (let i = 0; i <= 5; i++) {
+      const v = minV + (range * i) / 5;
+      yTicks.push({ v, y: sy(v) });
+    }
 
-  /* X-axis ticks — first, last, and ~3 middle */
-  const xIdxs = data.length <= 1 ? [0]
-    : [0, Math.floor(data.length * 0.33), Math.floor(data.length * 0.66), data.length - 1].filter((v, i, a) => a.indexOf(v) === i);
+    const xIdxs = data.length <= 1 ? [0]
+      : [0, Math.floor(data.length * 0.33), Math.floor(data.length * 0.66), data.length - 1].filter((v, i, a) => a.indexOf(v) === i);
+
+    return { minV, maxV, color, chartW, chartH, sx, sy, pts, zeroY, areaPath, yTicks, xIdxs };
+  }, [data, w]);
+
+  const { minV, maxV, color, chartW, chartH, sx, sy, pts, zeroY, areaPath, yTicks, xIdxs } = geom;
+
+  // Throttle mouse-move tracking: ignore moves that don't change the snapped index.
+  const handleMouseMove = useCallback(e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mx   = e.clientX - rect.left - PAD.left;
+    const raw  = Math.round((mx / chartW) * (data.length - 1));
+    const idx  = Math.max(0, Math.min(data.length - 1, raw));
+    setHover(prev => (prev === idx ? prev : idx));
+  }, [chartW, data.length]);
 
   return (
     <div ref={wrapRef} style={{ padding: '8px 4px 0' }}>
@@ -725,13 +739,7 @@ function EquityCurve({ data }) {
         <svg
           width={w} height={H}
           style={{ display: 'block', overflow: 'visible' }}
-          onMouseMove={e => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const mx = e.clientX - rect.left - PAD.left;
-            const idx = Math.round((mx / chartW) * (data.length - 1));
-            const clamped = Math.max(0, Math.min(data.length - 1, idx));
-            setHover(clamped);
-          }}
+          onMouseMove={handleMouseMove}
           onMouseLeave={() => setHover(null)}
         >
           <defs>
