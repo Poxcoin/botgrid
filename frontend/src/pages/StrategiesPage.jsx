@@ -8,12 +8,11 @@ import { usePageTitle } from '@/lib/usePageTitle';
 const FONT_BODY = "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif";
 const FONT_MONO = "'Courier New','SF Mono',monospace";
 
-const BOT_KEYS = ['b1','b2','b3','b4','b5','b6','b7','b8'];
+const BOT_KEYS = ['b2','b3','b4','b5','b6','b7','b8'];
 
 // s1 = Steady, s2 = Balanced, s3 = Full Suite
 // boolean[] indexed [s1, s2, s3] — which bot is included in each strategy
 const COMPARISON = {
-  b1: [false, true,  true],  // News Intelligence
   b2: [true,  true,  true],  // Grid Trading
   b3: [false, false, true],  // Listing Sniper
   b4: [false, true,  true],  // Funding Rate Arb
@@ -102,19 +101,6 @@ function StrategyCard({ strategy, estMonthlyLabel }) {
 // ── Bot performance data (90-day backtests, fees included) ───────────────────
 const BOTS = [
   {
-    name: 'News Intelligence',
-    tag: 'ALTCOINS · AI',
-    symbols: 'Altcoins only',
-    tf: '—',
-    desc: 'Monitors crypto news in real time and scores each event across 9 market factors (sentiment, RSI, funding, OI, liquidations, volume, whale activity, on-chain, mood). Only altcoins where information propagates slowly enough to act on.',
-    wr: '66%',
-    monthly: '+55% / trade',
-    period: 'Live demo',
-    status: 'live',
-    statusColor: '#4ade80',
-    note: '4 trades, $220 PnL on Bybit demo',
-  },
-  {
     name: 'Liquidity Sweep',
     tag: 'ETH · SOL · 4H',
     symbols: 'ETH / SOL',
@@ -165,19 +151,6 @@ const BOTS = [
     status: 'live',
     statusColor: '#4ade80',
     note: 'Real liquidation data — OHLCV proxy not representative',
-  },
-  {
-    name: 'CVD Divergence',
-    tag: 'BTC · ETH · SOL · 15M',
-    symbols: 'BTC / ETH / SOL',
-    tf: '15m',
-    desc: 'Detects divergence between price action and Cumulative Volume Delta: price at a 20-bar high but buy-side CVD in the bottom 47% → bearish signal. Real-time mode uses WebSocket trades for precise CVD; backtest approximation is weaker.',
-    wr: '39.3%',
-    monthly: 'Optimizing',
-    period: '90d backtest',
-    status: 'testing',
-    statusColor: '#facc15',
-    note: 'OHLCV-approximated CVD underperforms — params under review',
   },
   {
     name: 'Grid Trading',
