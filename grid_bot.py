@@ -105,9 +105,10 @@ MAX_REBUILDS_DAY       = 2      # макс перебудов сітки за д
 MAX_LOSS_PCT           = 0.05   # жорсткий стоп: 5% від балансу
 ATR_RANGE_PERIODS      = 10     # тісніші кроки → частіші fills
 TREND_RECHECK_TICKS    = 60     # перевірка тренду кожні 60 тіків (≈30 хв)
-SHORT_CONFIRM_TICKS    = 9999   # SHORT режим ВИМКНЕНО — тільки LONG (grid накопичує позицію)
+SHORT_CONFIRM_TICKS    = 3      # SHORT режим АКТИВНИЙ — 3 послідовних SHORT-читань (≈1.5h)
 LONG_CONFIRM_TICKS     = 3      # short→long: потребує 3 послідовних LONG-читань (≈1.5h)
-SHORT_EMA_MARGIN       = 0.94   # не використовується поки SHORT_CONFIRM_TICKS=9999
+SHORT_EMA_MARGIN       = 0.97   # SHORT if price < EMA50 * 0.97 (3% нижче EMA50)
+HURST_FILTER           = 0.58   # H > 0.58 = trending market → skip нові grid entries
 MIN_STEP_FEE_MULT      = 3.0    # крок сітки мінімум в 3x більший за round-trip fee
 MIN_GRID_LEVELS        = 3      # мінімальна кількість рівнів при авто-зменшенні
 PENDING_BACKOFF_SEC    = 300    # 5 хв backoff після 3 пропущених тіків pending ордера
@@ -151,6 +152,48 @@ def _calc_ema(closes: list, period: int) -> float:
     for price in closes[period:]:
         ema = price * k + ema * (1.0 - k)
     return ema
+
+
+def _calc_hurst(closes: list[float]) -> float:
+    """Hurst exponent via R/S analysis. H>0.5=trending, H<0.5=mean-reverting, H≈0.5=random."""
+    import math
+    n = len(closes)
+    if n < 30:
+        return 0.5
+    lags = [2, 4, 8, 16, min(32, n // 2)]
+    rs_vals = []
+    for lag in lags:
+        chunks = [closes[i:i + lag] for i in range(0, n - lag, lag)]
+        rs_chunk = []
+        for chunk in chunks:
+            if len(chunk) < 2:
+                continue
+            mean = sum(chunk) / len(chunk)
+            deviations = [c - mean for c in chunk]
+            cumdev = []
+            s = 0.0
+            for d in deviations:
+                s += d
+                cumdev.append(s)
+            R = max(cumdev) - min(cumdev)
+            variance = sum((c - mean) ** 2 for c in chunk) / len(chunk)
+            S = variance ** 0.5
+            if S > 0:
+                rs_chunk.append(R / S)
+        if rs_chunk:
+            rs_vals.append((lag, sum(rs_chunk) / len(rs_chunk)))
+    if len(rs_vals) < 2:
+        return 0.5
+    log_x = [math.log(r[0]) for r in rs_vals]
+    log_y = [math.log(r[1]) for r in rs_vals]
+    n2 = len(log_x)
+    mx = sum(log_x) / n2
+    my = sum(log_y) / n2
+    denom = sum((x - mx) ** 2 for x in log_x)
+    if denom == 0:
+        return 0.5
+    slope = sum((log_x[i] - mx) * (log_y[i] - my) for i in range(n2)) / denom
+    return round(max(0.0, min(1.0, slope)), 3)
 
 
 def _calc_rsi(closes: list, period: int = 14) -> float:
@@ -999,6 +1042,7 @@ def _run_single(cfg: dict) -> None:
     _ema20_4h         = 0.0   # EMA20(4h) — trend filter для LONG BUY
     _ema50_4h         = 0.0   # EMA50(4h) — trend filter для LONG BUY
     _ema200_4h        = 0.0   # EMA200(4h) — macro trend: LONG BUY blocked if EMA50 < EMA200
+    _hurst_4h         = 0.5   # Hurst exponent (4h closes) — H>0.58 = trending, skip entries
     try:
         _ohlcv_rsi_init = exchange.fetch_ohlcv(symbol, "4h", limit=210)
         _closes_init    = [c[4] for c in _ohlcv_rsi_init[:-1]]
@@ -1033,7 +1077,8 @@ def _run_single(cfg: dict) -> None:
                     _ema20_4h   = _calc_ema(_closes_rsi, 20)
                     _ema50_4h   = _calc_ema(_closes_rsi, 50)
                     _ema200_4h  = _calc_ema(_closes_rsi, 200) if len(_closes_rsi) >= 200 else _ema200_4h
-                    _log(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f}")
+                    _hurst_4h   = _calc_hurst(_closes_rsi[-60:])
+                    _log(f"[GRID:{symbol}] RSI(14,4h)={_rsi_4h:.1f} EMA20={_ema20_4h:.2f} EMA50={_ema50_4h:.2f} EMA200={_ema200_4h:.2f} Hurst={_hurst_4h:.3f}")
                 except Exception:
                     pass
 
@@ -1264,6 +1309,8 @@ def _run_single(cfg: dict) -> None:
                     if _in_backoff:
                         _remain = int(state["pending_backoff"][zone_str] - _now_ts)
                         _log(f"[GRID:{symbol}] ⏳ Level {current_zone} backoff {_remain}s — пропускаємо")
+                    elif _hurst_4h > HURST_FILTER:
+                        _log(f"[GRID:{symbol}] 📊 Hurst={_hurst_4h:.3f} > {HURST_FILTER} — LONG BUY пропускаємо (trending market, grid неефективний)")
                     elif _rsi_4h > RSI_OB_BUY and direction == "long":
                         _log(f"[GRID:{symbol}] 📈 RSI {_rsi_4h:.0f} > {RSI_OB_BUY} — BUY пропускаємо (overbought)")
                     elif not _is_btc and _btc_chg < BTC_DUMP_THRESHOLD:
@@ -1335,6 +1382,8 @@ def _run_single(cfg: dict) -> None:
                     _is_btc  = symbol.startswith("BTC")
                     if not _is_btc and _btc_chg > BTC_PUMP_THRESHOLD:
                         _log(f"[GRID:{symbol}] 🚫 BTC +{_btc_chg:.1f}% за 2h — SHORT призупинено")
+                    elif _hurst_4h > HURST_FILTER:
+                        _log(f"[GRID:{symbol}] 📊 Hurst={_hurst_4h:.3f} > {HURST_FILTER} — SHORT SELL пропускаємо (trending market)")
                     elif len(positions) + len(pending_orders) < max_pos:
                         if _is_owner_thread and not daily_guard.check(current_balance=get_free_usdt(exchange)):
                             _log(f"[GRID:{symbol}] 🛑 daily_guard — торгівля зупинена сьогодні, SHORT пропущено")
