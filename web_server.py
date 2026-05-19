@@ -1545,7 +1545,6 @@ _BOT_LABELS = {
     "sniper":      "DEX Sniper",
     "bybit":       "Bybit Import",
     "altcoin":     "Altcoin Bot",
-    "metals":      "Metals (Legacy)",
 }
 
 @app.get("/api/users/plan-features")

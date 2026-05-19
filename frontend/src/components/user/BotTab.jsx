@@ -189,7 +189,7 @@ function CoinBreakdown({ trades }) {
 function BotsSection({ bots, heartbeat }) {
   if (!bots || !bots.length) return null;
 
-  const HIDDEN = new Set(['bybit', 'metals']);
+  const HIDDEN = new Set(['bybit']);
   const rows = bots.filter(b => !HIDDEN.has(b.source));
   if (!rows.length) return null;
 
