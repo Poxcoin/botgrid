@@ -3,6 +3,12 @@ User-facing message templates for @KADO_c_BOT.
 Mostly RU/UA — matches dashboard tone.
 """
 
+# ── Reply-keyboard button labels (used as F.text filters in handlers) ────────
+BTN_ACCOUNT   = "👤 Акаунт"
+BTN_BALANCE   = "💰 Баланс"
+BTN_POSITIONS = "📊 Позиції"
+
+
 WELCOME_LINKED = (
     "✓ <b>Аккаунт подключён</b>\n\n"
     "Привет, {name}! Твой KADO-аккаунт привязан к этому чату.\n"
@@ -36,11 +42,17 @@ START_NOT_LINKED = (
 )
 
 UNKNOWN_COMMAND = (
-    "Не знаю такой команды. Используй /menu, чтобы посмотреть что я умею."
+    "Не знаю такой команды. Используй /menu или кнопки ниже."
 )
 
 MENU = (
     "📊 <b>KADO Bot</b>\n\n"
+    "👤 Акаунт — твій план, статус, реф-код\n"
+    "💰 Баланс — депозит і нереалізований PnL на Bybit\n"
+    "📊 Позиції — відкриті угоди\n\n"
+    "Команди:\n"
+    "/account — акаунт\n"
+    "/balance — баланс Bybit\n"
     "/positions — відкриті позиції\n"
     "/pnl — статистика по закритих угодах\n"
     "/help — ця довідка\n\n"
@@ -63,4 +75,37 @@ POSITIONS_EMPTY = "Відкритих позицій немає."
 POSITIONS_LIST = (
     "📋 <b>Відкриті позиції ({count})</b>\n\n"
     "{items}"
+)
+
+
+# ── Account view (new) ────────────────────────────────────────────────────────
+ACCOUNT_INFO = (
+    "👤 <b>Акаунт</b>\n\n"
+    "Email: <code>{email}</code>\n"
+    "Username: <code>{username}</code>\n"
+    "План: <b>{plan}</b>{trial_line}\n"
+    "Статус: {status}\n"
+    "API-ключі Bybit: {api_status}\n"
+    "Реф-код: <code>{ref_code}</code>\n"
+    "Реєстрація: {created_at}"
+)
+
+
+# ── Balance view (new) ───────────────────────────────────────────────────────
+BALANCE_INFO = (
+    "💰 <b>Баланс Bybit</b>{testnet_tag}\n\n"
+    "Wallet:      <b>{wallet:.2f}</b> USDT\n"
+    "Equity:      <b>{equity:.2f}</b> USDT\n"
+    "Available:   <b>{free:.2f}</b> USDT\n"
+    "Нереал. PnL: <b>{upnl_sign}{upnl:.2f}</b> USDT"
+)
+
+NO_API_KEYS = (
+    "🔑 У тебе ще не підключені API-ключі Bybit.\n\n"
+    "Зайди на kadoclub.net → Settings → Bybit API і підключи ключі — тоді я зможу показувати баланс."
+)
+
+EXCHANGE_ERROR = (
+    "⚠️ Не вдалося отримати дані з Bybit зараз.\n"
+    "Спробуй за хвилину. Якщо повторюється — перевір ключі в особистому кабінеті."
 )
