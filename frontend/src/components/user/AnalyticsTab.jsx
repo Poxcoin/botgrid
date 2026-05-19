@@ -295,6 +295,7 @@ function CoinGrid({ coins }) {
 export default function AnalyticsTab() {
   const { t } = useLang();
   const [data, setData] = useState(null);
+  const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allTrades, setAllTrades] = useState([]);
@@ -304,9 +305,10 @@ export default function AnalyticsTab() {
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
-      const [analyticsRes, tradesRes] = await Promise.all([
+      const [analyticsRes, tradesRes, balanceRes] = await Promise.all([
         fetch('/api/users/analytics', { headers }),
         fetch('/api/users/closed-pnl?days=0', { headers }),
+        fetch('/api/users/balance', { headers }),
       ]);
       if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
       setData(await analyticsRes.json());
@@ -314,6 +316,7 @@ export default function AnalyticsTab() {
         const j = await tradesRes.json();
         setAllTrades(j.trades || []);
       }
+      if (balanceRes.ok) setBalance(await balanceRes.json());
     } catch (e) {
       setError(e.message);
     } finally {
@@ -431,17 +434,49 @@ export default function AnalyticsTab() {
     { key: 'pnl', label: 'PnL', align: 'right', bold: true, render: r => `${(r.pnl ?? 0) >= 0 ? '+' : ''}${(r.pnl ?? 0).toFixed(2)}` },
   ];
 
+  const sign = v => (v >= 0 ? '+' : '') + parseFloat(v ?? 0).toFixed(2);
+  const upnl = balance?.unrealized_pnl ?? 0;
+
   return (
     <div style={{ color: 'var(--text-primary)', fontFamily: FONT }}>
       <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
 
+      {/* Balance bar */}
+      {balance && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+          gap: 0,
+          border: '1px solid var(--border-subtle)',
+          background: 'var(--border-subtle)',
+          marginBottom: 1,
+        }}>
+          {[
+            { label: 'Wallet',      value: `$${parseFloat(balance.usdt_wallet ?? 0).toFixed(2)}`,   color: null },
+            { label: 'Equity',      value: `$${parseFloat(balance.usdt_equity ?? 0).toFixed(2)}`,   color: null },
+            { label: 'Unrealized',  value: `${sign(upnl)} USDT`,  color: upnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
+            { label: 'Available',   value: `$${parseFloat(balance.usdt_free ?? 0).toFixed(2)}`,     color: null },
+          ].map((s, i, arr) => (
+            <div key={s.label} style={{
+              padding: '18px 20px',
+              background: 'var(--bg-base)',
+              borderRight: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+            }}>
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Stats row */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
         gap: 1,
         background: 'var(--border-subtle)',
         marginBottom: 32,
+        marginTop: balance ? 1 : 0,
       }}>
         <StatCard
           label={t.dashboard.analytics.totalTrades}
@@ -487,29 +522,7 @@ export default function AnalyticsTab() {
         </div>
       )}
 
-      {/* Best / worst trades */}
-      {((best?.length > 0) || (worst?.length > 0)) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
-          {best?.length > 0 && (
-            <div>
-              <SectionLabel title={t.dashboard.analytics.topBest} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {best.map((tr, i) => <TradeRow key={i} tr={tr} />)}
-              </div>
-            </div>
-          )}
-          {worst?.length > 0 && (
-            <div>
-              <SectionLabel title={t.dashboard.analytics.topWorst} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {worst.map((tr, i) => <TradeRow key={i} tr={tr} />)}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* All trades */}
+      {/* All trades — single column, newest first */}
       {allTrades.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <SectionLabel title="All Trades" right={`${allTrades.length} total`} />
