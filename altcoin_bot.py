@@ -147,10 +147,9 @@ def run_alt_engine():
     print(f"   Breakeven WR: {BREAKEVEN_WR}%  |  Джерело: Exchange Announcements\n")
 
     # ─── Инициализация guard-модулей ──────────────────────────────────────────
-    # ALT бот использует ТОТЖЕ daily_guard (STATE_FILE общий) — оба бота
-    # учитывают общий лимит убытков за день.
-    # Position monitor не запускаем повторно — main.py уже запустил поток.
-    # Если ALT стартует раньше main, запускаем здесь.
+    # ALT бот має ВЛАСНИЙ daily_guard state (окремий від main.py/signal bot).
+    # Так listing sniper не блокується через збитки signal бота і навпаки.
+    daily_guard.STATE_FILE = "daily_guard_state_alt.json"
     try:
         ex_init = _init_exchange()
         start_bal = get_wallet_usdt(ex_init)
