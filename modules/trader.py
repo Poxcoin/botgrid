@@ -122,18 +122,18 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
 
 
 def get_wallet_usdt(exchange: ccxt.Exchange) -> float:
-    """Returns total account equity in USDT terms (totalWalletBalance).
-    Works correctly for Unified accounts with BTC/ETH collateral — not just USDT coin balance.
-    Use for daily loss tracking."""
+    """Returns USDT coin walletBalance (unaffected by open position margin locking).
+    Use for daily loss tracking — unlike get_free_usdt/availableToWithdraw, stays
+    stable when positions are open."""
     for acct_type in ('UNIFIED', 'CONTRACT'):
         try:
             r = exchange.private_get_v5_account_wallet_balance(params={'accountType': acct_type})
-            items = r.get('result', {}).get('list', [])
-            if not items:
-                continue
-            v = float(items[0].get('totalWalletBalance') or 0)
-            if v > 0:
-                return v
+            coins = r.get('result', {}).get('list', [{}])[0].get('coin', [])
+            for c in coins:
+                if c.get('coin') == 'USDT':
+                    v = float(c.get('walletBalance') or 0)
+                    if v > 0:
+                        return v
         except Exception:
             pass
     return get_free_usdt(exchange)
