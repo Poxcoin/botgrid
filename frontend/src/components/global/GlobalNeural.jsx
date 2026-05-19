@@ -315,8 +315,6 @@ export default function GlobalNeural() {
     };
   }, []);
 
-  if (location.pathname === '/dashboard' || location.pathname === '/account') return null;
-
   return (
     <canvas
       ref={canvasRef}
