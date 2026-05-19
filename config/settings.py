@@ -145,3 +145,6 @@ ORDERFLOW_TRADING = os.getenv("ORDERFLOW_TRADING", "False").lower() == "true"
 
 # ── Liquidity Sweep Reversal Bot (ETH/SOL) ────────────────────────────────────
 SWEEP_TRADING = os.getenv("SWEEP_TRADING", "True").lower() == "true"
+
+# ── Order Block (SMC) Bot (BTC/ETH/SOL) ──────────────────────────────────────
+OB_TRADING = os.getenv("OB_TRADING", "True").lower() == "true"
