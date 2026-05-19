@@ -27,6 +27,7 @@ from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, _init_
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, FR_EXTREME_TRADING
+from grid_bot import _calc_hurst
 
 # ── Watchlist ──────────────────────────────────────────────────────────────────
 # Tier 1 — largest perp markets on Bybit (clear FR signals)
@@ -40,8 +41,8 @@ ALL_SYMBOLS = SYMBOLS_MAJOR
 # ── Trade parameters ───────────────────────────────────────────────────────────
 LEVERAGE     = 5
 TP_PCT       = 2.5     # 2.5% — bigger move needed for true FR extremes
-SL_PCT       = 1.0     # 1.0% — R:R 2.5:1 → break-even at 29% WR
-SIZE_PCT     = 20.0    # 20% per trade
+SL_PCT       = 1.5     # 1.5% — wider SL to survive noise in trending markets
+SIZE_PCT     = 15.0    # 15% per trade (was 20% — reduced risk per signal)
 MAX_POS      = 2
 COOLDOWN     = 24 * 3600   # 24h — prevents firing on consecutive 8h events
 SCAN_SLEEP   = 30 * 60
@@ -53,7 +54,8 @@ COIN_SLEEP   = 1.0
 FR_BULL_MAJOR  = 0.009    # >0.009% (90% of BTC/ETH hard cap) → SHORT
 FR_BEAR_MAJOR  = 0.006    # <-0.006% (unusually negative) → LONG
 
-OI_CONFIRM_PCT = 1.0      # OI grew ≥1% in last 4h → size_mult 1.3x
+OI_CONFIRM_PCT  = 1.0     # OI grew ≥1% in last 4h → size_mult 1.3x
+HURST_MAX       = 0.65    # H > 0.65 = strong trend → skip FR signals (mean-reversion fails in trends)
 
 
 def _get_thresholds(symbol: str) -> tuple[float, float]:
@@ -202,6 +204,18 @@ def run_fr_extreme_engine() -> None:
                 if sig is None:
                     time.sleep(COIN_SLEEP)
                     continue
+
+                # Hurst filter: skip if market is strongly trending (mean-reversion unreliable)
+                try:
+                    klines = exchange.fetch_ohlcv(symbol, "4h", limit=64)
+                    closes = [k[4] for k in klines if k[4]]
+                    hurst  = _calc_hurst(closes[-60:]) if len(closes) >= 60 else 0.5
+                    if hurst > HURST_MAX:
+                        print(f"[FRE] ⏭ {coin} — Hurst={hurst:.3f} > {HURST_MAX} (strong trend) — skip")
+                        time.sleep(COIN_SLEEP)
+                        continue
+                except Exception:
+                    pass  # if hurst check fails, proceed anyway
 
                 direction  = sig["direction"]
                 size_mult  = sig["size_mult"]
