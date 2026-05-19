@@ -30,10 +30,11 @@ MAX_HOLD     = 32       # 32×15m = 8h max hold
 
 BEAR_THRESH  = 0.998    # price at ≥prev_high×0.998 → "at the high"
 BULL_THRESH  = 1.002    # price at ≤prev_low×1.002  → "at the low"
-CVD_BEAR_MAX = 47.0     # CVD ratio < 47 = diverging bearish
-CVD_BULL_MIN = 53.0     # CVD ratio > 53 = diverging bullish
+CVD_BEAR_MAX = 30.0     # CVD ratio < 30 = strongly diverging bearish (was 47)
+CVD_BULL_MIN = 70.0     # CVD ratio > 70 = strongly diverging bullish (was 53)
+VOL_MULT_MIN = 1.5      # volume must be ≥1.5× 20-bar average to enter
 
-COOLDOWN_BARS = 10      # bars between signals on same symbol
+COOLDOWN_BARS = 25      # ~6h between signals (was 10)
 TAKER_FEE = 0.00055
 FEE_COST  = TAKER_FEE * 2 * LEVERAGE
 
@@ -146,6 +147,11 @@ def backtest_symbol(exchange, symbol):
             continue
 
         if i - last_signal_i < COOLDOWN_BARS:
+            continue
+
+        # Volume filter: current bar must be ≥1.5× average of prior 20 bars
+        vol_avg = sum(bars[j][5] for j in range(i - LOOKBACK, i)) / LOOKBACK
+        if bars[i][5] < vol_avg * VOL_MULT_MIN:
             continue
 
         window = bars[i - LOOKBACK + 1: i + 1]

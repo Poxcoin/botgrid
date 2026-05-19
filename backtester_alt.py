@@ -1,40 +1,37 @@
 """
-backtester_alt.py — Бэктест рисковой стратегии для альткоинов.
+backtester_alt.py — Signal bot backtest (live watchlist, live params).
 
-Параметры:
-  TP = 25%  SL = 5%  Плечо = 2x  Размер = 2%
-  Breakeven WR = 5 / (25+5) = 16.7%
+Live bot params (altcoin_bot.py):
+  TP = 20%  SL = 5%  Leverage = 5x  Size = 2%
+  Breakeven WR = 5 / (20+5) = 20.0%
 
-Фильтры мягче чем у основного бота:
-  - RSI: SHORT если RSI > 20, LONG если RSI < 80 (широкий коридор)
-  - Тренд-кап: 80% (разрешаем входить при более диких движениях)
-  - Кулдаун: 1 час
-  - Порог объёма: 3.0x (выше чем у main → ищем настоящие памп-сигналы)
+Symbols: live watchlist from dashboard (WLD/JUP/XRP/RUNE/ONDO/PENDLE)
+Logic: volume spike (3x avg) + price trend scoring → entry
 """
 
 import ccxt
 import time
 import json
 from datetime import datetime, timedelta, timezone
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET
+pass  # no config imports needed for public-only exchange
 
 # ─── Параметры ───────────────────────────────────────────────────────────────
 SYMBOLS = [
-    "DOGE/USDT:USDT",
+    "WLD/USDT:USDT",
+    "JUP/USDT:USDT",
     "XRP/USDT:USDT",
-    "ADA/USDT:USDT",
-    "SUI/USDT:USDT",
-    "NEAR/USDT:USDT",
-    "DOT/USDT:USDT",
+    "RUNE/USDT:USDT",
+    "ONDO/USDT:USDT",
+    "PENDLE/USDT:USDT",
 ]
 
-DAYS              = 60
+DAYS              = 90
 BALANCE           = 10_000.0
 TIMEFRAME         = "15m"
 
-ALT_TP            = 25.0    # %
-ALT_SL            = 5.0     # %
-ALT_LEVERAGE      = 2
+ALT_TP            = 20.0    # % — live bot param
+ALT_SL            = 5.0     # % — live bot param
+ALT_LEVERAGE      = 5       # live bot param
 ALT_SIZE          = 2.0     # % баланса
 
 VOL_SPIKE_X       = 3.0     # кратность объёма
@@ -49,15 +46,10 @@ BREAKEVEN_WR = round(ALT_SL / (ALT_TP + ALT_SL) * 100, 1)
 # ─── Exchange ─────────────────────────────────────────────────────────────────
 
 def init_exchange():
-    ex = ccxt.bybit({
-        "apiKey": BYBIT_API_KEY,
-        "secret": BYBIT_SECRET,
+    return ccxt.bybit({
         "enableRateLimit": True,
-        "options": {"defaultType": "swap", "adjustForTimeDifference": True},
+        "options": {"defaultType": "linear"},
     })
-    if USE_TESTNET:
-        ex.set_sandbox_mode(True)
-    return ex
 
 
 # ─── Технические индикаторы ──────────────────────────────────────────────────

@@ -108,11 +108,7 @@ def _detect_signal(ctx: dict) -> tuple[str | None, str | None]:
     if _check_avwap_short(ctx):
         return "SHORT", "AVWAP"
 
-    # CVD Divergence (structural reversal signal)
-    if _check_cvd_div_long(ctx):
-        return "LONG", "DIV"
-    if _check_cvd_div_short(ctx):
-        return "SHORT", "DIV"
+    # CVD Divergence disabled — 35.9% WR in 90d backtest, net -42% (OHLCV approx too noisy)
 
     # OF Classic (momentum + flow signal)
     if _check_of_long(ctx):
