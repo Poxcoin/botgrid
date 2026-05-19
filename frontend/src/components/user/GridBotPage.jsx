@@ -354,7 +354,7 @@ function KlineChart({ coin, tf }) {
       chart.setPeriod({ multiplier: 1, timespan: 'custom', text: tf });
       chart.setDataLoader({
         getBars: async ({ type, period, timestamp, callback }) => {
-          if (type !== 'init' && type !== 'forward') { callback([], false); return; }
+          if (type !== 'init' && type !== 'backward') { callback([], false); return; }
           try {
             const parse = list => list.slice().reverse().map(k => ({
               timestamp: +k[0], open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
@@ -376,10 +376,10 @@ function KlineChart({ coin, tf }) {
                 end = page[0].timestamp - 1;
                 if (page.length < 1000) break;
               }
-              callback(all, { backward: false, forward: all.length >= 1000 });
+              callback(all, { backward: all.length >= 1000, forward: false });
             } else {
               const page = await fetchPage(timestamp - 1);
-              callback(page, { backward: false, forward: page.length >= 1000 });
+              callback(page, { backward: page.length >= 1000, forward: false });
             }
           } catch { callback([], false); }
         },

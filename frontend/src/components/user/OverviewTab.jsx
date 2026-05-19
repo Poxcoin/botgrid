@@ -434,7 +434,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
 
     chart.setDataLoader({
       getBars: async ({ type, period, timestamp, callback }) => {
-        if (type !== 'init' && type !== 'forward') { callback([], false); return; }
+        if (type !== 'init' && type !== 'backward') { callback([], false); return; }
         const c = coinRef.current;
         try {
           const parse = list => list.slice().reverse()
@@ -450,10 +450,10 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, onTypeChange, i
           if (type === 'init') {
             const page = await fetchPage(undefined, 200);
             if (page.length) lastCloseRef.current = page[page.length - 1].close;
-            callback(page, { backward: false, forward: page.length >= 200 });
+            callback(page, { backward: page.length >= 200, forward: false });
           } else {
             const page = await fetchPage(timestamp - 1, 1000);
-            callback(page, { backward: false, forward: page.length >= 1000 });
+            callback(page, { backward: page.length >= 1000, forward: false });
           }
         } catch { callback([], false); }
       },
