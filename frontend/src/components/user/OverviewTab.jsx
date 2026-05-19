@@ -1071,7 +1071,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const dbSources = BOT_SOURCES[botId] ?? [botId];
   const dbSource  = dbSources[0]; // primary key for heartbeat + labels
   const isMobile  = useIsMobile();
-  const isLocked  = allowedBots !== null && allowedBots.length > 0 && !allowedBots.includes(botId);
+  const isLocked  = false;
 
   // ── Real-time WebSocket feed ──────────────────────────────────────────────
   const { positions, balance, openOrders, trades, connected } = useLiveStream();
