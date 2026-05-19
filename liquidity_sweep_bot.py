@@ -20,20 +20,23 @@ from modules import daily_guard, position_monitor
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, SWEEP_TRADING
 
 SYMBOLS = [
+    "BTC/USDT:USDT",
     "ETH/USDT:USDT",
     "SOL/USDT:USDT",
+    "XRP/USDT:USDT",
+    "LINK/USDT:USDT",
 ]
 
 LEVERAGE    = 5
 SIZE_PCT    = 25.0   # 25% per trade — restored to backtest-calibrated value
 COOLDOWN    = 8 * 3600    # seconds
-SCAN_SLEEP  = 30 * 60     # seconds
+SCAN_SLEEP  = 15 * 60     # seconds (was 30min — too slow, sweeps recover quickly)
 
 # Strategy parameters
 SWING_LOOKBACK  = 3       # candles each side for pivot detection
 MAX_SWINGS      = 15      # keep last N swings per symbol
 SWEEP_MIN_PCT   = 0.05    # min distance above/below swing level to count as sweep
-SWEEP_MAX_PCT   = 0.5     # max distance — tightened to match backtest params (was 1.5)
+SWEEP_MAX_PCT   = 1.2     # max distance — restored to catch real sweeps (was over-tightened to 0.5)
 REVERSAL_CANDLES = 3      # price must close back within this many candles
 TP_MIN_PCT      = 1.5     # minimum TP regardless of sweep distance
 TP_MULTIPLIER   = 1.5     # TP = max(TP_MIN_PCT, sweep_distance * TP_MULTIPLIER)

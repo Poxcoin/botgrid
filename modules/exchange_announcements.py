@@ -188,10 +188,10 @@ def _monitor_loop():
     _poll_bybit()
     _poll_okx()
     _save_seen()
-    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit + OKX, кожні 10 сек)")
+    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit + OKX, кожні 3 сек)")
 
     while _running:
-        time.sleep(10)
+        time.sleep(3)
         fresh = _poll_binance() + _poll_bybit() + _poll_okx()
         if fresh:
             for item in fresh:

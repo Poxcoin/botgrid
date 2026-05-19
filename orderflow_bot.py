@@ -1,5 +1,5 @@
 """
-orderflow_bot.py — Orderflow Bot (BTC / ETH / SOL).
+orderflow_bot.py — Orderflow Bot (BTC / ETH / SOL / XRP / LINK / INJ / ARB).
 
 Three signal types:
   1. OF Classic:    price deviation from 8h VWAP + OI growth + CVD bias
@@ -23,6 +23,10 @@ SYMBOLS = [
     "BTC/USDT:USDT",
     "ETH/USDT:USDT",
     "SOL/USDT:USDT",
+    "XRP/USDT:USDT",
+    "LINK/USDT:USDT",
+    "INJ/USDT:USDT",
+    "ARB/USDT:USDT",
 ]
 
 LEVERAGE   = 5
