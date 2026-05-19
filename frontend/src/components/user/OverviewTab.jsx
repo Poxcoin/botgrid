@@ -94,16 +94,17 @@ const POP_COINS = ['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON
 
 const BOT_COINS = {
   // signal: excludes _TRADE_BLACKLIST (STX/TRX/ATOM/OP/AAVE/BTC/ETH/SOL/BNB)
-  signal:    ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
-  sweep:     ['ETH','SOL'],
-  fr:        ['INJ','ONDO','PENDLE','WLD','JUP','ARB','UNI','LDO','LINK'],
-  grid:      ['BTC','ETH','SOL'],
-  orderflow: ['BTC','ETH','SOL'],
-  macro:     ['EUR','GBP','XAU'],
-  listing:   [],  // dynamic — any new listing
-  dex:       [],  // dynamic — DEX volume spikes, any coin
-  // cascade_bot.py (BTC/ETH/SOL) + main.py liq pipeline (22 alts)
-  cascade: ['BTC','ETH','SOL','XRP','ADA','DOGE','AVAX','DOT','LINK','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
+  signal:     ['WLD','JUP','ARB','RUNE','XRP','ONDO','PENDLE','LDO','LINK','UNI','INJ','SUI','CRV'],
+  sweep:      ['ETH','SOL'],
+  fr:         ['INJ','ONDO','PENDLE','WLD','JUP','ARB','UNI','LDO','LINK','BTC','ETH','SOL'],
+  grid:       ['BTC','ETH','SOL'],
+  orderflow:  ['BTC','ETH','SOL'],
+  ob:         ['BTC'],
+  macro:      ['EUR','GBP','XAU'],
+  listing:    [],  // dynamic — any new listing
+  dex:        [],  // dynamic — DEX volume spikes, any coin
+  // cascade_bot.py (ETH/SOL/DOGE/LINK) + liq pipeline
+  cascade: ['ETH','SOL','DOGE','LINK','BTC','XRP','ADA','AVAX','DOT','INJ','SUI','APT','OP','ARB','NEAR','TON','AAVE','UNI','LDO','CRV','RUNE','JUP','PENDLE','ONDO','WLD'],
 };
 
 const CHART_STYLES = {
@@ -1041,10 +1042,11 @@ const BOT_SOURCES = {
   signal:    ['news', 'dex'],
   sweep:     ['sweep'],
   cascade:   ['liq_cascade', 'cascade'],
-  fr:        ['fr'],
+  fr:        ['fr', 'fr_extreme'],
   grid:      ['grid'],
   altcoin:   ['altcoin'],
   orderflow: ['orderflow'],
+  ob:        ['ob'],
   macro:     ['macro'],
   listing:   ['listing'],
   dex:       ['dex'],
@@ -1059,6 +1061,7 @@ const ALL_BOTS_CONFIG = [
   { id: 'grid',      label: 'Grid',      source: BOT_SOURCES.grid[0] },
   { id: 'altcoin',   label: 'Alt',       source: BOT_SOURCES.altcoin[0] },
   { id: 'orderflow', label: 'Orderflow', source: BOT_SOURCES.orderflow[0] },
+  { id: 'ob',        label: 'OB',        source: BOT_SOURCES.ob[0] },
   { id: 'macro',     label: 'Macro',     source: BOT_SOURCES.macro[0] },
   { id: 'listing',   label: 'Listing',   source: BOT_SOURCES.listing[0] },
   { id: 'dex',       label: 'DEX',       source: BOT_SOURCES.dex[0] },

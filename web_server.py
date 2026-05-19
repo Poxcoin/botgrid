@@ -1548,6 +1548,18 @@ _BOT_LABELS = {
     "metals":      "Metals (Legacy)",
 }
 
+@app.get("/api/users/plan-features")
+async def get_plan_features(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+):
+    """Return the list of bot IDs this user's plan grants access to."""
+    user = _get_user_from_token(credentials.credentials, db)
+    from modules.saas_dispatcher import PLAN_BOTS
+    allowed = PLAN_BOTS.get(user.effective_plan, set())
+    return {"bots": sorted(allowed)}
+
+
 @app.get("/api/users/bot-summary")
 async def get_user_bot_summary(
     credentials: HTTPAuthorizationCredentials = Depends(security),

@@ -17,6 +17,7 @@ const BOTS = [
   { id: 'grid',      label: 'Grid'           },
   { id: 'cascade',   label: 'Cascade'        },
   { id: 'orderflow', label: 'Orderflow'      },
+  { id: 'ob',        label: 'Order Block'    },
   { id: 'macro',     label: 'Macro'          },
   { id: 'listing',   label: 'Listing Sniper' },
   { id: 'dex',       label: 'DEX Sniper'     },
