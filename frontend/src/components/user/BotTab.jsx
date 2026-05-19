@@ -7,10 +7,8 @@ const B    = 'rgba(255,255,255,0.06)';
 const MUTED = '#555';
 const MONO  = "'Courier New','SF Mono',monospace";
 
-function StatBox({ label, value, sub, color, accent, live }) {
-  const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
-                  : accent === 'red'   ? '2px solid var(--accent-red)'
-                  : '1px solid var(--border-subtle)';
+function StatBox({ label, value, sub, color }) {
+  const topBorder = '1px solid rgba(255,255,255,0.08)';
   return (
     <div
       style={{
@@ -24,7 +22,6 @@ function StatBox({ label, value, sub, color, accent, live }) {
     >
       <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 10 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {live && <span className="pulse-dot" />}
         <div style={{ fontSize: 26, fontWeight: 700, color: color || 'var(--text-primary)', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{value}</div>
       </div>
       {sub && <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginTop: 8, fontFamily: MONO }}>{sub}</div>}
@@ -74,7 +71,7 @@ function PositionsTable({ positions }) {
     <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${B}` }}>
         <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Open Positions</span>
-        <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--accent-green)' }}>{positions.length}</span>
+        <span style={{ fontFamily: MONO, fontSize: 11, color: '#777' }}>{positions.length}</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
@@ -99,23 +96,23 @@ function PositionsTable({ positions }) {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <td style={{ padding: '11px 20px', color: '#ccc', fontWeight: 700 }}>{p.symbol}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: '#aaa' }}>{p.side}</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', color: '#888' }}>{p.leverage ?? '—'}×</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(priceDp(p.entry_price)) ?? '—'}</td>
                   <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.mark_price?.toFixed(priceDp(p.mark_price)) ?? '—'}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? '#ccc' : '#888' }}>
                     {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: isProfit ? '#ccc' : '#888' }}>
                     {isProfit ? '+' : ''}{p.pnl_pct ?? '—'}%
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? 'var(--accent-red)' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? '#888' : '#333' }}>
                     {p.stop_loss?.toFixed(priceDp(p.stop_loss)) ?? '—'}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? 'var(--accent-green)' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? '#aaa' : '#333' }}>
                     {p.take_profit?.toFixed(priceDp(p.take_profit)) ?? '—'}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? 'rgba(255,77,109,0.5)' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? '#666' : '#333' }}>
                     {p.liq_price?.toFixed(priceDp(p.liq_price)) ?? '—'}
                   </td>
                 </tr>
@@ -176,7 +173,7 @@ function CoinBreakdown({ trades }) {
                   <td style={{ padding: '10px 20px', color: '#ccc', fontWeight: 700, letterSpacing: '0.04em' }}>{r.coin}</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.trades}</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.wr}%</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? '#ccc' : '#888' }}>
                     {isPos ? '+' : ''}{r.pnl}
                   </td>
                 </tr>
@@ -234,8 +231,8 @@ function BotsSection({ bots, heartbeat }) {
                 >
                   <td style={{ padding: '10px 20px', color: '#ccc', fontWeight: 700 }}>{b.label}</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', color: wr >= 50 ? 'var(--accent-green)' : '#888' }}>{b.trades ? `${wr}%` : '—'}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades ? `${wr}%` : '—'}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? '#ccc' : '#888' }}>
                     {isPos ? '+' : ''}{b.pnl}
                   </td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{lastStr}</td>
@@ -308,23 +305,17 @@ export default function BotTab() {
           label={t.dashboard.bot.balance}
           value={balance ? `$${balance.wallet.toFixed(2)}` : '—'}
           sub={balance ? `Equity $${balance.equity.toFixed(2)}` : 'connect key'}
-          color={balance ? 'var(--accent-green)' : MUTED}
-          accent={balance ? 'green' : undefined}
-          live={!!balance}
         />
         <StatBox
           label="30d PnL"
           value={hasKey ? `${pnl30 >= 0 ? '+' : ''}$${pnl30.toFixed(2)}` : '—'}
           sub={hasKey ? `${trades30} trades` : 'connect key'}
-          color={pnl30 > 0 ? 'var(--accent-green)' : pnl30 < 0 ? 'var(--accent-red)' : 'var(--text-primary)'}
-          accent={pnl30 > 0 ? 'green' : pnl30 < 0 ? 'red' : undefined}
+          color={pnl30 > 0 ? '#ccc' : pnl30 < 0 ? '#888' : 'var(--text-primary)'}
         />
         <StatBox
           label={t.dashboard.bot.feedStatus}
           value={feedErr ? t.dashboard.bot.offline : t.dashboard.bot.live}
-          color={feedErr ? 'var(--accent-red)' : 'var(--accent-green)'}
-          accent={feedErr ? 'red' : 'green'}
-          live={!feedErr}
+          color='var(--text-primary)'
           sub={intel
             ? [intel.sources?.rss && 'RSS', intel.sources?.telegram && 'TG', intel.sources?.liquidations && 'LIQ', intel.sources?.onchain && 'CHAIN'].filter(Boolean).join(' · ')
             : undefined}
@@ -333,7 +324,6 @@ export default function BotTab() {
           label="Win Rate"
           value={hasKey ? `${winRate}%` : '—'}
           sub={hasKey ? `${pnl?.wins ?? 0}W / ${pnl?.losses ?? 0}L` : 'connect key'}
-          accent={winRate >= 50 ? 'green' : undefined}
         />
       </div>
 

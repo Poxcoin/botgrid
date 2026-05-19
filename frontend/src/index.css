@@ -140,10 +140,8 @@
   /* Pulse dot for LIVE / STREAMING status */
   .pulse-dot {
     display: inline-block;
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent-green);
-    box-shadow: 0 0 0 0 var(--accent-green);
-    animation: pulse-dot 1.6s ease-in-out infinite;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,0.4);
   }
 }
 
@@ -164,11 +162,6 @@
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-@keyframes pulse-dot {
-  0%   { box-shadow: 0 0 0 0 var(--accent-green); opacity: 1; }
-  70%  { box-shadow: 0 0 0 8px rgba(0,212,170,0); opacity: 0.7; }
-  100% { box-shadow: 0 0 0 0 rgba(0,212,170,0); opacity: 1; }
 }
 
 /* v2 */
