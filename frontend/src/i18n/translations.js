@@ -12,7 +12,7 @@ export const translations = {
     auth: {
       login:                  'Login',
       signup:                 'Sign Up',
-      account:                'My Account →',
+      account:                'My Account',
       loginHeading:           'Welcome back.',
       signupHeading:          'Get access.',
       loginSub:               'Log in to view your live signal feed.',
@@ -918,7 +918,7 @@ export const translations = {
     auth: {
       login:                  'Iniciar sesión',
       signup:                 'Registrarse',
-      account:                'Mi cuenta →',
+      account:                'Mi cuenta',
       loginHeading:           'Bienvenido de nuevo.',
       signupHeading:          'Obtén acceso.',
       loginSub:               'Inicia sesión para ver tu feed de señales en vivo.',
@@ -1824,7 +1824,7 @@ export const translations = {
     auth: {
       login:                  'Увійти',
       signup:                 'Реєстрація',
-      account:                'Акаунт →',
+      account:                'Акаунт',
       loginHeading:           'З поверненням.',
       signupHeading:          'Отримайте доступ.',
       loginSub:               'Увійдіть, щоб переглянути вашу стрічку сигналів.',
@@ -2730,7 +2730,7 @@ export const translations = {
     auth: {
       login:                  'Войти',
       signup:                 'Регистрация',
-      account:                'Аккаунт →',
+      account:                'Аккаунт',
       loginHeading:           'С возвращением.',
       signupHeading:          'Получите доступ.',
       loginSub:               'Войдите, чтобы увидеть свою ленту сигналов.',
@@ -3636,7 +3636,7 @@ export const translations = {
     auth: {
       login:                  'Anmelden',
       signup:                 'Registrieren',
-      account:                'Mein Konto →',
+      account:                'Mein Konto',
       loginHeading:           'Willkommen zurück.',
       signupHeading:          'Zugang holen.',
       loginSub:               'Melden Sie sich an, um Ihren Live-Signal-Feed zu sehen.',
@@ -4542,7 +4542,7 @@ export const translations = {
     auth: {
       login:                  '登录',
       signup:                 '注册',
-      account:                '我的账户 →',
+      account:                '我的账户',
       loginHeading:           '欢迎回来。',
       signupHeading:          '获取访问权。',
       loginSub:               '登录以查看您的实时信号流。',
