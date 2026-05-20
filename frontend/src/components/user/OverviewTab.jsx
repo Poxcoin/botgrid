@@ -245,7 +245,7 @@ function MiniChart({ coin }) {
   );
 }
 
-function CoinTicker({ coins, selected, onSelect }) {
+function CoinTicker({ coins, selected, onSelect, coinPnl = {} }) {
   const [tickers, setTickers] = useState({});
 
   useEffect(() => {
@@ -283,6 +283,7 @@ function CoinTicker({ coins, selected, onSelect }) {
         const on = c === selected;
         const chg = t?.change;
         const fr = t?.fr;
+        const cp = coinPnl[c];
         return (
           <button key={c} onClick={() => onSelect(c)} style={{
             display: 'flex', flexDirection: 'column', gap: 3,
@@ -300,6 +301,11 @@ function CoinTicker({ coins, selected, onSelect }) {
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-secondary)' }}>${t.price < 1 ? t.price.toFixed(5) : t.price < 10 ? t.price.toFixed(3) : t.price.toFixed(2)}</span>
               {fr != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: fr > 0.05 ? 'var(--accent-red)' : fr < 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>FR {fr >= 0 ? '+' : ''}{fr?.toFixed(3)}%</span>}
             </> : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>—</span>}
+            {cp != null && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 600, color: cp >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                {cp >= 0 ? '+' : ''}{cp.toFixed(2)} USDT
+              </span>
+            )}
           </button>
         );
       })}
@@ -1243,6 +1249,17 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
     return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
   }, [periodTrades]);
 
+  const coinPnl = useMemo(() => {
+    const cl = periodTrades.filter(t => t.closed_at);
+    const map = {};
+    for (const t of cl) {
+      const c = sym(t.symbol);
+      if (!c) continue;
+      map[c] = (map[c] ?? 0) + pnl(t);
+    }
+    return Object.fromEntries(Object.entries(map).map(([k, v]) => [k, parseFloat(v.toFixed(2))]));
+  }, [periodTrades]);
+
   // Search ALL Bybit positions for the selected coin (not just this bot's subset)
   // so entry/SL/TP lines always appear when a position exists, matching Bybit UX
   const activePos  = positions.find(p => sym(p.symbol) === coin);
@@ -1412,7 +1429,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       </div>
 
       {/* ── COINS ─────────────────────────────────────────────── */}
-      <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} />
+      <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} coinPnl={coinPnl} />
 
       {analyzerCoins.length === 0 && (
         coins.length === 0 ? (
