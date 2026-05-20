@@ -508,6 +508,12 @@ export default function AnalyticsTab() {
         />
       </div>
 
+      {/* Daily PnL chart — last 30 days */}
+      <div style={{ marginBottom: 32 }}>
+        <SectionLabel title={t.dashboard.analytics.dailyPnl30} />
+        <DailyChart daily={daily} t={t} />
+      </div>
+
       {/* By coin — card grid like bot CoinTicker */}
       {by_coin && by_coin.length > 0 && (
         <div style={{ marginBottom: 32 }}>
@@ -528,6 +534,28 @@ export default function AnalyticsTab() {
               getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
             />
           </div>
+        </div>
+      )}
+
+      {/* Top 5 best / worst trades */}
+      {(best?.length > 0 || worst?.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
+          {best?.length > 0 && (
+            <div>
+              <SectionLabel title={t.dashboard.analytics.topBest} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {best.map((tr, i) => <TradeRow key={i} tr={tr} />)}
+              </div>
+            </div>
+          )}
+          {worst?.length > 0 && (
+            <div>
+              <SectionLabel title={t.dashboard.analytics.topWorst} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {worst.map((tr, i) => <TradeRow key={i} tr={tr} />)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
