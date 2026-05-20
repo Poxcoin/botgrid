@@ -171,15 +171,30 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             if existing:
                 print(f"[DISPATCHER] SKIP user={uid} {symbol} — вже відкрита позиція (id={existing.id})")
                 return False
-            # Grid trades are managed by grid_bot directly — exclude from signal limit.
-            # Each signal-type bot has a 5-position budget of its own.
-            open_count = _db.query(UserTrade).filter(
+            # Per-source limits: each bot has its own position budget.
+            # Bots with different strategies (FR vs news) don't block each other.
+            _PER_SOURCE_LIMIT = {
+                "news": 3, "listing": 2, "fr": 2, "fr_extreme": 2,
+                "sweep": 3, "orderflow": 3, "cascade": 2, "orderblock": 2,
+                "liq_cascade": 2,
+            }
+            source_count = _db.query(UserTrade).filter(
+                UserTrade.user_id == uid,
+                UserTrade.status == "open",
+                UserTrade.source == source,
+            ).count()
+            source_limit = _PER_SOURCE_LIMIT.get(source, 3)
+            if source_count >= source_limit:
+                print(f"[DISPATCHER] SKIP user={uid} — ліміт {source_count}/{source_limit} для {source}")
+                return False
+            # Global safety net across all non-grid bots
+            total_count = _db.query(UserTrade).filter(
                 UserTrade.user_id == uid,
                 UserTrade.status == "open",
                 UserTrade.source != "grid",
             ).count()
-            if open_count >= 5:
-                print(f"[DISPATCHER] SKIP user={uid} — ліміт {open_count}/5 сигнальних позицій")
+            if total_count >= 12:
+                print(f"[DISPATCHER] SKIP user={uid} — глобальний ліміт {total_count}/12")
                 return False
         finally:
             _db.close()
