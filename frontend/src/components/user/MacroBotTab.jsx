@@ -3,8 +3,8 @@ import { createChart, CrosshairMode } from 'lightweight-charts';
 import { useTheme } from '@/lib/ThemeContext';
 
 const MONO  = "'Courier New','SF Mono',monospace";
-const B     = 'rgba(255,255,255,0.06)';
-const MUTED = '#555';
+const B     = 'var(--border-subtle)';
+const MUTED = 'var(--text-muted)';
 const C_UP  = '#0ecb81';
 const C_DN  = '#f6465d';
 
@@ -118,8 +118,8 @@ function ForexChart({ symbols }) {
             <button key={o.sym} onClick={() => setSymIdx(i)} style={{
               fontFamily: MONO, fontSize: 9, padding: '3px 10px',
               border: `1px solid ${B}`, borderRadius: 100, cursor: 'pointer',
-              background: i === symIdx ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.6)',
-              color: i === symIdx ? '#fff' : MUTED,
+              background: i === symIdx ? 'var(--bg-elevated)' : 'transparent',
+              color: i === symIdx ? 'var(--text-primary)' : MUTED,
               letterSpacing: '0.1em', textTransform: 'uppercase',
             }}>{o.label}</button>
           ))}
@@ -128,10 +128,10 @@ function ForexChart({ symbols }) {
           {Object.entries(TF_LABELS).map(([v, l]) => (
             <button key={v} onClick={() => setTf(v)} style={{
               fontFamily: MONO, fontSize: 9, padding: '3px 8px',
-              border: `1px solid ${tf === v ? 'rgba(255,255,255,0.18)' : B}`,
+              border: `1px solid ${tf === v ? 'var(--border-default)' : B}`,
               borderRadius: 100, cursor: 'pointer',
-              background: tf === v ? 'rgba(255,255,255,0.10)' : 'transparent',
-              color: tf === v ? '#ccc' : MUTED,
+              background: tf === v ? 'var(--bg-elevated)' : 'transparent',
+              color: tf === v ? 'var(--text-secondary)' : MUTED,
               letterSpacing: '0.08em',
             }}>{l}</button>
           ))}
@@ -151,7 +151,7 @@ function StatBox({ label, value, color }) {
     <div style={{
       flex: 1, background: 'var(--bg-surface)',
       border: '1px solid var(--border-subtle)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
+      borderTop: '1px solid var(--border-subtle)',
       borderRadius: 12, padding: '20px 22px',
     }}>
       <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: MONO, marginBottom: 10 }}>{label}</div>
@@ -165,7 +165,7 @@ function NoKeyBanner() {
   return (
     <div style={{ border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
       <div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: '#ccc', marginBottom: 6 }}>No MT5 account connected</div>
+        <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>No MT5 account connected</div>
         <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
           Connect your IC Markets MT5 credentials to see live stats and trade history.
         </div>
@@ -235,12 +235,12 @@ export default function MacroBotTab({ botId }) {
         <StatBox
           label="Win Rate"
           value={winRate != null ? `${winRate}%` : '—'}
-          color={winRate != null ? (winRate >= 50 ? C_UP : C_DN) : undefined}
+          color={winRate != null ? (winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)') : undefined}
         />
         <StatBox
           label="Net PnL (USD)"
           value={closed.length ? `${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}` : '—'}
-          color={netPnl > 0 ? C_UP : netPnl < 0 ? C_DN : undefined}
+          color={netPnl > 0 ? 'var(--accent-green)' : netPnl < 0 ? 'var(--accent-red)' : undefined}
         />
         <StatBox label="Strategy" value="Event" />
       </div>
@@ -249,7 +249,7 @@ export default function MacroBotTab({ botId }) {
       <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
         <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
           <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Recent Trades</span>
-          <span style={{ fontFamily: MONO, fontSize: 9, color: '#333', letterSpacing: '0.12em' }}>MT5 · IC MARKETS</span>
+          <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em' }}>MT5 · IC MARKETS</span>
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>
@@ -276,17 +276,17 @@ export default function MacroBotTab({ botId }) {
                   const dtStr = dt ? new Date(dt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
                   return (
                     <tr key={i}
-                      style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                      style={{ borderBottom: `1px solid ${B}` }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td style={{ padding: '10px 16px', color: '#ccc', fontWeight: 700 }}>{t.symbol}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#888', fontSize: 10 }}>{t.event || '—'}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: t.direction === 'LONG' ? C_UP : C_DN }}>{t.direction}</td>
+                      <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 700 }}>{t.symbol}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-secondary)', fontSize: 10 }}>{t.event || '—'}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: t.direction === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{t.direction}</td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', color: MUTED }}>
                         {t.profit_pips != null ? `${t.profit_pips > 0 ? '+' : ''}${t.profit_pips}` : '—'}
                       </td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: pos ? C_UP : C_DN }}>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: pos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                         {t.profit_usd != null ? `${pos ? '+' : ''}${t.profit_usd.toFixed(2)}` : '—'}
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{dtStr}</td>
@@ -299,7 +299,7 @@ export default function MacroBotTab({ botId }) {
         )}
       </div>
 
-      <div style={{ fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.08em', lineHeight: 1.8 }}>
+      <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', lineHeight: 1.8 }}>
         Event-driven · SL 15 pips · TP 20 pips · 20min auto-exit · R:R 1.33:1
       </div>
     </div>
