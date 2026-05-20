@@ -432,6 +432,8 @@ function EquityCurve({ trades }) {
   );
 }
 
+const PAGE_SIZE = 50;
+
 export default function AnalyticsTab() {
   const { t, lang } = useLang();
   const [data, setData] = useState(null);
@@ -439,6 +441,7 @@ export default function AnalyticsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allTrades, setAllTrades] = useState([]);
+  const [tradePage, setTradePage] = useState(1);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -751,19 +754,50 @@ export default function AnalyticsTab() {
         </div>
       )}
 
-      {/* All trades — single column, newest first */}
-      {allTrades.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <SectionLabel title="All Trades" right={`${allTrades.length} total`} />
-          <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
-            <DataTable
-              cols={allTradesCols}
-              rows={[...allTrades].sort((a, b) => parseInt(b.closed_at) - parseInt(a.closed_at))}
-              getRowColor={(k, r) => k === 'pnl' ? ((r.pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
-            />
+      {/* All trades — paginated, newest first */}
+      {allTrades.length > 0 && (() => {
+        const sorted = [...allTrades].sort((a, b) => parseInt(b.closed_at) - parseInt(a.closed_at));
+        const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+        const page = Math.min(tradePage, totalPages);
+        const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        return (
+          <div style={{ marginBottom: 32 }}>
+            <SectionLabel title="All Trades" right={`${allTrades.length} total`} />
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
+              <DataTable
+                cols={allTradesCols}
+                rows={pageRows}
+                getRowColor={(k, r) => k === 'pnl' ? ((r.pnl ?? 0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
+              />
+            </div>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+                <button
+                  onClick={() => setTradePage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  style={{
+                    background: 'none', border: '1px solid var(--border-subtle)', color: page <= 1 ? 'var(--text-muted)' : 'var(--text-secondary)',
+                    fontFamily: MONO, fontSize: 11, padding: '5px 14px', cursor: page <= 1 ? 'default' : 'pointer',
+                    opacity: page <= 1 ? 0.4 : 1, transition: 'border-color 150ms',
+                  }}
+                >← Prev</button>
+                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)' }}>
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setTradePage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  style={{
+                    background: 'none', border: '1px solid var(--border-subtle)', color: page >= totalPages ? 'var(--text-muted)' : 'var(--text-secondary)',
+                    fontFamily: MONO, fontSize: 11, padding: '5px 14px', cursor: page >= totalPages ? 'default' : 'pointer',
+                    opacity: page >= totalPages ? 0.4 : 1, transition: 'border-color 150ms',
+                  }}
+                >Next →</button>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div style={{ paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
         <button onClick={fetchData} style={{
