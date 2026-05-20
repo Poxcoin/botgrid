@@ -1392,16 +1392,17 @@ async def get_user_positions(
     db: Session = Depends(get_db),
 ):
     user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-    if not key_row:
+    key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    if not key_rows:
         raise HTTPException(status_code=404, detail="No API keys")
+    key_row = next((k for k in key_rows if not k.is_demo), None) or key_rows[0]
     ex = _init_user_exchange(key_row)
     if not ex:
         raise HTTPException(status_code=502, detail="Cannot connect to exchange")
     try:
         return _bybit_positions(ex)
     except Exception as e:
-        import logging; logging.getLogger("kado").error("exchange error: %s", e)
+        import logging; logging.getLogger("kado").error("positions error: %s", e)
         raise HTTPException(status_code=502, detail="Exchange request failed")
 
 
@@ -1611,12 +1612,12 @@ async def get_user_bot_summary(
         if ex:
             try:
                 balance = _bybit_balance(ex)
-            except Exception:
-                pass
+            except Exception as _be:
+                import logging; logging.getLogger("kado").warning("bot-summary balance error user=%s: %s", user.id, _be)
             try:
                 positions = _bybit_positions(ex)
-            except Exception:
-                pass
+            except Exception as _pe:
+                import logging; logging.getLogger("kado").warning("bot-summary positions error user=%s: %s", user.id, _pe)
 
     total_unrealized = sum(p["unrealized_pnl"] for p in positions)
     return {
