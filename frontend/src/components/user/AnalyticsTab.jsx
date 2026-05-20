@@ -865,6 +865,14 @@ export default function AnalyticsTab() {
 
   // All stats computed from allTrades so they respond to the period selector
   // NOTE: must be before any early returns (loading/error/noData) to keep hook count stable
+  // Equity series for hero sparkline — declared BEFORE any early return to keep hook order stable
+  const equitySeries = useMemo(() => {
+    if (!allTrades.length) return [];
+    const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
+    let cum = 0;
+    return sorted.map(tr => { cum += parseFloat(tr.pnl ?? 0); return cum; });
+  }, [allTrades]);
+
   const periodStats = useMemo(() => {
     if (!allTrades.length) return {
       totalPnl: 0, wins: 0, losses: 0, winRate: '—',
@@ -1087,13 +1095,6 @@ export default function AnalyticsTab() {
     ? t.dashboard.analytics?.emptyHint ?? 'Поки що немає закритих торгів. Підключіть API-ключ Bybit на вкладці API Keys і дайте ботам час — статистика з\'явиться автоматично.'
     : null;
 
-  // Equity series for hero sparkline (cumulative PnL ordered by close time)
-  const equitySeries = useMemo(() => {
-    if (!allTrades.length) return [];
-    const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
-    let cum = 0;
-    return sorted.map(tr => { cum += parseFloat(tr.pnl ?? 0); return cum; });
-  }, [allTrades]);
   const heroIsPos = totalPnl >= 0;
 
   return (
