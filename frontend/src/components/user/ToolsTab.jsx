@@ -192,6 +192,57 @@ function RiskRewardCalc() {
   );
 }
 
+function LiquidationCalc() {
+  const [entry, setEntry] = useState('');
+  const [lev, setLev] = useState('10');
+  const [side, setSide] = useState('LONG');
+
+  const e = parseFloat(entry);
+  const l = parseFloat(lev);
+  const valid = e > 0 && l > 0 && l <= 200;
+
+  const MMR = 0.005;
+  const liqPrice = valid
+    ? side === 'LONG'
+      ? e * (1 - 1 / l + MMR)
+      : e * (1 + 1 / l - MMR)
+    : null;
+
+  const distPct = valid && liqPrice
+    ? Math.abs(e - liqPrice) / e * 100
+    : null;
+
+  return (
+    <div style={cardStyle}>
+      <div style={cardTitleStyle}>Liquidation Price Calculator</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        {['LONG', 'SHORT'].map(s => (
+          <button key={s} onClick={() => setSide(s)} style={{
+            flex: 1, padding: '8px 0', fontFamily: MONO, fontSize: 11,
+            letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
+            border: `1px solid ${side === s ? (s === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)') : 'rgba(255,255,255,0.08)'}`,
+            background: side === s ? (s === 'LONG' ? 'rgba(14,203,129,0.08)' : 'rgba(246,70,93,0.08)') : 'transparent',
+            color: side === s ? (s === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-muted)',
+            borderRadius: 6,
+          }}>
+            {s}
+          </button>
+        ))}
+      </div>
+      <InputField label="Entry Price" value={entry} onChange={setEntry} />
+      <InputField label="Leverage (×)" value={lev} onChange={setLev} step={1} max={200} />
+      <div style={resultBoxStyle}>
+        <ResultRow label="Liquidation Price" value={liqPrice !== null ? fmt(liqPrice, 4) : '—'} />
+        <ResultRow label="Distance to Liq" value={distPct !== null ? `${fmt(distPct)}%` : '—'} />
+        <ResultRow label="Maintenance Margin" value="0.5%" last />
+      </div>
+      <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.6, opacity: 0.7 }}>
+        Simplified Bybit isolated margin formula. Actual liq price may differ slightly.
+      </div>
+    </div>
+  );
+}
+
 export default function ToolsTab() {
   const isMobile = useIsMobile();
   return (
@@ -204,6 +255,7 @@ export default function ToolsTab() {
     >
       <PositionSizeCalc />
       <RiskRewardCalc />
+      <LiquidationCalc />
     </div>
   );
 }

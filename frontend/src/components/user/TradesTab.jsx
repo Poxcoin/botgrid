@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLang } from '@/lib/LangContext';
 
 const API = (path) => fetch(path, {
@@ -43,6 +43,8 @@ export default function TradesTab() {
   const [filterSide, setFilterSide] = useState('ALL');
   const [filterSrc,  setFilterSrc]  = useState('ALL');
   const [search,     setSearch]    = useState('');
+  const [sortCol,    setSortCol]   = useState('date');
+  const [sortAsc,    setSortAsc]   = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -52,10 +54,26 @@ export default function TradesTab() {
 
   const allTrades = data?.trades ?? [];
   const availableSrcs = [...new Set(allTrades.map(t => t.source).filter(Boolean))].sort();
-  const trades = allTrades
-    .filter(tr => filterSide === 'ALL' || tr.side === filterSide)
-    .filter(tr => filterSrc  === 'ALL' || tr.source === filterSrc)
-    .filter(tr => !search || tr.symbol.includes(search.toUpperCase()));
+
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortAsc(a => !a);
+    else { setSortCol(col); setSortAsc(false); }
+  };
+
+  const trades = useMemo(() => {
+    const filtered = allTrades
+      .filter(tr => filterSide === 'ALL' || tr.side === filterSide)
+      .filter(tr => filterSrc  === 'ALL' || tr.source === filterSrc)
+      .filter(tr => !search || tr.symbol.includes(search.toUpperCase()));
+    return [...filtered].sort((a, b) => {
+      let av, bv;
+      if (sortCol === 'date')   { av = parseInt(a.closed_at) || 0; bv = parseInt(b.closed_at) || 0; }
+      else if (sortCol === 'pnl')    { av = parseFloat(a.pnl) || 0; bv = parseFloat(b.pnl) || 0; }
+      else if (sortCol === 'symbol') { av = a.symbol || ''; bv = b.symbol || ''; return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av); }
+      else return 0;
+      return sortAsc ? av - bv : bv - av;
+    });
+  }, [allTrades, filterSide, filterSrc, search, sortCol, sortAsc]);
 
   const btnBase = {
     background: 'none', border: '1px solid var(--border-subtle)',
@@ -120,8 +138,27 @@ export default function TradesTab() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
-              {['Date', 'Symbol', 'Bot', 'Side', 'Entry', 'Exit', 'Qty', 'PnL'].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+              {[
+                { label: 'Date',   col: 'date' },
+                { label: 'Symbol', col: 'symbol' },
+                { label: 'Bot',    col: null },
+                { label: 'Side',   col: null },
+                { label: 'Entry',  col: null },
+                { label: 'Exit',   col: null },
+                { label: 'Qty',    col: null },
+                { label: 'PnL',    col: 'pnl' },
+              ].map(({ label, col }) => (
+                <th key={label}
+                  onClick={col ? () => toggleSort(col) : undefined}
+                  style={{
+                    padding: '12px 16px', textAlign: 'left', fontSize: 10, letterSpacing: '0.12em',
+                    color: col && sortCol === col ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontWeight: 500, textTransform: 'uppercase', whiteSpace: 'nowrap',
+                    cursor: col ? 'pointer' : 'default', userSelect: 'none',
+                  }}
+                >
+                  {label}{col && sortCol === col ? (sortAsc ? ' ↑' : ' ↓') : col ? ' ·' : ''}
+                </th>
               ))}
             </tr>
           </thead>
@@ -171,7 +208,7 @@ export default function TradesTab() {
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.exit_price?.toFixed(4) ?? '—'}</td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{tr.qty?.toFixed(2)}</td>
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: tr.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                    {tr.pnl >= 0 ? '+' : ''}{tr.pnl}
+                    {tr.pnl >= 0 ? '+' : ''}{parseFloat(tr.pnl)?.toFixed(2) ?? '—'}
                   </td>
                 </tr>
               );
