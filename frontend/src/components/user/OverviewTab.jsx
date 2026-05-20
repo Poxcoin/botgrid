@@ -1443,8 +1443,8 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
 
       {/* ── PERIOD FILTER ─────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Period</span>
-        {[['1d','Today'],['7d','7D'],['30d','30D'],['all','All']].map(([v,label]) => {
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>{to.period}</span>
+        {[['1d', to.today],['7d','7D'],['30d','30D'],['all', ta.all]].map(([v,label]) => {
           const on = period === v;
           return (
             <button key={v} onClick={() => setPeriod(v)} style={{

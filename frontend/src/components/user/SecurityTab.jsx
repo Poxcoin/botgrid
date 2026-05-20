@@ -302,6 +302,8 @@ function SecurityRow({ label, status, action, actionLabel, description }) {
 }
 
 function ChangePasswordRow() {
+  const { t } = useLang();
+  const ts = t.dashboard.security;
   const [open,    setOpen]    = useState(false);
   const [oldPw,   setOldPw]   = useState('');
   const [newPw,   setNewPw]   = useState('');
@@ -312,15 +314,15 @@ function ChangePasswordRow() {
 
   async function submit(e) {
     e.preventDefault();
-    if (!oldPw || !newPw) { setMsg('Fill both fields'); return; }
-    if (newPw.length < 8) { setMsg('Min 8 characters'); return; }
+    if (!oldPw || !newPw) { setMsg(ts.fillBothFields); return; }
+    if (newPw.length < 8) { setMsg(ts.minChars); return; }
     setSaving(true); setMsg('');
     try {
       await API('/api/users/change-password', { method: 'POST', body: JSON.stringify({ old_password: oldPw, new_password: newPw }) });
-      setMsg('✓ Password changed');
+      setMsg('✓ ' + ts.passwordTitle);
       setOldPw(''); setNewPw('');
       setTimeout(() => { setOpen(false); setMsg(''); }, 2000);
-    } catch(e) { setMsg(typeof e === 'string' ? e : 'Incorrect password'); }
+    } catch(e) { setMsg(typeof e === 'string' ? e : ts.incorrectPassword); }
     setSaving(false);
   }
 
@@ -328,20 +330,20 @@ function ChangePasswordRow() {
     <div style={{ padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>Password</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Change your account password.</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 3 }}>{ts.passwordTitle}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{ts.changePasswordDesc}</div>
         </div>
         <button onClick={() => { setOpen(o => !o); setMsg(''); }} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)', padding: '6px 14px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          {open ? 'Cancel' : 'Change'}
+          {open ? ts.cancel : ts.change}
         </button>
       </div>
       {open && (
         <form onSubmit={submit} style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 360 }}>
-          <input type="password" placeholder="Current password" value={oldPw} onChange={e => setOldPw(e.target.value)} style={inpSt} autoComplete="current-password" autoFocus />
-          <input type="password" placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} style={inpSt} autoComplete="new-password" />
+          <input type="password" placeholder={ts.currentPassword} value={oldPw} onChange={e => setOldPw(e.target.value)} style={inpSt} autoComplete="current-password" autoFocus />
+          <input type="password" placeholder={t.auth.newPasswordLabel} value={newPw} onChange={e => setNewPw(e.target.value)} style={inpSt} autoComplete="new-password" />
           {msg && <div style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--text-secondary)' : 'var(--accent-red)', fontFamily: 'var(--font-mono)' }}>{msg}</div>}
           <button type="submit" disabled={saving} style={{ alignSelf: 'flex-start', background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, borderRadius: 4 }}>
-            {saving ? 'Saving…' : 'Update password'}
+            {saving ? ts.saving : ts.updatePassword}
           </button>
         </form>
       )}
