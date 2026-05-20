@@ -416,7 +416,7 @@ export default function AssetsTab() {
       if (!res.ok) throw new Error();
       setSummary(await res.json());
     } catch (e) {
-      console.error('AssetsTab: failed to load bot-summary', e);
+      // silently ignore — UI shows empty state
     } finally {
       setLoading(false);
     }

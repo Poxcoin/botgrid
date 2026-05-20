@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 const MONO = 'var(--font-mono)';
 
@@ -192,11 +193,12 @@ function RiskRewardCalc() {
 }
 
 export default function ToolsTab() {
+  const isMobile = useIsMobile();
   return (
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
         gap: 24,
       }}
     >
