@@ -171,7 +171,15 @@ function BotPerformanceCards({ bots }) {
   );
 }
 
-const BOT_LABELS = { signal: 'Signal', grid: 'Grid', altcoin: 'Altcoin', funding: 'Funding', bybit: 'Bybit' };
+const BOT_LABELS = {
+  news: 'Signal Bot', signal: 'Signal Bot', altcoin: 'Altcoin Bot',
+  grid: 'Grid Bot', fr: 'Funding Rate', fr_extreme: 'FR Extreme',
+  funding: 'Funding Rate', cascade: 'Cascade', macro: 'Macro Forex',
+  dex: 'DEX Bot', whale: 'Whale Tracker', listing: 'CEX Sniper',
+  orderflow: 'Orderflow', sweep: 'Liq Sweep', ob: 'Order Block',
+  orderblock: 'Order Block', sniper: 'CEX Sniper', bybit: 'Bybit Import',
+  liq_cascade: 'Liq Cascade', other: 'Other',
+};
 
 function FilterChip({ active, onClick, children }) {
   return (

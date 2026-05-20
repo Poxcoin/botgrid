@@ -1370,8 +1370,9 @@ async def get_user_balance(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    user     = _get_user_from_token(credentials.credentials, db)
+    key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row  = next((k for k in key_rows if not k.is_demo), key_rows[0] if key_rows else None)
     if not key_row:
         raise HTTPException(status_code=404, detail="No API keys")
     ex = _init_user_exchange(key_row)
@@ -1415,8 +1416,9 @@ async def close_user_position(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    user     = _get_user_from_token(credentials.credentials, db)
+    key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row  = next((k for k in key_rows if not k.is_demo), key_rows[0] if key_rows else None)
     if not key_row:
         raise HTTPException(status_code=404, detail="No API keys")
     ex = _init_user_exchange(key_row)
@@ -1451,8 +1453,9 @@ async def get_user_open_orders(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    user     = _get_user_from_token(credentials.credentials, db)
+    key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row  = next((k for k in key_rows if not k.is_demo), key_rows[0] if key_rows else None)
     if not key_row:
         return []
     ex = _init_user_exchange(key_row)
@@ -1490,8 +1493,9 @@ async def cancel_user_order(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    user    = _get_user_from_token(credentials.credentials, db)
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    user     = _get_user_from_token(credentials.credentials, db)
+    key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row  = next((k for k in key_rows if not k.is_demo), key_rows[0] if key_rows else None)
     if not key_row:
         raise HTTPException(status_code=404, detail="No API keys")
     ex = _init_user_exchange(key_row)
@@ -3322,9 +3326,8 @@ async def ws_live(websocket: WebSocket):
             await websocket.close(code=4001)
             db.close()
             return
-        key_row = (
-            db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
-        )
+        key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+        key_row  = next((k for k in key_rows if not k.is_demo), key_rows[0] if key_rows else None)
         if not key_row:
             await websocket.close(code=4002)
             db.close()

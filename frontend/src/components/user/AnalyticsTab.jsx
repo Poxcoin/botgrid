@@ -5,12 +5,13 @@ const MONO = "var(--font-mono)";
 const FONT = "var(--font-sans)";
 
 const BOT_LABELS = {
-  news: "Signal Bot", altcoin: "Altcoin Bot", grid: "Grid Bot",
-  fr: "Funding Rate", fr_extreme: "FR Extreme", cascade: "Cascade",
-  macro: "Macro Forex", dex: "DEX Bot", whale: "Whale Tracker",
-  listing: "Listing Bot", momentum: "Momentum", breakout: "Breakout",
-  reversal: "Reversal", scalp: "Scalp", swing: "Swing",
-  sentiment: "Sentiment", manual: "Manual",
+  news: "Signal Bot", signal: "Signal Bot", altcoin: "Altcoin Bot",
+  grid: "Grid Bot", fr: "Funding Rate", fr_extreme: "FR Extreme",
+  cascade: "Cascade", liq_cascade: "Liq Cascade", macro: "Macro Forex",
+  dex: "DEX Bot", whale: "Whale Tracker", listing: "CEX Sniper",
+  orderflow: "Orderflow", sweep: "Liq Sweep", ob: "Order Block",
+  orderblock: "Order Block", sniper: "CEX Sniper", bybit: "Bybit Import",
+  other: "Other",
 };
 
 function getToken() {
