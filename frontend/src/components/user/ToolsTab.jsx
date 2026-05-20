@@ -243,6 +243,93 @@ function LiquidationCalc() {
   );
 }
 
+function CompoundCalc() {
+  const [balance, setBalance] = useState('10000');
+  const [monthly, setMonthly] = useState('5');
+  const [months,  setMonths]  = useState('12');
+  const [hovIdx,  setHovIdx]  = useState(null);
+
+  const b  = parseFloat(balance);
+  const mr = parseFloat(monthly) / 100;
+  const n  = Math.min(Math.max(Math.round(parseFloat(months)), 1), 60);
+
+  const valid = b > 0 && mr > -1 && n >= 1;
+
+  const rows = valid ? Array.from({ length: n }, (_, i) => {
+    const value = b * Math.pow(1 + mr, i + 1);
+    return { month: i + 1, value: parseFloat(value.toFixed(2)) };
+  }) : [];
+
+  const finalVal   = rows[rows.length - 1]?.value ?? 0;
+  const totalGain  = finalVal - b;
+  const gainPct    = valid && b > 0 ? totalGain / b * 100 : 0;
+  const maxVal     = Math.max(...rows.map(r => r.value), b);
+  const BAR_H      = 72;
+
+  return (
+    <div style={cardStyle}>
+      <div style={cardTitleStyle}>Compound Growth Calculator</div>
+      <InputField label="Starting Balance (USDT)" value={balance} onChange={setBalance} />
+      <InputField label="Monthly Return (%)" value={monthly} onChange={setMonthly} step={0.1} />
+      <InputField label="Months" value={months} onChange={setMonths} step={1} max={60} />
+
+      {valid && rows.length > 0 && (
+        <>
+          {/* Bar chart */}
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: BAR_H + 20 }}>
+              {rows.map((r, i) => {
+                const h = (r.value / maxVal) * BAR_H;
+                const isHov = hovIdx === i;
+                const pos = r.value >= b;
+                return (
+                  <div key={i}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'default' }}
+                    onMouseEnter={() => setHovIdx(i)} onMouseLeave={() => setHovIdx(null)}>
+                    <div style={{
+                      width: '100%', height: Math.max(h, 2),
+                      background: pos
+                        ? (isHov ? 'var(--accent-green)' : 'rgba(14,203,129,0.55)')
+                        : (isHov ? 'var(--accent-red)' : 'rgba(246,70,93,0.45)'),
+                      transition: 'background 100ms',
+                      borderRadius: '2px 2px 0 0',
+                    }} />
+                    {rows.length <= 24 && (
+                      <div style={{ fontSize: 9, color: isHov ? 'var(--text-secondary)' : 'var(--text-muted)', fontFamily: MONO }}>
+                        {r.month}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {hovIdx !== null && rows[hovIdx] && (
+              <div style={{
+                position: 'absolute', top: 0,
+                left: `${(hovIdx / rows.length + 0.5 / rows.length) * 100}%`,
+                transform: 'translateX(-50%)',
+                background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+                padding: '6px 12px', fontFamily: MONO, fontSize: 11,
+                pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
+              }}>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 3 }}>Month {rows[hovIdx].month}</div>
+                <div style={{ fontWeight: 700, color: 'var(--accent-green)' }}>${rows[hovIdx].value.toFixed(2)}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>+{((rows[hovIdx].value - b) / b * 100).toFixed(1)}%</div>
+              </div>
+            )}
+          </div>
+
+          <div style={resultBoxStyle}>
+            <ResultRow label="Final Balance" value={`$${fmt(finalVal)}`} />
+            <ResultRow label="Total Gain" value={`$${fmt(totalGain)}`} />
+            <ResultRow label="Growth" value={`+${fmt(gainPct)}%`} last />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ToolsTab() {
   const isMobile = useIsMobile();
   return (
@@ -256,6 +343,7 @@ export default function ToolsTab() {
       <PositionSizeCalc />
       <RiskRewardCalc />
       <LiquidationCalc />
+      <CompoundCalc />
     </div>
   );
 }
