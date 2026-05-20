@@ -62,7 +62,7 @@ const STEPS = [
             [false, 'Internal Transfer — leave off'],
           ].map(([allow, text], i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: FM, fontSize: 11 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: allow ? 'var(--border-strong)' : 'var(--border-default)', flexShrink: 0, display: 'inline-block' }}/>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: allow ? 'var(--accent-green)' : 'var(--accent-red)', flexShrink: 0, display: 'inline-block', opacity: allow ? 0.8 : 0.5 }}/>
               <span style={{ color: allow ? 'var(--text-secondary)' : 'var(--text-muted)' }}>{text}</span>
             </div>
           ))}
@@ -230,7 +230,7 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
     <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--border-strong)' }} />
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent-green)' }} />
           <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>CONNECTED</span>
           {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>DEMO</span>}
         </div>
@@ -352,7 +352,7 @@ function Mt5KeysSection() {
         <span style={{ fontFamily: FF, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>MT5 / MetaApi Integration</span>
         {data?.configured && !showForm && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-muted)', fontFamily: FM }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--border-strong)', display: 'inline-block' }}/>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-green)', display: 'inline-block' }}/>
             CONNECTED
           </span>
         )}
