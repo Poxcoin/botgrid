@@ -38,6 +38,8 @@ function BalanceCard({ label, value, color, accent }) {
 }
 
 function NoKeyBanner() {
+  const { t } = useLang();
+  const ta = t.dashboard.analytics;
   return (
     <div style={{
       border: '1px solid var(--border-subtle)', padding: '32px 24px', marginBottom: 24,
@@ -45,10 +47,10 @@ function NoKeyBanner() {
     }}>
       <div>
         <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>
-          No Bybit API key connected
+          {ta.noKeyTitle}
         </div>
         <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          Connect your key to see live balance, positions and trade history.
+          {ta.noKeyDesc}
         </div>
       </div>
       <button
@@ -60,7 +62,7 @@ function NoKeyBanner() {
           textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0,
         }}
       >
-        Add API Key →
+        {ta.noKeyBtn}
       </button>
     </div>
   );
@@ -320,8 +322,8 @@ function PnlChart({ hasKey }) {
         {/* Bot filter */}
         {bots.length > 0 && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Bot</span>
-            <FilterChip active={botFilter === 'all'} onClick={() => { setBotFilter('all'); setCoin('all'); }}>All</FilterChip>
+            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>{td.hBot}</span>
+            <FilterChip active={botFilter === 'all'} onClick={() => { setBotFilter('all'); setCoin('all'); }}>{td.analytics.all}</FilterChip>
             {bots.map(b => (
               <FilterChip key={b} active={botFilter === b} onClick={() => { setBotFilter(b); setCoin('all'); }}>
                 {BOT_LABELS[b] || b}
@@ -333,8 +335,8 @@ function PnlChart({ hasKey }) {
         {/* Coin filter */}
         {coins.length > 1 && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>Coin</span>
-            <FilterChip active={coin === 'all'} onClick={() => setCoin('all')}>All</FilterChip>
+            <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 4 }}>{td.analytics.hCoin}</span>
+            <FilterChip active={coin === 'all'} onClick={() => setCoin('all')}>{td.analytics.all}</FilterChip>
             {coins.map(c => (
               <FilterChip key={c} active={coin === c} onClick={() => setCoin(c)}>{c}</FilterChip>
             ))}
@@ -359,17 +361,17 @@ function PnlChart({ hasKey }) {
         )}
 
         {/* Chart */}
-        {loading && <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>Loading…</div>}
+        {loading && <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>{td.loading}</div>}
 
         {!loading && !hasKey && (
           <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>
-            Connect API key to see chart
+            {td.analytics.noKeyChart}
           </div>
         )}
 
         {!loading && hasKey && chartData.length < 2 && (
           <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>
-            Not enough data for selected filters
+            {td.analytics.notEnoughData}
           </div>
         )}
 
