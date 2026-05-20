@@ -408,7 +408,7 @@ export default function NewsPage() {
 
 
   return (
-    <div style={{ background: '#060606', color: '#f5f5f5', fontFamily: SANS, minHeight: '100vh' }}>
+    <div style={{ background: 'transparent', color: '#f5f5f5', fontFamily: SANS, minHeight: '100vh' }}>
       <LandingHeader />
 
       <style>{`

@@ -7,7 +7,7 @@ import { usePageTitle } from '@/lib/usePageTitle';
 
 const S = {
   page: {
-    background: '#060606',
+    background: 'transparent',
     color: '#fff',
     fontFamily: "-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif",
     minHeight: '100vh',

@@ -30,6 +30,21 @@ function PixelRouteTracker() {
   return null;
 }
 
+function ScrollToHash() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) { window.scrollTo({ top: 0 }); return; }
+    const id = hash.slice(1);
+    const attempt = (tries = 0) => {
+      const el = document.getElementById(id);
+      if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      else if (tries < 6) setTimeout(() => attempt(tries + 1), 200);
+    };
+    attempt();
+  }, [pathname, hash]);
+  return null;
+}
+
 export default function App() {
   useEffect(() => {
     let ticking = false;
@@ -50,6 +65,7 @@ export default function App() {
       <LangProvider>
         <Router>
         <PixelRouteTracker />
+        <ScrollToHash />
         <GlobalNeural />
         <CursorTracker />
         <CookieBanner />

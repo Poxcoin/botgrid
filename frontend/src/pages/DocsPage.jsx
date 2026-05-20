@@ -115,7 +115,7 @@ function OverviewContent({ isMobile }) {
         background: LINE,
       }}>
         {LEGAL_DOCS.map(doc => (
-          <div key={doc.id} style={{ background: '#060606' }}>
+          <div key={doc.id} style={{ background: 'transparent' }}>
             <DocCard doc={doc} isMobile={isMobile} />
           </div>
         ))}
@@ -312,7 +312,7 @@ export default function DocsPage() {
   }
 
   return (
-    <div style={{ background: '#060606', color: '#f5f5f5', fontFamily: SANS, minHeight: '100vh' }}>
+    <div style={{ background: 'transparent', color: '#f5f5f5', fontFamily: SANS, minHeight: '100vh' }}>
       <LandingHeader />
 
       <style>{`.j-docsnav { overflow-x: auto; scrollbar-width: none; } .j-docsnav::-webkit-scrollbar { display: none; }`}</style>

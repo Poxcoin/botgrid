@@ -146,7 +146,7 @@ export default function BotsPage() {
   }));
 
   return (
-    <div style={{ background: '#060606', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
+    <div style={{ background: 'transparent', minHeight: '100vh', fontFamily: FONT_BODY, color: '#fff' }}>
       <LandingHeader />
 
       {/* Hero */}
