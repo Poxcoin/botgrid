@@ -23,13 +23,12 @@ const BYBIT_BOTS = [
   { id: 'cascade',   label: 'Cascade'        },
   { id: 'orderflow', label: 'Orderflow'      },
   { id: 'ob',        label: 'Order Block'    },
-  { id: 'history',   label: 'History'        },
 ];
 const MT5_BOTS = [
   { id: 'macro',     label: 'Macro Forex'    },
   { id: 'gold',      label: 'Gold'           },
 ];
-const BOTS = [...BYBIT_BOTS, ...MT5_BOTS];
+const BOTS = [...BYBIT_BOTS, ...MT5_BOTS, { id: 'history', label: 'History' }];
 const BOT_IDS = BOTS.map(b => b.id);
 
 function getUser() {
@@ -231,6 +230,7 @@ export default function UserDashboard() {
           {BYBIT_BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
           <div style={{ padding: '10px 20px 2px 40px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, fontFamily: "'Courier New',monospace", opacity: 0.5 }}>MT5</div>
           {MT5_BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
+          <NavItem id="history" label="History" indent />
         </>}
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
