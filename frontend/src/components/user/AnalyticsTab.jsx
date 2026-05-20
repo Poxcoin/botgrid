@@ -233,7 +233,7 @@ function TradeRow({ tr }) {
         </div>
       </div>
       <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-        {pnl >= 0 ? '+' : ''}{pnl}
+        {pnl >= 0 ? '+' : ''}{parseFloat(pnl).toFixed(2)}
       </div>
     </div>
   );
@@ -572,16 +572,16 @@ export default function AnalyticsTab() {
     { key: 'source', label: t.dashboard.analytics.hSource, bold: true, render: r => r.label || r.source },
     { key: 'trades', label: t.dashboard.analytics.hTrades, align: 'right' },
     { key: '_wr', label: t.dashboard.analytics.hWinRate, align: 'right', render: r => pct(r.wins, r.trades) },
-    { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${r.pnl}` },
-    { key: 'avg_win', label: t.dashboard.analytics.hAvgWin, align: 'right', render: r => r.avg_win > 0 ? `+${r.avg_win}` : r.avg_win },
-    { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right', muted: true },
+    { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${parseFloat(r.pnl).toFixed(2)}` },
+    { key: 'avg_win', label: t.dashboard.analytics.hAvgWin, align: 'right', render: r => r.avg_win > 0 ? `+${parseFloat(r.avg_win).toFixed(2)}` : parseFloat(r.avg_win).toFixed(2) },
+    { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right', muted: true, render: r => parseFloat(r.avg_loss || 0).toFixed(2) },
   ];
 
   const coinCols = [
     { key: 'coin', label: t.dashboard.analytics.hCoin, bold: true },
     { key: 'trades', label: t.dashboard.analytics.hTrades, align: 'right' },
     { key: '_wr', label: t.dashboard.analytics.hWinRate, align: 'right', render: r => pct(r.wins, r.trades) },
-    { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${r.pnl}` },
+    { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${parseFloat(r.pnl).toFixed(2)}` },
   ];
 
   const allTradesCols = [
@@ -655,7 +655,7 @@ export default function AnalyticsTab() {
         />
         <StatCard
           label={t.dashboard.analytics.bestDay}
-          value={bestDay ? `${bestDay.pnl >= 0 ? '+' : ''}${bestDay.pnl}` : '—'}
+          value={bestDay ? `${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}` : '—'}
           sub={bestDay?.date ?? ''}
         />
       </div>

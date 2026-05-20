@@ -174,7 +174,7 @@ function CoinBreakdown({ trades }) {
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.trades}</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.wr}%</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? '#ccc' : '#888' }}>
-                    {isPos ? '+' : ''}{r.pnl}
+                    {isPos ? '+' : ''}{parseFloat(r.pnl).toFixed(2)}
                   </td>
                 </tr>
               );
@@ -232,7 +232,7 @@ function BotsSection({ bots, heartbeat }) {
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades}</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades ? `${wr}%` : '—'}</td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? '#ccc' : '#888' }}>
-                    {isPos ? '+' : ''}{b.pnl}
+                    {isPos ? '+' : ''}{parseFloat(b.pnl).toFixed(2)}
                   </td>
                   <td style={{ padding: '10px 20px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{lastStr}</td>
                 </tr>
