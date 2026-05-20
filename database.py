@@ -188,7 +188,7 @@ class User(Base):
     def effective_plan(self) -> str:
         """Returns actual usable plan, handling lazy trial expiry."""
         if self.plan == "trial":
-            if self.trial_ends_at and datetime.utcnow() > self.trial_ends_at:
+            if self.trial_ends_at and datetime.now(timezone.utc) > self.trial_ends_at.replace(tzinfo=timezone.utc):
                 return "free"
             return "trial"
         return self.plan
@@ -224,7 +224,7 @@ class Subscription(Base):
             return False
         if self.expires_at is None:
             return True
-        return self.expires_at > datetime.utcnow()
+        return self.expires_at.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
 
 
 # ── Telegram Link Tokens ───────────────────────────────────────────────────────

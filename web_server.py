@@ -3071,7 +3071,10 @@ async def get_backtest_run(run_id: str, token: str = Depends(require_any_auth)):
     import re
     if not re.match(r'^[\w\-:T]+$', run_id):
         raise HTTPException(status_code=400, detail="Invalid run_id")
-    path = os.path.join(BACKTEST_DIR, f"{run_id}.json")
+    path = os.path.realpath(os.path.join(BACKTEST_DIR, f"{run_id}.json"))
+    _base = os.path.realpath(BACKTEST_DIR) + os.sep
+    if not path.startswith(_base):
+        raise HTTPException(status_code=400, detail="Invalid run_id")
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Run not found")
     try:
