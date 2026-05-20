@@ -2390,6 +2390,148 @@ async def admin_list_users(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+#  OWNER ANALYTICS  (user_id=1 only)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _require_owner(token: str, db: Session):
+    """Raise 403 if token is not owner (user_id=1)."""
+    uid = _token_user_id(token)
+    if uid != 1:
+        raise HTTPException(status_code=403, detail="Owner only")
+    user = db.query(User).filter(User.id == 1).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=403, detail="Owner account inactive")
+
+
+@app.get("/api/owner/users-pnl")
+async def owner_users_pnl(
+    token: str = Depends(require_any_auth),
+    db: Session = Depends(get_db),
+):
+    """Owner: all users with total PnL, win rate, monthly history."""
+    from sqlalchemy import func, case
+    _require_owner(token, db)
+
+    users = db.query(User).order_by(User.id).all()
+    if not users:
+        return {"users": []}
+
+    user_ids = [u.id for u in users]
+
+    # Aggregate closed trade PnL per user
+    trade_agg = (
+        db.query(
+            UserTrade.user_id,
+            func.count(UserTrade.id).label("total"),
+            func.sum(case([(UserTrade.status == "closed", 1)], else_=0)).label("closed_count"),
+            func.sum(case([(UserTrade.status == "open", 1)], else_=0)).label("open_count"),
+            func.sum(
+                case([(UserTrade.status == "closed", UserTrade.pnl_usdt)], else_=0)
+            ).label("total_pnl"),
+            func.sum(
+                case([((UserTrade.status == "closed") & (UserTrade.pnl_usdt > 0), 1)], else_=0)
+            ).label("wins"),
+        )
+        .filter(UserTrade.user_id.in_(user_ids))
+        .group_by(UserTrade.user_id)
+        .all()
+    )
+    trade_map = {
+        r.user_id: {
+            "total":       int(r.total),
+            "closed":      int(r.closed_count or 0),
+            "open":        int(r.open_count or 0),
+            "total_pnl":   float(r.total_pnl or 0.0),
+            "wins":        int(r.wins or 0),
+        }
+        for r in trade_agg
+    }
+
+    # All monthly PnL rows for all users
+    monthly_rows = (
+        db.query(MonthlyPnl)
+        .filter(MonthlyPnl.user_id.in_(user_ids))
+        .order_by(MonthlyPnl.user_id, MonthlyPnl.year, MonthlyPnl.month)
+        .all()
+    )
+    monthly_map: dict[int, list] = {}
+    for row in monthly_rows:
+        monthly_map.setdefault(row.user_id, []).append({
+            "year":            row.year,
+            "month":           row.month,
+            "gross_pnl":       round(row.gross_pnl, 2),
+            "performance_fee": round(row.performance_fee, 2),
+            "net_pnl":         round(row.net_pnl, 2),
+            "fee_paid":        row.fee_paid,
+        })
+
+    result = []
+    for u in users:
+        t = trade_map.get(u.id, {"total": 0, "closed": 0, "open": 0, "total_pnl": 0.0, "wins": 0})
+        closed = t["closed"]
+        win_rate = round(t["wins"] / closed * 100, 1) if closed > 0 else None
+        result.append({
+            "id":          u.id,
+            "email":       u.email,
+            "username":    u.username,
+            "plan":        u.plan,
+            "is_active":   u.is_active,
+            "created_at":  u.created_at.isoformat() if u.created_at else None,
+            "last_login":  u.last_login.isoformat() if u.last_login else None,
+            "trades_total":  t["total"],
+            "trades_closed": closed,
+            "trades_open":   t["open"],
+            "total_pnl":     round(t["total_pnl"], 2),
+            "win_rate":      win_rate,
+            "monthly":       monthly_map.get(u.id, []),
+        })
+
+    return {"users": result}
+
+
+@app.get("/api/owner/user-trades/{uid}")
+async def owner_user_trades(
+    uid: int,
+    token: str = Depends(require_any_auth),
+    db: Session = Depends(get_db),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    """Owner: paginated trade list for any user."""
+    _require_owner(token, db)
+
+    total = db.query(func.count(UserTrade.id)).filter(UserTrade.user_id == uid).scalar() or 0
+    trades = (
+        db.query(UserTrade)
+        .filter(UserTrade.user_id == uid)
+        .order_by(UserTrade.opened_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return {
+        "total": total,
+        "trades": [
+            {
+                "id":          t.id,
+                "source":      t.source,
+                "symbol":      t.symbol,
+                "side":        t.side,
+                "leverage":    t.leverage,
+                "entry_price": t.entry_price,
+                "exit_price":  t.exit_price,
+                "qty":         t.qty,
+                "pnl_usdt":    round(t.pnl_usdt, 2) if t.pnl_usdt is not None else None,
+                "status":      t.status,
+                "opened_at":   t.opened_at.isoformat() if t.opened_at else None,
+                "closed_at":   t.closed_at.isoformat() if t.closed_at else None,
+            }
+            for t in trades
+        ],
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 #  WAITLIST
 # ══════════════════════════════════════════════════════════════════════════════
 
