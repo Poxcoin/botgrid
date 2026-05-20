@@ -196,7 +196,7 @@ export default function MacroBotTab({ botId }) {
       api('/api/users/mt5-keys'),
     ]).then(([t, m]) => {
       setTrades(Array.isArray(t) ? t : []);
-      setMt5(m || null);
+      setMt5(m ?? null);
     });
   }, []);
 
@@ -212,6 +212,8 @@ export default function MacroBotTab({ botId }) {
   const title = isGold ? 'Gold Event Bot' : 'Macro Forex Bot';
   const desc  = isGold ? 'XAUUSD · MT5 · IC Markets' : 'EURUSD · GBPUSD · MT5 · IC Markets';
 
+  const mt5Configured = mt5?.configured === true;
+
   if (mt5 === undefined) return null;
 
   return (
@@ -225,7 +227,7 @@ export default function MacroBotTab({ botId }) {
       {/* Chart */}
       <ForexChart symbols={SYMBOLS[botId] || SYMBOLS.gold} />
 
-      {!mt5 && <NoKeyBanner />}
+      {!mt5Configured && <NoKeyBanner />}
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
