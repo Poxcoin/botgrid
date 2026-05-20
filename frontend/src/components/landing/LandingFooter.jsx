@@ -62,12 +62,12 @@ const COLS = [
   {
     title: 'RESOURCES',
     links: [
-      { label: 'Documentation',     to: '/docs' },
+      { label: 'Documents',          to: '/docs' },
       { label: 'FAQ',               to: '/docs?section=faq' },
       { label: 'News & Signals',    to: '/news' },
       { label: 'Risk Disclosure',   to: '/legal/risk-disclosure' },
       { label: 'Telegram Community', href: 'https://t.me/kadoclub07' },
-      { label: 'API Guide',         to: '/docs?section=api-keys' },
+      { label: 'Support',           to: '/docs?section=support' },
     ],
   },
   {
@@ -78,7 +78,7 @@ const COLS = [
       { label: 'Telegram Bot',   href: 'https://t.me/KADO_c_BOT' },
       { label: 'Community Chat', href: 'https://t.me/kadoclub07' },
       { label: 'Security',       to: '/docs?section=faq' },
-      { label: 'Contact Us',     href: 'mailto:support@kadoclub.net' },
+      { label: 'Contact Us',     to: '/docs?section=support' },
     ],
   },
   {
