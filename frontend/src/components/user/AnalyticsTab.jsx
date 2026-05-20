@@ -728,8 +728,6 @@ export default function AnalyticsTab() {
     );
   }
 
-  const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
-
   // All stats computed from allTrades so they respond to the period selector
   const periodStats = useMemo(() => {
     if (!allTrades.length) return {
@@ -788,6 +786,17 @@ export default function AnalyticsTab() {
     const byDate = [...allTrades].sort((a, b) => parseFloat(b.pnl ?? 0) - parseFloat(a.pnl ?? 0));
     const losses = allTrades.length - wins;
 
+    // best trading day — group by calendar date
+    const dayMap = {};
+    for (const t of sorted) {
+      const ms = parseInt(t.closed_at);
+      if (!ms) continue;
+      const d = new Date(ms).toISOString().slice(0, 10);
+      dayMap[d] = (dayMap[d] ?? 0) + parseFloat(t.pnl ?? 0);
+    }
+    const bestDayEntry = Object.entries(dayMap).reduce((a, b) => (b[1] > a[1] ? b : a), [null, -Infinity]);
+    const bestDay = bestDayEntry[0] ? { date: bestDayEntry[0], pnl: parseFloat(bestDayEntry[1].toFixed(2)) } : null;
+
     return {
       totalPnl: parseFloat(totalPnl.toFixed(2)),
       wins, losses,
@@ -797,6 +806,7 @@ export default function AnalyticsTab() {
       profitFactor: totalLoss > 0 ? +(totalWin / totalLoss).toFixed(2) : null,
       maxDrawdown: maxDD > 0 ? +maxDD.toFixed(2) : null,
       avgDuration: durCount > 0 ? Math.round(durSum / durCount) : null,
+      bestDay,
       byCoin: agg(coinMap),
       bySource: agg(srcMap),
       best:  byDate.slice(0, 5).map(t => ({ coin: t.symbol, pnl: parseFloat(t.pnl ?? 0), closed_at: t.closed_at, side: t.side, source: t.source, duration_min: (() => { const o = parseInt(t.opened_at), c = parseInt(t.closed_at); return (o && c && c > o) ? Math.round((c - o) / 60000) : null; })() })),
@@ -804,7 +814,7 @@ export default function AnalyticsTab() {
     };
   }, [allTrades]);
 
-  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration } = periodStats;
+  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay } = periodStats;
   const mergedBySource = periodStats.bySource;
 
   const botCols = [
@@ -910,7 +920,7 @@ export default function AnalyticsTab() {
         />
         <StatCard
           label={t.dashboard.analytics.bestDay}
-          value={bestDay ? `${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}` : '—'}
+          value={bestDay ? <span style={{ color: bestDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}`}</span> : '—'}
           sub={bestDay?.date ?? ''}
         />
         {avgTrade != null && (
@@ -1088,7 +1098,7 @@ export default function AnalyticsTab() {
                     else { va = parseFloat(a[coinSort] ?? 0); vb = parseFloat(b[coinSort] ?? 0); }
                     return coinSortAsc ? va - vb : vb - va;
                   })}
-                  getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : null}
+                  getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : k === '_rr' && r.avg_win > 0 && r.avg_loss < 0 ? (r.avg_win / Math.abs(r.avg_loss) >= 1 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
                   sortCol={coinSort}
                   sortAsc={coinSortAsc}
                   onSort={col => { if (coinSort === col) setCoinSortAsc(a => !a); else { setCoinSort(col); setCoinSortAsc(false); } }}
@@ -1115,7 +1125,7 @@ export default function AnalyticsTab() {
                 else { va = parseFloat(a[botSort] ?? 0); vb = parseFloat(b[botSort] ?? 0); }
                 return botSortAsc ? va - vb : vb - va;
               })}
-              getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : null}
+              getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : k === '_rr' && r.avg_win > 0 && r.avg_loss < 0 ? (r.avg_win / Math.abs(r.avg_loss) >= 1 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
               sortCol={botSort}
               sortAsc={botSortAsc}
               onSort={col => { if (botSort === col) setBotSortAsc(a => !a); else { setBotSort(col); setBotSortAsc(false); } }}
