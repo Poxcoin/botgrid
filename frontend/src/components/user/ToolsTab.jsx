@@ -5,7 +5,7 @@ const MONO = 'var(--font-mono)';
 
 const cardStyle = {
   background: 'var(--bg-surface)',
-  border: '1px solid rgba(255,255,255,0.06)',
+  border: '1px solid var(--border-subtle)',
   borderRadius: 12,
   padding: '24px',
 };
@@ -32,7 +32,7 @@ const labelStyle = {
 const baseInputStyle = {
   width: '100%',
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--border-subtle)',
   borderRadius: 6,
   padding: '9px 12px',
   color: 'var(--text-primary)',
@@ -44,7 +44,7 @@ const baseInputStyle = {
 
 const resultBoxStyle = {
   background: 'var(--bg-elevated)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--border-subtle)',
   borderRadius: 8,
   padding: '16px',
   marginTop: 16,
@@ -60,7 +60,7 @@ const resultRowStyle = {
 
 const resultLabelStyle = { color: 'var(--text-muted)' };
 const resultValueStyle = { fontWeight: 600, color: 'var(--text-primary)' };
-const dividerStyle = { borderBottom: '1px solid rgba(255,255,255,0.04)' };
+const dividerStyle = { borderBottom: '1px solid var(--border-subtle)' };
 
 function InputField({ label, value, onChange, step, max }) {
   const [focused, setFocused] = useState(false);
@@ -75,7 +75,7 @@ function InputField({ label, value, onChange, step, max }) {
         max={max}
         style={{
           ...baseInputStyle,
-          borderColor: focused ? 'var(--accent-green)' : 'rgba(255,255,255,0.08)',
+          borderColor: focused ? 'var(--accent-green)' : 'var(--border-subtle)',
         }}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -182,7 +182,7 @@ function RiskRewardCalc() {
         <ResultRow label="Risk %" value={riskPct !== null ? `${fmt(riskPct)}%` : '—'} />
         <ResultRow label="Reward %" value={rewardPct !== null ? `${fmt(rewardPct)}%` : '—'} />
         <ResultRow label="R:R Ratio" value={rr !== null ? `1 : ${fmt(rr)}` : '—'} />
-        <div style={{ paddingTop: 10, marginTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
           <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: verdictColor }}>
             {verdict ?? '—'}
           </span>
@@ -220,7 +220,7 @@ function LiquidationCalc() {
           <button key={s} onClick={() => setSide(s)} style={{
             flex: 1, padding: '8px 0', fontFamily: MONO, fontSize: 11,
             letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
-            border: `1px solid ${side === s ? (s === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)') : 'rgba(255,255,255,0.08)'}`,
+            border: `1px solid ${side === s ? (s === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--border-subtle)'}`,
             background: side === s ? (s === 'LONG' ? 'rgba(14,203,129,0.08)' : 'rgba(246,70,93,0.08)') : 'transparent',
             color: side === s ? (s === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-muted)',
             borderRadius: 6,

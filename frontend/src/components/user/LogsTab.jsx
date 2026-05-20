@@ -5,7 +5,7 @@ import { useLang } from '@/lib/LangContext';
 const MONO = "'Courier New','SF Mono',monospace";
 
 const LINE_COLOR = {
-  INFO:  '#555',
+  INFO:  '#6b7280',
   OK:    '#4ade80',
   WARN:  '#fbbf24',
   ERROR: '#f87171',
@@ -154,7 +154,7 @@ export default function LogsTab() {
           );
         })}
         {filtered.length === 0 && (
-          <div style={{ color: '#333', fontSize: 12 }}>— no matching lines —</div>
+          <div style={{ color: '#6b7280', fontSize: 12 }}>— no matching lines —</div>
         )}
         <div style={{ color: 'var(--accent-green)' }}>▌</div>
       </div>
