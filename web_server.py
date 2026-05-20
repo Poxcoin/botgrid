@@ -1535,7 +1535,7 @@ _BOT_LABELS = {
     "news":        "Signal Bot",
     "signal":      "Signal Bot",
     "fr":          "Funding Rate",
-    "fr_extreme":  "Funding Rate",
+    "fr_extreme":  "FR Extreme",
     "grid":        "Grid Bot",
     "listing":     "CEX Sniper",
     "whale":       "Whale Tracker",
@@ -1548,6 +1548,8 @@ _BOT_LABELS = {
     "sniper":      "DEX Sniper",
     "bybit":       "Bybit Import",
     "altcoin":     "Altcoin Bot",
+    "macro":       "Macro Forex",
+    "dex":         "DEX Bot",
 }
 
 @app.get("/api/users/plan-features")

@@ -6,13 +6,32 @@ const API = (path) => fetch(path, {
 }).then(r => r.ok ? r.json() : Promise.reject(r.status));
 
 const PERIODS = [
-  { label: '7d',  days: 7 },
-  { label: '30d', days: 30 },
-  { label: '90d', days: 90 },
+  { label: '7d',   days: 7 },
+  { label: '30d',  days: 30 },
+  { label: '90d',  days: 90 },
   { label: '180d', days: 180 },
+  { label: 'All',  days: 0 },
 ];
 
-const BOT_LABELS = { grid:'Grid', news:'Signal', fr:'Funding', listing:'Sniper', bybit:'Bybit', other:'Other' };
+const BOT_LABELS = {
+  grid:       'Grid',
+  news:       'Signal',
+  signal:     'Signal',
+  fr:         'Funding',
+  fr_extreme: 'FR Extreme',
+  listing:    'Sniper',
+  altcoin:    'Altcoin',
+  orderflow:  'Orderflow',
+  cascade:    'Cascade',
+  liq_cascade:'Cascade',
+  sweep:      'Sweep',
+  ob:         'Order Block',
+  orderblock: 'Order Block',
+  macro:      'Macro',
+  dex:        'DEX',
+  bybit:      'Bybit',
+  other:      'Other',
+};
 
 export default function TradesTab() {
   const { t } = useLang();
@@ -30,6 +49,7 @@ export default function TradesTab() {
   }, [days]);
 
   const allTrades = data?.trades ?? [];
+  const availableSrcs = [...new Set(allTrades.map(t => t.source).filter(Boolean))].sort();
   const trades = allTrades
     .filter(tr => filterSide === 'ALL' || tr.side === filterSide)
     .filter(tr => filterSrc  === 'ALL' || tr.source === filterSrc)
@@ -73,10 +93,10 @@ export default function TradesTab() {
           </button>
         ))}
         <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', margin: '0 4px' }} />
-        {['ALL', ...Object.keys(BOT_LABELS)].map(s => (
+        {['ALL', ...availableSrcs].map(s => (
           <button key={s} onClick={() => setFilterSrc(s)}
             style={{ ...btnBase, ...(filterSrc === s ? activeBtn : {}) }}>
-            {s === 'ALL' ? 'All Bots' : BOT_LABELS[s]}
+            {s === 'ALL' ? 'All Bots' : (BOT_LABELS[s] || s)}
           </button>
         ))}
         <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', margin: '0 4px' }} />
