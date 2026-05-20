@@ -292,7 +292,7 @@ function MiniChart({ coin }) {
   );
 }
 
-function CoinTicker({ coins, selected, onSelect, coinPnl = {} }) {
+function CoinTicker({ coins, selected, onSelect, coinPnl = {}, openCoins = null }) {
   const [tickers, setTickers] = useState({});
 
   useEffect(() => {
@@ -331,14 +331,33 @@ function CoinTicker({ coins, selected, onSelect, coinPnl = {} }) {
         const chg = t?.change;
         const fr = t?.fr;
         const cp = coinPnl[c];
+        const hasPos = openCoins?.has(c);
+        // Open-position highlight: subtle salad-green tint + accent border +
+        // soft glow. When also "selected", border thickens / bg deepens.
+        const bg = hasPos
+          ? (on ? 'rgba(14,203,129,0.18)' : 'rgba(14,203,129,0.10)')
+          : (on ? 'var(--bg-elevated)' : 'transparent');
+        const borderCol = hasPos
+          ? (on ? 'var(--accent-green)' : 'rgba(14,203,129,0.55)')
+          : (on ? 'var(--border-strong)' : 'var(--border-default)');
         return (
           <button key={c} onClick={() => onSelect(c)} style={{
             display: 'flex', flexDirection: 'column', gap: 3,
-            padding: '8px 10px 6px', cursor: 'pointer',
-            background: on ? 'var(--bg-elevated)' : 'transparent',
-            border: `1px solid ${on ? 'var(--border-strong)' : 'var(--border-default)'}`,
+            padding: '8px 10px 6px', cursor: 'pointer', position: 'relative',
+            background: bg,
+            border: `1px solid ${borderCol}`,
+            boxShadow: hasPos ? '0 0 0 1px rgba(14,203,129,0.18), 0 4px 14px rgba(14,203,129,0.10)' : 'none',
             textAlign: 'left', minWidth: 100,
+            transition: 'background 150ms, border-color 150ms, box-shadow 150ms',
           }}>
+            {hasPos && (
+              <span title="Open position" style={{
+                position: 'absolute', top: 6, right: 6,
+                width: 6, height: 6, borderRadius: '50%',
+                background: 'var(--accent-green)',
+                boxShadow: '0 0 6px var(--accent-green)',
+              }} />
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{c}</span>
               {t && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chg >= 0 ? '+' : ''}{chg?.toFixed(2)}%</span>}
@@ -1604,7 +1623,13 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       </div>
 
       {/* ── COINS ─────────────────────────────────────────────── */}
-      <CoinTicker coins={analyzerCoins} selected={coin} onSelect={setCoin} coinPnl={coinPnl} />
+      <CoinTicker
+        coins={analyzerCoins}
+        selected={coin}
+        onSelect={setCoin}
+        coinPnl={coinPnl}
+        openCoins={new Set(botPos.map(p => sym(p.symbol)).filter(Boolean))}
+      />
 
       {analyzerCoins.length === 0 && (
         coins.length === 0 ? (
