@@ -69,9 +69,9 @@ function NoKeyBanner() {
 }
 
 function PositionsTable({ positions }) {
-  if (!positions || !positions.length) return null;
   const { t } = useLang();
   const td = t.dashboard;
+  if (!positions || !positions.length) return null;
   const cols = [td.analytics.hCoin, td.hSide, td.hLev, td.hQty, `${td.hValue} (USDT)`, td.hEntry, td.hMark, td.hUnrealPnl, td.hSL, td.hTP, td.hLiq];
   return (
     <div style={{ border: '1px solid var(--border-subtle)', marginBottom: 24 }}>
@@ -135,9 +135,9 @@ function PositionsTable({ positions }) {
 }
 
 function BotPerformanceCards({ bots }) {
-  if (!bots || !bots.length) return null;
   const { t } = useLang();
   const td = t.dashboard;
+  if (!bots || !bots.length) return null;
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>

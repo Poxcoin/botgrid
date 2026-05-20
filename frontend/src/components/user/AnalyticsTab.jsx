@@ -642,13 +642,11 @@ function EquityCurve({ trades }) {
     });
   }, [trades, lang]);
 
-  if (data.length < 2) return null;
-
   const H = 220;
   const PAD = { top: 16, right: 12, bottom: 28, left: 60 };
 
   const geom = useMemo(() => {
-    if (!w) return null;
+    if (!w || data.length < 2) return null;
     const vals  = data.map(d => d.v);
     const minV  = Math.min(...vals, 0);
     const maxV  = Math.max(...vals, 0);
@@ -670,6 +668,8 @@ function EquityCurve({ trades }) {
           .filter((v, i, a) => a.indexOf(v) === i);
     return { color, cW, cH, sx, sy, zeroY, pts, area, yTicks, xIdxs };
   }, [data, w]);
+
+  if (data.length < 2) return null;
 
   return (
     <div ref={wrapRef} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
