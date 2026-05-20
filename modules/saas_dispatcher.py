@@ -112,26 +112,31 @@ def _log_trade(user_id: int, signal_id: str, source: str, symbol: str,
                side: str, leverage: int, order_id: str | None,
                entry_price: float | None, qty: float | None,
                status: str, error_msg: str | None = None):
-    db = SessionLocal()
-    try:
-        trade = UserTrade(
-            user_id=user_id, signal_id=signal_id, source=source,
-            symbol=symbol, side=side, leverage=leverage,
-            order_id=order_id, entry_price=entry_price, qty=qty,
-            status=status, error_msg=error_msg,
-        )
-        db.add(trade)
-        db.add(AuditLog(
-            user_id=user_id,
-            action="trade_open" if status == "open" else "trade_failed",
-            detail_enc=encrypt_field(json.dumps({"symbol": symbol, "side": side, "order_id": order_id, "error": error_msg})),
-        ))
-        db.commit()
-        return trade.id
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()
+    for attempt in range(4):
+        db = SessionLocal()
+        try:
+            trade = UserTrade(
+                user_id=user_id, signal_id=signal_id, source=source,
+                symbol=symbol, side=side, leverage=leverage,
+                order_id=order_id, entry_price=entry_price, qty=qty,
+                status=status, error_msg=error_msg,
+            )
+            db.add(trade)
+            db.add(AuditLog(
+                user_id=user_id,
+                action="trade_open" if status == "open" else "trade_failed",
+                detail_enc=encrypt_field(json.dumps({"symbol": symbol, "side": side, "order_id": order_id, "error": error_msg})),
+            ))
+            db.commit()
+            return trade.id
+        except Exception as _e:
+            db.rollback()
+            print(f"[DISPATCHER] ⚠️ _log_trade attempt {attempt+1} failed user={user_id} {symbol}: {_e}")
+            if attempt < 3:
+                time.sleep(0.5 * (2 ** attempt))
+        finally:
+            db.close()
+    return None
 
 
 def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
