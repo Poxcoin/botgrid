@@ -318,7 +318,7 @@ export default function LandingHeader() {
           {/* Right side */}
           <div className="flex items-center" style={{ gap: 12 }}>
 
-            <Link to="/bots"
+            <Link to="/trade"
               className="hidden sm:inline-flex items-center"
               style={{
                 background: 'transparent', color: '#fff', padding: '9px 22px', borderRadius: 100,

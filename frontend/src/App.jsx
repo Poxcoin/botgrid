@@ -18,6 +18,7 @@ const Waitlist          = lazy(() => import('@/pages/Waitlist'));
 const NewsPage          = lazy(() => import('@/pages/NewsPage'));
 const NewsCategoryPage  = lazy(() => import('@/pages/NewsCategoryPage'));
 const UserDashboard     = lazy(() => import('@/pages/UserDashboard'));
+const BotsControlPage   = lazy(() => import('@/pages/BotsControlPage'));
 const NotFoundPage      = lazy(() => import('@/pages/NotFoundPage'));
 const RiskDisclosurePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.RiskDisclosurePage })));
 const TermsOfServicePage = lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.TermsOfServicePage })));
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/waitlist" element={<Waitlist />} />
           <Route path="/dashboard" element={<Navigate to="/account" replace />} />
           <Route path="/account" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+          <Route path="/trade" element={<ProtectedRoute><BotsControlPage /></ProtectedRoute>} />
           <Route path="/legal/risk-disclosure" element={<RiskDisclosurePage />} />
           <Route path="/legal/terms" element={<TermsOfServicePage />} />
           <Route path="/legal/privacy" element={<PrivacyPolicyPage />} />
