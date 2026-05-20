@@ -1640,67 +1640,105 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
 
       {/* ── TRADE HISTORY ─────────────────────────────────────── */}
       {(() => {
-        const historyTrades = periodTrades.filter(t => t.closed_at).slice(0, 30);
+        const allClosed = periodTrades.filter(t => t.closed_at);
+        const historyTrades = allClosed.slice(0, 50);
+        const botClosed  = allClosed.filter(t => t.source && t.source !== 'bybit');
+        const botPnl     = botClosed.reduce((s, t) => s + pnl(t), 0);
+        const botWins    = botClosed.filter(t => pnl(t) > 0).length;
+        const botWr      = botClosed.length ? Math.round(botWins / botClosed.length * 100) : 0;
+        const pnlPct = (t) => {
+          if (t.pnl_usdt == null || !t.qty || !t.entry_price) return null;
+          const lev = t.leverage || 3;
+          const margin = (+t.qty) * (+t.entry_price) / lev;
+          return margin > 0 ? ((+t.pnl_usdt) / margin) * 100 : null;
+        };
         return (
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-primary)', fontWeight: 600 }}>
-                {t.dashboard.panel.tradeHistory}
-              </span>
-              <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', padding: '1px 5px', border: '1px solid var(--border-subtle)' }}>
-                {historyTrades.length}
-              </span>
-            </div>
-            {/* Table */}
-            {historyTrades.length === 0 ? (
-              <div style={{ padding: '32px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
-                No closed trades
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['Symbol', 'Side', 'Entry', 'Exit', 'PnL (USDT)', 'Date'].map((col, i) => (
-                        <th key={col} style={{ padding: '6px 14px', fontFamily: FM, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, textAlign: i >= 2 ? 'right' : 'left', background: 'var(--bg-surface)', position: 'sticky', top: 0, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{col}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyTrades.map(tr => {
-                      const p = pnl(tr);
-                      const isLong = (tr.side || '').toUpperCase() === 'LONG';
-                      const dateStr = tr.closed_at
-                        ? new Date(tr.closed_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
-                        : '—';
-                      return (
-                        <tr key={tr.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                            {sym(tr.symbol)}
-                          </td>
-                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)', whiteSpace: 'nowrap' }}>
-                            {(tr.side || '').toUpperCase() || '—'}
-                          </td>
-                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {tr.entry_price != null ? (+tr.entry_price).toFixed(2) : '—'}
-                          </td>
-                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {tr.exit_price != null ? (+tr.exit_price).toFixed(2) : '—'}
-                          </td>
-                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: p > 0 ? 'var(--accent-green)' : p < 0 ? 'var(--accent-red)' : 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                            {p > 0 ? '+' : ''}{p.toFixed(2)}
-                          </td>
-                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            {dateStr}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Bot-only performance summary */}
+            {botClosed.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[
+                  { label: 'BOT TRADES', val: botClosed.length, color: 'var(--text-muted)' },
+                  { label: 'BOT PnL', val: `${botPnl >= 0 ? '+' : ''}${botPnl.toFixed(2)} USDT`, color: botPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
+                  { label: 'BOT WIN RATE', val: `${botWr}%`, color: botWr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' },
+                  { label: 'MANUAL', val: allClosed.length - botClosed.length, color: 'var(--text-muted)' },
+                ].map(({ label, val, color }) => (
+                  <div key={label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: '6px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</span>
+                    <span style={{ fontFamily: FM, fontSize: 13, fontWeight: 700, color }}>{val}</span>
+                  </div>
+                ))}
               </div>
             )}
+            {/* Table */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-primary)', fontWeight: 600 }}>
+                  {t.dashboard.panel.tradeHistory}
+                </span>
+                <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', padding: '1px 5px', border: '1px solid var(--border-subtle)' }}>
+                  {historyTrades.length}
+                </span>
+              </div>
+              {historyTrades.length === 0 ? (
+                <div style={{ padding: '32px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
+                  No closed trades
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        {['Symbol', 'Side', 'Entry', 'Exit', 'PnL USDT', '%', 'Source', 'Date'].map((col, i) => (
+                          <th key={col} style={{ padding: '6px 14px', fontFamily: FM, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, textAlign: i >= 2 ? 'right' : 'left', background: 'var(--bg-surface)', position: 'sticky', top: 0, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyTrades.map(tr => {
+                        const p = pnl(tr);
+                        const pp = pnlPct(tr);
+                        const isLong = (tr.side || '').toUpperCase() === 'LONG';
+                        const isBot = tr.source && tr.source !== 'bybit';
+                        const dateStr = tr.closed_at
+                          ? new Date(tr.closed_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+                          : '—';
+                        return (
+                          <tr key={tr.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                              {sym(tr.symbol)}
+                            </td>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)', whiteSpace: 'nowrap' }}>
+                              {(tr.side || '').toUpperCase() || '—'}
+                            </td>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {tr.entry_price != null ? (+tr.entry_price).toFixed(4) : '—'}
+                            </td>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {tr.exit_price != null ? (+tr.exit_price).toFixed(4) : '—'}
+                            </td>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: p > 0 ? 'var(--accent-green)' : p < 0 ? 'var(--accent-red)' : 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                              {p > 0 ? '+' : ''}{p.toFixed(2)}
+                            </td>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: p > 0 ? 'var(--accent-green)' : p < 0 ? 'var(--accent-red)' : 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {pp != null ? `${pp >= 0 ? '+' : ''}${pp.toFixed(1)}%` : '—'}
+                            </td>
+                            <td style={{ padding: '7px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontFamily: FM, fontSize: 8, letterSpacing: '0.15em', textTransform: 'uppercase', color: isBot ? 'var(--accent-green)' : 'var(--text-muted)', border: `1px solid ${isBot ? 'var(--accent-green)' : 'var(--border-subtle)'}`, padding: '1px 4px', borderRadius: 2 }}>
+                                {isBot ? (tr.source || 'bot') : 'manual'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              {dateStr}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         );
       })()}

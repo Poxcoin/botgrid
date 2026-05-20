@@ -129,6 +129,7 @@ def sync_user_trades(user_id: int) -> int:
             entry_p   = float(it.get("avgEntryPrice") or 0)
             exit_p    = float(it.get("avgExitPrice") or 0)
             qty       = float(it.get("qty") or 0)
+            lev       = int(float(it.get("leverage") or 3))
 
             # Skip if we already have a trade for this coin+entry_price combo.
             # Three cases:
@@ -203,6 +204,7 @@ def sync_user_trades(user_id: int) -> int:
                     source      = "bybit",
                     symbol      = it.get("symbol", ""),
                     side        = side,
+                    leverage    = lev,
                     qty         = qty,
                     entry_price = entry_p,
                     exit_price  = exit_p,
