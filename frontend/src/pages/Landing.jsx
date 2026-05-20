@@ -97,20 +97,20 @@ function HeroLocalCanvas({ mouseRef }) {
 
     function init(w, h) {
       nodes.length = 0;
-      for (let i = 0; i < 80; i++) {
+      for (let i = 0; i < 90; i++) {
         const hx = Math.random() * w, hy = Math.random() * h;
         nodes.push({
           x: hx, y: hy, hx, hy, vx: 0, vy: 0,
-          r: 1.2 + Math.random() * 1.4,
-          op: 0.2 + Math.random() * 0.35,
+          r: 1.4 + Math.random() * 1.6,
+          op: 0.3 + Math.random() * 0.45,
           phase: Math.random() * Math.PI * 2,
         });
       }
     }
 
     function resize() {
-      W = canvas.width = canvas.offsetWidth;
-      H = canvas.height = canvas.offsetHeight;
+      W = canvas.width = canvas.offsetWidth || window.innerWidth;
+      H = canvas.height = canvas.offsetHeight || window.innerHeight;
       init(W, H);
     }
 
@@ -142,25 +142,28 @@ function HeroLocalCanvas({ mouseRef }) {
           const b = nodes[j];
           const dx = a.x - b.x, dy = a.y - b.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 130) {
-            ctx.strokeStyle = `rgba(${col},${(1 - dist / 130) * 0.16})`;
-            ctx.lineWidth = 0.4;
+          if (dist < 150) {
+            ctx.strokeStyle = `rgba(${col},${(1 - dist / 150) * 0.28})`;
+            ctx.lineWidth = 0.5;
             ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
           }
         }
       }
       for (const n of nodes) {
-        const flicker = 0.7 + 0.3 * Math.sin(ts * 0.001 + n.phase);
+        const flicker = 0.65 + 0.35 * Math.sin(ts * 0.0008 + n.phase);
         ctx.fillStyle = `rgba(${col},${n.op * flicker})`;
         ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill();
       }
     }
 
-    resize();
+    requestAnimationFrame(() => {
+      resize();
+      raf = requestAnimationFrame(frame);
+    });
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
-    raf = requestAnimationFrame(frame);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    window.addEventListener('resize', resize);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); window.removeEventListener('resize', resize); };
   }, []);
 
   return (
