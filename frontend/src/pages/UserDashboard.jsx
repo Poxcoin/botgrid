@@ -4,12 +4,12 @@ import SettingsTab      from '@/components/user/SettingsTab';
 import AccountTab       from '@/components/user/AccountTab';
 import SecurityTab      from '@/components/user/SecurityTab';
 import ApiKeysTab       from '@/components/user/ApiKeysTab';
-const AssetsTab  = lazy(() => import('@/components/user/AssetsTab'));
-const TradesTab  = lazy(() => import('@/components/user/TradesTab'));
-const PnlTab     = lazy(() => import('@/components/user/PnlTab'));
-const ToolsTab   = lazy(() => import('@/components/user/ToolsTab'));
-import AnalyticsTab     from '@/components/user/AnalyticsTab';
-import MacroBotTab      from '@/components/user/MacroBotTab';
+const AssetsTab    = lazy(() => import('@/components/user/AssetsTab'));
+const TradesTab    = lazy(() => import('@/components/user/TradesTab'));
+const PnlTab       = lazy(() => import('@/components/user/PnlTab'));
+const ToolsTab     = lazy(() => import('@/components/user/ToolsTab'));
+const AnalyticsTab = lazy(() => import('@/components/user/AnalyticsTab'));
+import MacroBotTab from '@/components/user/MacroBotTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
 import { useTheme }     from '@/lib/ThemeContext';
@@ -56,7 +56,7 @@ function Page({ tab, allowedBots }) {
   if (tab === 'macro' || tab === 'gold') return <MacroBotTab botId={tab} />;
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} allowedBots={allowedBots} />;
   switch (tab) {
-    case 'analytics': return <AnalyticsTab />;
+    case 'analytics': return <Suspense fallback={null}><AnalyticsTab /></Suspense>;
     case 'trades':    return <Suspense fallback={null}><TradesTab /></Suspense>;
     case 'pnl':       return <Suspense fallback={null}><PnlTab /></Suspense>;
     case 'tools':     return <Suspense fallback={null}><ToolsTab /></Suspense>;
