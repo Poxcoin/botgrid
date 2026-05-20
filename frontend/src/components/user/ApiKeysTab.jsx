@@ -274,7 +274,7 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
   }
 
   async function handleDelete() {
-    if (!confirm(`Remove ${title}? The bot will stop trading on this account.`)) return;
+    if (!confirm(ta.removeKeyConfirm.replace('{title}', title))) return;
     setDeleting(true);
     try {
       await API(`/api/users/keys?is_demo=${isTestnet}`, { method: 'DELETE' });
