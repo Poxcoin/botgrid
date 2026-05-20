@@ -272,17 +272,18 @@ function KlineChart({ coin, tf }) {
   }
 
   function applyData(bars) {
-    barsRef.current = bars;
+    const sorted = [...bars].sort((a, b) => a.time - b.time);
+    barsRef.current = sorted;
     if (!candleRef.current) return;
-    const candle = bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
-    const vol    = bars.map(b => ({ time: b.time, value: b.value, color: b.close >= b.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' }));
+    const candle = sorted.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
+    const vol    = sorted.map(b => ({ time: b.time, value: b.value, color: b.close >= b.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' }));
     if (showLRef.current && areaRef.current) {
       areaRef.current.setData(candle.map(b => ({ time: b.time, value: b.close })));
     } else {
       candleRef.current.setData(candle);
     }
     volRef.current?.setData(vol);
-    refreshInds(bars);
+    refreshInds(sorted);
   }
 
   function connectWS(c, tfV) {

@@ -93,10 +93,11 @@ function ForexChart({ symbols }) {
       api(`/api/forex/ohlcv?symbol=${encodeURIComponent(sym)}&interval=${tf}`)
         .then(bars => {
           if (!Array.isArray(bars) || !candleRef.current) return;
-          candleRef.current.setData(bars.map(b => ({
+          const sorted = [...bars].sort((a, b) => a.time - b.time);
+          candleRef.current.setData(sorted.map(b => ({
             time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
           })));
-          volRef.current?.setData(bars.map(b => ({
+          volRef.current?.setData(sorted.map(b => ({
             time: b.time, value: b.volume,
             color: b.close >= b.open ? C_UP + '55' : C_DN + '55',
           })));

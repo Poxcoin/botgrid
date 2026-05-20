@@ -2546,7 +2546,7 @@ async def forex_ohlcv(
         raise HTTPException(status_code=502, detail=raw.get("message", "Twelve Data API error"))
 
     bars = []
-    for v in reversed(raw.get("values", [])):
+    for v in raw.get("values", []):
         dt_str = v["datetime"]
         try:
             dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
@@ -2560,6 +2560,7 @@ async def forex_ohlcv(
             "close":  float(v["close"]),
             "volume": float(v.get("volume") or 0),
         })
+    bars.sort(key=lambda b: b["time"])
 
     _forex_cache[cache_key] = {"data": bars, "expires": now + timedelta(minutes=30)}
     return bars
