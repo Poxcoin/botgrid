@@ -591,15 +591,16 @@ export default function AnalyticsTab() {
   const [error, setError] = useState(null);
   const [allTrades, setAllTrades] = useState([]);
   const [tradePage, setTradePage] = useState(1);
+  const [allDays,   setAllDays]   = useState(0);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (days = 0) => {
     setLoading(true);
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
       const [analyticsRes, tradesRes, balanceRes] = await Promise.all([
         fetch('/api/users/analytics', { headers }),
-        fetch('/api/users/closed-pnl?days=0', { headers }),
+        fetch(`/api/users/closed-pnl?days=${days}`, { headers }),
         fetch('/api/users/balance', { headers }),
       ]);
       if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
@@ -616,7 +617,7 @@ export default function AnalyticsTab() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(allDays); }, [fetchData, allDays]);
 
   if (loading) {
     return (
@@ -639,7 +640,7 @@ export default function AnalyticsTab() {
     return (
       <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', padding: '40px 0' }}>
         <div style={{ marginBottom: 12, letterSpacing: '0.08em' }}>{t.dashboard.analytics.errorPrefix} {error}</div>
-        <button onClick={fetchData} style={{
+        <button onClick={() => fetchData(allDays)} style={{
           background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)',
           fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
           padding: '7px 16px', cursor: 'pointer',
@@ -850,10 +851,30 @@ export default function AnalyticsTab() {
         <DailyChart daily={daily} t={t} />
       </div>
 
-      {/* Equity curve — all-time cumulative PnL */}
+      {/* Period selector for trade-based charts */}
+      {allTrades.length >= 2 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
+          {[{ label: '7d', days: 7 }, { label: '30d', days: 30 }, { label: '90d', days: 90 }, { label: 'All', days: 0 }].map(p => (
+            <button key={p.days} onClick={() => { setAllDays(p.days); setTradePage(1); }}
+              style={{
+                background: 'none', border: `1px solid ${allDays === p.days ? 'var(--border-default)' : 'var(--border-subtle)'}`,
+                color: allDays === p.days ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontFamily: MONO, fontSize: 11, padding: '5px 14px', cursor: 'pointer',
+                letterSpacing: '0.08em', transition: 'border-color 150ms, color 150ms',
+              }}>
+              {p.label}
+            </button>
+          ))}
+          <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center', marginLeft: 6 }}>
+            {allTrades.length} trades
+          </span>
+        </div>
+      )}
+
+      {/* Equity curve */}
       {allTrades.length >= 2 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title="Equity Curve" right={`${allTrades.length} trades · all time`} />
+          <SectionLabel title="Equity Curve" right={allDays === 0 ? 'all time' : `last ${allDays}d`} />
           <EquityCurve trades={allTrades} />
         </div>
       )}
