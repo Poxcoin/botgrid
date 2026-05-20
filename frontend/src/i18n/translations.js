@@ -114,7 +114,7 @@ export const translations = {
       refresh:       'Refresh',
       prev:          'Prev',
       next:          'Next',
-      hSymbol: 'Symbol', hSide: 'Side', hSource: 'Source', hEntry: 'Entry', hExit: 'Exit', hPnL: 'PnL', hStatus: 'Status', hDate: 'Date', hTime: 'Time', hAsset: 'Asset', hAction: 'Action', hScore: 'Score', hNews: 'News', hMonth: 'Month', hQty: 'Qty', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Search coin…', noTradesPeriod: 'No closed trades in this period', hLev: 'Lev', hMark: 'Mark', hUnrealPnl: 'Unreal PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liq', hValue: 'Value', botPerformance: 'Bot Performance',
+      hSymbol: 'Symbol', hSide: 'Side', hSource: 'Source', hEntry: 'Entry', hExit: 'Exit', hPnL: 'PnL', hStatus: 'Status', hDate: 'Date', hTime: 'Time', hAsset: 'Asset', hAction: 'Action', hScore: 'Score', hNews: 'News', hMonth: 'Month', hQty: 'Qty', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Search coin…', noTradesPeriod: 'No closed trades in this period', hLev: 'Lev', hMark: 'Mark', hUnrealPnl: 'Unreal PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liq', hValue: 'Value', botPerformance: 'Bot Performance', hType: 'Type', hPrice: 'Price', hFilled: 'Filled', hReduce: 'Reduce', hSize: 'Size',
       overview: {
         monthlyPnl:       'Monthly PnL',
         openPositions:    'Open positions',
@@ -284,6 +284,8 @@ export const translations = {
         cancel:       'Cancel',
         close:        'Close',
         empty:        'EMPTY',
+        noTp:         '⚠ NO TP',
+        yes:          'Yes',
       },
       tools: {
         posSizeCalc:  'Position Size Calculator',
@@ -965,7 +967,7 @@ export const translations = {
       refresh:       'Actualizar',
       prev:          'Anterior',
       next:          'Siguiente',
-      hSymbol: 'Símbolo', hSide: 'Lado', hSource: 'Fuente', hEntry: 'Entrada', hExit: 'Salida', hPnL: 'PnL', hStatus: 'Estado', hDate: 'Fecha', hTime: 'Hora', hAsset: 'Activo', hAction: 'Acción', hScore: 'Score', hNews: 'Noticias', hMonth: 'Mes', hQty: 'Ctd', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Buscar moneda…', noTradesPeriod: 'Sin operaciones en este período', hLev: 'Apal.', hMark: 'Marca', hUnrealPnl: 'PnL No Real.', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liq.', hValue: 'Valor', botPerformance: 'Rendimiento del Bot',
+      hSymbol: 'Símbolo', hSide: 'Lado', hSource: 'Fuente', hEntry: 'Entrada', hExit: 'Salida', hPnL: 'PnL', hStatus: 'Estado', hDate: 'Fecha', hTime: 'Hora', hAsset: 'Activo', hAction: 'Acción', hScore: 'Score', hNews: 'Noticias', hMonth: 'Mes', hQty: 'Ctd', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Buscar moneda…', noTradesPeriod: 'Sin operaciones en este período', hLev: 'Apal.', hMark: 'Marca', hUnrealPnl: 'PnL No Real.', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liq.', hValue: 'Valor', botPerformance: 'Rendimiento del Bot', hType: 'Tipo', hPrice: 'Precio', hFilled: 'Ejecutado', hReduce: 'Reducir', hSize: 'Tamaño',
       overview: {
         monthlyPnl:       'PnL mensual',
         openPositions:    'Posiciones abiertas',
@@ -1135,6 +1137,8 @@ export const translations = {
         cancel:       'Cancelar',
         close:        'Cerrar',
         empty:        'VACÍO',
+        noTp:         '⚠ SIN TP',
+        yes:          'Sí',
       },
       tools: {
         posSizeCalc:  'Calculadora de tamaño de posición',
@@ -1816,7 +1820,7 @@ export const translations = {
       refresh:       'Оновити',
       prev:          'Назад',
       next:          'Далі',
-      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Джерело', hEntry: 'Вхід', hExit: 'Вихід', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Час', hAsset: 'Актив', hAction: 'Дія', hScore: 'Скор', hNews: 'Новини', hMonth: 'Місяць', hQty: 'Кіл', hDur: 'Тривал', hBot: 'Бот', searchCoin: 'Пошук монети…', noTradesPeriod: 'Немає закритих угод за цей період', hLev: 'Плече', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Ліквід.', hValue: 'Вартість', botPerformance: 'Ефективність ботів',
+      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Джерело', hEntry: 'Вхід', hExit: 'Вихід', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Час', hAsset: 'Актив', hAction: 'Дія', hScore: 'Скор', hNews: 'Новини', hMonth: 'Місяць', hQty: 'Кіл', hDur: 'Тривал', hBot: 'Бот', searchCoin: 'Пошук монети…', noTradesPeriod: 'Немає закритих угод за цей період', hLev: 'Плече', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Ліквід.', hValue: 'Вартість', botPerformance: 'Ефективність ботів', hType: 'Тип', hPrice: 'Ціна', hFilled: 'Виконано', hReduce: 'Скороч.', hSize: 'Розмір',
       overview: {
         monthlyPnl:       'Місячний PnL',
         openPositions:    'Відкриті позиції',
@@ -1986,6 +1990,8 @@ export const translations = {
         cancel:       'Скасувати',
         close:        'Закрити',
         empty:        'ПОРОЖНЬО',
+        noTp:         '⚠ NO TP',
+        yes:          'Так',
       },
       tools: {
         posSizeCalc:  'Калькулятор розміру позиції',
@@ -2667,7 +2673,7 @@ export const translations = {
       refresh:       'Обновить',
       prev:          'Назад',
       next:          'Далее',
-      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Источник', hEntry: 'Вход', hExit: 'Выход', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Время', hAsset: 'Актив', hAction: 'Действие', hScore: 'Скор', hNews: 'Новости', hMonth: 'Месяц', hQty: 'Кол', hDur: 'Длит', hBot: 'Бот', searchCoin: 'Поиск монеты…', noTradesPeriod: 'Нет закрытых сделок за этот период', hLev: 'Плечо', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Ликвид.', hValue: 'Стоимость', botPerformance: 'Производительность ботов',
+      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Источник', hEntry: 'Вход', hExit: 'Выход', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Время', hAsset: 'Актив', hAction: 'Действие', hScore: 'Скор', hNews: 'Новости', hMonth: 'Месяц', hQty: 'Кол', hDur: 'Длит', hBot: 'Бот', searchCoin: 'Поиск монеты…', noTradesPeriod: 'Нет закрытых сделок за этот период', hLev: 'Плечо', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Ликвид.', hValue: 'Стоимость', botPerformance: 'Производительность ботов', hType: 'Тип', hPrice: 'Цена', hFilled: 'Исполнено', hReduce: 'Уменьш.', hSize: 'Размер',
       overview: {
         monthlyPnl:       'Месячный PnL',
         openPositions:    'Открытые позиции',
@@ -2837,6 +2843,8 @@ export const translations = {
         cancel:       'Отменить',
         close:        'Закрыть',
         empty:        'ПУСТО',
+        noTp:         '⚠ NO TP',
+        yes:          'Да',
       },
       tools: {
         posSizeCalc:  'Калькулятор размера позиции',
@@ -3518,7 +3526,7 @@ export const translations = {
       refresh:       'Aktualisieren',
       prev:          'Zurück',
       next:          'Weiter',
-      hSymbol: 'Symbol', hSide: 'Seite', hSource: 'Quelle', hEntry: 'Einstieg', hExit: 'Ausstieg', hPnL: 'PnL', hStatus: 'Status', hDate: 'Datum', hTime: 'Zeit', hAsset: 'Asset', hAction: 'Aktion', hScore: 'Score', hNews: 'News', hMonth: 'Monat', hQty: 'Menge', hDur: 'Dauer', hBot: 'Bot', searchCoin: 'Münze suchen…', noTradesPeriod: 'Keine abgeschl. Trades in diesem Zeitraum', hLev: 'Heb.', hMark: 'Mark', hUnrealPnl: 'Unreal. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liquidat.', hValue: 'Wert', botPerformance: 'Bot-Leistung',
+      hSymbol: 'Symbol', hSide: 'Seite', hSource: 'Quelle', hEntry: 'Einstieg', hExit: 'Ausstieg', hPnL: 'PnL', hStatus: 'Status', hDate: 'Datum', hTime: 'Zeit', hAsset: 'Asset', hAction: 'Aktion', hScore: 'Score', hNews: 'News', hMonth: 'Monat', hQty: 'Menge', hDur: 'Dauer', hBot: 'Bot', searchCoin: 'Münze suchen…', noTradesPeriod: 'Keine abgeschl. Trades in diesem Zeitraum', hLev: 'Heb.', hMark: 'Mark', hUnrealPnl: 'Unreal. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liquidat.', hValue: 'Wert', botPerformance: 'Bot-Leistung', hType: 'Typ', hPrice: 'Preis', hFilled: 'Gefüllt', hReduce: 'Red.-only', hSize: 'Größe',
       overview: {
         monthlyPnl:       'Monatlicher PnL',
         openPositions:    'Offene Positionen',
@@ -3688,6 +3696,8 @@ export const translations = {
         cancel:       'Abbrechen',
         close:        'Schließen',
         empty:        'LEER',
+        noTp:         '⚠ KEIN TP',
+        yes:          'Ja',
       },
       tools: {
         posSizeCalc:  'Positionsgrößen-Rechner',
@@ -4369,7 +4379,7 @@ export const translations = {
       refresh:       '刷新',
       prev:          '上一页',
       next:          '下一页',
-      hSymbol: '符号', hSide: '方向', hSource: '来源', hEntry: '入场', hExit: '出场', hPnL: 'PnL', hStatus: '状态', hDate: '日期', hTime: '时间', hAsset: '资产', hAction: '动作', hScore: '评分', hNews: '新闻', hMonth: '月份', hQty: '数量', hDur: '时长', hBot: '机器人', searchCoin: '搜索币种…', noTradesPeriod: '本周期无已关闭交易', hLev: '杠杆', hMark: '标价', hUnrealPnl: '未实现PnL', hRoe: '收益率%', hSL: 'SL', hTP: 'TP', hLiq: '强平', hValue: '价值', botPerformance: '机器人表现',
+      hSymbol: '符号', hSide: '方向', hSource: '来源', hEntry: '入场', hExit: '出场', hPnL: 'PnL', hStatus: '状态', hDate: '日期', hTime: '时间', hAsset: '资产', hAction: '动作', hScore: '评分', hNews: '新闻', hMonth: '月份', hQty: '数量', hDur: '时长', hBot: '机器人', searchCoin: '搜索币种…', noTradesPeriod: '本周期无已关闭交易', hLev: '杠杆', hMark: '标价', hUnrealPnl: '未实现PnL', hRoe: '收益率%', hSL: 'SL', hTP: 'TP', hLiq: '强平', hValue: '价值', botPerformance: '机器人表现', hType: '类型', hPrice: '价格', hFilled: '已成交', hReduce: '减仓', hSize: '仓位',
       overview: {
         monthlyPnl:       '月度 PnL',
         openPositions:    '未平仓位',
@@ -4539,6 +4549,8 @@ export const translations = {
         cancel:       '取消',
         close:        '关仓',
         empty:        '空',
+        noTp:         '⚠ 无TP',
+        yes:          '是',
       },
       tools: {
         posSizeCalc:  '仓位大小计算器',

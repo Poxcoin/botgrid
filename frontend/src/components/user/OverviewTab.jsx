@@ -975,6 +975,7 @@ const PANEL_LOCALE = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE
 function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, onCancelOrder = () => {}, filterCoin, balance }) {
   const { t, lang } = useLang();
   const tp = t.dashboard.panel;
+  const td = t.dashboard;
   const dstrLoc = s => s ? new Date(s).toLocaleString(PANEL_LOCALE[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
@@ -1084,7 +1085,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
       <div style={{ maxHeight: tab === 'equity' ? 'none' : 260, overflowY: tab === 'equity' ? 'visible' : 'auto', overflowX: tab === 'equity' ? 'visible' : 'auto' }}>
         {tab === 'open' && (filteredOrders.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><Th v="Time"/><Th v="Symbol"/><Th v="Side"/><Th v="Type"/><Th v="Qty"/><Th v="Price" r/><Th v="Filled" r/><Th v="Status"/><Th v="Reduce"/><Th v=""/></tr></thead>
+            <thead><tr><Th v={td.hTime}/><Th v={td.hSymbol}/><Th v={td.hSide}/><Th v={td.hType}/><Th v={td.hQty}/><Th v={td.hPrice} r/><Th v={td.hFilled} r/><Th v={td.hStatus}/><Th v={td.hReduce}/><Th v=""/></tr></thead>
             <tbody>{filteredOrders.map((o, i) => (
               <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td v={dstrLoc(o.created_at ? +o.created_at : null)}/>
@@ -1095,7 +1096,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                 <Td v={fix(o.price, 4)} r/>
                 <Td v={fix(o.filled_qty, 3)} r/>
                 <Td v={o.status}/>
-                <Td v={o.reduce_only ? 'Yes' : '—'}/>
+                <Td v={o.reduce_only ? tp.yes : '—'}/>
                 <td style={{ padding: '4px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
                   <button
                     onClick={() => onCancelOrder(o.order_id, o.symbol)}
@@ -1112,7 +1113,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 
         {tab === 'positions' && (filteredPos.length === 0 ? <Empty /> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Mark"/><Th v="SL"/><Th v="TP"/><Th v="FR 8h"/><Th v="PnL%" r/><Th v="Unrealized" r/><Th v=""/></tr></thead>
+            <thead><tr><Th v={td.hSymbol}/><Th v={td.hSide}/><Th v={td.hLev}/><Th v={td.hSize}/><Th v={td.hEntry}/><Th v={td.hMark}/><Th v={td.hSL}/><Th v={td.hTP}/><Th v="FR 8h"/><Th v="PnL%" r/><Th v={td.hUnrealPnl} r/><Th v=""/></tr></thead>
             <tbody>{filteredPos.map((p, i) => {
               const upnl   = p.unrealized_pnl ?? 0;
               const hasSL  = !!p.stop_loss;
@@ -1126,7 +1127,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                   <Td v={fix(p.entry_price, 4)}/>
                   <Td v={fix(p.mark_price, 4)}/>
                   <Td v={hasSL ? fix(p.stop_loss, 4) : '—'} hi={!hasSL ? 'var(--accent-red)' : undefined}/>
-                  <Td v={hasTP ? fix(p.take_profit, 4) : '⚠ NO TP'} hi={!hasTP ? 'var(--accent-red)' : undefined}/>
+                  <Td v={hasTP ? fix(p.take_profit, 4) : tp.noTp} hi={!hasTP ? 'var(--accent-red)' : undefined}/>
                   {(() => {
                     const fr = fundingRates[sym(p.symbol)];
                     return <Td v={fr != null ? `${fr >= 0 ? '+' : ''}${fr.toFixed(4)}%` : '—'} hi={fr != null ? (fr >= 0 ? 'var(--accent-red)' : 'var(--accent-green)') : undefined}/>;
@@ -1162,7 +1163,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
               <input
                 value={histSearch}
                 onChange={e => setHistSearch(e.target.value)}
-                placeholder="Coin…"
+                placeholder={td.searchCoin}
                 style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontFamily: FM, fontSize: 9, padding: '2px 8px', outline: 'none', width: 70, letterSpacing: '0.04em' }}
               />
               {(histSide !== 'ALL' || histSearch) && (
@@ -1170,7 +1171,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
               )}
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Exit"/><Th v="PnL" r/></tr></thead>
+              <thead><tr><Th v={td.hDate}/><Th v={td.hSymbol}/><Th v={td.hSide}/><Th v={td.hLev}/><Th v={td.hSize}/><Th v={td.hEntry}/><Th v={td.hExit}/><Th v={td.hPnL} r/></tr></thead>
               <tbody>{displayHistory.map((t, i) => {
                 const p = pnl(t);
                 return (
