@@ -20,11 +20,10 @@ from modules import daily_guard, position_monitor
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, SWEEP_TRADING
 
 SYMBOLS = [
-    "BTC/USDT:USDT",
     "ETH/USDT:USDT",
     "SOL/USDT:USDT",
-    "XRP/USDT:USDT",
-    "LINK/USDT:USDT",
+    # BTC removed: backtest 38.3% WR -7.99% (downtrend kills LONGs)
+    # XRP/LINK removed: no backtest data, untested alpha
 ]
 
 LEVERAGE    = 5
