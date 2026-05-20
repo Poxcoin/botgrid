@@ -182,10 +182,17 @@ def sync_user_trades(user_id: int) -> int:
                 continue
 
             # Try to match an existing open trade to update (for cases without entry_price match)
+            # Only match if the open trade was opened BEFORE this close event
             matched = None
             candidates = open_by_coin.get(coin, [])
-            if candidates:
-                matched = min(candidates, key=lambda t: t.opened_at or datetime.min)
+            if candidates and closed_dt:
+                valid = [
+                    t for t in candidates
+                    if t.opened_at is None or
+                    t.opened_at.replace(tzinfo=None) <= closed_dt + timedelta(minutes=10)
+                ]
+                if valid:
+                    matched = min(valid, key=lambda t: t.opened_at or datetime.min)
 
             if matched:
                 matched.exit_price = exit_p
