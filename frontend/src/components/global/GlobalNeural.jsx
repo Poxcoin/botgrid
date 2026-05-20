@@ -4,25 +4,47 @@ import { useTheme } from '@/lib/ThemeContext';
 
 export const cursorStateRef = { x: -9999, y: -9999, vx: 0, vy: 0, moving: false };
 
+// Each route gets a gentle angle rotation so the fan shifts as you navigate
+const ROUTE_SHIFTS = {
+  '/':            0,
+  '/news':       -0.13,
+  '/pricing':     0.10,
+  '/strategies':  0.07,
+  '/docs':       -0.09,
+  '/dashboard':   0.30,
+  '/account':     0.24,
+};
+function getRouteShift(pathname) {
+  for (const [key, val] of Object.entries(ROUTE_SHIFTS)) {
+    if (pathname === key || pathname.startsWith(key + '/')) return val;
+  }
+  return 0;
+}
+
 function buildAxons(W, H, isMobile) {
-  const count = isMobile ? 8 : 32;
-  // Single origin: top-left corner — all lines fan outward from there
-  const ox = W * 0.04;
-  const oy = H * 0.06;
-  // Fan angle: from ~-10° (nearly right) to ~100° (slightly past down)
-  const angleMin = -0.18;
-  const angleMax = Math.PI * 0.56;
+  const count = isMobile ? 8 : 30;
+  // Origin: bottom-left
+  const bx = W * 0.04;
+  const by = H * 0.80;
+  // Fan from nearly straight-up to nearly horizontal-right
+  const aMin = -Math.PI * 0.48;
+  const aMax = 0.08;
   return Array.from({ length: count }, (_, i) => ({
-    ox: ox + (Math.random() - 0.5) * W * 0.02,
-    oy: oy + (Math.random() - 0.5) * H * 0.02,
-    angle: angleMin + (i / (count - 1)) * (angleMax - angleMin) + (Math.random() - 0.5) * 0.12,
-    len: 420 + Math.random() * Math.max(W, H) * 0.7,
-    amp: 8 + Math.random() * 28,
+    ox: bx + (Math.random() - 0.5) * W * 0.015,
+    oy: by + (Math.random() - 0.5) * H * 0.015,
+    angle: aMin + (i / (count - 1)) * (aMax - aMin) + (Math.random() - 0.5) * 0.09,
+    len: 430 + Math.random() * Math.max(W, H) * 0.68,
+    amp: 8 + Math.random() * 27,
     freq: 0.4 + Math.random() * 1.5,
     phase: Math.random() * Math.PI * 2,
-    speed: 0.06 + Math.random() * 0.18,
-    w: 0.35 + Math.random() * 0.5,
+    speed: 0.06 + Math.random() * 0.17,
+    w: 0.35 + Math.random() * 0.50,
     op: 0.11 + Math.random() * 0.13,
+    // Slow organic drift of the origin point
+    dox: (Math.random() - 0.5) * W * 0.035,
+    doy: (Math.random() - 0.5) * H * 0.028,
+    df:  0.055 + Math.random() * 0.08,
+    dp:  Math.random() * Math.PI * 2,
   }));
 }
 
@@ -51,8 +73,12 @@ export default function GlobalNeural() {
   const themeRef = useRef(theme);
   const location = useLocation();
   const isDashRef = useRef(location.pathname.startsWith('/dashboard'));
+  const routeShiftRef = useRef(0);
+  const routeTargetRef = useRef(getRouteShift(location.pathname));
+
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { isDashRef.current = location.pathname.startsWith('/dashboard'); }, [location.pathname]);
+  useEffect(() => { routeTargetRef.current = getRouteShift(location.pathname); }, [location.pathname]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -156,17 +182,24 @@ export default function GlobalNeural() {
       const stormOver = ts - stormStart > STORM_MS;
       const rgb = themeRef.current === 'dark' ? '255,255,255' : '10,10,10';
 
+      // Smoothly lerp toward the current route's angle shift
+      routeShiftRef.current += (routeTargetRef.current - routeShiftRef.current) * Math.min(1, dt * 0.0016);
+
       ctx.clearRect(0, 0, W, H);
 
       // ── Layer 1: Axon strands ──
       for (const s of axons) {
+        // Organic drift: origin point breathes slowly
+        const ox = s.ox + s.dox * Math.sin(t * s.df + s.dp);
+        const oy = s.oy + s.doy * Math.cos(t * s.df * 0.75 + s.dp);
+        const angle = s.angle + routeShiftRef.current;
         ctx.beginPath();
-        const perp = s.angle + Math.PI / 2;
+        const perp = angle + Math.PI / 2;
         for (let seg = 0; seg <= 30; seg++) {
           const p = seg / 30;
           const dist = p * s.len;
-          const wx = s.ox + Math.cos(s.angle) * dist;
-          const wy = s.oy + Math.sin(s.angle) * dist;
+          const wx = ox + Math.cos(angle) * dist;
+          const wy = oy + Math.sin(angle) * dist;
           const cdx = wx - cursorStateRef.x, cdy = wy - cursorStateRef.y;
           const cd = Math.sqrt(cdx * cdx + cdy * cdy);
           const warp = cd < 300 && cd > 0 ? (1 - cd / 300) * 3 : 0;
