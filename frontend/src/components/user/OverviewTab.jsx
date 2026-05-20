@@ -1579,7 +1579,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
             background: connected ? 'var(--text-secondary)' : 'var(--text-muted)',
           }}/>
           <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-            {connected ? 'LIVE' : 'RECONNECTING…'}
+            {connected ? t.dashboard.bot.live : to.reconnecting}
           </span>
         </div>
         {/* Bot heartbeat */}
@@ -1591,7 +1591,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: fresh ? '#aaa' : '#444', display: 'inline-block', flexShrink: 0 }}/>
               <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
-                Last trade {ago != null ? (ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`) : '—'}
+                {to.lastTrade} {ago != null ? (ago < 60 ? `${ago}m ${t.dashboard.bot.ago}` : `${Math.round(ago / 60)}h ${t.dashboard.bot.ago}`) : '—'}
               </span>
             </div>
           );
@@ -1604,11 +1604,11 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       {analyzerCoins.length === 0 && (
         coins.length === 0 ? (
           <div style={{ padding: '8px 0', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
-            ⏳ Waiting for first signal…
+            {to.waitingSignal}
           </div>
         ) : (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
-            <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>Pair</span>
+            <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 8 }}>{to.pair}</span>
             {coins.map(c => {
               const on = coin === c;
               return (
