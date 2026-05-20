@@ -315,7 +315,7 @@ export default function BotTab() {
           label="30d PnL"
           value={hasKey ? `${pnl30 >= 0 ? '+' : ''}$${pnl30.toFixed(2)}` : '—'}
           sub={hasKey ? `${trades30} trades` : 'connect key'}
-          color={pnl30 > 0 ? '#ccc' : pnl30 < 0 ? '#888' : 'var(--text-primary)'}
+          color={pnl30 > 0 ? 'var(--accent-green)' : pnl30 < 0 ? 'var(--accent-red)' : 'var(--text-primary)'}
         />
         <StatBox
           label={t.dashboard.bot.feedStatus}
@@ -350,7 +350,7 @@ export default function BotTab() {
           <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 16, borderBottom: `1px solid ${B}` }}>
             <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.liveIntel}</span>
             {intel.updated_at && (
-              <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>
+              <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--border-strong)' }}>
                 {formatDistanceToNowStrict(new Date(intel.updated_at))} {t.dashboard.bot.ago}
               </span>
             )}
@@ -360,7 +360,7 @@ export default function BotTab() {
               const liq = intel.liquidations?.[coin];
               if (!liq) return <div key={coin} />;
               const sig = liq.signal;
-              const col = sig === 'BEARISH' ? '#f87171' : sig === 'BULLISH' ? '#4ade80' : MUTED;
+              const col = sig === 'BEARISH' ? 'var(--accent-red)' : sig === 'BULLISH' ? 'var(--accent-green)' : MUTED;
               return (
                 <div key={coin} style={{ padding: '12px 20px', borderRight: `1px solid ${B}` }}>
                   <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.25em', textTransform: 'uppercase', color: MUTED, marginBottom: 4 }}>{coin}</div>
@@ -375,7 +375,7 @@ export default function BotTab() {
           {intel.onchain && (
             <div style={{ borderTop: `1px solid ${B}`, padding: '10px 20px', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: MONO, fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.2em' }}>{t.dashboard.bot.onchainEth}</span>
-              <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: intel.onchain.signal === 'BEARISH' ? '#f87171' : intel.onchain.signal === 'BULLISH' ? '#4ade80' : MUTED }}>
+              <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: intel.onchain.signal === 'BEARISH' ? 'var(--accent-red)' : intel.onchain.signal === 'BULLISH' ? 'var(--accent-green)' : MUTED }}>
                 {intel.onchain.signal}
               </span>
               <span style={{ fontFamily: MONO, fontSize: 11, color: MUTED }}>{t.dashboard.bot.toExchange} {intel.onchain.to_exchange_eth} ETH</span>
@@ -390,27 +390,27 @@ export default function BotTab() {
         <div style={{ padding: '0 20px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
           <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.intelligenceFeed}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>{t.dashboard.bot.auto30s}</span>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--border-strong)' }}>{t.dashboard.bot.auto30s}</span>
             <button
               onClick={() => { loadFeed(); loadLive(); }}
-              style={{ background: 'transparent', border: `1px solid rgba(255,255,255,0.08)`, color: MUTED, fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', padding: '4px 10px', cursor: 'pointer', transition: 'border-color 120ms, color 120ms' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#aaa'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = MUTED; }}
+              style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: MUTED, fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', padding: '4px 10px', cursor: 'pointer', transition: 'border-color 120ms, color 120ms' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = MUTED; }}
             >
               {t.dashboard.refresh}
             </button>
           </div>
         </div>
-        <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: `1px solid rgba(255,255,255,0.04)`, flexWrap: 'wrap' }}>
+        <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
           {['ALL', 'LONG', 'SHORT'].map(a => (
             <button key={a} onClick={() => setSigAction(a)} style={{
               background: 'transparent', fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em',
               padding: '3px 8px', cursor: 'pointer', transition: 'all 120ms',
               border: `1px solid ${sigAction === a
-                ? (a === 'LONG' ? 'rgba(74,222,128,0.6)' : a === 'SHORT' ? 'rgba(248,113,113,0.6)' : 'rgba(255,255,255,0.2)')
-                : 'rgba(255,255,255,0.06)'}`,
+                ? (a === 'LONG' ? 'var(--accent-green)' : a === 'SHORT' ? 'var(--accent-red)' : 'var(--border-default)')
+                : 'var(--border-subtle)'}`,
               color: sigAction === a
-                ? (a === 'LONG' ? '#4ade80' : a === 'SHORT' ? '#f87171' : '#aaa')
+                ? (a === 'LONG' ? 'var(--accent-green)' : a === 'SHORT' ? 'var(--accent-red)' : 'var(--text-primary)')
                 : MUTED,
             }}>{a}</button>
           ))}
@@ -418,10 +418,10 @@ export default function BotTab() {
             value={sigSearch}
             onChange={e => setSigSearch(e.target.value)}
             placeholder="Coin…"
-            style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.06)`, color: '#aaa', fontFamily: MONO, fontSize: 10, padding: '3px 8px', outline: 'none', width: 80, letterSpacing: '0.04em' }}
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontFamily: MONO, fontSize: 10, padding: '3px 8px', outline: 'none', width: 80, letterSpacing: '0.04em' }}
           />
           {(sigAction !== 'ALL' || sigSearch) && (
-            <span style={{ fontFamily: MONO, fontSize: 10, color: '#444' }}>{signals.length} / {allSignals.length}</span>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)' }}>{signals.length} / {allSignals.length}</span>
           )}
         </div>
         <div style={{ overflowX: 'auto' }}>
@@ -441,23 +441,26 @@ export default function BotTab() {
                   </td>
                 </tr>
               ) : signals.map((s, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}>
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
                   <td style={{ padding: '12px 20px', fontFamily: MONO, fontSize: 11, color: MUTED }}>
                     {formatDistanceToNowStrict(new Date(s.timestamp))} {t.dashboard.bot.ago}
                   </td>
-                  <td style={{ padding: '12px 20px', fontFamily: MONO, fontWeight: 700 }}>{s.coin}</td>
+                  <td style={{ padding: '12px 20px', fontFamily: MONO, fontWeight: 700, color: 'var(--text-primary)' }}>{s.coin}</td>
                   <td style={{ padding: '12px 20px' }}>
                     <span style={{
                       display: 'inline-block', fontFamily: MONO, fontSize: 11, fontWeight: 700,
                       letterSpacing: '0.15em', padding: '2px 8px',
-                      background: s.action === 'LONG' ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)',
-                      color: s.action === 'LONG' ? '#4ade80' : '#f87171',
+                      background: s.action === 'LONG' ? 'rgba(14,203,129,0.12)' : 'rgba(246,70,93,0.12)',
+                      color: s.action === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)',
                     }}>{s.action}</span>
                   </td>
-                  <td style={{ padding: '12px 20px', fontFamily: MONO, fontWeight: 700 }}>
+                  <td style={{ padding: '12px 20px', fontFamily: MONO, fontWeight: 700, color: 'var(--text-primary)' }}>
                     {typeof s.total_score === 'number' ? s.total_score.toFixed(1) : s.total_score}
                   </td>
-                  <td style={{ padding: '12px 20px', color: '#666', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                  <td style={{ padding: '12px 20px', color: 'var(--text-muted)', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
                     {s.news_title}
                   </td>
                 </tr>
