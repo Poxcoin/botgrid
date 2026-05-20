@@ -156,6 +156,8 @@ def run_alt_engine():
     except Exception:
         start_bal = 0.0
     daily_guard.init(current_balance=start_bal)
+    from modules.trader import close_all_positions
+    daily_guard.set_cancel_callback(lambda: close_all_positions(None))
 
     if not any(t.name == "position-monitor" for t in threading.enumerate()):
         position_monitor.start_monitor(
@@ -235,6 +237,19 @@ def run_alt_engine():
                     continue
 
                 traded_coins[coin] = now_ts
+
+                # ── Circuit breaker: денний ліміт збитків ────────────────
+                try:
+                    _bal_now = get_wallet_usdt(_init_exchange())
+                except Exception:
+                    _bal_now = 0.0
+                if not daily_guard.check(current_balance=_bal_now):
+                    send_telegram_message(
+                        "🛑 <b>[ALT] Circuit breaker!</b> Денний ліміт збитків досягнуто. "
+                        "Торгівля зупинена до UTC 00:00.",
+                        TG_CHAT_ID
+                    )
+                    continue
 
                 signal["timestamp"] = datetime.now().isoformat()
                 ledger.append(signal)

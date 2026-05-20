@@ -24,11 +24,20 @@ import os
 import tempfile
 from datetime import datetime, timezone
 
-MAX_DAILY_LOSS_PCT = 5.0    # % потерь за UTC-день → стоп торговли
+MAX_DAILY_LOSS_PCT = 3.0    # % потерь за UTC-день → стоп торговли + отмена ордеров
 STATE_FILE = "daily_guard_state.json"
 
 # Кэш текущего процесса (читаем файл только при изменениях)
 _state: dict = {}
+
+# Callback вызывается ОДИН РАЗ при первом срабатывании лимита (отмена ордеров)
+_cancel_cb = None
+
+
+def set_cancel_callback(fn) -> None:
+    """Зарегистрировать функцию отмены всех ордеров при срабатывании лимита."""
+    global _cancel_cb
+    _cancel_cb = fn
 
 
 # ─── I/O ─────────────────────────────────────────────────────────────────────
@@ -136,12 +145,19 @@ def check(current_balance: float) -> bool:
 
     loss_pct = (start - current_balance) / start * 100
     if loss_pct >= MAX_DAILY_LOSS_PCT:
+        first_trigger = not _state.get("stopped")
         _state["stopped"] = True
         _save(_state)
         print(
             f"[daily_guard] 🛑 ДНЕВНОЙ ЛИМИТ! Потеряно {loss_pct:.1f}% "
             f"(лимит {MAX_DAILY_LOSS_PCT}%). Торговля остановлена до UTC 00:00."
         )
+        if first_trigger and _cancel_cb is not None:
+            try:
+                print("[daily_guard] 🚨 Відміняємо всі ордери та позиції...")
+                _cancel_cb()
+            except Exception as e:
+                print(f"[daily_guard] ⚠️ Помилка при відміні ордерів: {e}")
         return False
 
     return True

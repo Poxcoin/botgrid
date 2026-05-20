@@ -553,6 +553,24 @@ def run_signal_engine():
     except Exception:
         start_bal = 0.0
     daily_guard.init(current_balance=start_bal)
+    daily_guard.set_cancel_callback(lambda: close_all_positions(None))
+
+    # ── Bybit API key safety check ────────────────────────────────────────────
+    try:
+        _api_info = ex_init.private_get_v5_user_query_api({})
+        _perms = _api_info.get("result", {}).get("permissions", {})
+        _withdraw_perm = _perms.get("Wallet", [])
+        if "AccountTransfer" in _withdraw_perm or "SubMemberTransferOut" in _withdraw_perm:
+            send_telegram_message(
+                "⚠️ <b>Bybit API Security Warning!</b>\n"
+                "Поточний API ключ має права на вивід/переказ коштів.\n"
+                "Рекомендується: створити окремий ключ БЕЗ Wallet permissions.",
+                TG_CHAT_ID
+            )
+            print("[SECURITY] ⚠️  API key has Wallet/transfer permissions — рекомендується обмежити!")
+    except Exception:
+        pass  # API info недоступна — не блокуємо запуск
+
     position_monitor.start_monitor(
         exchange_factory=_init_exchange,
         send_tg=send_telegram_message,
@@ -917,6 +935,19 @@ def run_signal_engine():
                                 _dc["count"] += 1
                                 _daily_trade_count[coin.upper()] = _dc
                                 save_cooldown(_coin_cooldown)
+
+                                # ── Circuit breaker: денний ліміт збитків ────────────────
+                                try:
+                                    _bal_now = get_wallet_usdt(_init_exchange())
+                                except Exception:
+                                    _bal_now = 0.0
+                                if not daily_guard.check(current_balance=_bal_now):
+                                    send_telegram_message(
+                                        "🛑 <b>Circuit breaker!</b> Денний ліміт збитків досягнуто. "
+                                        "Торгівля зупинена до UTC 00:00.",
+                                        TG_CHAT_ID
+                                    )
+                                    continue
 
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
