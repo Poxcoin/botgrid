@@ -28,8 +28,8 @@ function buildAxons(W, H, isMobile) {
     oy: H * 0.10 + Math.random() * H * 0.85,
     angle: -Math.PI + Math.random() * Math.PI * 2,
     len: 260 + Math.random() * W * 0.60,
-    amp: 14 + Math.random() * 26,   // wide gentle curves
-    freq: 0.35 + Math.random() * 0.55, // 0.35-0.9 cycles — smooth, not jaggy
+    amp: 40 + Math.random() * 50,    // 40-90px — clearly visible curves
+    freq: 0.6 + Math.random() * 0.8,  // 0.6-1.4 cycles — distinct S/arc shape
     phase: Math.random() * Math.PI * 2,
     speed: 0.10 + Math.random() * 0.20, // slow elegant drift
     w: 0.3 + Math.random() * 0.45,
@@ -208,7 +208,7 @@ export default function GlobalNeural() {
           const cdx = wx - cursorStateRef.x, cdy = wy - cursorStateRef.y;
           const cd = Math.sqrt(cdx * cdx + cdy * cdy);
           const warp = cd < 300 && cd > 0 ? (1 - cd / 300) * 3 : 0;
-          const wave = Math.sin(p * s.freq * Math.PI * 2 + s.phase + t * s.speed) * s.amp * (0.25 + p * 0.75);
+          const wave = Math.sin(p * s.freq * Math.PI * 2 + s.phase + t * s.speed) * s.amp;
           const x = wx + Math.cos(perp) * wave + (cd > 0 ? (cdx / cd) * warp : 0);
           const y = wy + Math.sin(perp) * wave + (cd > 0 ? (cdy / cd) * warp : 0);
           seg === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
