@@ -556,8 +556,6 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         password_hash=hash_password(body.password[:72]),  # bcrypt 72-byte limit — match reset-password
         email_verified=False,
         email_verify_token=verify_token_hash,
-        plan="trial",
-        trial_ends_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
         ref_code=_make_ref_code(db),
         referred_by_id=referred_by_id,
     )
@@ -568,7 +566,7 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
     loop.run_in_executor(None, send_verification_email, body.email, verify_token)
     loop.run_in_executor(None, send_welcome_email, body.email, body.username)
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "email_verified": False, "onboarding_completed": False}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "email_verified": False, "onboarding_completed": False}}
 
 class VerifyEmailRequest(BaseModel):
     token: str
@@ -683,7 +681,6 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
     token = create_token(user.id, user.email)
     return {"token": token, "user": {
         "id": user.id, "email": user.email, "username": user.username,
-        "plan": user.plan, "subscribed": user.is_pro,
         "email_verified": bool(user.email_verified), "totp_enabled": bool(user.totp_enabled),
     }}
 
@@ -745,19 +742,11 @@ async def verify_otp(body: OtpVerifyRequest, request: Request, db: Session = Dep
 @app.get("/api/users/me")
 async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
-    # Lazy trial expiry
-    if user.plan == "trial" and user.trial_ends_at and datetime.utcnow() > user.trial_ends_at:
-        user.plan = "free"
-        db.commit()
     sub = user.subscription
     key_rows = [k for k in user.api_keys if k.exchange == "bybit"]
     live_key = next((k for k in key_rows if not k.is_demo), None)
     demo_key = next((k for k in key_rows if k.is_demo), None)
     display_key = live_key or demo_key
-    trial_days_left = None
-    if user.plan == "trial" and user.trial_ends_at:
-        delta = user.trial_ends_at - datetime.utcnow()
-        trial_days_left = max(0, delta.days)
     def _mask(enc_key):
         try:
             k = decrypt_field(enc_key)
@@ -770,12 +759,6 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "id": user.id,
         "email": user.email,
         "username": user.username,
-        "plan": user.plan,
-        "subscribed": user.is_pro,
-        "subscription_expires": sub.expires_at.isoformat() if sub and sub.expires_at else None,
-        "stripe_customer_id": sub.stripe_customer_id if sub else None,
-        "trial_ends_at": user.trial_ends_at.isoformat() if user.trial_ends_at else None,
-        "trial_days_left": trial_days_left,
         "tg_chat_id": user.tg_chat_id,
         "tg_username": user.tg_username or "",
         "tg_connected": bool(user.tg_chat_id),
@@ -1196,7 +1179,7 @@ async def totp_verify_login(body: TotpLoginRequest, request: Request, db: Sessio
         raise HTTPException(status_code=400, detail="Invalid authenticator code")
     _2fa_pending.pop(body.partial_token, None)
     token = create_token(user.id, user.email)
-    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "plan": user.plan, "subscribed": user.is_pro, "email_verified": bool(user.email_verified), "totp_enabled": True}}
+    return {"token": token, "user": {"id": user.id, "email": user.email, "username": user.username, "email_verified": bool(user.email_verified), "totp_enabled": True}}
 
 
 @app.post("/api/users/2fa/recover")
@@ -1224,7 +1207,7 @@ async def totp_recover(body: TotpRecoverRequest, request: Request, db: Session =
     return {
         "token": token,
         "user": {"id": user.id, "email": user.email, "username": user.username,
-                 "plan": user.plan, "email_verified": bool(user.email_verified)},
+                 "email_verified": bool(user.email_verified)},
         "warning": f"{remaining} recovery codes remaining. Set up a new authenticator app.",
     }
 
@@ -2060,8 +2043,6 @@ async def get_current_invoice(
     """Return oldest unpaid weekly invoice + this-week running PnL."""
     from sqlalchemy import func
     user = _get_user_from_token(credentials.credentials, db)
-    if user.plan != "performance":
-        raise HTTPException(status_code=403, detail="Performance plan required")
 
     now = datetime.now(timezone.utc)
     iso = now.isocalendar()
