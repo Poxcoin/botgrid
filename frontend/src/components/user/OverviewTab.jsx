@@ -1425,15 +1425,15 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
 
   if (noKey) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, textAlign: 'center', padding: '0 24px' }}>
-      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>No API Key Connected</div>
+      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{ta.noKeyTitle}</div>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 360 }}>
-        Connect your Bybit API key to see live positions, balance, and trade history for this bot.
+        {ta.noKeyDesc}
       </div>
       <button
         onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
         style={{ marginTop: 8, padding: '10px 24px', background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', fontFamily: FM, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
       >
-        Add API Key →
+        {ta.noKeyBtn}
       </button>
     </div>
   );
