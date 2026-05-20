@@ -171,9 +171,9 @@ class User(Base):
 
     @staticmethod
     def generate_ref_code():
-        import random
+        import secrets as _sec
         chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-        suffix = ''.join(random.choices(chars, k=6))
+        suffix = ''.join(_sec.choice(chars) for _ in range(6))
         return f"KADO-{suffix}"
 
     @property

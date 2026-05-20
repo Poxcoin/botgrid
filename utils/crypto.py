@@ -1,6 +1,9 @@
 import base64
+import logging
 import os
 from cryptography.fernet import Fernet, InvalidToken
+
+_log = logging.getLogger("kado.crypto")
 
 def _get_fernet() -> Fernet:
     key = os.getenv("FIELD_ENCRYPTION_KEY", "")
@@ -28,5 +31,8 @@ def decrypt_field(value: str) -> str:
         return ""
     try:
         return _get_fernet().decrypt(value.encode()).decode()
+    except RuntimeError:
+        raise  # key misconfiguration — must surface
     except (InvalidToken, Exception):
+        _log.error("decrypt_field: InvalidToken for value prefix=%s", value[:10])
         return ""

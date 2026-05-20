@@ -586,11 +586,10 @@ async def register(body: RegisterRequest, request: Request, db: Session = Depend
         raise HTTPException(status_code=400, detail="Password must contain at least one special character")
     verify_token = secrets.token_urlsafe(32)
     verify_token_hash = hashlib.sha256(verify_token.encode()).hexdigest()
-    import random as _random
     def _make_ref_code(db):
         chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
         for _ in range(20):
-            code = 'KADO-' + ''.join(_random.choices(chars, k=6))
+            code = 'KADO-' + ''.join(secrets.choice(chars) for _ in range(6))
             if not db.query(User).filter(User.ref_code == code).first():
                 return code
         return 'KADO-' + secrets.token_hex(3).upper()
@@ -713,7 +712,7 @@ async def user_login(body: UserLoginRequest, request: Request, db: Session = Dep
     db.commit()
     if user.totp_enabled:
         partial = secrets.token_hex(16)
-        _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300}
+        _2fa_pending[partial] = {"user_id": user.id, "exp": time.time() + 300, "attempts": 0}
         return {"requires_2fa": True, "partial_token": partial}
     # Email OTP — only if SMTP is configured; otherwise issue JWT directly
     if _smtp_enabled():
@@ -1184,7 +1183,7 @@ async def totp_setup(body: TotpSetupRequest, credentials: HTTPAuthorizationCrede
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     qr_b64 = base64.b64encode(buf.getvalue()).decode()
-    return {"secret": secret, "qr": f"data:image/png;base64,{qr_b64}"}
+    return {"qr": f"data:image/png;base64,{qr_b64}"}
 
 @app.post("/api/users/2fa/enable")
 async def totp_enable(body: TotpVerifyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
@@ -1222,10 +1221,14 @@ async def totp_verify_login(body: TotpLoginRequest, request: Request, db: Sessio
     if not entry or time.time() > entry["exp"]:
         _2fa_pending.pop(body.partial_token, None)
         raise HTTPException(status_code=401, detail="Session expired. Login again.")
+    if entry.get("attempts", 0) >= 5:
+        _2fa_pending.pop(body.partial_token, None)
+        raise HTTPException(status_code=401, detail="Too many attempts. Please login again.")
     user = db.query(User).filter(User.id == entry["user_id"]).first()
     if not user or not user.totp_secret:
         raise HTTPException(status_code=401, detail="User not found")
     if not pyotp.TOTP(decrypt_field(user.totp_secret)).verify(body.code, valid_window=1):
+        entry["attempts"] = entry.get("attempts", 0) + 1
         raise HTTPException(status_code=400, detail="Invalid authenticator code")
     _2fa_pending.pop(body.partial_token, None)
     token = create_token(user.id, user.email)
@@ -2051,8 +2054,11 @@ async def stripe_webhook(request: Request):
 
 @app.post("/api/billing/invoice-performance")
 async def invoice_performance(request: Request):
+    import hmac as _hmac_cron
     secret = request.headers.get("X-Cron-Secret", "")
-    if not PERF_CRON_SECRET or secret != PERF_CRON_SECRET:
+    if not PERF_CRON_SECRET:
+        raise HTTPException(status_code=503, detail="Cron secret not configured")
+    if not _hmac_cron.compare_digest(secret, PERF_CRON_SECRET):
         raise HTTPException(status_code=403, detail="Forbidden")
     import subprocess
     subprocess.Popen(["python3", "billing_cron.py"])
@@ -2062,8 +2068,11 @@ async def invoice_performance(request: Request):
 @app.post("/api/billing/invoice-weekly")
 async def invoice_weekly(request: Request):
     """Weekly billing cron endpoint — called every Monday by systemd timer."""
+    import hmac as _hmac_cron
     secret = request.headers.get("X-Cron-Secret", "")
-    if not PERF_CRON_SECRET or secret != PERF_CRON_SECRET:
+    if not PERF_CRON_SECRET:
+        raise HTTPException(status_code=503, detail="Cron secret not configured")
+    if not _hmac_cron.compare_digest(secret, PERF_CRON_SECRET):
         raise HTTPException(status_code=403, detail="Forbidden")
     import subprocess
     subprocess.Popen(["python3", "billing_cron_weekly.py"])
@@ -2713,14 +2722,19 @@ async def get_signals(
 _forex_cache: dict = {}
 _TD_INTERVALS = {"1": "1min", "5": "5min", "15": "15min", "60": "1h", "240": "4h", "D": "1day"}
 
+_FOREX_SYMBOL_RE = re.compile(r'^[A-Z]{3,6}/[A-Z]{3,6}$')
+
 @app.get("/api/forex/ohlcv")
 async def forex_ohlcv(
-    symbol: str = Query(...),
+    symbol: str = Query(..., max_length=20),
     interval: str = Query("60"),
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
     _get_user_from_token(credentials.credentials, db)  # auth check only
+    if not _FOREX_SYMBOL_RE.match(symbol.upper()):
+        raise HTTPException(status_code=400, detail="Invalid symbol format")
+    symbol = symbol.upper()
 
     td_interval = _TD_INTERVALS.get(interval, "1h")
     cache_key = (symbol, td_interval)
@@ -3189,7 +3203,7 @@ async def public_news_feed(
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/api/liquidations/live")
-async def liquidations_live():
+async def liquidations_live(token: str = Depends(require_any_auth)):
     """Поточний стан ліквідацій по топ монетах."""
     coins_data: dict = {}
     if _LIQ_AVAILABLE:
@@ -3217,7 +3231,7 @@ async def liquidations_live():
 
 
 @app.get("/api/liquidations/cascades")
-async def liquidations_cascades():
+async def liquidations_cascades(token: str = Depends(require_any_auth)):
     """Останні cascade сигнали від liquidation_signal_queue."""
     with _cascade_lock:
         history = list(_cascade_history)
