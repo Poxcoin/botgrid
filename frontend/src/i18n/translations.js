@@ -164,6 +164,9 @@ export const translations = {
         hFee:             'Fee (25%)',
         hNetPnl:          'Net PnL',
         hPaid:            'Paid',
+        gross:            'gross',
+        net:              'net',
+        fee:              'fee',
       },
       trades: {
         allSources:  'All sources',
@@ -999,6 +1002,9 @@ export const translations = {
         hFee:             'Comisión (25%)',
         hNetPnl:          'PnL Neto',
         hPaid:            'Pagado',
+        gross:            'bruto',
+        net:              'neto',
+        fee:              'comisión',
       },
       trades: {
         allSources:  'Todas las fuentes',
@@ -1834,6 +1840,9 @@ export const translations = {
         hFee:             'Комісія (25%)',
         hNetPnl:          'Чистий PnL',
         hPaid:            'Оплачено',
+        gross:            'брутто',
+        net:              'нетто',
+        fee:              'комісія',
       },
       trades: {
         allSources:  'Усі джерела',
@@ -2669,6 +2678,9 @@ export const translations = {
         hFee:             'Комиссия (25%)',
         hNetPnl:          'Чистый PnL',
         hPaid:            'Оплачено',
+        gross:            'брутто',
+        net:              'нетто',
+        fee:              'комиссия',
       },
       trades: {
         allSources:  'Все источники',
@@ -3504,6 +3516,9 @@ export const translations = {
         hFee:             'Gebühr (25%)',
         hNetPnl:          'Netto-PnL',
         hPaid:            'Bezahlt',
+        gross:            'brutto',
+        net:              'netto',
+        fee:              'Gebühr',
       },
       trades: {
         allSources:  'Alle Quellen',
@@ -4339,6 +4354,9 @@ export const translations = {
         hFee:             '费用 (25%)',
         hNetPnl:          '净 PnL',
         hPaid:            '已支付',
+        gross:            '毛利',
+        net:              '净利',
+        fee:              '手续费',
       },
       trades: {
         allSources:  '所有来源',

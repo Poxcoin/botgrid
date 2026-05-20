@@ -103,13 +103,13 @@ export default function PnlTab() {
                     {shortMonth(reversed[hovBar].month - 1, locale)} {reversed[hovBar].year}
                   </div>
                   <div style={{ color: reversed[hovBar].gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13, marginBottom: 3 }}>
-                    {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} gross
+                    {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} {t.dashboard.pnl.gross}
                   </div>
                   <div style={{ color: 'var(--muted-fg)', fontSize: 10 }}>
-                    net {reversed[hovBar].net_pnl >= 0 ? '+' : ''}{reversed[hovBar].net_pnl.toFixed(2)}
+                    {t.dashboard.pnl.net} {reversed[hovBar].net_pnl >= 0 ? '+' : ''}{reversed[hovBar].net_pnl.toFixed(2)}
                   </div>
                   <div style={{ color: 'var(--muted-fg)', fontSize: 10 }}>
-                    fee {reversed[hovBar].performance_fee.toFixed(2)}
+                    {t.dashboard.pnl.fee} {reversed[hovBar].performance_fee.toFixed(2)}
                   </div>
                 </div>
               )}

@@ -122,7 +122,7 @@ export default function TradesTab() {
         ))}
         {data && (
           <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-            {data.total_trades} trades ·{' '}
+            {data.total_trades} {td.analytics.tradesLbl} ·{' '}
             <span style={{ color: data.total_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>
               {data.total_pnl >= 0 ? '+' : ''}{data.total_pnl} USDT
             </span>
