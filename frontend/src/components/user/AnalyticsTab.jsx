@@ -608,6 +608,7 @@ export default function AnalyticsTab() {
   const [allDays,   setAllDays]   = useState(0);
   const [tradeSearch, setTradeSearch] = useState('');
   const [tradeSide,   setTradeSide]   = useState('ALL');
+  const [coinView,    setCoinView]    = useState('cards');
 
   const fetchData = useCallback(async (days = 0) => {
     setLoading(true);
@@ -716,8 +717,8 @@ export default function AnalyticsTab() {
   const totalPnl = summary?.total_pnl ?? 0;
   const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
 
-  const { avgTrade, streak, streakDir } = useMemo(() => {
-    if (!allTrades.length) return { avgTrade: null, streak: 0, streakDir: null };
+  const { avgTrade, streak, streakDir, profitFactor, maxDrawdown } = useMemo(() => {
+    if (!allTrades.length) return { avgTrade: null, streak: 0, streakDir: null, profitFactor: null, maxDrawdown: null };
     const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
     const total = sorted.reduce((s, t) => s + parseFloat(t.pnl ?? 0), 0);
     const avg = total / sorted.length;
@@ -729,7 +730,22 @@ export default function AnalyticsTab() {
       else if (dir === w) count++;
       else break;
     }
-    return { avgTrade: avg, streak: count, streakDir: dir };
+    let totalWin = 0, totalLoss = 0, peak = 0, equity = 0, maxDD = 0;
+    for (const t of sorted) {
+      const p = parseFloat(t.pnl ?? 0);
+      if (p > 0) totalWin += p; else totalLoss += Math.abs(p);
+      equity += p;
+      if (equity > peak) peak = equity;
+      const dd = peak - equity;
+      if (dd > maxDD) maxDD = dd;
+    }
+    return {
+      avgTrade: avg,
+      streak: count,
+      streakDir: dir,
+      profitFactor: totalLoss > 0 ? +(totalWin / totalLoss).toFixed(2) : null,
+      maxDrawdown: maxDD > 0 ? +maxDD.toFixed(2) : null,
+    };
   }, [allTrades]);
 
   // Merge rows that share the same display label (e.g. "news"+"signal" → single "Signal Bot" row)
@@ -769,6 +785,8 @@ export default function AnalyticsTab() {
     { key: 'trades', label: t.dashboard.analytics.hTrades, align: 'right' },
     { key: '_wr', label: t.dashboard.analytics.hWinRate, align: 'right', render: r => pct(r.wins, r.trades) },
     { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${parseFloat(r.pnl).toFixed(2)}` },
+    { key: 'avg_win', label: t.dashboard.analytics.hAvgWin, align: 'right', render: r => r.avg_win > 0 ? `+${parseFloat(r.avg_win).toFixed(2)}` : '—' },
+    { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right', muted: true, render: r => r.avg_loss < 0 ? parseFloat(r.avg_loss).toFixed(2) : '—' },
   ];
 
   const allTradesCols = [
@@ -857,6 +875,22 @@ export default function AnalyticsTab() {
             label="Current Streak"
             value={`${streak}×`}
             sub={streakDir ? '✓ wins' : '✗ losses'}
+          />
+        )}
+        {profitFactor != null && (
+          <StatCard
+            label="Profit Factor"
+            value={profitFactor >= 1
+              ? <span style={{ color: 'var(--accent-green)' }}>{profitFactor}×</span>
+              : <span style={{ color: 'var(--accent-red)' }}>{profitFactor}×</span>}
+            sub="gross win / gross loss"
+          />
+        )}
+        {maxDrawdown != null && (
+          <StatCard
+            label="Max Drawdown"
+            value={<span style={{ color: 'var(--accent-red)' }}>−{maxDrawdown}</span>}
+            sub="USDT from peak"
           />
         )}
       </div>
@@ -964,11 +998,39 @@ export default function AnalyticsTab() {
         );
       })()}
 
-      {/* By coin — card grid like bot CoinTicker */}
+      {/* By coin — card grid or table */}
       {by_coin && by_coin.length > 0 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title={t.dashboard.analytics.byCoin} right={`${by_coin.length} ${t.dashboard.analytics.coinsSort}`} />
-          <CoinGrid coins={by_coin} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10, marginBottom: 16 }}>
+            <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+              {t.dashboard.analytics.byCoin}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)' }}>{by_coin.length} {t.dashboard.analytics.coinsSort}</span>
+              <div style={{ display: 'flex', gap: 2 }}>
+                {['cards', 'table'].map(v => (
+                  <button key={v} onClick={() => setCoinView(v)} style={{
+                    background: 'none', border: `1px solid ${coinView === v ? 'var(--border-default)' : 'var(--border-subtle)'}`,
+                    color: coinView === v ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em', padding: '2px 8px', cursor: 'pointer',
+                    textTransform: 'uppercase', transition: 'all 120ms',
+                  }}>{v}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {coinView === 'cards'
+            ? <CoinGrid coins={by_coin} />
+            : (
+              <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
+                <DataTable
+                  cols={coinCols}
+                  rows={[...by_coin].sort((a, b) => parseFloat(b.pnl) - parseFloat(a.pnl))}
+                  getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : null}
+                />
+              </div>
+            )
+          }
         </div>
       )}
 
