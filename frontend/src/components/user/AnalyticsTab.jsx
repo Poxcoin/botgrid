@@ -46,30 +46,70 @@ function pct(wins, total) {
   return (wins / total * 100).toFixed(1) + '%';
 }
 
-function StatCard({ label, value, sub }) {
+function StatCard({ label, value, sub, accent = null }) {
   const [hovered, setHovered] = React.useState(false);
+  const accentColor = accent === 'pos' ? 'var(--accent-green)'
+                     : accent === 'neg' ? 'var(--accent-red)'
+                     : accent === 'neutral' ? 'var(--text-muted)' : null;
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        flex: 1, minWidth: 160,
-        background: hovered ? 'var(--bg-elevated)' : 'var(--bg-base)',
+        flex: 1, minWidth: 160, position: 'relative',
+        background: 'var(--bg-elevated)',
         border: '1px solid var(--border-subtle)',
-        padding: '28px 24px',
-        transition: 'background 200ms',
+        padding: '22px 22px 20px',
+        transition: 'transform 200ms, border-color 200ms, box-shadow 200ms',
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+        borderColor: hovered ? 'var(--border-default)' : 'var(--border-subtle)',
+        boxShadow: hovered ? '0 8px 24px rgba(0,0,0,0.25)' : '0 0 0 rgba(0,0,0,0)',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+      {accentColor && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+          background: `linear-gradient(90deg, ${accentColor}, transparent)`,
+          opacity: hovered ? 1 : 0.7, transition: 'opacity 200ms',
+        }} />
+      )}
+      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
         {label}
       </div>
-      <div style={{ fontFamily: MONO, fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+      <div style={{ fontFamily: MONO, fontSize: 26, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>{sub}</div>
+        <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', marginTop: 10, letterSpacing: '0.04em' }}>{sub}</div>
       )}
     </div>
+  );
+}
+
+/* ───────── Inline sparkline for hero PnL card ───────── */
+function HeroSparkline({ equity, isPos }) {
+  if (!equity || equity.length < 2) return null;
+  const W = 200, H = 44;
+  const min = Math.min(...equity), max = Math.max(...equity);
+  const range = max - min || 1;
+  const sx = i => (i / (equity.length - 1)) * W;
+  const sy = v => H - ((v - min) / range) * H;
+  const pts = equity.map((v, i) => `${sx(i)},${sy(v)}`).join(' ');
+  const area = `M0,${H} L` + pts.replace(/ /g, ' L') + ` L${W},${H} Z`;
+  const stroke = isPos ? 'var(--accent-green)' : 'var(--accent-red)';
+  const gradId = `hero-sparkline-${isPos ? 'p' : 'n'}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} preserveAspectRatio="none" style={{ display: 'block', opacity: 0.85 }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={stroke} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
+      <polyline points={pts} fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -77,12 +117,17 @@ function SectionLabel({ title, right }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10, marginBottom: 16,
+      paddingBottom: 12, marginBottom: 14,
+      position: 'relative',
     }}>
-      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-        {title}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ width: 3, height: 14, background: 'var(--accent-green)', opacity: 0.55, borderRadius: 1 }} />
+        <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-secondary, var(--text-muted))', fontWeight: 500 }}>
+          {title}
+        </div>
       </div>
-      {right && <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)' }}>{right}</div>}
+      {right && <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>{right}</div>}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1, background: 'linear-gradient(90deg, var(--border-default) 0%, transparent 70%)' }} />
     </div>
   );
 }
@@ -110,13 +155,27 @@ function DailyChart({ daily, t }) {
   const yAxisVals = [-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs];
 
   return (
-    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: 16, position: 'relative' }}>
+    <div style={{ background: 'linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 100%)', border: '1px solid var(--border-subtle)', padding: 16, position: 'relative', borderRadius: 4 }}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ width: '100%', display: 'block', fontFamily: MONO }}
         preserveAspectRatio="xMidYMid meet"
         onMouseLeave={() => setHover(null)}
       >
+        <defs>
+          <linearGradient id="kdDailyPos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="var(--accent-green)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--accent-green)" stopOpacity="0.45" />
+          </linearGradient>
+          <linearGradient id="kdDailyNeg" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%"   stopColor="var(--accent-red)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--accent-red)" stopOpacity="0.45" />
+          </linearGradient>
+          <filter id="kdGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
         {yAxisVals.map((v, i) => {
           const y = PAD_T + chartH / 2 - (v / maxAbs) * (chartH / 2);
           const isZero = v === 0;
@@ -125,10 +184,11 @@ function DailyChart({ daily, t }) {
               <line
                 x1={PAD_L} x2={W - PAD_R} y1={y} y2={y}
                 stroke={isZero ? 'var(--border-default)' : 'var(--border-subtle)'}
-                strokeWidth={isZero ? 1 : 0.6}
-                strokeDasharray={isZero ? '0' : '3 4'}
+                strokeWidth={isZero ? 1 : 0.5}
+                strokeDasharray={isZero ? '0' : '2 5'}
+                opacity={isZero ? 0.8 : 0.5}
               />
-              <text x={PAD_L - 8} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)">
+              <text x={PAD_L - 8} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)" letterSpacing="0.04em">
                 {isZero ? '0' : (v > 0 ? '+' : '') + v.toFixed(0)}
               </text>
             </g>
@@ -147,13 +207,14 @@ function DailyChart({ daily, t }) {
               <rect x={x - 2} y={PAD_T} width={barW + 4} height={chartH} fill="transparent" />
               <rect
                 x={x} y={y} width={barW} height={Math.max(barH, 1)}
-                fill={isHovered
-                  ? (positive ? 'var(--accent-green)' : 'var(--accent-red)')
-                  : (positive ? 'rgba(14,203,129,0.65)' : 'rgba(246,70,93,0.65)')}
-                rx={1}
+                fill={positive ? 'url(#kdDailyPos)' : 'url(#kdDailyNeg)'}
+                opacity={isHovered ? 1 : 0.82}
+                filter={isHovered ? 'url(#kdGlow)' : undefined}
+                rx={1.5}
+                style={{ transition: 'opacity 120ms' }}
               />
               {i % Math.max(1, Math.floor(daily.length / 6)) === 0 && (
-                <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize={9} fill="var(--text-muted)">
+                <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize={9} fill="var(--text-muted)" letterSpacing="0.04em">
                   {d.date ? d.date.slice(5) : ''}
                 </text>
               )}
@@ -672,14 +733,18 @@ function EquityCurve({ trades }) {
   if (data.length < 2) return null;
 
   return (
-    <div ref={wrapRef} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+    <div ref={wrapRef} style={{ background: 'linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 100%)', border: '1px solid var(--border-subtle)', position: 'relative', borderRadius: 4 }}>
       {w > 0 && geom && (
         <svg width={w} height={H} style={{ display: 'block', fontFamily: MONO }} onMouseLeave={() => setHover(null)}>
           <defs>
             <linearGradient id="ec-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={geom.color} stopOpacity="0.25" />
-              <stop offset="100%" stopColor={geom.color} stopOpacity="0.02" />
+              <stop offset="0%" stopColor={geom.color} stopOpacity="0.38" />
+              <stop offset="100%" stopColor={geom.color} stopOpacity="0" />
             </linearGradient>
+            <filter id="ec-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.5" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
           </defs>
           {geom.yTicks.map((t, i) => (
             <g key={i}>
@@ -697,7 +762,8 @@ function EquityCurve({ trades }) {
             </text>
           ))}
           {geom.area && <path d={geom.area} fill="url(#ec-grad)" />}
-          <polyline points={geom.pts} fill="none" stroke={geom.color} strokeWidth={1.5} strokeLinejoin="round" />
+          <polyline points={geom.pts} fill="none" stroke={geom.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" filter="url(#ec-glow)" opacity={0.85} />
+          <polyline points={geom.pts} fill="none" stroke={geom.color} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
           {/* hover interaction zone */}
           {data.map((d, i) => (
             <rect key={i} x={geom.sx(i) - (geom.cW / data.length / 2)} y={PAD.top}
@@ -1021,144 +1087,168 @@ export default function AnalyticsTab() {
     ? t.dashboard.analytics?.emptyHint ?? 'Поки що немає закритих торгів. Підключіть API-ключ Bybit на вкладці API Keys і дайте ботам час — статистика з\'явиться автоматично.'
     : null;
 
+  // Equity series for hero sparkline (cumulative PnL ordered by close time)
+  const equitySeries = useMemo(() => {
+    if (!allTrades.length) return [];
+    const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
+    let cum = 0;
+    return sorted.map(tr => { cum += parseFloat(tr.pnl ?? 0); return cum; });
+  }, [allTrades]);
+  const heroIsPos = totalPnl >= 0;
+
   return (
     <div style={{ color: 'var(--text-primary)', fontFamily: FONT }}>
-      <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
+      <style>{`
+        @keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }
+        @keyframes kado-fadeup { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+        .kado-fadeup { animation: kado-fadeup 380ms cubic-bezier(.2,.6,.2,1) both; }
+        .kado-fadeup-1 { animation-delay: 40ms; }
+        .kado-fadeup-2 { animation-delay: 90ms; }
+        .kado-fadeup-3 { animation-delay: 140ms; }
+      `}</style>
 
-      {/* Hero header: Performance summary */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 1,
-        background: 'var(--border-subtle)',
-        marginBottom: 1,
+      {/* ── HERO: big PnL + sparkline + 3 KPI side rail ── */}
+      <div className="kado-fadeup" style={{
+        position: 'relative',
         border: '1px solid var(--border-subtle)',
+        background: heroIsPos
+          ? 'radial-gradient(120% 100% at 0% 0%, rgba(14,203,129,0.10) 0%, transparent 55%), var(--bg-elevated)'
+          : totalPnl < 0
+            ? 'radial-gradient(120% 100% at 0% 0%, rgba(246,70,93,0.08) 0%, transparent 55%), var(--bg-elevated)'
+            : 'var(--bg-elevated)',
+        marginBottom: 1,
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
+        overflow: 'hidden',
       }}>
-        <div style={{ background: 'var(--bg-base)', padding: '24px 28px', gridColumn: 'span 1' }}>
-          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            {t.dashboard.analytics.totalPnl}
+        {/* Left: big PnL block */}
+        <div style={{ padding: '34px 36px 28px', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 22 }}>
+          <div>
+            <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: heroIsPos ? 'var(--accent-green)' : totalPnl < 0 ? 'var(--accent-red)' : 'var(--text-muted)', boxShadow: heroIsPos ? '0 0 12px var(--accent-green)' : totalPnl < 0 ? '0 0 12px var(--accent-red)' : 'none' }} />
+              {t.dashboard.analytics.totalPnl}
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--text-muted)', opacity: 0.6 }}>
+                {allTrades.length} {t.dashboard.analytics.tradesLbl}
+              </span>
+            </div>
+            <div style={{
+              fontFamily: MONO, fontWeight: 600, letterSpacing: '-0.05em', lineHeight: 1,
+              fontSize: 'clamp(40px, 6vw, 64px)',
+              color: heroIsPos ? 'var(--accent-green)' : totalPnl < 0 ? 'var(--accent-red)' : 'var(--text-primary)',
+              textShadow: heroIsPos ? '0 0 40px rgba(14,203,129,0.30)' : totalPnl < 0 ? '0 0 40px rgba(246,70,93,0.20)' : 'none',
+              display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap',
+            }}>
+              <span>{totalPnl > 0 ? '+' : ''}{totalPnl.toFixed(2)}</span>
+              <span style={{ fontSize: '0.42em', letterSpacing: '0.12em', color: 'var(--text-muted)', fontWeight: 500 }}>USDT</span>
+            </div>
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: totalPnl > 0 ? 'var(--accent-green)' : totalPnl < 0 ? 'var(--accent-red)' : 'var(--text-primary)' }}>
-            {totalPnl > 0 ? '+' : ''}{totalPnl.toFixed(2)}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
-            USDT · {allTrades.length} {t.dashboard.analytics.tradesLbl}
-          </div>
+          {equitySeries.length >= 2 && (
+            <div style={{ marginTop: 6 }}>
+              <HeroSparkline equity={equitySeries} isPos={heroIsPos} />
+            </div>
+          )}
         </div>
-        <div style={{ background: 'var(--bg-base)', padding: '24px 28px' }}>
-          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            {t.dashboard.analytics.winRate}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: winRate !== '—' && parseFloat(winRate) >= 50 ? 'var(--accent-green)' : (winRate === '—' ? 'var(--text-muted)' : 'var(--accent-red)') }}>
-            {winRate}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
-            {periodStats.wins}W · {periodStats.losses}L
-          </div>
-        </div>
-        <div style={{ background: 'var(--bg-base)', padding: '24px 28px' }}>
-          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            {t.dashboard.analytics.profitFactor}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: profitFactor == null ? 'var(--text-muted)' : (profitFactor >= 1 ? 'var(--accent-green)' : 'var(--accent-red)') }}>
-            {profitFactor == null ? '—' : `${profitFactor}×`}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
-            {t.dashboard.analytics.grossPerLoss}
-          </div>
-        </div>
-        <div style={{ background: 'var(--bg-base)', padding: '24px 28px' }}>
-          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
-            {t.dashboard.analytics.maxDrawdown}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: maxDrawdown == null ? 'var(--text-muted)' : 'var(--accent-red)' }}>
-            {maxDrawdown == null ? '—' : `−${maxDrawdown}`}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
-            {t.dashboard.analytics.fromPeak}
-          </div>
+
+        {/* Right: 3 supporting KPIs */}
+        <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)' }}>
+          {[
+            { label: t.dashboard.analytics.winRate, value: winRate, accent: winRate !== '—' && parseFloat(winRate) >= 50 ? 'pos' : (winRate === '—' ? null : 'neg'), sub: `${periodStats.wins}W · ${periodStats.losses}L` },
+            { label: t.dashboard.analytics.profitFactor, value: profitFactor == null ? '—' : `${profitFactor}×`, accent: profitFactor == null ? null : (profitFactor >= 1 ? 'pos' : 'neg'), sub: t.dashboard.analytics.grossPerLoss },
+            { label: t.dashboard.analytics.maxDrawdown, value: maxDrawdown == null ? '—' : `−${maxDrawdown}`, accent: maxDrawdown == null ? null : 'neg', sub: t.dashboard.analytics.fromPeak },
+          ].map((k, i, arr) => {
+            const col = k.accent === 'pos' ? 'var(--accent-green)' : k.accent === 'neg' ? 'var(--accent-red)' : 'var(--text-primary)';
+            return (
+              <div key={k.label} style={{
+                flex: 1, padding: '18px 26px',
+                borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+              }}>
+                <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  {k.label}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 26, fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1, color: col }}>
+                    {k.value}
+                  </div>
+                  <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                    {k.sub}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {(emptyHint || sparseHint) && (
-        <div style={{
+        <div className="kado-fadeup kado-fadeup-1" style={{
           padding: '14px 18px',
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-subtle)',
-          borderLeft: '2px solid var(--text-muted)',
+          borderLeft: `2px solid ${emptyHint ? 'var(--accent-amber)' : 'var(--text-muted)'}`,
           marginTop: 1, marginBottom: 24,
-          display: 'flex', alignItems: 'flex-start', gap: 10,
+          display: 'flex', alignItems: 'flex-start', gap: 12,
         }}>
-          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', flexShrink: 0, paddingTop: 1 }}>INFO</span>
-          <span style={{ fontFamily: FONT, fontSize: 12, color: 'var(--text-secondary, var(--text-muted))', lineHeight: 1.55 }}>
+          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: emptyHint ? 'var(--accent-amber)' : 'var(--text-muted)', flexShrink: 0, paddingTop: 2 }}>INFO</span>
+          <span style={{ fontFamily: FONT, fontSize: 12.5, color: 'var(--text-secondary, var(--text-muted))', lineHeight: 1.6 }}>
             {emptyHint || sparseHint}
           </span>
         </div>
       )}
 
-      {/* Balance bar */}
+      {/* ── Balance bar — compact horizontal bar with subtle gradient ── */}
       {balance && (
-        <div style={{
+        <div className="kado-fadeup kado-fadeup-1" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-          gap: 0,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+          marginTop: 1, marginBottom: 24,
           border: '1px solid var(--border-subtle)',
-          background: 'var(--border-subtle)',
-          marginBottom: 1,
+          background: 'linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 100%)',
         }}>
           {[
-            { label: t.dashboard.analytics.bWallet,     value: `$${parseFloat(balance.usdt_wallet ?? 0).toFixed(2)}`,   color: null },
-            { label: t.dashboard.analytics.bEquity,     value: `$${parseFloat(balance.usdt_equity ?? 0).toFixed(2)}`,   color: null },
+            { label: t.dashboard.analytics.bWallet,     value: `$${parseFloat(balance.usdt_wallet ?? 0).toFixed(2)}`, color: null },
+            { label: t.dashboard.analytics.bEquity,     value: `$${parseFloat(balance.usdt_equity ?? 0).toFixed(2)}`, color: null },
             { label: t.dashboard.analytics.bUnrealized, value: `${sign(upnl)} USDT`,  color: upnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
-            { label: t.dashboard.analytics.bAvailable,  value: `$${parseFloat(balance.usdt_free ?? 0).toFixed(2)}`,     color: null },
+            { label: t.dashboard.analytics.bAvailable,  value: `$${parseFloat(balance.usdt_free ?? 0).toFixed(2)}`, color: null },
           ].map((s, i, arr) => (
             <div key={s.label} style={{
-              padding: '18px 20px',
-              background: 'var(--bg-base)',
+              padding: '16px 22px',
               borderRight: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
             }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{s.label}</div>
-              <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', color: s.color || 'var(--text-primary)' }}>{s.value}</div>
+              <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontFamily: MONO, fontSize: 18, fontWeight: 600, letterSpacing: '-0.02em', color: s.color || 'var(--text-primary)' }}>{s.value}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Stats row */}
-      <div style={{
+      {/* ── Secondary metrics grid ── */}
+      <div className="kado-fadeup kado-fadeup-2" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-        gap: 1,
-        background: 'var(--border-subtle)',
-        marginBottom: 32,
-        marginTop: balance ? 1 : 0,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: 10,
+        marginBottom: 36,
       }}>
         <StatCard
           label={t.dashboard.analytics.totalTrades}
           value={allTrades.length}
           sub={`${periodStats.wins}W · ${periodStats.losses}L`}
+          accent={periodStats.wins > periodStats.losses ? 'pos' : periodStats.losses > periodStats.wins ? 'neg' : 'neutral'}
         />
-        <StatCard
-          label={t.dashboard.analytics.totalPnl}
-          value={<span style={{ color: totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-            {`${totalPnl >= 0 ? '+' : ''}${totalPnl} USDT`}
-          </span>}
-        />
-        <StatCard
-          label={t.dashboard.analytics.winRate}
-          value={winRate === '—' ? '—' : <span style={{ color: parseFloat(winRate) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{winRate}</span>}
-          sub={`${periodStats.wins} ${t.dashboard.analytics.wins}`}
-        />
-        <StatCard
-          label={t.dashboard.analytics.bestDay}
-          value={bestDay ? <span style={{ color: bestDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}`}</span> : '—'}
-          sub={bestDay?.date ?? ''}
-        />
+        {bestDay && (
+          <StatCard
+            label={t.dashboard.analytics.bestDay}
+            value={<span style={{ color: bestDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}`}</span>}
+            sub={bestDay.date}
+            accent={bestDay.pnl >= 0 ? 'pos' : 'neg'}
+          />
+        )}
         {worstDay && (
           <StatCard
             label={t.dashboard.analytics.worstDay}
             value={<span style={{ color: worstDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${worstDay.pnl >= 0 ? '+' : ''}${parseFloat(worstDay.pnl).toFixed(2)}`}</span>}
             sub={worstDay.date}
+            accent={worstDay.pnl >= 0 ? 'pos' : 'neg'}
           />
         )}
         {avgTrade != null && (
@@ -1166,6 +1256,7 @@ export default function AnalyticsTab() {
             label={t.dashboard.analytics.avgTrade}
             value={<span style={{ color: avgTrade >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${avgTrade >= 0 ? '+' : ''}${avgTrade.toFixed(2)}`}</span>}
             sub="USDT"
+            accent={avgTrade >= 0 ? 'pos' : 'neg'}
           />
         )}
         {streak > 0 && (
@@ -1173,22 +1264,7 @@ export default function AnalyticsTab() {
             label={t.dashboard.analytics.currentStreak}
             value={<span style={{ color: streakDir ? 'var(--accent-green)' : 'var(--accent-red)' }}>{streak}×</span>}
             sub={streakDir ? t.dashboard.analytics.winning : t.dashboard.analytics.losing}
-          />
-        )}
-        {profitFactor != null && (
-          <StatCard
-            label={t.dashboard.analytics.profitFactor}
-            value={profitFactor >= 1
-              ? <span style={{ color: 'var(--accent-green)' }}>{profitFactor}×</span>
-              : <span style={{ color: 'var(--accent-red)' }}>{profitFactor}×</span>}
-            sub={t.dashboard.analytics.grossPerLoss}
-          />
-        )}
-        {maxDrawdown != null && (
-          <StatCard
-            label={t.dashboard.analytics.maxDrawdown}
-            value={<span style={{ color: 'var(--accent-red)' }}>−{maxDrawdown}</span>}
-            sub={t.dashboard.analytics.fromPeak}
+            accent={streakDir ? 'pos' : 'neg'}
           />
         )}
         {avgDuration != null && (
@@ -1196,6 +1272,7 @@ export default function AnalyticsTab() {
             label={t.dashboard.analytics.avgDuration}
             value={avgDuration < 60 ? `${avgDuration}m` : avgDuration < 1440 ? `${Math.floor(avgDuration / 60)}h ${avgDuration % 60}m` : `${Math.floor(avgDuration / 1440)}d`}
             sub={t.dashboard.analytics.perTrade}
+            accent="neutral"
           />
         )}
       </div>
