@@ -18,6 +18,29 @@ function getToken() {
   return localStorage.getItem('kado_token') || '';
 }
 
+function exportTradesCSV(trades) {
+  const hdr = ['Date', 'Symbol', 'Side', 'Bot', 'Entry', 'Exit', 'Qty', 'Duration', 'PnL (USDT)'];
+  const rows = trades.map(tr => {
+    const ms = parseInt(tr.closed_at);
+    const date = ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') : '';
+    const o = parseInt(tr.opened_at), c = parseInt(tr.closed_at);
+    const m = (o && c && c > o) ? Math.round((c - o) / 60000) : null;
+    const dur = m == null ? '' : m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${Math.floor(m / 1440)}d`;
+    return [
+      date, tr.symbol || '', tr.side || '', BOT_LABELS[tr.source] || tr.source || '',
+      tr.entry_price ? (+tr.entry_price).toFixed(4) : '',
+      tr.exit_price  ? (+tr.exit_price).toFixed(4)  : '',
+      tr.qty ? (+tr.qty).toFixed(3) : '', dur,
+      parseFloat(tr.pnl ?? 0).toFixed(2),
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  const csv = [hdr.join(','), ...rows].join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `kado_trades_${new Date().toISOString().slice(0, 10)}.csv` });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function pct(wins, total) {
   if (!total) return '—';
   return (wins / total * 100).toFixed(1) + '%';
@@ -800,19 +823,22 @@ export default function AnalyticsTab() {
     const byDate = [...allTrades].sort((a, b) => parseFloat(b.pnl ?? 0) - parseFloat(a.pnl ?? 0));
     const losses = allTrades.length - wins;
 
-    // best trading day — group by calendar date
+    // daily PnL — group by calendar date (period-aware: feeds chart + best/worst day stat)
     const dayMap = {};
     for (const t of sorted) {
       const ms = parseInt(t.closed_at);
       if (!ms) continue;
       const d = new Date(ms).toISOString().slice(0, 10);
-      dayMap[d] = (dayMap[d] ?? 0) + parseFloat(t.pnl ?? 0);
+      if (!dayMap[d]) dayMap[d] = { pnl: 0, trades: 0 };
+      dayMap[d].pnl += parseFloat(t.pnl ?? 0);
+      dayMap[d].trades += 1;
     }
     const entries = Object.entries(dayMap);
-    const bestDayEntry  = entries.length ? entries.reduce((a, b) => (b[1] > a[1] ? b : a), [null, -Infinity]) : [null, null];
-    const worstDayEntry = entries.length ? entries.reduce((a, b) => (b[1] < a[1] ? b : a), [null,  Infinity]) : [null, null];
-    const bestDay  = bestDayEntry[0]  ? { date: bestDayEntry[0],  pnl: parseFloat(bestDayEntry[1].toFixed(2))  } : null;
-    const worstDay = worstDayEntry[0] ? { date: worstDayEntry[0], pnl: parseFloat(worstDayEntry[1].toFixed(2)) } : null;
+    const dailyPnl = entries.map(([date, v]) => ({ date, pnl: parseFloat(v.pnl.toFixed(2)), trades: v.trades })).sort((a, b) => a.date.localeCompare(b.date));
+    const bestDayEntry  = entries.length ? entries.reduce((a, b) => (b[1].pnl > a[1].pnl ? b : a), [null, { pnl: -Infinity }]) : [null, null];
+    const worstDayEntry = entries.length ? entries.reduce((a, b) => (b[1].pnl < a[1].pnl ? b : a), [null, { pnl:  Infinity }]) : [null, null];
+    const bestDay  = bestDayEntry[0]  ? { date: bestDayEntry[0],  pnl: parseFloat(bestDayEntry[1].pnl.toFixed(2))  } : null;
+    const worstDay = worstDayEntry[0] ? { date: worstDayEntry[0], pnl: parseFloat(worstDayEntry[1].pnl.toFixed(2)) } : null;
 
     return {
       totalPnl: parseFloat(totalPnl.toFixed(2)),
@@ -823,7 +849,7 @@ export default function AnalyticsTab() {
       profitFactor: totalLoss > 0 ? +(totalWin / totalLoss).toFixed(2) : null,
       maxDrawdown: maxDD > 0 ? +maxDD.toFixed(2) : null,
       avgDuration: durCount > 0 ? Math.round(durSum / durCount) : null,
-      bestDay, worstDay,
+      bestDay, worstDay, dailyPnl,
       byCoin: agg(coinMap),
       bySource: agg(srcMap),
       best:  byDate.slice(0, 5).map(t => ({ coin: t.symbol, pnl: parseFloat(t.pnl ?? 0), closed_at: t.closed_at, side: t.side, source: t.source, duration_min: (() => { const o = parseInt(t.opened_at), c = parseInt(t.closed_at); return (o && c && c > o) ? Math.round((c - o) / 60000) : null; })() })),
@@ -831,7 +857,7 @@ export default function AnalyticsTab() {
     };
   }, [allTrades]);
 
-  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay, worstDay } = periodStats;
+  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay, worstDay, dailyPnl } = periodStats;
   const mergedBySource = periodStats.bySource;
 
   const botCols = [
@@ -986,12 +1012,6 @@ export default function AnalyticsTab() {
         )}
       </div>
 
-      {/* Daily PnL chart — last 30 days */}
-      <div style={{ marginBottom: 32 }}>
-        <SectionLabel title={t.dashboard.analytics.dailyPnl30} />
-        <DailyChart daily={daily} t={t} />
-      </div>
-
       {/* Period selector for trade-based charts */}
       {allTrades.length >= 2 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -1009,6 +1029,14 @@ export default function AnalyticsTab() {
           <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center', marginLeft: 6 }}>
             {allTrades.length} trades
           </span>
+        </div>
+      )}
+
+      {/* Daily PnL chart — period-aware */}
+      {dailyPnl.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionLabel title="Daily PnL" right={allDays === 0 ? 'all time' : `last ${allDays}d`} />
+          <DailyChart daily={dailyPnl} t={t} />
         </div>
       )}
 
@@ -1235,6 +1263,13 @@ export default function AnalyticsTab() {
                     <option key={s} value={s}>{BOT_LABELS[s] || s}</option>
                   ))}
                 </select>
+              )}
+              {filtered.length > 0 && (
+                <button onClick={() => exportTradesCSV(filtered)}
+                  style={{ ...btnSide, marginLeft: 'auto', flexShrink: 0 }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                >↓ CSV</button>
               )}
             </div>
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
