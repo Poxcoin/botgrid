@@ -351,7 +351,7 @@ export default function UserDashboard() {
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = borderHi; e.currentTarget.style.color = fg; }}
               onMouseLeave={e => { if (!drop) { e.currentTarget.style.borderColor = border; e.currentTarget.style.color = muted; } }}>
-                {t.dashboard.account}
+                {getUser().username || t.dashboard.tabAccount}
               </button>
 
               {drop && (
