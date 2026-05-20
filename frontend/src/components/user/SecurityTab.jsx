@@ -355,7 +355,7 @@ export default function SecurityTab() {
   const [modal2fa, setModal2fa] = useState(null);
 
   useEffect(() => {
-    API('/api/users/me').then(setMe).catch(console.error);
+    API('/api/users/me').then(setMe).catch(() => {});
   }, []);
 
   function updateMe(patch) { setMe(m => ({ ...m, ...patch })); }

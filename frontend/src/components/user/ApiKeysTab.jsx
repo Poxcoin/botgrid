@@ -427,7 +427,7 @@ function Mt5KeysSection() {
 export default function ApiKeysTab() {
   const [me, setMe] = useState(null);
   const isMobile = useIsMobile();
-  const reload = () => API('/api/users/me').then(setMe).catch(console.error);
+  const reload = () => API('/api/users/me').then(setMe).catch(() => {});
   useEffect(() => { reload(); }, []);
 
   return (

@@ -479,7 +479,7 @@ export default function AccountTab() {
   const [me, setMe] = useState(null);
 
   function reload() {
-    API('/api/users/me').then(setMe).catch(console.error);
+    API('/api/users/me').then(setMe).catch(() => {});
   }
 
   useEffect(() => { reload(); }, []);
