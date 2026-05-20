@@ -266,6 +266,8 @@ export const translations = {
         tradesLbl:      'trades',
         noKeyChart:     'Connect API key to see chart',
         notEnoughData:  'Not enough data for selected filters',
+        calendarHeatmap: 'Trading Calendar',
+        hoverDay:       'Hover a day to inspect',
       },
       panel: {
         openOrders:   'Open Orders',
@@ -1110,6 +1112,8 @@ export const translations = {
         tradesLbl:      'operaciones',
         noKeyChart:     'Conecta tu clave API para ver el gráfico',
         notEnoughData:  'No hay datos suficientes para los filtros seleccionados',
+        calendarHeatmap: 'Calendario de Trading',
+        hoverDay:       'Pasa el cursor sobre un día para inspeccionar',
       },
       panel: {
         openOrders:   'Órdenes abiertas',
@@ -1954,6 +1958,8 @@ export const translations = {
         tradesLbl:      'угод',
         noKeyChart:     'Підключіть API-ключ для перегляду графіка',
         notEnoughData:  'Недостатньо даних для обраних фільтрів',
+        calendarHeatmap: 'Торговий календар',
+        hoverDay:       'Наведіть на день для деталей',
       },
       panel: {
         openOrders:   'Відкриті ордери',
@@ -2798,6 +2804,8 @@ export const translations = {
         tradesLbl:      'сделок',
         noKeyChart:     'Подключите API-ключ для просмотра графика',
         notEnoughData:  'Недостаточно данных для выбранных фильтров',
+        calendarHeatmap: 'Торговый календарь',
+        hoverDay:       'Наведите на день для деталей',
       },
       panel: {
         openOrders:   'Открытые ордера',
@@ -3642,6 +3650,8 @@ export const translations = {
         tradesLbl:      'Trades',
         noKeyChart:     'API-Schlüssel verbinden, um den Chart zu sehen',
         notEnoughData:  'Nicht genug Daten für die gewählten Filter',
+        calendarHeatmap: 'Trading Kalender',
+        hoverDay:       'Fahren Sie über einen Tag für Details',
       },
       panel: {
         openOrders:   'Offene Orders',
@@ -4486,6 +4496,8 @@ export const translations = {
         tradesLbl:      '笔',
         noKeyChart:     '连接 API 密钥以查看图表',
         notEnoughData:  '所选过滤器的数据不足',
+        calendarHeatmap: '交易日历',
+        hoverDay:       '悬停查看当日详情',
       },
       panel: {
         openOrders:   '挂单',

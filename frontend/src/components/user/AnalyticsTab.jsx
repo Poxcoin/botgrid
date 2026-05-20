@@ -518,6 +518,95 @@ function HourOfDayChart({ trades }) {
   );
 }
 
+function CalendarHeatmap({ dailyPnl }) {
+  const { lang, t } = useLang();
+  const locale = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE', zh:'zh-CN' }[lang] || 'en-US';
+  const [hover, setHover] = useState(null);
+
+  const dayMap = useMemo(() => {
+    const m = {};
+    for (const d of dailyPnl) m[d.date] = d;
+    return m;
+  }, [dailyPnl]);
+
+  const maxAbs = useMemo(() => Math.max(...dailyPnl.map(d => Math.abs(d.pnl)), 0.01), [dailyPnl]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const startDate = new Date(todayStr + 'T00:00:00');
+  startDate.setDate(startDate.getDate() - 7 * 52);
+  startDate.setDate(startDate.getDate() - startDate.getDay()); // rewind to Sunday
+
+  const allDates = [];
+  for (const d = new Date(startDate); d.toISOString().slice(0, 10) <= todayStr; d.setDate(d.getDate() + 1)) {
+    allDates.push(new Date(d).toISOString().slice(0, 10));
+  }
+
+  const weeks = [];
+  for (let i = 0; i < allDates.length; i += 7) {
+    weeks.push(allDates.slice(i, i + 7).map(ds => ({ date: ds, data: dayMap[ds] || null })));
+  }
+
+  const monthLabels = [];
+  let prevMonth = -1;
+  weeks.forEach((week, wi) => {
+    const d = new Date(week[0].date + 'T00:00:00');
+    const m = d.getMonth();
+    if (m !== prevMonth) {
+      prevMonth = m;
+      monthLabels.push({ text: new Intl.DateTimeFormat(locale, { month: 'short' }).format(d), wi });
+    }
+  });
+
+  const getColor = data => {
+    if (!data) return 'var(--bg-elevated)';
+    const alpha = (0.2 + Math.min(Math.abs(data.pnl) / maxAbs, 1) * 0.8).toFixed(2);
+    return data.pnl >= 0 ? `rgba(14,203,129,${alpha})` : `rgba(246,70,93,${alpha})`;
+  };
+
+  const CELL = 11, STEP = 13, MONTH_H = 18;
+  const svgW = weeks.length * STEP;
+  const svgH = MONTH_H + 7 * STEP;
+
+  return (
+    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '16px 16px 8px' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <svg viewBox={`0 0 ${svgW} ${svgH}`}
+          style={{ width: svgW, maxWidth: '100%', display: 'block', height: svgH }}
+          onMouseLeave={() => setHover(null)}>
+          {monthLabels.map((ml, i) => (
+            <text key={i} x={ml.wi * STEP + 1} y={13}
+              fontSize={9} fill="var(--text-muted)" fontFamily={MONO}>{ml.text}</text>
+          ))}
+          {weeks.map((week, wi) =>
+            week.map((day, di) => day.date <= todayStr && (
+              <rect key={`${wi}-${di}`}
+                x={wi * STEP} y={MONTH_H + di * STEP}
+                width={CELL} height={CELL} rx={2}
+                fill={getColor(day.data)}
+                style={{ cursor: day.data ? 'pointer' : 'default' }}
+                onMouseEnter={() => setHover(day)}
+              />
+            ))
+          )}
+        </svg>
+      </div>
+      <div style={{ marginTop: 8, fontFamily: MONO, fontSize: 11, minHeight: 20, color: 'var(--text-muted)', display: 'flex', gap: 16, alignItems: 'center' }}>
+        {hover?.data ? (
+          <>
+            <span style={{ fontSize: 9, letterSpacing: '0.06em' }}>{hover.date}</span>
+            <span style={{ fontWeight: 700, color: hover.data.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              {hover.data.pnl >= 0 ? '+' : ''}{hover.data.pnl.toFixed(2)} USDT
+            </span>
+            <span style={{ fontSize: 9 }}>{hover.data.trades} {t.dashboard.analytics.tradesLbl}</span>
+          </>
+        ) : (
+          <span style={{ fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t.dashboard.analytics.hoverDay}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const CURVE_LOC = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' };
 
 function EquityCurve({ trades }) {
@@ -1047,6 +1136,14 @@ export default function AnalyticsTab() {
         <div style={{ marginBottom: 32 }}>
           <SectionLabel title={t.dashboard.analytics.dailyPnl} right={allDays === 0 ? t.dashboard.analytics.allTime : `${t.dashboard.analytics.lastDays} ${allDays}d`} />
           <DailyChart daily={dailyPnl} t={t} />
+        </div>
+      )}
+
+      {/* Trading calendar heatmap */}
+      {dailyPnl.length >= 7 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionLabel title={t.dashboard.analytics.calendarHeatmap} right={allDays === 0 ? t.dashboard.analytics.allTime : `${t.dashboard.analytics.lastDays} ${allDays}d`} />
+          <CalendarHeatmap dailyPnl={dailyPnl} />
         </div>
       )}
 
