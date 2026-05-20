@@ -97,7 +97,7 @@ export default function LandingFooter() {
   const { t } = useLang();
 
   return (
-    <footer style={{ background: '#060606', borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
+    <footer style={{ background: '#000', borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
 
       <style>{`
         .kado-footer-grid {
