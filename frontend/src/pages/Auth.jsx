@@ -19,7 +19,7 @@ function checkStrength(pw) {
   };
 }
 
-const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#22c55e', '#0047FF'];
+const STRENGTH_COLOR = ['', '#ef4444', '#f59e0b', '#22c55e', '#22c55e'];
 
 function StrengthMeter({ password }) {
   const { t } = useLang();
@@ -58,7 +58,7 @@ function Field({ label, ...props }) {
       <div className="font-mono text-[10px] tracking-[0.3em] uppercase text-kado-black/60 mb-2">{label}</div>
       <input
         {...props}
-        className="w-full h-12 px-4 bg-white border border-kado-black text-kado-black text-[15px] outline-none focus:border-kado-blue transition-colors font-mono"
+        className="w-full h-12 px-4 bg-white border border-kado-black text-kado-black text-[15px] outline-none focus:border-kado-black transition-colors font-mono"
       />
     </label>
   );
@@ -76,7 +76,7 @@ function PasswordField({ label, value, onChange, placeholder, autoComplete }) {
           onChange={onChange}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          className="w-full h-12 px-4 pr-12 bg-white border border-kado-black text-kado-black text-[15px] outline-none focus:border-kado-blue transition-colors font-mono"
+          className="w-full h-12 px-4 pr-12 bg-white border border-kado-black text-kado-black text-[15px] outline-none focus:border-kado-black transition-colors font-mono"
         />
         <button
           type="button"
@@ -548,12 +548,12 @@ export default function Auth() {
     <div className="min-h-screen flex flex-col md:flex-row bg-white">
       {/* Left black panel */}
       <div className="md:w-1/2 bg-kado-black text-white flex flex-col justify-between p-8 md:p-14 min-h-[40vh] md:min-h-screen">
-        <Link to="/" className="font-mono text-[11px] tracking-[0.3em] uppercase text-white/60 hover:text-kado-blue transition-colors w-fit">
+        <Link to="/" className="font-mono text-[11px] tracking-[0.3em] uppercase text-white/60 hover:text-kado-black transition-colors w-fit">
           {t.auth.backLink}
         </Link>
         <div>
           <div className="font-mono text-[11px] tracking-[0.3em] uppercase text-white/50 mb-8 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-kado-blue animate-blink" /> {t.auth.brand}
+            <span className="w-1.5 h-1.5 bg-kado-black animate-blink" /> {t.auth.brand}
           </div>
           <h1 className="font-black text-[22vw] md:text-[14vw] leading-[0.82] tracking-[-0.06em]">KADO</h1>
           <p className="mt-8 text-lg md:text-2xl font-semibold max-w-md leading-tight">
@@ -586,7 +586,7 @@ export default function Auth() {
                   <button
                     key={m}
                     onClick={() => { setMode(m); setError(''); }}
-                    className={`flex-1 h-12 font-mono text-[11px] tracking-[0.25em] uppercase transition-colors border-b-2 -mb-px ${mode === m ? 'border-kado-blue text-kado-black' : 'border-transparent text-kado-black/40 hover:text-kado-black'}`}
+                    className={`flex-1 h-12 font-mono text-[11px] tracking-[0.25em] uppercase transition-colors border-b-2 -mb-px ${mode === m ? 'border-kado-black text-kado-black' : 'border-transparent text-kado-black/40 hover:text-kado-black'}`}
                   >
                     {m === 'login' ? t.auth.loginTab : t.auth.signupTab}
                   </button>
@@ -609,7 +609,7 @@ export default function Auth() {
                   <PasswordField label={t.auth.passwordLabel} value={form.password} onChange={set('password')} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
                   {mode === 'register' && <StrengthMeter password={form.password} />}
                   {mode === 'login' && (
-                    <button type="button" onClick={() => { setForgotMode(true); setError(''); }} className="mt-1.5 font-mono text-[10px] tracking-[0.2em] uppercase text-kado-black/40 hover:text-kado-blue transition-colors">
+                    <button type="button" onClick={() => { setForgotMode(true); setError(''); }} className="mt-1.5 font-mono text-[10px] tracking-[0.2em] uppercase text-kado-black/40 hover:text-kado-black transition-colors">
                       {t.auth.forgotPw}
                     </button>
                   )}
@@ -628,20 +628,20 @@ export default function Auth() {
                 {mode === 'register' && (
                   <p className="font-mono text-[10px] tracking-[0.05em] text-kado-black/40 leading-relaxed text-center">
                     {t.auth.agreeTerms}{' '}
-                    <Link to="/legal/terms" className="underline hover:text-kado-blue transition-colors">{t.auth.agreeTermsTerms}</Link>
+                    <Link to="/legal/terms" className="underline hover:text-kado-black transition-colors">{t.auth.agreeTermsTerms}</Link>
                     {' '}{t.auth.agreeTermsAnd}{' '}
-                    <Link to="/legal/privacy" className="underline hover:text-kado-blue transition-colors">{t.auth.agreeTermsPrivacy}</Link>.
+                    <Link to="/legal/privacy" className="underline hover:text-kado-black transition-colors">{t.auth.agreeTermsPrivacy}</Link>.
                   </p>
                 )}
               </form>
 
               <div className="mt-8 font-mono text-[11px] tracking-[0.2em] uppercase text-kado-black/60 flex flex-col gap-3">
                 {mode === 'login' ? (
-                  <button type="button" onClick={() => { setMode('register'); setError(''); }} className="hover:text-kado-blue transition-colors text-left">
+                  <button type="button" onClick={() => { setMode('register'); setError(''); }} className="hover:text-kado-black transition-colors text-left">
                     {t.auth.noAccount}
                   </button>
                 ) : (
-                  <button type="button" onClick={() => { setMode('login'); setError(''); }} className="hover:text-kado-blue transition-colors text-left">
+                  <button type="button" onClick={() => { setMode('login'); setError(''); }} className="hover:text-kado-black transition-colors text-left">
                     {t.auth.haveAccount}
                   </button>
                 )}

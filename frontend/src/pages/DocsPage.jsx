@@ -51,6 +51,13 @@ const LEGAL_DOCS = [
     updated: '2026-05-18',
     to: '/legal/privacy#section-6',
   },
+  {
+    id: 'security',
+    title: 'Security',
+    desc: 'AES-256 API key encryption, bcrypt passwords, TOTP 2FA, TLS 1.3, Cloudflare WAF, IP rate limiting.',
+    updated: '2026-05-18',
+    to: '/docs?section=faq',
+  },
 ];
 
 function DocCard({ doc, isMobile }) {
@@ -114,7 +121,7 @@ function OverviewContent({ isMobile }) {
         ))}
         {/* Fill last cell if odd count on 2-col grid */}
         {!isMobile && LEGAL_DOCS.length % 2 !== 0 && (
-          <div style={{ background: '#060606' }} />
+          <div style={{ background: 'var(--bg-base, #060606)' }} />
         )}
       </div>
 
@@ -122,7 +129,7 @@ function OverviewContent({ isMobile }) {
       <div style={{ marginTop: 48, borderTop: `1px solid ${LINE}`, paddingTop: 32, display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 32 }}>
         {[
           { label: 'COMPANY', value: 'KADO' },
-          { label: 'INFRASTRUCTURE', value: 'Hetzner VPS · Falkenstein, Germany (EU)' },
+          { label: 'PLATFORM', value: 'Bybit Futures · Non-custodial · USDT Perps' },
           { label: 'LEGAL CONTACT', value: 'legal@kadoclub.net' },
           { label: 'PRIVACY CONTACT', value: 'privacy@kadoclub.net' },
         ].map(item => (
