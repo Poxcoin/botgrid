@@ -3144,8 +3144,8 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
             )
             signals = [
                 {
-                    "coin":      r.symbol.replace("USDT", "").replace("/USDT:USDT", ""),
-                    "action":    r.action or "LONG",
+                    "coin":      r.symbol.replace("/USDT:USDT", "").replace("/USDT", "").replace("USDT", ""),
+                    "action":    r.side or "LONG",
                     "result":    r.status.upper() if r.status and r.status != "open" else None,
                     "timestamp": r.opened_at.isoformat() if r.opened_at else None,
                 }
