@@ -2632,6 +2632,7 @@ async def get_stats(token: str = Depends(require_any_auth)):
         win_rate  = unified["all"]["wr"]
         winning_trades = unified["all"]["wins"]
         closed_trades_n = unified["all"]["trades"]
+        losing_trades = closed_trades_n - winning_trades
     except Exception:
         closed_trades_n = len(closed_trades)
 
