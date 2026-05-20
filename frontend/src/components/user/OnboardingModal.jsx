@@ -167,9 +167,9 @@ function StrategyStep({ onNext }) {
   const to = t.dashboard.onboarding;
 
   const STRATEGIES = [
-    { name: 'Grid Bot',      badge: 'Recommended', risk: 'Low',        riskColor: '#00d4aa', desc: 'Places buy/sell orders in a price range. Best for sideways markets. Profits from volatility automatically.' },
-    { name: 'Signal Bot',    badge: null,          risk: 'Medium',      riskColor: '#f5a623', desc: 'Follows news & market signals to enter altcoin trades. Higher upside, needs more market movement.' },
-    { name: 'Funding Rate',  badge: null,          risk: 'Low–Medium',  riskColor: '#f5a623', desc: 'Exploits funding rate anomalies between long and short positions. Works in any market direction.' },
+    { name: 'Grid Bot',      badge: to.stratRecommended, risk: to.stratRiskLow,     riskColor: '#00d4aa', desc: to.stratGridDesc },
+    { name: 'Signal Bot',    badge: null,                risk: to.stratRiskMed,     riskColor: '#f5a623', desc: to.stratSignalDesc },
+    { name: 'Funding Rate',  badge: null,                risk: to.stratRiskLowMed,  riskColor: '#f5a623', desc: to.stratFundingDesc },
   ];
 
   return (
@@ -186,7 +186,7 @@ function StrategyStep({ onNext }) {
               {s.badge && (
                 <span style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(0,212,170,0.1)', color: '#00d4aa', borderRadius: 4, fontWeight: 600 }}>{s.badge}</span>
               )}
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: s.riskColor }}>{s.risk} risk</span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: s.riskColor }}>{s.risk} {to.stratRisk}</span>
             </div>
             <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5 }}>{s.desc}</div>
           </div>
