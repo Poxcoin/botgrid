@@ -363,7 +363,7 @@ function CoinTicker({ coins, selected, onSelect, coinPnl = {} }) {
 /* ══════════════════════════════════════════════════════════════════
    KLINECHART — full candlestick chart with order book, indicators
 ══════════════════════════════════════════════════════════════════ */
-function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = false }) {
+function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = false, trades = [] }) {
   const { theme } = useTheme();
   const dark = theme !== 'light';
 
@@ -380,6 +380,8 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
   const tfRef      = useRef('60');
   const showLRef   = useRef(false);
   const plRef      = useRef({ entry: null, sl: null, tp: null });
+  const tradesRef  = useRef([]);
+  tradesRef.current = trades;
 
   const [tf,         setTf]         = useState('60');
   const [showLine,   setShowLine]   = useState(false);
@@ -436,6 +438,46 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     }
   }
 
+  function applyMarkers(bars) {
+    const cs = candleRef.current;
+    if (!cs) return;
+    const trs = tradesRef.current;
+    if (!bars.length || !trs.length) { try { cs.setMarkers([]); } catch {} return; }
+    const firstT = bars[0].time;
+    const lastT  = bars[bars.length - 1].time;
+    const markers = [];
+    for (const tr of trs) {
+      if (tr.opened_at) {
+        const ts = Math.trunc(new Date(tr.opened_at).getTime() / 1000);
+        if (ts >= firstT && ts <= lastT) {
+          markers.push({
+            time: ts,
+            position: tr.side === 'LONG' ? 'belowBar' : 'aboveBar',
+            color: tr.side === 'LONG' ? '#0ecb81' : '#f6465d',
+            shape: tr.side === 'LONG' ? 'arrowUp' : 'arrowDown',
+            text: '', size: 1,
+          });
+        }
+      }
+      if (tr.closed_at) {
+        const ts = Math.trunc(new Date(tr.closed_at).getTime() / 1000);
+        const p  = parseFloat(tr.pnl ?? 0);
+        if (ts >= firstT && ts <= lastT) {
+          markers.push({
+            time: ts,
+            position: tr.side === 'LONG' ? 'aboveBar' : 'belowBar',
+            color: p >= 0 ? '#0ecb81' : '#f6465d',
+            shape: 'circle',
+            text: `${p >= 0 ? '+' : ''}${p.toFixed(1)}`,
+            size: 1,
+          });
+        }
+      }
+    }
+    markers.sort((a, b) => a.time - b.time);
+    try { cs.setMarkers(markers); } catch {}
+  }
+
   function applyData(bars) {
     if (!bars.length || !candleRef.current) return;
     const sorted = [...bars].sort((a, b) => a.time - b.time);
@@ -451,6 +493,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
       }
       volRef.current?.setData(vol);
       refreshInds(sorted);
+      applyMarkers(sorted);
     } catch {}
   }
 
@@ -616,6 +659,11 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     if (stopLoss   > 0) plRef.current.sl    = cs.createPriceLine({ price: stopLoss,   color: 'rgba(255,77,109,0.9)',  lineStyle: LineStyle.Dashed, lineWidth: 1, title: 'SL'    });
     if (takeProfit > 0) plRef.current.tp    = cs.createPriceLine({ price: takeProfit,  color: 'rgba(0,212,170,0.9)',   lineStyle: LineStyle.Dashed, lineWidth: 1, title: 'TP'    });
   }, [entryPrice, stopLoss, takeProfit]);
+
+  // Re-apply markers when trade list changes while bars are already loaded
+  useEffect(() => {
+    if (barsRef.current.length) applyMarkers(barsRef.current);
+  }, [trades]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Candle / Line area toggle
   useEffect(() => {
@@ -1366,6 +1414,11 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
     return { total, wins, n: cl.length, wr: cl.length ? Math.round(wins / cl.length * 100) : 0 };
   }, [periodTrades]);
 
+  const coinTrades = useMemo(() =>
+    periodTrades.filter(t => sym(t.symbol) === coin && !!t.closed_at),
+    [periodTrades, coin]
+  );
+
   const coinPnl = useMemo(() => {
     const cl = periodTrades.filter(t => t.closed_at);
     const map = {};
@@ -1577,7 +1630,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       )}
 
       {/* ── KLINECHART ────────────────────────────────────────── */}
-      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} isMobile={isMobile} />
+      <Chart coin={coin} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} onTypeChange={id => setIsBW(id === 'candle_up_stroke')} isMobile={isMobile} trades={coinTrades} />
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={periodTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
