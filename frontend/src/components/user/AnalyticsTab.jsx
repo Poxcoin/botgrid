@@ -1039,7 +1039,7 @@ export default function AnalyticsTab() {
       {/* Daily PnL chart — period-aware */}
       {dailyPnl.length > 0 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title="Daily PnL" right={allDays === 0 ? 'all time' : `last ${allDays}d`} />
+          <SectionLabel title={t.dashboard.analytics.dailyPnl} right={allDays === 0 ? t.dashboard.analytics.allTime : `${t.dashboard.analytics.lastDays} ${allDays}d`} />
           <DailyChart daily={dailyPnl} t={t} />
         </div>
       )}
@@ -1047,7 +1047,7 @@ export default function AnalyticsTab() {
       {/* Equity curve */}
       {allTrades.length >= 2 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title="Equity Curve" right={allDays === 0 ? 'all time' : `last ${allDays}d`} />
+          <SectionLabel title={t.dashboard.analytics.equityCurve} right={allDays === 0 ? t.dashboard.analytics.allTime : `${t.dashboard.analytics.lastDays} ${allDays}d`} />
           <EquityCurve trades={allTrades} />
         </div>
       )}
@@ -1055,7 +1055,7 @@ export default function AnalyticsTab() {
       {/* Day of week breakdown */}
       {allTrades.length >= 7 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title="Day of Week" right="avg PnL by weekday" />
+          <SectionLabel title={t.dashboard.analytics.dayOfWeek} right={t.dashboard.analytics.avgByWeekday} />
           <DayOfWeekChart trades={allTrades} />
         </div>
       )}
@@ -1063,7 +1063,7 @@ export default function AnalyticsTab() {
       {/* Hour of day breakdown */}
       {allTrades.length >= 10 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title="Hour of Day (UTC)" right="cumulative PnL by hour" />
+          <SectionLabel title={t.dashboard.analytics.hourOfDay} right={t.dashboard.analytics.cumByHour} />
           <HourOfDayChart trades={allTrades} />
         </div>
       )}
@@ -1083,7 +1083,7 @@ export default function AnalyticsTab() {
         if (!hasBoth && sides.LONG.trades + sides.SHORT.trades < 4) return null;
         return (
           <div style={{ marginBottom: 32 }}>
-            <SectionLabel title="Long vs Short" right="direction breakdown" />
+            <SectionLabel title={t.dashboard.analytics.longVsShort} right={t.dashboard.analytics.dirBreakdown} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--border-subtle)' }}>
               {['LONG', 'SHORT'].map(side => {
                 const s = sides[side];
@@ -1233,7 +1233,7 @@ export default function AnalyticsTab() {
         };
         return (
           <div style={{ marginBottom: 32 }}>
-            <SectionLabel title="All Trades" right={`${filtered.length !== allTrades.length ? `${filtered.length} / ` : ''}${allTrades.length} total`} />
+            <SectionLabel title={t.dashboard.analytics.allTradesTitle} right={`${filtered.length !== allTrades.length ? `${filtered.length} / ` : ''}${allTrades.length} ${t.dashboard.analytics.total}`} />
             <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {['ALL', 'LONG', 'SHORT'].map(s => (
                 <button key={s} onClick={() => { setTradeSide(s); setTradePage(1); }} style={{
@@ -1262,7 +1262,7 @@ export default function AnalyticsTab() {
                     fontFamily: MONO, fontSize: 10, padding: '4px 10px', outline: 'none', cursor: 'pointer',
                   }}
                 >
-                  <option value="ALL">All bots</option>
+                  <option value="ALL">{t.dashboard.analytics.allBots}</option>
                   {sources.map(s => (
                     <option key={s} value={s}>{BOT_LABELS[s] || s}</option>
                   ))}
@@ -1293,7 +1293,7 @@ export default function AnalyticsTab() {
                     fontFamily: MONO, fontSize: 11, padding: '5px 14px', cursor: page <= 1 ? 'default' : 'pointer',
                     opacity: page <= 1 ? 0.4 : 1, transition: 'border-color 150ms',
                   }}
-                >← Prev</button>
+                >{t.dashboard.analytics.prev}</button>
                 <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)' }}>
                   {page} / {totalPages}
                 </span>
@@ -1305,7 +1305,7 @@ export default function AnalyticsTab() {
                     fontFamily: MONO, fontSize: 11, padding: '5px 14px', cursor: page >= totalPages ? 'default' : 'pointer',
                     opacity: page >= totalPages ? 0.4 : 1, transition: 'border-color 150ms',
                   }}
-                >Next →</button>
+                >{t.dashboard.analytics.next}</button>
               </div>
             )}
           </div>
