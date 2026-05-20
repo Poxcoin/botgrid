@@ -63,8 +63,8 @@ export default function PnlTab() {
               return (
                 <div key={`${r.year}-${r.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <div style={{
-                    width: '100%', height: h, background: r.gross_pnl >= 0 ? 'var(--fg)' : 'var(--muted-fg)',
-                    opacity: r.gross_pnl >= 0 ? 1 : 0.45, minHeight: 2,
+                    width: '100%', height: h, minHeight: 2,
+                    background: r.gross_pnl >= 0 ? 'rgba(14,203,129,0.75)' : 'rgba(246,70,93,0.65)',
                   }} />
                   <div style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
                     {MONTHS[r.month - 1]}
@@ -110,9 +110,9 @@ export default function PnlTab() {
           ) : rows.map(r => (
             <tr key={`${r.year}-${r.month}`} style={{ borderBottom: '1px solid var(--border)' }}>
               <td style={{ padding: '12px 0' }}>{MONTHS[r.month - 1]} {r.year}</td>
-              <td style={{ padding: '12px 0' }}>{r.gross_pnl >= 0 ? '+' : ''}{r.gross_pnl.toFixed(2)}</td>
+              <td style={{ padding: '12px 0', color: r.gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{r.gross_pnl >= 0 ? '+' : ''}{r.gross_pnl.toFixed(2)}</td>
               <td style={{ padding: '12px 0', color: 'var(--muted-fg)' }}>{r.performance_fee.toFixed(2)}</td>
-              <td style={{ padding: '12px 0' }}>{r.net_pnl >= 0 ? '+' : ''}{r.net_pnl.toFixed(2)}</td>
+              <td style={{ padding: '12px 0', color: r.net_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{r.net_pnl >= 0 ? '+' : ''}{r.net_pnl.toFixed(2)}</td>
               <td style={{ padding: '12px 0', color: 'var(--muted-fg)' }}>{r.fee_paid ? '✓' : '—'}</td>
             </tr>
           ))}
