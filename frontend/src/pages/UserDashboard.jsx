@@ -10,7 +10,6 @@ const TradesTab    = lazy(() => import('@/components/user/TradesTab'));
 const PnlTab       = lazy(() => import('@/components/user/PnlTab'));
 const ToolsTab     = lazy(() => import('@/components/user/ToolsTab'));
 const AnalyticsTab = lazy(() => import('@/components/user/AnalyticsTab'));
-const OwnerTab     = lazy(() => import('@/components/user/OwnerTab'));
 import MacroBotTab from '@/components/user/MacroBotTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
@@ -67,7 +66,6 @@ function Page({ tab, allowedBots }) {
     case 'security':  return <SecurityTab />;
     case 'settings':  return <SettingsTab />;
     case 'assets':    return <Suspense fallback={null}><AssetsTab /></Suspense>;
-    case 'owner':     return <Suspense fallback={null}><OwnerTab /></Suspense>;
     default:          return null;
   }
 }
@@ -237,10 +235,6 @@ export default function UserDashboard() {
           { id: 'settings', label: t.dashboard.tabSettings },
         ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
 
-        {user.id === 1 && <>
-          <div style={{ height: 1, background: border, margin: '8px 0' }}/>
-          <NavItem id="owner" label="Owner" />
-        </>}
       </nav>
 
       {/* footer: account name + gear + theme + logout */}
