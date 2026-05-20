@@ -41,17 +41,30 @@ def _init_exchange():
 
 
 def _fetch_closed(exchange, symbol: str, since_ms: int) -> list:
-    try:
-        resp = exchange.private_get_v5_position_closed_pnl({
+    """Fetch all closed PnL entries since since_ms using cursor pagination."""
+    all_entries = []
+    cursor = None
+    for _ in range(10):  # max 10 pages × 200 = 2000 entries
+        params = {
             "category":  "linear",
             "symbol":    symbol,
             "limit":     200,
             "startTime": since_ms,
-        })
-        return resp.get("result", {}).get("list", [])
-    except Exception as e:
-        print(f"  ⚠️  Bybit fetch {symbol}: {e}")
-        return []
+        }
+        if cursor:
+            params["cursor"] = cursor
+        try:
+            resp = exchange.private_get_v5_position_closed_pnl(params)
+        except Exception as e:
+            print(f"  ⚠️  Bybit fetch {symbol}: {e}")
+            break
+        result  = resp.get("result", {})
+        entries = result.get("list", [])
+        all_entries.extend(entries)
+        cursor = result.get("nextPageCursor")
+        if not cursor or len(entries) < 200:
+            break
+    return all_entries
 
 
 def main():
