@@ -112,18 +112,18 @@ export default function UserDashboard() {
   const goTab = id => { setTab(id); setDrawerOpen(false); };
 
   const isBot    = BOT_IDS.includes(tab);
-  const allItems = [
-    ...BOTS,
-    { id: 'analytics', label: 'Balance'  },
-    { id: 'trades',    label: 'Trades'   },
-    { id: 'pnl',       label: 'PnL'      },
-    { id: 'tools',     label: 'Tools'    },
-    { id: 'account',   label: 'Account'  },
-    { id: 'api-keys',  label: 'API Keys' },
-    { id: 'security',  label: 'Security' },
-    { id: 'settings',  label: 'Settings' },
-  ];
-  const pageLabel = allItems.find(x => x.id === tab)?.label ?? '';
+  const pageLabel = isBot
+    ? BOTS.find(b => b.id === tab)?.label ?? ''
+    : ({
+        analytics: t.dashboard.tabOverview,
+        trades:    t.dashboard.tabTrades,
+        pnl:       t.dashboard.tabPnl,
+        tools:     t.dashboard.navTools,
+        account:   t.dashboard.tabAccount,
+        'api-keys': t.dashboard.tabApiKeys,
+        security:  t.dashboard.tabSecurity,
+        settings:  t.dashboard.tabSettings,
+      })[tab] ?? '';
 
   /* ── tokens ── */
   const bg          = 'var(--bg-base)';
