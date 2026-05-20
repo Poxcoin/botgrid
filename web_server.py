@@ -1695,13 +1695,9 @@ def _filter_ghost_closes(rows):
 
 
 def _fix_bybit_side(side: str | None, source: str | None) -> str | None:
-    """
-    bybit_sync stores the CLOSING order side (e.g., 'Sell' to close a Long
-    is stored as 'SHORT'). Invert so the UI shows the OPENING position side.
-    """
-    if source != "bybit" or side is None:
-        return side
-    return "LONG" if side == "SHORT" else "SHORT"
+    """bybit_sync records the position direction directly from Bybit closed-pnl
+    (Buy→LONG, Sell→SHORT). No inversion needed."""
+    return side
 
 
 def _fetch_all_closed_pnl(ex, max_pages: int = 20):
