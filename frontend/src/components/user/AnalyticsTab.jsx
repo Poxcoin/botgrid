@@ -1014,9 +1014,87 @@ export default function AnalyticsTab() {
   const sign = v => (v >= 0 ? '+' : '') + parseFloat(v ?? 0).toFixed(2);
   const upnl = balance?.unrealized_pnl ?? 0;
 
+  const sparseHint = allTrades.length > 0 && allTrades.length < 5
+    ? t.dashboard.analytics?.sparseHint ?? `Поки що ${allTrades.length} закритих торгів. Деякі графіки з'являться, коли набереться більше історії (5+ трейдів).`
+    : null;
+  const emptyHint = allTrades.length === 0
+    ? t.dashboard.analytics?.emptyHint ?? 'Поки що немає закритих торгів. Підключіть API-ключ Bybit на вкладці API Keys і дайте ботам час — статистика з\'явиться автоматично.'
+    : null;
+
   return (
     <div style={{ color: 'var(--text-primary)', fontFamily: FONT }}>
       <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
+
+      {/* Hero header: Performance summary */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: 1,
+        background: 'var(--border-subtle)',
+        marginBottom: 1,
+        border: '1px solid var(--border-subtle)',
+      }}>
+        <div style={{ background: 'var(--bg-base)', padding: '24px 28px', gridColumn: 'span 1' }}>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+            {t.dashboard.analytics.totalPnl}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: totalPnl > 0 ? 'var(--accent-green)' : totalPnl < 0 ? 'var(--accent-red)' : 'var(--text-primary)' }}>
+            {totalPnl > 0 ? '+' : ''}{totalPnl.toFixed(2)}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
+            USDT · {allTrades.length} {t.dashboard.analytics.tradesLbl}
+          </div>
+        </div>
+        <div style={{ background: 'var(--bg-base)', padding: '24px 28px' }}>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+            {t.dashboard.analytics.winRate}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: winRate !== '—' && parseFloat(winRate) >= 50 ? 'var(--accent-green)' : (winRate === '—' ? 'var(--text-muted)' : 'var(--accent-red)') }}>
+            {winRate}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
+            {periodStats.wins}W · {periodStats.losses}L
+          </div>
+        </div>
+        <div style={{ background: 'var(--bg-base)', padding: '24px 28px' }}>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+            {t.dashboard.analytics.profitFactor}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: profitFactor == null ? 'var(--text-muted)' : (profitFactor >= 1 ? 'var(--accent-green)' : 'var(--accent-red)') }}>
+            {profitFactor == null ? '—' : `${profitFactor}×`}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
+            {t.dashboard.analytics.grossPerLoss}
+          </div>
+        </div>
+        <div style={{ background: 'var(--bg-base)', padding: '24px 28px' }}>
+          <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 14 }}>
+            {t.dashboard.analytics.maxDrawdown}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: maxDrawdown == null ? 'var(--text-muted)' : 'var(--accent-red)' }}>
+            {maxDrawdown == null ? '—' : `−${maxDrawdown}`}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-muted)', marginTop: 8, letterSpacing: '0.05em' }}>
+            {t.dashboard.analytics.fromPeak}
+          </div>
+        </div>
+      </div>
+
+      {(emptyHint || sparseHint) && (
+        <div style={{
+          padding: '14px 18px',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-subtle)',
+          borderLeft: '2px solid var(--text-muted)',
+          marginTop: 1, marginBottom: 24,
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+        }}>
+          <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', flexShrink: 0, paddingTop: 1 }}>INFO</span>
+          <span style={{ fontFamily: FONT, fontSize: 12, color: 'var(--text-secondary, var(--text-muted))', lineHeight: 1.55 }}>
+            {emptyHint || sparseHint}
+          </span>
+        </div>
+      )}
 
       {/* Balance bar */}
       {balance && (
@@ -1167,7 +1245,7 @@ export default function AnalyticsTab() {
       )}
 
       {/* Day of week breakdown */}
-      {allTrades.length >= 7 && (
+      {allTrades.length >= 3 && (
         <div style={{ marginBottom: 32 }}>
           <SectionLabel title={t.dashboard.analytics.dayOfWeek} right={t.dashboard.analytics.avgByWeekday} />
           <DayOfWeekChart trades={allTrades} />
@@ -1175,7 +1253,7 @@ export default function AnalyticsTab() {
       )}
 
       {/* Hour of day breakdown */}
-      {allTrades.length >= 10 && (
+      {allTrades.length >= 4 && (
         <div style={{ marginBottom: 32 }}>
           <SectionLabel title={t.dashboard.analytics.hourOfDay} right={t.dashboard.analytics.cumByHour} />
           <HourOfDayChart trades={allTrades} />
@@ -1183,7 +1261,7 @@ export default function AnalyticsTab() {
       )}
 
       {/* Long vs Short breakdown */}
-      {allTrades.length >= 4 && (() => {
+      {allTrades.length >= 2 && (() => {
         const sides = { LONG: { trades: 0, pnl: 0, wins: 0 }, SHORT: { trades: 0, pnl: 0, wins: 0 } };
         for (const tr of allTrades) {
           const side = (tr.side || '').toUpperCase();
