@@ -1,225 +1,255 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import LandingHeader from '@/components/landing/LandingHeader';
 import LandingFooter from '@/components/landing/LandingFooter';
+import SpiralText from '@/components/shared/SpiralText';
+import { useLang } from '@/lib/LangContext';
 import { useIsMobile } from '@/lib/useIsMobile';
 
+const FONT = "'Inter','SF Pro Display',system-ui,sans-serif";
 const MONO = "'JetBrains Mono','SF Mono',monospace";
-const SANS = "'Inter',system-ui,sans-serif";
-const G = '#0ecb81';
-const R = '#f6465d';
-const DIM = 'rgba(255,255,255,0.07)';
 
-const BOT_ROWS = [
-  { symbol: 'BTCUSDT',  bot: 'Signal Bot',     status: 'MONITORING' },
-  { symbol: 'ETHUSDT',  bot: 'Signal Bot',     status: 'MONITORING' },
-  { symbol: 'SOLUSDT',  bot: 'Signal Bot',     status: 'MONITORING' },
-  { symbol: 'BNBUSDT',  bot: 'Funding Rate',   status: 'COLLECTING FR' },
-  { symbol: 'XRPUSDT',  bot: 'Liq Sweep',      status: 'SCANNING' },
-  { symbol: 'WLDUSDT',  bot: 'Signal Bot',     status: 'MONITORING' },
-  { symbol: 'XAUUSD',   bot: 'Gold Bot',       status: 'MONITORING' },
-  { symbol: 'EURUSD',   bot: 'Macro Forex',    status: 'MONITORING' },
-];
+/* ── BACKGROUND CHARTS ── */
+function generateCandles(count, startPrice, volatility, seed) {
+  let price = startPrice;
+  let rng = seed;
+  const next = () => { rng = (rng * 1664525 + 1013904223) & 0xffffffff; return (rng >>> 0) / 0xffffffff; };
+  return Array.from({ length: count }, () => {
+    const open = price;
+    const move = (next() - 0.48) * volatility;
+    const close = Math.max(10, open + move);
+    const high = Math.max(open, close) + next() * volatility * 0.6;
+    const low  = Math.min(open, close) - next() * volatility * 0.4;
+    price = close;
+    return { open, close, high, low };
+  });
+}
 
-const BOTS = [
-  { id: '01', name: 'Signal Bot',     pairs: 'WLD · JUP · ARB · RUNE +6',  wr: '83%', tf: '15m–4h' },
-  { id: '02', name: 'Liq Sweep',      pairs: 'ETH · SOL',                   wr: '59%', tf: '1m–15m' },
-  { id: '03', name: 'Funding Rate',   pairs: 'INJ · ONDO · WLD · JUP +5',  wr: '71%', tf: '8h cycle' },
-  { id: '04', name: 'Grid Bot',       pairs: 'BTC · ETH · SOL',             wr: '—',   tf: 'Range' },
-  { id: '05', name: 'Cascade DCA',    pairs: 'ETH · SOL · DOGE · LINK +4', wr: '68%', tf: 'Multi-TP' },
-  { id: '06', name: 'Orderflow',      pairs: 'BTC · ETH · SOL',             wr: '61%', tf: '1m–5m' },
-  { id: '07', name: 'Macro Forex',    pairs: 'EUR/USD · GBP/USD',           wr: '—',   tf: 'Event' },
-  { id: '08', name: 'Gold Bot',       pairs: 'XAU/USD',                     wr: '—',   tf: 'Event' },
-];
-
-/* ── LIVE TERMINAL ── */
-function LiveTerminal() {
-  const isMobile = useIsMobile();
-  const [tickers, setTickers] = useState({});
-  const [ts, setTs] = useState('');
-  const [blink, setBlink] = useState(true);
-
-  useEffect(() => {
-    const symbols = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','WLDUSDT'];
-    const fetch_ = async () => {
-      try {
-        const r = await fetch(`https://api.bybit.com/v5/market/tickers?category=linear`);
-        const d = await r.json();
-        const map = {};
-        (d.result?.list || []).forEach(t => { map[t.symbol] = t; });
-        setTickers(map);
-        setTs(new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC');
-      } catch {}
-    };
-    fetch_();
-    const iv = setInterval(fetch_, 30000);
-    const biv = setInterval(() => setBlink(b => !b), 800);
-    return () => { clearInterval(iv); clearInterval(biv); };
-  }, []);
-
-  const rows = BOT_ROWS.filter(r => !isMobile || ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT'].includes(r.symbol));
+function CandleChart({ x, y, width, height, count = 40, seed = 42, opacity = 0.07 }) {
+  const candles = generateCandles(count, 100, 8, seed);
+  const prices = candles.flatMap(c => [c.high, c.low]);
+  const minP = Math.min(...prices), maxP = Math.max(...prices);
+  const scaleY = p => y + height - ((p - minP) / (maxP - minP)) * height;
+  const cw = width / count;
+  const bodyW = Math.max(1.5, cw * 0.55);
+  const closePts = candles.map((c, i) => `${x + i * cw + cw / 2},${scaleY(c.close)}`).join(' ');
 
   return (
-    <div style={{ fontFamily: MONO, border: `1px solid ${DIM}`, background: '#000' }}>
-      {/* terminal header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: `1px solid ${DIM}`, background: 'rgba(255,255,255,0.02)' }}>
-        <span style={{ fontSize: 11, color: '#555', letterSpacing: '0.12em' }}>KADO SIGNAL ENGINE</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {ts && <span style={{ fontSize: 10, color: '#333' }}>{ts}</span>}
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: G }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: blink ? G : 'transparent', transition: 'background 0.1s', display: 'inline-block' }}/>
-            LIVE
-          </span>
-        </div>
-      </div>
-
-      {/* column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 1fr' : '1.4fr 1fr 0.9fr 1.4fr 1.2fr', padding: '7px 16px', borderBottom: `1px solid ${DIM}` }}>
-        {(!isMobile ? ['SYMBOL','PRICE','24H %','BOT','STATUS'] : ['SYMBOL','PRICE','24H %']).map(h => (
-          <span key={h} style={{ fontSize: 9, color: '#444', letterSpacing: '0.18em' }}>{h}</span>
-        ))}
-      </div>
-
-      {/* rows */}
-      {rows.map((r, i) => {
-        const t = tickers[r.symbol];
-        const price = t ? parseFloat(t.lastPrice) : null;
-        const chg = t ? parseFloat(t.price24hPcnt) * 100 : null;
-        const up = chg == null ? null : chg >= 0;
+    <g opacity={opacity}>
+      {/* Grid lines */}
+      {[0, 0.25, 0.5, 0.75, 1].map(t => (
+        <line key={t} x1={x} x2={x + width} y1={y + height * t} y2={y + height * t}
+          stroke="white" strokeWidth="0.4" strokeDasharray="4 8" opacity="0.4" />
+      ))}
+      {/* Candles */}
+      {candles.map((c, i) => {
+        const cx = x + i * cw + cw / 2;
+        const bull = c.close >= c.open;
+        const bodyTop = scaleY(Math.max(c.open, c.close));
+        const bodyH = Math.max(1, Math.abs(scaleY(c.open) - scaleY(c.close)));
         return (
-          <div key={r.symbol} style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr 1fr' : '1.4fr 1fr 0.9fr 1.4fr 1.2fr',
-            padding: '11px 16px',
-            borderBottom: i < rows.length - 1 ? `1px solid rgba(255,255,255,0.03)` : 'none',
-            alignItems: 'center',
-          }}>
-            <span style={{ fontSize: 12, color: '#d0d0d0', fontWeight: 600 }}>{r.symbol}</span>
-            <span style={{ fontSize: 12, color: '#aaa' }}>
-              {price != null ? price.toLocaleString('en-US', { maximumFractionDigits: price > 100 ? 2 : 4 }) : '···'}
-            </span>
-            <span style={{ fontSize: 11, color: up == null ? '#444' : up ? G : R, fontWeight: 600 }}>
-              {chg != null ? `${up ? '+' : ''}${chg.toFixed(2)}%` : '···'}
-            </span>
-            {!isMobile && <>
-              <span style={{ fontSize: 10, color: '#666' }}>{r.bot}</span>
-              <span style={{ fontSize: 10, color: '#444', letterSpacing: '0.06em' }}>{r.status}</span>
-            </>}
-          </div>
+          <g key={i} stroke="white" fill={bull ? 'white' : 'none'}>
+            <line x1={cx} x2={cx} y1={scaleY(c.high)} y2={scaleY(c.low)} strokeWidth="0.6" />
+            <rect x={cx - bodyW / 2} y={bodyTop} width={bodyW} height={bodyH}
+              fill={bull ? 'white' : 'none'} stroke="white" strokeWidth="0.6" />
+          </g>
         );
       })}
-    </div>
+      {/* Price line */}
+      <polyline points={closePts} fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
+    </g>
+  );
+}
+
+function BackgroundCharts() {
+  return (
+    <svg
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
+      preserveAspectRatio="xMidYMid slice"
+      viewBox="0 0 1400 900"
+    >
+      {/* Main chart — right side */}
+      <CandleChart x={640} y={60} width={720} height={340} count={48} seed={77} opacity={0.07} />
+      {/* Secondary chart — bottom left */}
+      <CandleChart x={20} y={520} width={420} height={220} count={32} seed={133} opacity={0.05} />
+      {/* Micro chart — top left corner */}
+      <CandleChart x={20} y={40} width={260} height={140} count={26} seed={211} opacity={0.04} />
+      {/* Volume bars — right bottom */}
+      {generateCandles(48, 60, 20, 99).map((c, i) => (
+        <rect key={i}
+          x={640 + i * 15 + 1} y={820 - c.high * 1.2} width={10} height={c.high * 1.2}
+          fill="white" opacity={0.03 + (c.close > c.open ? 0.02 : 0)} />
+      ))}
+    </svg>
+  );
+}
+
+/* ── LOCAL NEURAL CANVAS (hero-only, 80 nodes, mouse-reactive) ── */
+function HeroLocalCanvas({ mouseRef }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, raf;
+    const nodes = [];
+
+    function init(w, h) {
+      nodes.length = 0;
+      for (let i = 0; i < 80; i++) {
+        const hx = Math.random() * w, hy = Math.random() * h;
+        nodes.push({
+          x: hx, y: hy, hx, hy, vx: 0, vy: 0,
+          r: 1.2 + Math.random() * 1.4,
+          op: 0.2 + Math.random() * 0.35,
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function resize() {
+      W = canvas.width = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+      init(W, H);
+    }
+
+    function frame(ts) {
+      raf = requestAnimationFrame(frame);
+      ctx.clearRect(0, 0, W, H);
+      const col = '255,255,255';
+      const mouse = mouseRef?.current ?? { x: -9999, y: -9999 };
+
+      for (const n of nodes) {
+        n.vx += (n.hx - n.x) * 0.014;
+        n.vy += (n.hy - n.y) * 0.014;
+        const dx = n.x - mouse.x, dy = n.y - mouse.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 140 && d > 0) {
+          const f = (1 - d / 140) * 0.055;
+          n.vx += (dx / d) * f * 50;
+          n.vy += (dy / d) * f * 50;
+        }
+        n.vx *= 0.87; n.vy *= 0.87;
+        n.x += n.vx; n.y += n.vy;
+        n.x = Math.max(0, Math.min(W, n.x));
+        n.y = Math.max(0, Math.min(H, n.y));
+      }
+
+      for (let i = 0; i < nodes.length; i++) {
+        const a = nodes[i];
+        for (let j = i + 1; j < nodes.length; j++) {
+          const b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 130) {
+            ctx.strokeStyle = `rgba(${col},${(1 - dist / 130) * 0.16})`;
+            ctx.lineWidth = 0.4;
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          }
+        }
+      }
+      for (const n of nodes) {
+        const flicker = 0.7 + 0.3 * Math.sin(ts * 0.001 + n.phase);
+        ctx.fillStyle = `rgba(${col},${n.op * flicker})`;
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    raf = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }}
+    />
   );
 }
 
 /* ── HERO ── */
-function Hero() {
+function HomeHero() {
+  const [in_, setIn] = useState(false);
+  const mouseRef = useRef({ x: -9999, y: -9999 });
+  const sectionRef = useRef(null);
+  const { t } = useLang();
   const isMobile = useIsMobile();
+  useEffect(() => { const timer = setTimeout(() => setIn(true), 60); return () => clearTimeout(timer); }, []);
+
+  const onMouseMove = useCallback((e) => {
+    const rect = sectionRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, []);
+  const onMouseLeave = useCallback(() => { mouseRef.current = { x: -9999, y: -9999 }; }, []);
+
+  const fade = (d, extra = {}) => ({
+    opacity: in_ ? 1 : 0,
+    transform: in_ ? 'none' : 'translateY(14px)',
+    transition: `opacity 700ms ${d}ms ease, transform 700ms ${d}ms ease`,
+    ...extra,
+  });
+
   return (
-    <section style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: isMobile ? '80px 20px 60px' : '100px 64px 80px', maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      {/* label */}
-      <div style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 28 }}>
-        Bybit Futures · 8 Autonomous Bots · 24/7
-      </div>
+    <section
+      ref={sectionRef}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: isMobile ? '0 16px' : '0 32px',
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'transparent',
+      }}
+    >
+      <BackgroundCharts />
+      <HeroLocalCanvas mouseRef={mouseRef} />
 
-      {/* headline */}
-      <h1 style={{ fontFamily: MONO, fontSize: isMobile ? 'clamp(38px,10vw,60px)' : 'clamp(52px,6vw,88px)', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.0, color: '#f0f2f5', margin: '0 0 40px', maxWidth: 820 }}>
-        Your capital.<br />Automated.
-      </h1>
+      <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <h1 style={fade(0, {
+          fontFamily: FONT,
+          fontSize: 'clamp(80px, 16vw, 200px)',
+          fontWeight: 900,
+          letterSpacing: '-0.06em',
+          lineHeight: 0.87,
+          color: '#ffffff',
+          margin: 0,
+        })}>
+          <SpiralText text="KADO" style={{ width: '100%' }} />
+        </h1>
 
-      {/* terminal */}
-      <div style={{ width: '100%', marginBottom: 40 }}>
-        <LiveTerminal />
-      </div>
-
-      {/* CTA row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        <Link to="/auth?mode=register" style={{
-          fontFamily: MONO, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em',
-          color: '#000', background: '#fff', padding: '13px 28px',
-          textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10,
-          transition: 'background 150ms',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = G; }}
-        onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}>
-          ACCESS TERMINAL →
-        </Link>
-        <Link to="/bots" style={{ fontFamily: MONO, fontSize: 11, color: '#444', textDecoration: 'none', letterSpacing: '0.08em', transition: 'color 150ms' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#aaa'}
-          onMouseLeave={e => e.currentTarget.style.color = '#444'}>
-          VIEW BOTS ↓
-        </Link>
-      </div>
-    </section>
-  );
-}
-
-/* ── STATS BAR ── */
-function StatsBar() {
-  const isMobile = useIsMobile();
-  const stats = [
-    { val: '8',    label: 'Active Bots' },
-    { val: '83%',  label: 'Signal Win Rate' },
-    { val: '24/7', label: 'Uptime' },
-    { val: '2+yr', label: 'Live Trading' },
-  ];
-  return (
-    <div style={{ borderTop: `1px solid ${DIM}`, borderBottom: `1px solid ${DIM}` }}>
-      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', maxWidth: 1200, margin: '0 auto' }}>
-        {stats.map((s, i) => (
-          <div key={s.label} style={{ padding: isMobile ? '28px 20px' : '36px 64px', borderRight: i < stats.length - 1 ? `1px solid ${DIM}` : 'none', borderBottom: isMobile && i < 2 ? `1px solid ${DIM}` : 'none' }}>
-            <div style={{ fontFamily: MONO, fontSize: isMobile ? 32 : 42, fontWeight: 700, letterSpacing: '-0.04em', color: '#f0f2f5', lineHeight: 1 }}>{s.val}</div>
-            <div style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: 10 }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ── BOTS TABLE ── */
-function BotsTable() {
-  const isMobile = useIsMobile();
-  return (
-    <section style={{ borderBottom: `1px solid ${DIM}` }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '60px 20px' : '80px 64px' }}>
-        {/* section header */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, marginBottom: 40, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Active Strategies</span>
-          <div style={{ flex: 1, height: 1, background: DIM, minWidth: 40 }} />
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>8 / 8 RUNNING</span>
+        <div style={fade(2000, { fontSize: 10, color: '#383838', letterSpacing: '0.22em', textTransform: 'uppercase', fontFamily: MONO, marginTop: 20 })}>
+          {t.landing.tagline}
         </div>
 
-        {/* table */}
-        <div style={{ border: `1px solid ${DIM}` }}>
-          {/* header row */}
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '0.4fr 1fr 1fr' : '0.4fr 1.4fr 2fr 0.8fr 0.8fr', padding: '9px 20px', borderBottom: `1px solid ${DIM}`, background: 'rgba(255,255,255,0.02)' }}>
-            {(isMobile ? ['#','BOT','PAIRS'] : ['#','BOT','PAIRS','WIN RATE','TIMEFRAME']).map(h => (
-              <span key={h} style={{ fontFamily: MONO, fontSize: 9, color: '#444', letterSpacing: '0.18em' }}>{h}</span>
-            ))}
-          </div>
-          {BOTS.map((b, i) => (
-            <div key={b.id}
-              style={{ display: 'grid', gridTemplateColumns: isMobile ? '0.4fr 1fr 1fr' : '0.4fr 1.4fr 2fr 0.8fr 0.8fr', padding: '16px 20px', borderBottom: i < BOTS.length - 1 ? `1px solid rgba(255,255,255,0.03)` : 'none', alignItems: 'center', cursor: 'pointer', transition: 'background 120ms' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-              <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>{b.id}</span>
-              <span style={{ fontFamily: MONO, fontSize: 13, color: '#d0d0d0', fontWeight: 600 }}>{b.name}</span>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: '#666' }}>{b.pairs}</span>
-              {!isMobile && <>
-                <span style={{ fontFamily: MONO, fontSize: 12, color: b.wr === '—' ? '#333' : G, fontWeight: 600 }}>{b.wr}</span>
-                <span style={{ fontFamily: MONO, fontSize: 11, color: '#555' }}>{b.tf}</span>
-              </>}
-            </div>
-          ))}
-        </div>
+        <p style={fade(2100, {
+          fontFamily: FONT, fontSize: 'clamp(14px, 1.3vw, 17px)', fontWeight: 300,
+          color: '#4a4a4a', marginTop: 22, lineHeight: 1.7, letterSpacing: '-0.01em', maxWidth: 420,
+        })}>
+          {t.landing.heroSub}
+        </p>
 
-        <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end' }}>
-          <Link to="/bots" style={{ fontFamily: MONO, fontSize: 10, color: '#444', textDecoration: 'none', letterSpacing: '0.12em', transition: 'color 150ms' }}
-            onMouseEnter={e => e.currentTarget.style.color = '#aaa'}
-            onMouseLeave={e => e.currentTarget.style.color = '#444'}>
-            FULL BOT DETAILS →
-          </Link>
+        <div style={fade(2200, { display: 'flex', alignItems: 'center', gap: 20, marginTop: 36, flexWrap: 'wrap', justifyContent: 'center' })}>
+          <Link to="/auth?mode=register"
+            style={{ background: '#fff', color: '#000', padding: '14px 32px', borderRadius: 100, fontSize: 13, fontWeight: 700, fontFamily: FONT, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'background 200ms, color 200ms, box-shadow 200ms', letterSpacing: '0.02em' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#00d4aa'; e.currentTarget.style.color = '#080a0e'; e.currentTarget.style.boxShadow = '0 0 24px rgba(0,212,170,0.35)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#000'; e.currentTarget.style.boxShadow = 'none'; }}
+          >{t.landing.cta1}</Link>
+          <a href="#how-it-works"
+            style={{ color: '#8b95a8', fontSize: 13, fontFamily: FONT, textDecoration: 'none', transition: 'color 150ms', letterSpacing: '-0.01em' }}
+            onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={e => e.currentTarget.style.color = '#8b95a8'}
+          >{t.landing.cta2}</a>
         </div>
       </div>
     </section>
@@ -228,26 +258,77 @@ function BotsTable() {
 
 /* ── HOW IT WORKS ── */
 function HowItWorks() {
+  const { t } = useLang();
   const isMobile = useIsMobile();
-  const steps = [
-    { n: '01', title: 'Connect your Bybit account', body: 'Add your API keys with trading permissions. Read-only view stays private — we never withdraw.' },
-    { n: '02', title: 'Bots scan markets 24/7', body: '8 strategies run in parallel: news events, liquidity sweeps, funding rates, on-chain flow, macro data.' },
-    { n: '03', title: 'Signals execute automatically', body: 'Entry, SL and TP are placed in milliseconds. Position sizing scales to your balance. You review the log.' },
+  const STEPS = [
+    { n: '01', title: t.landing.step1Title, body: t.landing.step1Body },
+    { n: '02', title: t.landing.step2Title, body: t.landing.step2Body },
+    { n: '03', title: t.landing.step3Title, body: t.landing.step3Body },
   ];
   return (
-    <section style={{ borderBottom: `1px solid ${DIM}` }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '60px 20px' : '80px 64px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, marginBottom: 48, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.2em', textTransform: 'uppercase' }}>How It Works</span>
-          <div style={{ flex: 1, height: 1, background: DIM, minWidth: 40 }} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? 0 : 1, background: isMobile ? 'transparent' : DIM }}>
-          {steps.map((s, i) => (
-            <div key={s.n} style={{ background: '#000', padding: isMobile ? '32px 0' : '40px 40px', borderBottom: isMobile && i < steps.length - 1 ? `1px solid ${DIM}` : 'none' }}>
-              <div style={{ fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.1em', marginBottom: 20 }}>{s.n}</div>
-              <div style={{ fontFamily: SANS, fontSize: 17, fontWeight: 600, color: '#d0d0d0', marginBottom: 14, letterSpacing: '-0.02em', lineHeight: 1.3 }}>{s.title}</div>
-              <div style={{ fontFamily: SANS, fontSize: 13, color: '#555', lineHeight: 1.8 }}>{s.body}</div>
+    <section id="how-it-works" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
+        <SectionHeader label={t.landing.stepsLabel} title={t.landing.stepsTitle} sub={t.landing.stepsSub} />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+          {STEPS.map(s => (
+            <div key={s.n}
+              style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '28px 20px' : '48px 40px', transition: 'background 180ms, box-shadow 180ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(20,20,20,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <div style={{ fontSize: 11, color: '#333', letterSpacing: '0.1em', fontFamily: MONO, marginBottom: 28 }}>{s.n}</div>
+              <div style={{ fontSize: 18, fontWeight: 600, color: '#e0e0e0', marginBottom: 16, letterSpacing: '-0.02em', fontFamily: FONT }}>{s.title}</div>
+              <div style={{ fontSize: 13, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{s.body}</div>
             </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── BOTS ── */
+function BotsSection() {
+  const { t } = useLang();
+  const isMobile = useIsMobile();
+  const BOTS = ['b1','b2','b3','b4','b5','b6','b7','b8'].map((k, i) => ({
+    num: String(i + 1).padStart(2, '0'),
+    ...t.landing.arsenalBots[k],
+  }));
+  return (
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
+        <SectionHeader label={t.landing.arsenalLabel} title={t.landing.arsenalTitle} sub={t.landing.arsenalSub} />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden', alignItems: 'stretch' }}>
+          {BOTS.map(bot => (
+            <Link key={bot.num} to="/bots" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div
+                style={{
+                  background: 'rgba(5,5,5,0.92)',
+                  padding: isMobile ? '18px 14px 16px' : '28px 28px 24px',
+                  textAlign: 'left',
+                  height: '100%',
+                  boxSizing: 'border-box',
+                  display: 'flex', flexDirection: 'column',
+                  transition: 'background 180ms, box-shadow 180ms',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(22,22,22,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
+                  <span style={{ fontSize: 12, color: '#444', fontFamily: MONO, letterSpacing: '0.08em' }}>{bot.num}</span>
+                  <span style={{ fontSize: 9, color: '#777', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 100, padding: '4px 12px', maxWidth: 160, textAlign: 'right', lineHeight: 1.4, fontFamily: FONT }}>{bot.tag}</span>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 600, color: '#f0f0f0', marginBottom: 8, letterSpacing: '-0.02em', fontFamily: FONT }}>{bot.name}</div>
+                <div style={{ fontSize: 14, color: '#7a7a7a', fontStyle: 'italic', marginBottom: 16, lineHeight: 1.5, fontFamily: FONT }}>{bot.hook}</div>
+                <div style={{ fontSize: 13, color: '#8a8a8a', lineHeight: 1.75, fontFamily: FONT, flex: 1 }}>{bot.desc}</div>
+                <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {bot.pills.map(p => (
+                    <span key={p} style={{ fontSize: 9, color: '#777', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 100, padding: '4px 12px', fontFamily: FONT }}>{p}</span>
+                  ))}
+                </div>
+              </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -256,26 +337,23 @@ function HowItWorks() {
 }
 
 /* ── RISK ── */
-function Risk() {
+function RiskSection() {
+  const { t } = useLang();
   const isMobile = useIsMobile();
-  const items = [
-    { title: 'Non-custodial', body: 'API keys with trade-only permissions. We cannot withdraw funds or access your account balance.' },
-    { title: 'Hard stops on every trade', body: 'Every signal has a stop-loss. No naked positions, no runaway drawdowns.' },
-    { title: 'Crypto is volatile', body: 'Bots can and do lose trades. Past win rates are not a guarantee of future performance.' },
-    { title: 'You control the kill switch', body: 'Revoke API access instantly from Bybit. Positions close, bots go offline in seconds.' },
-  ];
+  const RISK = ['r1','r2','r3','r4'].map(k => t.landing.risks[k]);
   return (
-    <section style={{ borderBottom: `1px solid ${DIM}`, contentVisibility: 'auto', containIntrinsicSize: '0 400px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '60px 20px' : '80px 64px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, marginBottom: 40, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Risk Disclosure</span>
-          <div style={{ flex: 1, height: 1, background: DIM, minWidth: 40 }} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 1, background: DIM }}>
-          {items.map(item => (
-            <div key={item.title} style={{ background: '#000', padding: isMobile ? '24px 18px' : '36px 32px' }}>
-              <div style={{ fontFamily: MONO, fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 12, letterSpacing: '-0.01em' }}>{item.title}</div>
-              <div style={{ fontFamily: SANS, fontSize: 12, color: '#444', lineHeight: 1.8 }}>{item.body}</div>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
+        <SectionHeader label={t.landing.riskLabel} title={t.landing.riskTitle} sub={t.landing.riskSub} />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+          {RISK.map(r => (
+            <div key={r.title}
+              style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '24px 18px' : '40px 32px', transition: 'background 180ms, box-shadow 180ms' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(20,20,20,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+            >
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d0d0', marginBottom: 14, letterSpacing: '-0.02em', fontFamily: FONT }}>{r.title}</div>
+              <div style={{ fontSize: 12, color: '#666', lineHeight: 1.9, fontFamily: FONT }}>{r.body}</div>
             </div>
           ))}
         </div>
@@ -284,83 +362,110 @@ function Risk() {
   );
 }
 
-/* ── PRICING PREVIEW ── */
-function PricingPreview() {
+/* ── STRATEGIES ── */
+function Strategies() {
+  const { t } = useLang();
   const isMobile = useIsMobile();
-  const plans = [
-    { name: 'Free', price: '$0', desc: 'Signal feed only. View signals, no auto-execution.', cta: 'Start free', href: '/auth?mode=register', active: false },
-    { name: 'Pro',  price: '$29', desc: 'All 8 bots running. Full automation, trade history, Telegram alerts.', cta: 'Start Pro', href: '/auth?mode=register', active: true },
-    { name: 'VIP',  price: '$79', desc: 'Priority execution, higher position sizing, dedicated support.', cta: 'Contact', href: '/auth?mode=register', active: false },
-  ];
+  const STRATS = ['s1','s2','s3'].map((k, i) => ({
+    n: String(i + 1).padStart(2, '0'),
+    ...t.landing.strats[k],
+  }));
   return (
-    <section style={{ contentVisibility: 'auto', containIntrinsicSize: '0 500px', borderBottom: `1px solid ${DIM}` }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '60px 20px' : '80px 64px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, marginBottom: 40, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Pricing</span>
-          <div style={{ flex: 1, height: 1, background: DIM, minWidth: 40 }} />
-          <Link to="/pricing" style={{ fontFamily: MONO, fontSize: 10, color: '#333', textDecoration: 'none', letterSpacing: '0.12em' }}>FULL DETAILS →</Link>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 1, background: DIM }}>
-          {plans.map(p => (
-            <div key={p.name} style={{ background: p.active ? 'rgba(14,203,129,0.04)' : '#000', padding: isMobile ? '32px 20px' : '40px 36px', display: 'flex', flexDirection: 'column', gap: 0, borderTop: p.active ? `1px solid ${G}` : '1px solid transparent' }}>
-              <div style={{ fontFamily: MONO, fontSize: 10, color: '#444', letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 16 }}>{p.name}</div>
-              <div style={{ fontFamily: MONO, fontSize: 36, fontWeight: 700, letterSpacing: '-0.04em', color: '#f0f2f5', lineHeight: 1, marginBottom: 6 }}>{p.price}<span style={{ fontSize: 12, color: '#444', letterSpacing: '0.04em' }}>/mo</span></div>
-              <div style={{ fontFamily: SANS, fontSize: 13, color: '#555', lineHeight: 1.8, flex: 1, marginTop: 16, marginBottom: 28 }}>{p.desc}</div>
-              <Link to={p.href} style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', color: p.active ? '#000' : '#555', background: p.active ? G : 'transparent', border: `1px solid ${p.active ? G : DIM}`, padding: '11px 0', textAlign: 'center', textDecoration: 'none', transition: 'all 150ms' }}
-                onMouseEnter={e => { if (!p.active) { e.currentTarget.style.borderColor = '#555'; e.currentTarget.style.color = '#ccc'; } }}
-                onMouseLeave={e => { if (!p.active) { e.currentTarget.style.borderColor = DIM; e.currentTarget.style.color = '#555'; } }}>
-                {p.cta}
-              </Link>
-            </div>
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <div style={{ padding: isMobile ? '60px 20px' : '120px 64px' }}>
+        <SectionHeader label={t.landing.stratLabel} title={t.landing.stratTitle} sub={t.landing.stratSub} />
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 8, overflow: 'hidden' }}>
+          {STRATS.map(s => (
+            <Link key={s.n} to="/strategies" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div
+                style={{ background: 'rgba(5,5,5,0.92)', padding: isMobile ? '32px 24px' : '48px 40px', textAlign: 'left', transition: 'background 180ms, box-shadow 180ms', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(22,22,22,1)'; e.currentTarget.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(5,5,5,0.92)'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div style={{ fontSize: 10, color: '#333', fontFamily: MONO, marginBottom: 20, letterSpacing: '0.08em' }}>{s.n}</div>
+                <div style={{ fontSize: 22, fontWeight: 600, color: '#e0e0e0', marginBottom: 14, letterSpacing: '-0.03em', fontFamily: FONT }}>{s.name}</div>
+                <div style={{ fontSize: 13, color: '#666', lineHeight: 1.8, marginBottom: 28, flex: 1, fontFamily: FONT }}>{s.summary}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 32 }}>
+                  {s.tags.map(t => (
+                    <span key={t} style={{ fontSize: 9, color: '#777', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 100, padding: '4px 12px', fontFamily: FONT }}>{t}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize: 'clamp(36px,4vw,52px)', fontWeight: 700, letterSpacing: '-0.04em', color: '#fff', lineHeight: 1, fontFamily: MONO, marginBottom: 6 }}>{s.ret}</div>
+                <div style={{ fontSize: 9, color: '#444', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16, fontFamily: FONT }}>{t.landing.estMonthly}</div>
+                <div style={{ fontSize: 12, color: '#444', lineHeight: 1.7, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.05)', fontFamily: FONT }}>{s.note}</div>
+              </div>
+            </Link>
           ))}
+        </div>
+        <div style={{ marginTop: 24, fontSize: 11, color: '#2a2a2a', lineHeight: 1.7, textAlign: 'center', fontFamily: FONT }}>
+          {t.landing.returnsDisclaimer}
         </div>
       </div>
     </section>
   );
 }
 
-/* ── FINAL CTA ── */
-function FinalCTA() {
+/* ── CTA ── */
+function CtaInner() {
+  const { t } = useLang();
   const isMobile = useIsMobile();
+  const badges = [t.landing.ctaBadge1, t.landing.ctaBadge2, t.landing.ctaBadge3];
   return (
-    <section style={{ contentVisibility: 'auto', containIntrinsicSize: '0 300px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: isMobile ? '80px 20px' : '100px 64px', display: 'flex', flexDirection: 'column', gap: 32 }}>
-        <div style={{ fontFamily: MONO, fontSize: 10, color: '#333', letterSpacing: '0.22em', textTransform: 'uppercase' }}>Ready to automate?</div>
-        <div style={{ fontFamily: MONO, fontSize: isMobile ? 28 : 44, fontWeight: 700, letterSpacing: '-0.04em', color: '#f0f2f5', lineHeight: 1.1, maxWidth: 600 }}>
-          8 bots.<br />One account.<br />Zero manual trades.
-        </div>
-        <div>
-          <Link to="/auth?mode=register" style={{
-            fontFamily: MONO, fontSize: 12, fontWeight: 700, letterSpacing: '0.08em',
-            color: '#000', background: '#fff', padding: '14px 32px',
-            textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10,
-            transition: 'background 150ms',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = G; }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#fff'; }}>
-            ACCESS TERMINAL →
-          </Link>
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 10, color: '#2a2a2a', letterSpacing: '0.06em', lineHeight: 2 }}>
-          Non-custodial · Bybit Futures · API key trading only · Past performance ≠ future results
-        </div>
+    <div style={{ padding: isMobile ? '80px 24px' : '140px 64px', textAlign: 'center' }}>
+      <h2 style={{ fontFamily: FONT, fontSize: 'clamp(80px,14vw,180px)', fontWeight: 900, letterSpacing: '-0.06em', lineHeight: 0.87, color: '#fff', margin: '0 0 40px' }}>
+        KADO
+      </h2>
+      <p style={{ fontSize: 15, color: '#555', letterSpacing: '-0.01em', marginBottom: 10, fontFamily: FONT }}>{t.landing.ctaTagline}</p>
+      <p style={{ fontSize: 13, color: '#444', lineHeight: 1.8, maxWidth: 380, margin: '0 auto 40px', fontFamily: FONT }}>
+        {t.landing.ctaText}
+      </p>
+      <Link
+        to="/auth?mode=register"
+        style={{ background: '#fff', color: '#000', padding: '13px 38px', borderRadius: 100, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'opacity 150ms', fontFamily: FONT, letterSpacing: '-0.01em' }}
+        onMouseEnter={e => e.currentTarget.style.opacity = '0.82'}
+        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+      >
+        {t.landing.ctaBtn}
+      </Link>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
+        {badges.map(b => (
+          <span key={b} style={{ fontSize: 10, color: '#444', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 100, padding: '4px 14px', fontFamily: FONT }}>{b}</span>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function CTA() {
+  return (
+    <section style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}>
+      <CtaInner />
     </section>
+  );
+}
+
+/* ── SHARED ── */
+function SectionHeader({ label, title, sub }) {
+  return (
+    <div style={{ textAlign: 'center', marginBottom: 64 }}>
+      <div style={{ fontSize: 10, color: '#444', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 18, fontFamily: FONT }}>{label}</div>
+      <div style={{ fontSize: 'clamp(28px,3.5vw,44px)', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1.05, color: '#e0e0e0', marginBottom: 16, fontFamily: FONT }}>{title}</div>
+      <div style={{ fontSize: 14, color: '#555', lineHeight: 1.75, maxWidth: 500, margin: '0 auto', fontFamily: FONT }}>{sub}</div>
+    </div>
   );
 }
 
 /* ── EXPORT ── */
 export default function Landing() {
   return (
-    <div style={{ color: '#fff', minHeight: '100vh', background: '#000' }}>
+    <div style={{ color: '#fff', minHeight: '100vh' }}>
       <LandingHeader />
-      <Hero />
-      <StatsBar />
-      <BotsTable />
+      <HomeHero />
       <HowItWorks />
-      <Risk />
-      <PricingPreview />
-      <FinalCTA />
+      <BotsSection />
+      <RiskSection />
+      <Strategies />
+      <CTA />
       <LandingFooter />
     </div>
   );
