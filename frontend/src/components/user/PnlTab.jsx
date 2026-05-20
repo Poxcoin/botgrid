@@ -14,6 +14,7 @@ export default function PnlTab() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [hovBar, setHovBar] = useState(null);
 
   function load() {
     setLoading(true); setError(false);
@@ -54,27 +55,63 @@ export default function PnlTab() {
       </div>
 
       {/* Bar chart */}
-      {!loading && rows.length > 0 && (
-        <div style={{ marginBottom: 40 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>{t.dashboard.pnl.monthlyGrossPnl}</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 80 }}>
-            {[...rows].reverse().map(r => {
-              const h = Math.abs(r.gross_pnl) / maxAbs * 72;
-              return (
-                <div key={`${r.year}-${r.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                  <div style={{
-                    width: '100%', height: h, minHeight: 2,
-                    background: r.gross_pnl >= 0 ? 'rgba(14,203,129,0.75)' : 'rgba(246,70,93,0.65)',
-                  }} />
-                  <div style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>
-                    {MONTHS[r.month - 1]}
+      {!loading && rows.length > 0 && (() => {
+        const reversed = [...rows].reverse();
+        const BAR_H = 100;
+        return (
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 16 }}>{t.dashboard.pnl.monthlyGrossPnl}</div>
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: BAR_H + 20 }}>
+                {reversed.map((r, i) => {
+                  const h = Math.abs(r.gross_pnl) / maxAbs * BAR_H;
+                  const pos = r.gross_pnl >= 0;
+                  const isH = hovBar === i;
+                  return (
+                    <div key={`${r.year}-${r.month}`}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'default' }}
+                      onMouseEnter={() => setHovBar(i)} onMouseLeave={() => setHovBar(null)}>
+                      <div style={{
+                        width: '100%', height: Math.max(h, 2), minHeight: 2,
+                        background: pos
+                          ? (isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)')
+                          : (isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.55)'),
+                        transition: 'background 100ms',
+                      }} />
+                      <div style={{ fontSize: 10, color: isH ? 'var(--text-secondary)' : 'var(--muted-fg)', letterSpacing: '0.05em', whiteSpace: 'nowrap', transition: 'color 100ms' }}>
+                        {MONTHS[r.month - 1]}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {hovBar != null && reversed[hovBar] && (
+                <div style={{
+                  position: 'absolute', top: 0,
+                  left: `${(hovBar / reversed.length + 0.5 / reversed.length) * 100}%`,
+                  transform: 'translateX(-50%)',
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+                  padding: '8px 14px', fontFamily: 'var(--font-mono)', fontSize: 11,
+                  pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
+                }}>
+                  <div style={{ fontSize: 9, color: 'var(--muted-fg)', marginBottom: 5, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    {MONTHS[reversed[hovBar].month - 1]} {reversed[hovBar].year}
+                  </div>
+                  <div style={{ color: reversed[hovBar].gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13, marginBottom: 3 }}>
+                    {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} gross
+                  </div>
+                  <div style={{ color: 'var(--muted-fg)', fontSize: 10 }}>
+                    net {reversed[hovBar].net_pnl >= 0 ? '+' : ''}{reversed[hovBar].net_pnl.toFixed(2)}
+                  </div>
+                  <div style={{ color: 'var(--muted-fg)', fontSize: 10 }}>
+                    fee {reversed[hovBar].performance_fee.toFixed(2)}
                   </div>
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
