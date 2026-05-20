@@ -235,12 +235,12 @@ export default function MacroBotTab({ botId }) {
         <StatBox
           label="Win Rate"
           value={winRate != null ? `${winRate}%` : '—'}
-          color={winRate != null ? (winRate >= 50 ? '#ccc' : '#888') : undefined}
+          color={winRate != null ? (winRate >= 50 ? C_UP : C_DN) : undefined}
         />
         <StatBox
           label="Net PnL (USD)"
           value={closed.length ? `${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}` : '—'}
-          color={netPnl > 0 ? '#ccc' : netPnl < 0 ? '#888' : undefined}
+          color={netPnl > 0 ? C_UP : netPnl < 0 ? C_DN : undefined}
         />
         <StatBox label="Strategy" value="Event" />
       </div>
@@ -282,11 +282,11 @@ export default function MacroBotTab({ botId }) {
                     >
                       <td style={{ padding: '10px 16px', color: '#ccc', fontWeight: 700 }}>{t.symbol}</td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', color: '#888', fontSize: 10 }}>{t.event || '—'}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: t.direction === 'LONG' ? '#aaa' : '#666' }}>{t.direction}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: '#888' }}>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: t.direction === 'LONG' ? C_UP : C_DN }}>{t.direction}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: MUTED }}>
                         {t.profit_pips != null ? `${t.profit_pips > 0 ? '+' : ''}${t.profit_pips}` : '—'}
                       </td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: pos ? '#ccc' : '#888' }}>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: pos ? C_UP : C_DN }}>
                         {t.profit_usd != null ? `${pos ? '+' : ''}${t.profit_usd.toFixed(2)}` : '—'}
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{dtStr}</td>

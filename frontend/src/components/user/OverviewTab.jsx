@@ -811,6 +811,8 @@ function EquityCurve({ data }) {
 function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, onCancelOrder = () => {}, filterCoin, balance }) {
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
+  const [histSide,   setHistSide]   = useState('ALL');
+  const [histSearch, setHistSearch] = useState('');
   const closed = useMemo(() => botTrades.filter(t => !!t.closed_at).sort((a, b) => new Date(b.closed_at) - new Date(a.closed_at)), [botTrades]);
 
   const filteredOrders = useMemo(() =>
@@ -827,6 +829,15 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
   const pnlWins  = useMemo(() => filteredClosed.filter(t => pnl(t) > 0), [filteredClosed]);
   const pnlLoss  = useMemo(() => filteredClosed.filter(t => pnl(t) < 0), [filteredClosed]);
   const pnlWr    = filteredClosed.length ? Math.round(pnlWins.length / filteredClosed.length * 100) : 0;
+
+  const displayHistory = useMemo(() => {
+    const lc = histSearch.toUpperCase();
+    return closed.filter(t => {
+      if (histSide !== 'ALL' && (t.side || '').toUpperCase() !== histSide) return false;
+      if (lc && !sym(t.symbol).includes(lc)) return false;
+      return true;
+    }).slice(0, 200);
+  }, [closed, histSide, histSearch]);
 
   useEffect(() => {
     if (!botPositions.length) return;
@@ -957,23 +968,44 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           </table>
         )}
 
-        {tab === 'history' && (closed.length === 0 ? <Empty /> :
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Exit"/><Th v="PnL" r/></tr></thead>
-            <tbody>{closed.slice(0, 200).map((t, i) => {
-              const p = pnl(t);
-              return (
-                <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                  <Td v={dstr(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
-                  <Td v={t.side} hi={t.side === 'LONG' || t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
-                  <Td v={t.leverage ? `${t.leverage}x` : '—'}/>
-                  <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={fix(t.exit_price, 4)}/>
-                  <Td v={`${sign(p)} USDT`} hi={pos(p) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
-                </tr>
-              );
-            })}</tbody>
-          </table>
-        )}
+        {tab === 'history' && (closed.length === 0 ? <Empty /> : (
+          <>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+              {['ALL', 'LONG', 'SHORT'].map(s => (
+                <button key={s} onClick={() => setHistSide(s)} style={{
+                  fontFamily: FM, fontSize: 9, padding: '2px 8px', cursor: 'pointer',
+                  border: `1px solid ${histSide === s ? (s === 'LONG' ? 'var(--accent-green)' : s === 'SHORT' ? 'var(--accent-red)' : 'var(--border-strong)') : 'var(--border-subtle)'}`,
+                  color: histSide === s ? (s === 'LONG' ? 'var(--accent-green)' : s === 'SHORT' ? 'var(--accent-red)' : 'var(--text-primary)') : 'var(--text-muted)',
+                  background: 'transparent', letterSpacing: '0.08em',
+                }}>{s}</button>
+              ))}
+              <input
+                value={histSearch}
+                onChange={e => setHistSearch(e.target.value)}
+                placeholder="Coin…"
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontFamily: FM, fontSize: 9, padding: '2px 8px', outline: 'none', width: 70, letterSpacing: '0.04em' }}
+              />
+              {(histSide !== 'ALL' || histSearch) && (
+                <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>{displayHistory.length} / {closed.length}</span>
+              )}
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr><Th v="Date"/><Th v="Symbol"/><Th v="Side"/><Th v="Lev"/><Th v="Size"/><Th v="Entry"/><Th v="Exit"/><Th v="PnL" r/></tr></thead>
+              <tbody>{displayHistory.map((t, i) => {
+                const p = pnl(t);
+                return (
+                  <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <Td v={dstr(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
+                    <Td v={t.side} hi={t.side === 'LONG' || t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
+                    <Td v={t.leverage ? `${t.leverage}x` : '—'}/>
+                    <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={fix(t.exit_price, 4)}/>
+                    <Td v={`${sign(p)} USDT`} hi={pos(p) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
+                  </tr>
+                );
+              })}</tbody>
+            </table>
+          </>
+        ))}
 
         {tab === 'pnl' && (filteredClosed.length === 0 ? <Empty /> :
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
