@@ -162,7 +162,7 @@ export default function SettingsTab() {
   }
 
   return (
-    <div style={{ width: '100%', maxWidth: 640 }}>
+    <div style={{ width: '100%' }}>
 
       {/* LANGUAGE */}
       <div style={sectionHeaderStyle}>{t.dashboard.settingsPrefs.languageTitle}</div>
