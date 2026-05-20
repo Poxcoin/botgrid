@@ -202,8 +202,20 @@ def update_pnl_db(exchange) -> int:
                 exit_price = float(matched.get("avgExitPrice") or 0)
                 entry_price = trade["entry_price"] or float(matched.get("avgEntryPrice") or 1)
                 pnl_pct = round((exit_price / entry_price - 1) * 100, 2) if entry_price else 0
-                if trade.get("action") == "SHORT":
+                action = (trade.get("action") or "").upper()
+                if action in ("SHORT", "SELL"):
                     pnl_pct = -pnl_pct
+                # Demo accounts often return closedPnl=0 — recalculate from prices
+                if pnl == 0:
+                    closed_size = float(matched.get("closedSize") or matched.get("qty") or 0)
+                    avg_exit  = exit_price
+                    avg_entry = entry_price
+                    if closed_size > 0 and avg_exit > 0 and avg_entry > 0:
+                        bybit_side = (matched.get("side") or "").lower()
+                        if bybit_side == "sell":   # closing a LONG
+                            pnl = round((avg_exit - avg_entry) * closed_size, 4)
+                        elif bybit_side == "buy":  # closing a SHORT
+                            pnl = round((avg_entry - avg_exit) * closed_size, 4)
                 close_ms = int(matched.get("updatedTime") or int(matched.get("createdTime") or now_ms))
                 duration = max(0, round((close_ms - trade_open_ms) / 60000))
 
