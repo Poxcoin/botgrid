@@ -296,7 +296,7 @@ export default function LandingHeader() {
   return (
     <>
       <header className="w-full sticky top-0 z-50" style={{
-        background: 'rgba(6,6,6,0.88)',
+        background: 'rgba(0,0,0,0.88)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -390,7 +390,7 @@ export default function LandingHeader() {
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: '#060606' }}>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: '#000' }}>
             <div className="px-5 py-5 flex flex-col" style={{ gap: 4 }}>
               {navLinks.map(([to, label]) => (
                 <Link key={to} to={to} onClick={() => setMobileOpen(false)}
