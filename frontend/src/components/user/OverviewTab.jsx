@@ -976,6 +976,8 @@ const PANEL_LOCALE = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE
 function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, onCancelOrder = () => {}, filterCoin, balance }) {
   const { t, lang } = useLang();
   const tp = t.dashboard.panel;
+  const ta = t.dashboard.analytics;
+  const to = t.dashboard.overview;
   const td = t.dashboard;
   const dstrLoc = s => s ? new Date(s).toLocaleString(PANEL_LOCALE[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const [tab, setTab] = useState('open');
@@ -1682,14 +1684,14 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
               </div>
               {historyTrades.length === 0 ? (
                 <div style={{ padding: '32px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
-                  No closed trades
+                  {t.dashboard.noTradesPeriod}
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr>
-                        {['Symbol', 'Side', 'Entry', 'Exit', 'PnL USDT', '%', 'Source', 'Date'].map((col, i) => (
+                        {[t.dashboard.hSymbol, t.dashboard.hSide, t.dashboard.hEntry, t.dashboard.hExit, t.dashboard.hPnL + ' USDT', '%', t.dashboard.hSource, t.dashboard.hDate].map((col, i) => (
                           <th key={col} style={{ padding: '6px 14px', fontFamily: FM, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, textAlign: i >= 2 ? 'right' : 'left', background: 'var(--bg-surface)', position: 'sticky', top: 0, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{col}</th>
                         ))}
                       </tr>
