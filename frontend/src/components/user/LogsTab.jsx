@@ -154,7 +154,7 @@ export default function LogsTab() {
           );
         })}
         {filtered.length === 0 && (
-          <div style={{ color: '#6b7280', fontSize: 12 }}>— no matching lines —</div>
+          <div style={{ color: '#6b7280', fontSize: 12 }}>{t.dashboard.logs.noMatchingLines}</div>
         )}
         <div style={{ color: 'var(--accent-green)' }}>▌</div>
       </div>

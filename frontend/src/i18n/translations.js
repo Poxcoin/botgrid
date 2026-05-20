@@ -205,6 +205,7 @@ export const translations = {
         loadingLogs:   'Loading logs...',
         searchLogs:    'Search logs…',
         autoScroll:    'Auto-scroll',
+        noMatchingLines: '— no matching lines —',
       },
       analytics: {
         totalTrades:    'Total Trades',
@@ -1062,6 +1063,7 @@ export const translations = {
         loadingLogs:   'Cargando logs...',
         searchLogs:    'Buscar logs…',
         autoScroll:    'Auto-scroll',
+        noMatchingLines: '— sin líneas coincidentes —',
       },
       analytics: {
         totalTrades:    'Total operaciones',
@@ -1919,6 +1921,7 @@ export const translations = {
         loadingLogs:   'Завантаження логів...',
         searchLogs:    'Пошук у логах…',
         autoScroll:    'Автопрокрутка',
+        noMatchingLines: '— збігів не знайдено —',
       },
       analytics: {
         totalTrades:    'Усього угод',
@@ -2776,6 +2779,7 @@ export const translations = {
         loadingLogs:   'Загрузка логов...',
         searchLogs:    'Поиск в логах…',
         autoScroll:    'Автопрокрутка',
+        noMatchingLines: '— совпадений не найдено —',
       },
       analytics: {
         totalTrades:    'Всего сделок',
@@ -3633,6 +3637,7 @@ export const translations = {
         loadingLogs:   'Logs laden...',
         searchLogs:    'Logs durchsuchen…',
         autoScroll:    'Auto-Scroll',
+        noMatchingLines: '— keine übereinstimmenden Zeilen —',
       },
       analytics: {
         totalTrades:    'Trades gesamt',
@@ -4490,6 +4495,7 @@ export const translations = {
         loadingLogs:   '加载日志...',
         searchLogs:    '搜索日志…',
         autoScroll:    '自动滚动',
+        noMatchingLines: '— 无匹配行 —',
       },
       analytics: {
         totalTrades:    '总交易',
