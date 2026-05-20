@@ -363,9 +363,14 @@ function CoinGrid({ coins }) {
   );
 }
 
-const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const LOCALE_MAP = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE', zh:'zh-CN' };
+// Jan 1 2023 was Sunday — dayIdx 0→Sun, 1→Mon, …
+const shortDay = (dayIdx, locale) =>
+  new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2023, 0, 1 + dayIdx));
 
 function DayOfWeekChart({ trades }) {
+  const { lang } = useLang();
+  const locale = LOCALE_MAP[lang] || 'en-US';
   const [hover, setHover] = React.useState(null);
   const data = useMemo(() => {
     const buckets = Array.from({ length: 7 }, (_, i) => ({ day: i, pnl: 0, trades: 0, wins: 0 }));
@@ -401,7 +406,7 @@ function DayOfWeekChart({ trades }) {
                 }
               </div>
               <div style={{ fontFamily: MONO, fontSize: 9, color: hover === i ? 'var(--text-secondary)' : 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                {DOW_LABELS[d.day]}
+                {shortDay(d.day, locale)}
               </div>
             </div>
           );
@@ -413,7 +418,7 @@ function DayOfWeekChart({ trades }) {
           background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
           padding: '7px 14px', fontFamily: MONO, fontSize: 11, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
         }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>{DOW_LABELS[data[hover].day]}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>{shortDay(data[hover].day, locale)}</div>
           <div style={{ color: data[hover].pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
             {data[hover].pnl >= 0 ? '+' : ''}{data[hover].pnl.toFixed(2)} USDT
           </div>
@@ -923,10 +928,10 @@ export default function AnalyticsTab() {
           marginBottom: 1,
         }}>
           {[
-            { label: 'Wallet',      value: `$${parseFloat(balance.usdt_wallet ?? 0).toFixed(2)}`,   color: null },
-            { label: 'Equity',      value: `$${parseFloat(balance.usdt_equity ?? 0).toFixed(2)}`,   color: null },
-            { label: 'Unrealized',  value: `${sign(upnl)} USDT`,  color: upnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
-            { label: 'Available',   value: `$${parseFloat(balance.usdt_free ?? 0).toFixed(2)}`,     color: null },
+            { label: t.dashboard.analytics.bWallet,     value: `$${parseFloat(balance.usdt_wallet ?? 0).toFixed(2)}`,   color: null },
+            { label: t.dashboard.analytics.bEquity,     value: `$${parseFloat(balance.usdt_equity ?? 0).toFixed(2)}`,   color: null },
+            { label: t.dashboard.analytics.bUnrealized, value: `${sign(upnl)} USDT`,  color: upnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
+            { label: t.dashboard.analytics.bAvailable,  value: `$${parseFloat(balance.usdt_free ?? 0).toFixed(2)}`,     color: null },
           ].map((s, i, arr) => (
             <div key={s.label} style={{
               padding: '18px 20px',
@@ -1019,7 +1024,7 @@ export default function AnalyticsTab() {
       {/* Period selector for trade-based charts */}
       {allTrades.length >= 2 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
-          {[{ label: '7d', days: 7 }, { label: '30d', days: 30 }, { label: '90d', days: 90 }, { label: 'All', days: 0 }].map(p => (
+          {[{ label: '7d', days: 7 }, { label: '30d', days: 30 }, { label: '90d', days: 90 }, { label: t.dashboard.analytics.all, days: 0 }].map(p => (
             <button key={p.days} onClick={() => { setAllDays(p.days); setTradePage(1); }}
               style={{
                 background: 'none', border: `1px solid ${allDays === p.days ? 'var(--border-default)' : 'var(--border-subtle)'}`,
