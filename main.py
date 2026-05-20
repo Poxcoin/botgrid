@@ -146,10 +146,40 @@ def _saas_dispatch(signal: dict, source: str, leverage: int,
                    tp_pct: float, sl_pct: float, size_pct: float) -> None:
     """Fan signal out to all active SaaS subscribers — never raises."""
     try:
+        _coin   = signal.get("coin", "")
+        _action = signal.get("action", "")
+        _score  = signal.get("total_score", 0)
+        _sym    = f"{_coin}/USDT:USDT"
+
+        try:
+            from modules.market_state import set_state, MarketCondition
+            _is_long = _action in ("LONG", "BUY")
+            if source == "listing":
+                _ms   = MarketCondition.PUMP if _is_long else MarketCondition.BEAR
+                _conf = 0.85
+            elif source == "liq_cascade":
+                _ms   = MarketCondition.BULL if _is_long else MarketCondition.BEAR
+                _conf = min(abs(_score) / 10, 0.9) if _score else 0.65
+            elif source == "fr":
+                _ms   = MarketCondition.BULL if _is_long else MarketCondition.BEAR
+                _conf = 0.60
+            else:
+                # news / dex / whale — score-based
+                if _is_long:
+                    _ms = MarketCondition.PUMP if _score >= 13 else MarketCondition.BULL
+                else:
+                    _ms = MarketCondition.CRASH if _score <= -13 else MarketCondition.BEAR
+                _conf = min(abs(_score) / 15, 0.90)
+            if _coin and _sym:
+                set_state(_sym, _ms, source, confidence=_conf,
+                          reason=f"{source} {_action} score={_score:.0f}")
+        except Exception:
+            pass
+
         saas_dispatch({
             "source":          source,
-            "symbol":          f"{signal['coin']}/USDT:USDT",
-            "side":            signal["action"],
+            "symbol":          _sym,
+            "side":            _action,
             "leverage":        leverage,
             "size_pct":        size_pct,
             "tp_pct":          tp_pct,
