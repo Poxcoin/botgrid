@@ -206,21 +206,31 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             if "110043" not in str(_le):
                 raise
 
-        # TP / SL prices (calculated from ticker before fill)
-        tp_price = round(price * (1 + tp_pct / 100), 6) if side == "LONG" else round(price * (1 - tp_pct / 100), 6)
-        sl_price = round(price * (1 - sl_pct / 100), 6) if side == "LONG" else round(price * (1 + sl_pct / 100), 6)
-
-        # Open position with inline TP/SL (Bybit linear supports this)
+        # Open position (no inline TP/SL — we set them after knowing the fill price)
         order_side = "buy" if side == "LONG" else "sell"
         order = ex.create_order(symbol, "market", order_side, qty, params={
             "category":    "linear",
             "positionIdx": 0,
-            "takeProfit":  str(tp_price),
-            "stopLoss":    str(sl_price),
-            "tpTriggerBy": "MarkPrice",
-            "slTriggerBy": "MarkPrice",
         })
         fill = float(order.get("average") or price)
+
+        # TP/SL calculated from actual fill price, not pre-order ticker
+        tp_price = round(fill * (1 + tp_pct / 100), 6) if side == "LONG" else round(fill * (1 - tp_pct / 100), 6)
+        sl_price = round(fill * (1 - sl_pct / 100), 6) if side == "LONG" else round(fill * (1 + sl_pct / 100), 6)
+
+        # Set TP (LastPrice — triggers on actual traded price) + SL (MarkPrice — harder to manipulate)
+        try:
+            ex.private_post_v5_position_trading_stop(params={
+                "category":    "linear",
+                "symbol":      symbol.replace("/", "").replace(":USDT", ""),
+                "takeProfit":  str(tp_price),
+                "stopLoss":    str(sl_price),
+                "tpTriggerBy": "LastPrice",
+                "slTriggerBy": "MarkPrice",
+                "positionIdx": 0,
+            })
+        except Exception as _tpsl_err:
+            print(f"[DISPATCHER] ⚠️ TP/SL set failed {symbol}: {_tpsl_err}")
 
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    order.get("id"), fill, qty, "open")
