@@ -4,6 +4,15 @@ import { useLang } from '@/lib/LangContext';
 const MONO = "var(--font-mono)";
 const FONT = "var(--font-sans)";
 
+const BOT_LABELS = {
+  news: "Signal Bot", altcoin: "Altcoin Bot", grid: "Grid Bot",
+  fr: "Funding Rate", fr_extreme: "FR Extreme", cascade: "Cascade",
+  macro: "Macro Forex", dex: "DEX Bot", whale: "Whale Tracker",
+  listing: "Listing Bot", momentum: "Momentum", breakout: "Breakout",
+  reversal: "Reversal", scalp: "Scalp", swing: "Swing",
+  sentiment: "Sentiment", manual: "Manual",
+};
+
 function getToken() {
   return localStorage.getItem('kado_token') || '';
 }
@@ -212,7 +221,7 @@ function TradeRow({ tr }) {
         <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
           {dateStr}
           {tr.duration_min != null && <span style={{ marginLeft: 6 }}>{tr.duration_min}m</span>}
-          {tr.source && <span style={{ marginLeft: 6, opacity: 0.6 }}>{tr.source}</span>}
+          {tr.source && <span style={{ marginLeft: 6, opacity: 0.6 }}>{BOT_LABELS[tr.source] || tr.source}</span>}
         </div>
       </div>
       <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
@@ -408,7 +417,7 @@ export default function AnalyticsTab() {
   const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
 
   const botCols = [
-    { key: 'source', label: t.dashboard.analytics.hSource, bold: true },
+    { key: 'source', label: t.dashboard.analytics.hSource, bold: true, render: r => r.label || r.source },
     { key: 'trades', label: t.dashboard.analytics.hTrades, align: 'right' },
     { key: '_wr', label: t.dashboard.analytics.hWinRate, align: 'right', render: r => pct(r.wins, r.trades) },
     { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${r.pnl}` },
@@ -430,7 +439,7 @@ export default function AnalyticsTab() {
     { key: 'entry_price', label: 'Entry', render: r => r.entry_price ? (+r.entry_price).toFixed(4) : '—' },
     { key: 'exit_price', label: 'Exit', render: r => r.exit_price ? (+r.exit_price).toFixed(4) : '—' },
     { key: 'qty', label: 'Qty', muted: true, render: r => r.qty ? (+r.qty).toFixed(3) : '—' },
-    { key: 'source', label: 'Source', muted: true },
+    { key: 'source', label: 'Source', muted: true, render: r => BOT_LABELS[r.source] || r.source || '—' },
     { key: 'pnl', label: 'PnL', align: 'right', bold: true, render: r => `${(r.pnl ?? 0) >= 0 ? '+' : ''}${(r.pnl ?? 0).toFixed(2)}` },
   ];
 
