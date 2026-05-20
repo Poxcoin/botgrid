@@ -488,7 +488,7 @@ export default function AccountTab() {
   const expires = me?.subscription_expires ? new Date(me.subscription_expires).toLocaleDateString() : null;
 
   return (
-    <div style={{ maxWidth: 640, width: '100%' }}>
+    <div style={{ width: '100%' }}>
 
       {/* ── PROFILE ── */}
       <div style={sectionHeader}>{t.dashboard.account.profileTitle}</div>
