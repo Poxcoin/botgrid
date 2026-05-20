@@ -1275,24 +1275,48 @@ async def get_user_pnl(
     db: Session = Depends(get_db),
 ):
     user = _get_user_from_token(credentials.credentials, db)
-    rows = (
-        db.query(MonthlyPnl)
-        .filter(MonthlyPnl.user_id == user.id)
-        .order_by(MonthlyPnl.year.desc(), MonthlyPnl.month.desc())
-        .limit(12)
+
+    # Compute gross_pnl from UserTrade directly so bybit-imported trades are included.
+    # MonthlyPnl table is only updated by saas_dispatcher, not by bybit_sync.
+    raw_rows = (
+        db.query(UserTrade)
+        .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
         .all()
     )
-    return [
-        {
-            "year":            r.year,
-            "month":           r.month,
-            "gross_pnl":       r.gross_pnl,
-            "performance_fee": r.performance_fee,
-            "net_pnl":         r.net_pnl,
-            "fee_paid":        r.fee_paid,
-        }
-        for r in rows
-    ]
+    trade_rows = _filter_ghost_closes(_dedup_bybit_dupes(raw_rows))
+
+    from collections import defaultdict
+    monthly_gross: dict = defaultdict(float)
+    for t in trade_rows:
+        if not t.closed_at:
+            continue
+        key = (t.closed_at.year, t.closed_at.month)
+        monthly_gross[key] += float(t.pnl_usdt or 0)
+
+    # Load fee data from MonthlyPnl (set by saas_dispatcher for performance fee billing)
+    fee_rows = (
+        db.query(MonthlyPnl)
+        .filter(MonthlyPnl.user_id == user.id)
+        .all()
+    )
+    fee_map = {(r.year, r.month): r for r in fee_rows}
+
+    result = []
+    for (year, month), gross in sorted(monthly_gross.items(), reverse=True):
+        fee_row = fee_map.get((year, month))
+        perf_fee = float(fee_row.performance_fee) if fee_row else 0.0
+        fee_paid = bool(fee_row.fee_paid) if fee_row else False
+        gross_r  = round(gross, 8)
+        result.append({
+            "year":            year,
+            "month":           month,
+            "gross_pnl":       gross_r,
+            "performance_fee": perf_fee,
+            "net_pnl":         round(gross_r - perf_fee, 8),
+            "fee_paid":        fee_paid,
+        })
+
+    return result[:12]
 
 
 
