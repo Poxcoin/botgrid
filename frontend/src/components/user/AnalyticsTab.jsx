@@ -732,8 +732,8 @@ export default function AnalyticsTab() {
   const totalPnl = summary?.total_pnl ?? 0;
   const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
 
-  const { avgTrade, streak, streakDir, profitFactor, maxDrawdown } = useMemo(() => {
-    if (!allTrades.length) return { avgTrade: null, streak: 0, streakDir: null, profitFactor: null, maxDrawdown: null };
+  const { avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration } = useMemo(() => {
+    if (!allTrades.length) return { avgTrade: null, streak: 0, streakDir: null, profitFactor: null, maxDrawdown: null, avgDuration: null };
     const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
     const total = sorted.reduce((s, t) => s + parseFloat(t.pnl ?? 0), 0);
     const avg = total / sorted.length;
@@ -746,6 +746,7 @@ export default function AnalyticsTab() {
       else break;
     }
     let totalWin = 0, totalLoss = 0, peak = 0, equity = 0, maxDD = 0;
+    let durSum = 0, durCount = 0;
     for (const t of sorted) {
       const p = parseFloat(t.pnl ?? 0);
       if (p > 0) totalWin += p; else totalLoss += Math.abs(p);
@@ -753,13 +754,17 @@ export default function AnalyticsTab() {
       if (equity > peak) peak = equity;
       const dd = peak - equity;
       if (dd > maxDD) maxDD = dd;
+      const o = parseInt(t.opened_at), c = parseInt(t.closed_at);
+      if (o && c && c > o) { durSum += (c - o) / 60000; durCount++; }
     }
+    const avgDurMin = durCount > 0 ? Math.round(durSum / durCount) : null;
     return {
       avgTrade: avg,
       streak: count,
       streakDir: dir,
       profitFactor: totalLoss > 0 ? +(totalWin / totalLoss).toFixed(2) : null,
       maxDrawdown: maxDD > 0 ? +maxDD.toFixed(2) : null,
+      avgDuration: avgDurMin,
     };
   }, [allTrades]);
 
@@ -804,13 +809,23 @@ export default function AnalyticsTab() {
     { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right', muted: true, render: r => r.avg_loss < 0 ? parseFloat(r.avg_loss).toFixed(2) : '—' },
   ];
 
+  const fmtDuration = r => {
+    const o = parseInt(r.opened_at), c = parseInt(r.closed_at);
+    if (!o || !c || c <= o) return '—';
+    const m = Math.round((c - o) / 60000);
+    if (m < 60) return `${m}m`;
+    if (m < 1440) return `${Math.floor(m / 60)}h ${m % 60}m`;
+    return `${Math.floor(m / 1440)}d`;
+  };
+
   const allTradesCols = [
     { key: 'date', label: 'Date', muted: true, render: r => { const ms = parseInt(r.closed_at); const loc = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' }[lang]||'en-US'; return ms ? new Date(ms).toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; } },
     { key: 'symbol', label: 'Symbol', bold: true, render: r => r.symbol || '—' },
-    { key: 'side', label: 'Side', render: r => r.side || '—' },
+    { key: 'side', label: 'Side', render: r => <span style={{ color: r.side === 'LONG' ? 'var(--accent-green)' : r.side === 'SHORT' ? 'var(--accent-red)' : 'var(--text-muted)' }}>{r.side || '—'}</span> },
     { key: 'entry_price', label: 'Entry', render: r => r.entry_price ? (+r.entry_price).toFixed(4) : '—' },
     { key: 'exit_price', label: 'Exit', render: r => r.exit_price ? (+r.exit_price).toFixed(4) : '—' },
     { key: 'qty', label: 'Qty', muted: true, render: r => r.qty ? (+r.qty).toFixed(3) : '—' },
+    { key: '_dur', label: 'Dur', muted: true, render: fmtDuration },
     { key: 'source', label: 'Source', muted: true, render: r => BOT_LABELS[r.source] || r.source || '—' },
     { key: 'pnl', label: 'PnL', align: 'right', bold: true, render: r => `${(r.pnl ?? 0) >= 0 ? '+' : ''}${(r.pnl ?? 0).toFixed(2)}` },
   ];
@@ -908,6 +923,13 @@ export default function AnalyticsTab() {
             label="Max Drawdown"
             value={<span style={{ color: 'var(--accent-red)' }}>−{maxDrawdown}</span>}
             sub="USDT from peak"
+          />
+        )}
+        {avgDuration != null && (
+          <StatCard
+            label="Avg Duration"
+            value={avgDuration < 60 ? `${avgDuration}m` : avgDuration < 1440 ? `${Math.floor(avgDuration / 60)}h ${avgDuration % 60}m` : `${Math.floor(avgDuration / 1440)}d`}
+            sub="per closed trade"
           />
         )}
       </div>
