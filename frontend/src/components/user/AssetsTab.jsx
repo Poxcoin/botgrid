@@ -350,7 +350,7 @@ function PnlChart({ hasKey }) {
               { label: td.hPnL, val: `${stats.pnl >= 0 ? '+' : ''}$${stats.pnl.toFixed(2)}`, color: stats.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
               { label: td.analytics.hTrades, val: stats.trades },
               { label: td.overview.winRate, val: `${stats.wr}%` },
-              { label: 'W / L', val: `${stats.wins} / ${stats.losses}` },
+              { label: td.analytics.wl, val: `${stats.wins} / ${stats.losses}` },
             ].map(({ label, val, color: c }) => (
               <div key={label}>
                 <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>

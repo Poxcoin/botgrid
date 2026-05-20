@@ -216,8 +216,8 @@ export default function MacroBotTab({ botId }) {
   const netPnl  = closed.reduce((acc, t) => acc + (t.profit_usd || 0), 0);
   const winRate = closed.length ? Math.round(wins / closed.length * 100) : null;
 
-  const title = isGold ? 'Gold Event Bot' : 'Macro Forex Bot';
-  const desc  = isGold ? 'XAUUSD · MT5 · IC Markets' : 'EURUSD · GBPUSD · MT5 · IC Markets';
+  const title = isGold ? tm.m2.name : tm.m1.name;
+  const desc  = isGold ? tm.m2.tag : tm.m1.tag;
 
   const mt5Configured = mt5?.configured === true;
 

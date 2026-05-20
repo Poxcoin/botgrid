@@ -480,7 +480,7 @@ export default function Auth() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError(t.auth.errEmail); return; }
     if (mode === 'register') {
       if (!isLegalAccepted()) {
-        setError('To register, please accept the Terms of Service and Risk Disclosure first.');
+        setError(t.auth.errTos);
         return;
       }
       if (!form.username) { setError(t.auth.errUsername); return; }
