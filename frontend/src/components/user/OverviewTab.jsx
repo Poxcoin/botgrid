@@ -132,6 +132,25 @@ function boll(bars, n = 20, mult = 2) {
     return { upper: mid[i] + mult * std, mid: mid[i], lower: mid[i] - mult * std };
   });
 }
+function calcRSI(bars, period = 14) {
+  const result = Array(bars.length).fill(null);
+  if (bars.length <= period) return result;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = bars[i].close - bars[i - 1].close;
+    if (d >= 0) avgGain += d; else avgLoss -= d;
+  }
+  avgGain /= period; avgLoss /= period;
+  result[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  for (let i = period + 1; i < bars.length; i++) {
+    const d = bars[i].close - bars[i - 1].close;
+    const g = Math.max(0, d), l = Math.max(0, -d);
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+    result[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return result;
+}
 
 function OrderBook({ coin }) {
   const [book, setBook] = useState({ b: [], a: [] });
@@ -374,6 +393,10 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
       refs.BOLL[1].setData(bars.map((b, i) => ({ time: b.time, value: v[i].mid   })).filter(d => d.value != null));
       refs.BOLL[2].setData(bars.map((b, i) => ({ time: b.time, value: v[i].lower })).filter(d => d.value != null));
     }
+    if (refs.RSI?.[0]) {
+      const v = calcRSI(bars);
+      refs.RSI[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
+    }
   }
 
   function applyData(bars) {
@@ -589,6 +612,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     if (activeInds[name]) {
       (indRefs.current[name] || []).forEach(s => { try { chart.removeSeries(s); } catch {} });
       delete indRefs.current[name];
+      if (name === 'RSI') volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
       setActiveInds(p => ({ ...p, [name]: false }));
     } else {
       const bars = barsRef.current;
@@ -612,6 +636,16 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
           mid.setData(bars.map((b, i) => ({ time: b.time, value: v[i].mid   })).filter(d => d.value != null));
           lower.setData(bars.map((b, i) => ({ time: b.time, value: v[i].lower })).filter(d => d.value != null));
           indRefs.current.BOLL = [upper, mid, lower];
+        } else if (name === 'RSI') {
+          const rsi = chart.addLineSeries({ priceScaleId: 'rsi', color: '#9b59b6', lineWidth: 1.5, lastValueVisible: true, priceLineVisible: false });
+          rsi.priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 }, drawTicks: true });
+          rsi.createPriceLine({ price: 70, color: 'rgba(246,70,93,0.45)', lineStyle: LineStyle.Dashed, lineWidth: 1 });
+          rsi.createPriceLine({ price: 50, color: 'rgba(150,150,150,0.3)', lineStyle: LineStyle.Dashed, lineWidth: 1 });
+          rsi.createPriceLine({ price: 30, color: 'rgba(14,203,129,0.45)', lineStyle: LineStyle.Dashed, lineWidth: 1 });
+          const v = calcRSI(bars);
+          rsi.setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
+          volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.92, bottom: 0 } });
+          indRefs.current.RSI = [rsi];
         }
         setActiveInds(p => ({ ...p, [name]: true }));
       } catch {}
@@ -627,7 +661,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
         <button onClick={() => { showLRef.current = true; setShowLine(true); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${showLine ? 'var(--border-strong)' : 'transparent'}`, color: showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Line</button>
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
         <span style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Ind</span>
-        {['MA','EMA','BOLL'].map(name => (
+        {['MA','EMA','BOLL','RSI'].map(name => (
           <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
         ))}
         <div style={{ width: 8, flexShrink: 0 }} />
