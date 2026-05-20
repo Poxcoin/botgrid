@@ -621,6 +621,9 @@ export default function AnalyticsTab() {
   const [coinView,    setCoinView]    = useState('cards');
   const [coinSort,    setCoinSort]    = useState('pnl');
   const [coinSortAsc, setCoinSortAsc] = useState(false);
+  const [botSort,     setBotSort]     = useState('pnl');
+  const [botSortAsc,  setBotSortAsc]  = useState(false);
+  const [tradeSource, setTradeSource] = useState('ALL');
 
   const fetchData = useCallback(async (days = 0) => {
     setLoading(true);
@@ -863,11 +866,13 @@ export default function AnalyticsTab() {
         />
         <StatCard
           label={t.dashboard.analytics.totalPnl}
-          value={`${totalPnl >= 0 ? '+' : ''}${totalPnl} USDT`}
+          value={<span style={{ color: totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+            {`${totalPnl >= 0 ? '+' : ''}${totalPnl} USDT`}
+          </span>}
         />
         <StatCard
           label={t.dashboard.analytics.winRate}
-          value={winRate}
+          value={winRate === '—' ? '—' : <span style={{ color: parseFloat(winRate) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{winRate}</span>}
           sub={`${summary?.wins ?? 0} ${t.dashboard.analytics.wins}`}
         />
         <StatCard
@@ -1062,8 +1067,18 @@ export default function AnalyticsTab() {
             right={`${mergedBySource.length} ${t.dashboard.analytics.sources}`}
           />
           <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
-            <DataTable cols={botCols} rows={mergedBySource}
-              getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
+            <DataTable
+              cols={botCols}
+              rows={[...mergedBySource].sort((a, b) => {
+                let va, vb;
+                if (botSort === '_wr') { va = a.trades ? a.wins / a.trades : 0; vb = b.trades ? b.wins / b.trades : 0; }
+                else { va = parseFloat(a[botSort] ?? 0); vb = parseFloat(b[botSort] ?? 0); }
+                return botSortAsc ? va - vb : vb - va;
+              })}
+              getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : null}
+              sortCol={botSort}
+              sortAsc={botSortAsc}
+              onSort={col => { if (botSort === col) setBotSortAsc(a => !a); else { setBotSort(col); setBotSortAsc(false); } }}
             />
           </div>
         </div>
@@ -1093,10 +1108,12 @@ export default function AnalyticsTab() {
 
       {/* All trades — paginated, newest first */}
       {allTrades.length > 0 && (() => {
+        const sources = [...new Set(allTrades.map(t => t.source).filter(Boolean))].sort();
         const lc = tradeSearch.toLowerCase();
         const filtered = [...allTrades]
           .filter(t => {
             if (tradeSide !== 'ALL' && (t.side || '').toUpperCase() !== tradeSide) return false;
+            if (tradeSource !== 'ALL' && t.source !== tradeSource) return false;
             if (lc && !(t.symbol || '').toLowerCase().includes(lc)) return false;
             return true;
           })
@@ -1129,6 +1146,22 @@ export default function AnalyticsTab() {
                   outline: 'none', width: 110, letterSpacing: '0.04em',
                 }}
               />
+              {sources.length > 1 && (
+                <select
+                  value={tradeSource}
+                  onChange={e => { setTradeSource(e.target.value); setTradePage(1); }}
+                  style={{
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                    color: tradeSource !== 'ALL' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontFamily: MONO, fontSize: 10, padding: '4px 10px', outline: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">All bots</option>
+                  {sources.map(s => (
+                    <option key={s} value={s}>{BOT_LABELS[s] || s}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
               <DataTable

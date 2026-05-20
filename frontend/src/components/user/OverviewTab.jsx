@@ -1010,14 +1010,14 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
         {tab === 'pnl' && (filteredClosed.length === 0 ? <Empty /> :
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
             {[
-              ['Total PnL', `${sign(pnlTotal)} USDT`,                              pos(pnlTotal)],
-              ['Win Rate',  `${pnlWr}%`,                                            pnlWr >= 50],
-              ['Trades',    String(filteredClosed.length),                          true],
-              ['W / L',     `${pnlWins.length} / ${pnlLoss.length}`,               true],
-            ].map(([l, v, good]) => (
+              ['Total PnL', `${sign(pnlTotal)} USDT`, pos(pnlTotal) ? 'var(--accent-green)' : 'var(--accent-red)'],
+              ['Win Rate',  `${pnlWr}%`,              pnlWr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'],
+              ['Trades',    String(filteredClosed.length), 'var(--text-primary)'],
+              ['W / L',     `${pnlWins.length} / ${pnlLoss.length}`, 'var(--text-primary)'],
+            ].map(([l, v, col]) => (
               <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
-                <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 600, color: good ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{v}</div>
+                <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 600, color: col }}>{v}</div>
               </div>
             ))}
           </div>
