@@ -40,13 +40,13 @@ export default function PnlTab() {
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: isMobile ? 0 : '0 40px', marginBottom: 40 }}>
         {[
-          { label: t.dashboard.pnl.totalGross, val: totalGross },
-          { label: t.dashboard.pnl.totalFee,   val: totalFee },
-          { label: t.dashboard.pnl.totalNet,   val: totalNet },
-        ].map(({ label, val }) => (
+          { label: t.dashboard.pnl.totalGross, val: totalGross, colored: true },
+          { label: t.dashboard.pnl.totalFee,   val: totalFee,   colored: false },
+          { label: t.dashboard.pnl.totalNet,   val: totalNet,   colored: true },
+        ].map(({ label, val, colored }) => (
           <div key={label} style={{ borderBottom: '1px solid var(--border)', padding: '20px 0' }}>
             <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)', marginBottom: 8 }}>{label}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-mono)', color: colored && !loading ? (val >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : undefined }}>
               {loading
                 ? <div className="shimmer" style={{ height: 28, width: 140, borderRadius: 4 }} />
                 : `${val >= 0 ? '+' : ''}${val.toFixed(2)}`}

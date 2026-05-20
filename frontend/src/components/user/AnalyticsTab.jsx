@@ -926,15 +926,15 @@ export default function AnalyticsTab() {
         {avgTrade != null && (
           <StatCard
             label="Avg Trade"
-            value={`${avgTrade >= 0 ? '+' : ''}${avgTrade.toFixed(2)}`}
+            value={<span style={{ color: avgTrade >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${avgTrade >= 0 ? '+' : ''}${avgTrade.toFixed(2)}`}</span>}
             sub="USDT per trade"
           />
         )}
         {streak > 0 && (
           <StatCard
             label="Current Streak"
-            value={`${streak}×`}
-            sub={streakDir ? '✓ wins' : '✗ losses'}
+            value={<span style={{ color: streakDir ? 'var(--accent-green)' : 'var(--accent-red)' }}>{streak}×</span>}
+            sub={streakDir ? 'winning' : 'losing'}
           />
         )}
         {profitFactor != null && (
