@@ -27,12 +27,17 @@ def _conn():
 
 
 def _init_exchange():
-    return ccxt.bybit({
+    exchange = ccxt.bybit({
         "apiKey":  os.getenv("BYBIT_API_KEY", ""),
         "secret":  os.getenv("BYBIT_SECRET", ""),
-        "options": {"defaultType": "linear"},
+        "options": {"defaultType": "linear", "adjustForTimeDifference": True},
         "enableRateLimit": True,
     })
+    if os.getenv("IS_DEMO_TRADING", "False").lower() == "true":
+        exchange.urls["api"] = exchange.urls["demotrading"]
+        exchange.has["fetchCurrencies"] = False
+    exchange.load_markets()
+    return exchange
 
 
 def _fetch_closed(exchange, symbol: str, since_ms: int) -> list:
