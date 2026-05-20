@@ -165,12 +165,14 @@ function StatBox({ label, value, color }) {
 
 /* ── no MT5 key banner ────────────────────────────────────────── */
 function NoKeyBanner() {
+  const { t } = useLang();
+  const tm = t.dashboard.macro;
   return (
     <div style={{ border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
       <div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>No MT5 account connected</div>
+        <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>{tm.noMt5Title}</div>
         <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
-          Connect your IC Markets MT5 credentials to see live stats and trade history.
+          {tm.noMt5Desc}
         </div>
       </div>
       <button
@@ -182,7 +184,7 @@ function NoKeyBanner() {
           textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0,
         }}
       >
-        Add MT5 Account →
+        {tm.addMt5Btn}
       </button>
     </div>
   );
@@ -190,7 +192,8 @@ function NoKeyBanner() {
 
 /* ── main ─────────────────────────────────────────────────────── */
 export default function MacroBotTab({ botId }) {
-  const { lang } = useLang();
+  const { t, lang } = useLang();
+  const tm = t.dashboard.macro;
   const [trades, setTrades] = useState([]);
   const [mt5,    setMt5]    = useState(undefined);
 
@@ -235,36 +238,36 @@ export default function MacroBotTab({ botId }) {
 
       {/* Stats */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-        <StatBox label="Trades (30d)" value={closed.length || '—'} />
+        <StatBox label={tm.statTrades} value={closed.length || '—'} />
         <StatBox
-          label="Win Rate"
+          label={tm.statWinRate}
           value={winRate != null ? `${winRate}%` : '—'}
           color={winRate != null ? (winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)') : undefined}
         />
         <StatBox
-          label="Net PnL (USD)"
+          label={tm.statNetPnl}
           value={closed.length ? `${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}` : '—'}
           color={netPnl > 0 ? 'var(--accent-green)' : netPnl < 0 ? 'var(--accent-red)' : undefined}
         />
-        <StatBox label="Strategy" value="Event" />
+        <StatBox label={tm.statStrategy} value={tm.statEvent} />
       </div>
 
       {/* Trades table */}
       <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
         <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Recent Trades</span>
+          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{tm.recentTrades}</span>
           <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em' }}>MT5 · IC MARKETS</span>
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>
-            No trades yet — bot waits for economic events (CPI, NFP, FOMC)
+            {tm.noTradesYet}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${B}` }}>
-                  {['Symbol', 'Event', 'Dir', 'Pips', 'USD', 'Time'].map((h, i) => (
+                  {[tm.colSymbol, tm.colEvent, tm.colDir, tm.colPips, tm.colUsd, tm.colTime].map((h, i) => (
                     <th key={h} style={{
                       textAlign: i === 0 ? 'left' : 'right', padding: '8px 16px',
                       fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',

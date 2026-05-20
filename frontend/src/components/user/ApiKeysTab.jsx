@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { useLang } from '@/lib/LangContext';
 
 const FM = "'JetBrains Mono','Courier New',monospace";
 const FF = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
@@ -151,6 +152,8 @@ const inputStyle = {
 };
 
 function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
+  const { t } = useLang();
+  const ta = t.dashboard.apiKeys;
   const [apiKey,  setApiKey]  = useState('');
   const [secret,  setSecret]  = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -160,7 +163,7 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!apiKey.trim() || !secret.trim()) { setError('Both fields are required'); return; }
+    if (!apiKey.trim() || !secret.trim()) { setError(ta.bothRequired); return; }
     setError(''); setSaving(true);
     try {
       await API('/api/users/keys', {
@@ -188,18 +191,18 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
     <form onSubmit={submit} autoComplete="off">
       {existing && (
         <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
-          Replace existing key
+          {ta.replaceExisting}
         </div>
       )}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>API Key</div>
+        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>{ta.apiKeyLabel}</div>
         <div style={{ position: 'relative' }}>
           <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your Bybit API key" style={inputStyle} autoComplete="new-password"/>
           <EyeBtn show={showKey} onToggle={() => setShowKey(v => !v)} />
         </div>
       </div>
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Secret</div>
+        <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>{ta.secretLabel}</div>
         <div style={{ position: 'relative' }}>
           <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inputStyle} autoComplete="new-password"/>
           <EyeBtn show={showSec} onToggle={() => setShowSec(v => !v)} />
@@ -212,11 +215,11 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <button type="submit" disabled={saving} style={{ background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', padding: '10px 24px', fontFamily: FF, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, borderRadius: 6 }}>
-          {saving ? 'Validating…' : existing ? 'Replace key' : 'Save key'}
+          {saving ? ta.validating : existing ? ta.replaceKey : ta.saveKey}
         </button>
         {existing && onCancel && (
           <button type="button" onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontFamily: FF, fontSize: 13, cursor: 'pointer', padding: '10px 0' }}>
-            Cancel
+            {ta.cancel}
           </button>
         )}
       </div>
@@ -226,6 +229,8 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
 
 // ── Key card (existing key) ────────────────────────────────────────────────
 function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
+  const { t } = useLang();
+  const ta = t.dashboard.apiKeys;
   return (
     <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: 8, padding: '14px 16px', marginBottom: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -235,9 +240,9 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
           {isTestnet && <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', padding: '2px 7px', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', textTransform: 'uppercase', borderRadius: 100 }}>DEMO</span>}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={onReplace} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>Replace</button>
+          <button onClick={onReplace} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>{ta.replace}</button>
           <button onClick={onDelete} disabled={deleting} style={{ background: 'none', border: '1px solid rgba(255,77,109,0.25)', color: 'var(--accent-red)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: deleting ? 'not-allowed' : 'pointer', borderRadius: 5, opacity: deleting ? 0.5 : 1 }}>
-            {deleting ? 'Deleting…' : 'Delete'}
+            {deleting ? ta.deleting : ta.delete}
           </button>
         </div>
       </div>
@@ -249,6 +254,8 @@ function KeyCard({ maskedKey, isTestnet, onReplace, onDelete, deleting }) {
 
 // ── Key section (live / demo) ──────────────────────────────────────────────
 function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onDeleted }) {
+  const { t } = useLang();
+  const ta = t.dashboard.apiKeys;
   const [showForm, setShowForm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [success,  setSuccess]  = useState('');
@@ -261,7 +268,7 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
   function handleSaved(rawKey) {
     const masked = rawKey.length < 8 ? '••••••••••••••••••••' : rawKey.slice(0, 6) + '••••••••••••' + rawKey.slice(-4);
     setLocalMasked(masked); setShowForm(false);
-    setSuccess('Key saved and verified successfully.');
+    setSuccess(ta.keySaved);
     setTimeout(() => setSuccess(''), 5000);
     onSaved?.();
   }
@@ -302,6 +309,8 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
 
 // ── MT5 Keys ───────────────────────────────────────────────────────────────
 function Mt5KeysSection() {
+  const { t } = useLang();
+  const ta = t.dashboard.apiKeys;
   const [data,      setData]      = React.useState(null);
   const [showForm,  setShowForm]  = React.useState(false);
   const [login,     setLogin]     = React.useState('');
@@ -325,12 +334,12 @@ function Mt5KeysSection() {
   };
 
   const save = async () => {
-    if (!login || !pass || !server) { setMsg('Fill all fields'); return; }
+    if (!login || !pass || !server) { setMsg(ta.fillAllFields); return; }
     setSaving(true); setMsg('');
     try {
       await API('/api/users/mt5-keys', { method: 'POST', body: JSON.stringify({ login, password: pass, server }) });
       setData({ configured: true, login, server });
-      setMsg('✓ MT5 credentials saved');
+      setMsg(ta.mt5Saved);
       setLogin(''); setPass(''); setShowForm(false);
     } catch(e) { setMsg(e.message); }
     setSaving(false);
@@ -359,7 +368,7 @@ function Mt5KeysSection() {
       </div>
       <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: FF, lineHeight: 1.5 }}>
-          Connect your IC Markets MT5 demo account to trade EURUSD, GBPUSD, XAUUSD on macro news events (CPI, NFP, PCE).
+          {ta.mt5Desc}
         </div>
 
         {/* Connected card */}
@@ -380,9 +389,9 @@ function Mt5KeysSection() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button onClick={() => { setShowForm(true); setMsg(''); }} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>Replace</button>
+              <button onClick={() => { setShowForm(true); setMsg(''); }} style={{ background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: 'pointer', borderRadius: 5 }}>{ta.replace}</button>
               <button onClick={remove} disabled={deleting} style={{ background: 'none', border: '1px solid rgba(255,77,109,0.25)', color: 'var(--accent-red)', fontFamily: FF, fontSize: 11, padding: '5px 12px', cursor: deleting ? 'not-allowed' : 'pointer', borderRadius: 5, opacity: deleting ? 0.5 : 1 }}>
-                {deleting ? 'Removing…' : 'Remove'}
+                {deleting ? ta.removing : ta.remove}
               </button>
             </div>
           </div>
@@ -393,7 +402,7 @@ function Mt5KeysSection() {
           <>
             {showForm && (
               <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', paddingBottom: 10, borderBottom: '1px solid var(--border-subtle)' }}>
-                Replace credentials
+                {ta.replaceCredentials}
               </div>
             )}
             {[
@@ -408,10 +417,10 @@ function Mt5KeysSection() {
             ))}
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               <button onClick={save} disabled={saving} style={{ background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', borderRadius: 6, padding: '10px 24px', fontFamily: FF, fontSize: 13, fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1 }}>
-                {saving ? 'Saving…' : data?.configured ? 'Update MT5' : 'Connect MT5'}
+                {saving ? ta.saving : data?.configured ? ta.updateMt5 : ta.connectMt5}
               </button>
               {showForm && (
-                <button onClick={() => { setShowForm(false); setMsg(''); setLogin(''); setPass(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontFamily: FF, fontSize: 13, cursor: 'pointer', padding: '10px 0' }}>Cancel</button>
+                <button onClick={() => { setShowForm(false); setMsg(''); setLogin(''); setPass(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontFamily: FF, fontSize: 13, cursor: 'pointer', padding: '10px 0' }}>{ta.cancel}</button>
               )}
             </div>
           </>
@@ -425,6 +434,8 @@ function Mt5KeysSection() {
 
 // ── Main export ────────────────────────────────────────────────────────────
 export default function ApiKeysTab() {
+  const { t } = useLang();
+  const ta = t.dashboard.apiKeys;
   const [me, setMe] = useState(null);
   const isMobile = useIsMobile();
   const reload = () => API('/api/users/me').then(setMe).catch(() => {});
@@ -435,15 +446,15 @@ export default function ApiKeysTab() {
 
       {/* Header */}
       <div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>API Keys</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>{ta.pageTitle}</div>
         <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          Connect your Bybit account so the bot can open and close trades on your behalf. Supports both live and demo accounts. Keys are encrypted with AES-256 and never stored in plain text.
+          {ta.pageDesc}
         </div>
       </div>
 
       <KeySection
-        title="Live Account"
-        subtitle="Real funds. The bot will trade with real money once this key is connected."
+        title={ta.liveTitle}
+        subtitle={ta.liveDesc}
         isTestnet={false}
         maskedKey={me?.bybit_live_key_masked || null}
         onSaved={reload}
@@ -451,9 +462,9 @@ export default function ApiKeysTab() {
       />
 
       <KeySection
-        title="Demo Account"
+        title={ta.demoTitle}
         badge={{ text: 'DEMO' }}
-        subtitle="Bybit Demo account — practice trading with virtual funds. Bots will use demo keys when no live key is connected."
+        subtitle={ta.demoDesc}
         isTestnet={true}
         maskedKey={me?.bybit_demo_key_masked || null}
         onSaved={reload}
@@ -462,7 +473,7 @@ export default function ApiKeysTab() {
 
       {/* Security note */}
       <div style={{ padding: '16px 18px', border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--bg-surface)' }}>
-        <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>Security</div>
+        <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{ta.secNote}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {[
             'Grant Trade + Position permissions only. Never enable Withdrawal.',
