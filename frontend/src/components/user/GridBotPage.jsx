@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { authFetch } from '@/lib/api';
+import { useTheme } from '@/lib/ThemeContext';
 
 const COINS = [
   { key: 'BTC', label: 'BTC/USDT' },
@@ -177,7 +178,7 @@ function OrderBook({ coin }) {
         <span style={{ fontFamily: MONO, fontSize: 10, color: isAsk ? 'var(--accent-red)' : 'var(--accent-green)', zIndex: 1, letterSpacing: '0.02em' }}>
           {(+price).toFixed(2)}
         </span>
-        <span style={{ fontFamily: MONO, fontSize: 10, color: 'rgba(255,255,255,0.35)', zIndex: 1 }}>
+        <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', zIndex: 1 }}>
           {(+size).toFixed(3)}
         </span>
       </div>
@@ -218,6 +219,9 @@ function OrderBook({ coin }) {
 // ── KlineChart ────────────────────────────────────────────────
 
 function KlineChart({ coin, tf }) {
+  const { theme } = useTheme();
+  const dark = theme !== 'light';
+
   const elRef      = useRef(null);
   const chartRef   = useRef(null);
   const candleRef  = useRef(null);
@@ -378,6 +382,22 @@ function KlineChart({ coin, tf }) {
       areaRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    chartRef.current?.applyOptions({
+      layout: { textColor: dark ? 'rgba(240,242,245,0.4)' : '#888' },
+      grid: {
+        vertLines: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' },
+        horzLines: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)' },
+      },
+      crosshair: {
+        vertLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)', labelBackgroundColor: dark ? '#1a1a1a' : '#f0f0f0' },
+        horzLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)', labelBackgroundColor: dark ? '#1a1a1a' : '#f0f0f0' },
+      },
+      rightPriceScale: { borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)' },
+      timeScale: { borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)' },
+    });
+  }, [dark]);
 
   useEffect(() => {
     if (!chartRef.current) return;
