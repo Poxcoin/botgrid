@@ -159,7 +159,7 @@ function OrderBook({ coin }) {
       <div style={{ position: 'relative', height: 17, display: 'flex', alignItems: 'center', padding: '0 10px', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${pct}%`, background: isAsk ? 'rgba(255,77,109,0.07)' : 'rgba(0,212,170,0.07)' }} />
         <span style={{ fontFamily: FM, fontSize: 10, color: isAsk ? 'var(--accent-red)' : 'var(--accent-green)', zIndex: 1 }}>{(+price).toFixed(2)}</span>
-        <span style={{ fontFamily: FM, fontSize: 10, color: 'rgba(255,255,255,0.35)', zIndex: 1 }}>{(+size).toFixed(3)}</span>
+        <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', zIndex: 1 }}>{(+size).toFixed(3)}</span>
       </div>
     );
   };
@@ -925,7 +925,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr><Th v="Time"/><Th v="Symbol"/><Th v="Side"/><Th v="Type"/><Th v="Qty"/><Th v="Price" r/><Th v="Filled" r/><Th v="Status"/><Th v="Reduce"/><Th v=""/></tr></thead>
             <tbody>{filteredOrders.map((o, i) => (
-              <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 <Td v={dstr(o.created_at ? +o.created_at : null)}/>
                 <Td v={o.symbol} hi="var(--text-primary)"/>
                 <Td v={o.side} hi={o.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
@@ -935,7 +935,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                 <Td v={fix(o.filled_qty, 3)} r/>
                 <Td v={o.status}/>
                 <Td v={o.reduce_only ? 'Yes' : '—'}/>
-                <td style={{ padding: '4px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '4px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
                   <button
                     onClick={() => onCancelOrder(o.order_id, o.symbol)}
                     style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
@@ -957,7 +957,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
               const hasSL  = !!p.stop_loss;
               const hasTP  = !!p.take_profit;
               return (
-                <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <Td v={sym(p.symbol)} hi="var(--text-primary)"/>
                   <Td v={p.side} hi={p.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
                   <Td v={p.leverage ? `${p.leverage}x` : '—'}/>
@@ -972,7 +972,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                   })()}
                   <Td v={p.pnl_pct != null ? `${sign(p.pnl_pct, 1)}%` : '—'} hi={pos(p.pnl_pct ?? 0) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
                   <Td v={`${sign(upnl)} USDT`} hi={pos(upnl) ? 'var(--accent-green)' : 'var(--accent-red)'} r/>
-                  <td style={{ padding: '4px 12px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ padding: '4px 12px', borderBottom: '1px solid var(--border-subtle)' }}>
                     <button
                       onClick={() => onClose(p.symbol)}
                       style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
@@ -1013,7 +1013,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
               <tbody>{displayHistory.map((t, i) => {
                 const p = pnl(t);
                 return (
-                  <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <Td v={dstr(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
                     <Td v={t.side} hi={t.side === 'LONG' || t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
                     <Td v={t.leverage ? `${t.leverage}x` : '—'}/>
@@ -1386,7 +1386,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
             }}>
               <span style={{
                 width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
-                background: h == null ? '#333' : active ? '#aaa' : '#555',
+                background: h == null ? 'var(--border-strong)' : active ? 'var(--text-secondary)' : 'var(--text-muted)',
               }}/>
               <span style={{ fontFamily: FM, fontSize: 10, color: current ? 'var(--text-primary)' : active ? 'var(--text-secondary)' : 'var(--text-muted)', letterSpacing: '0.04em' }}>
                 {b.label}
@@ -1407,7 +1407,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{
             width: 6, height: 6, borderRadius: '50%', flexShrink: 0, display: 'inline-block',
-            background: connected ? 'rgba(255,255,255,0.35)' : '#444',
+            background: connected ? 'var(--text-secondary)' : 'var(--text-muted)',
           }}/>
           <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
             {connected ? 'LIVE' : 'RECONNECTING…'}
