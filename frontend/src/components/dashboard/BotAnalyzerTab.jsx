@@ -189,7 +189,7 @@ export default function BotAnalyzerTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {breakdown.by_coin.slice(0, 20).map((r, i) => (
+                    {breakdown.by_coin.slice(0, 50).map((r, i) => (
                       <tr key={i} className="border-b border-kado-black/8 hover:bg-kado-black/3">
                         <td className="px-4 py-2 font-bold">{r.coin}</td>
                         <td className="px-4 py-2 text-kado-gray">{r.trades}</td>

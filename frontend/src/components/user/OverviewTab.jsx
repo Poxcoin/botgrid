@@ -829,6 +829,19 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
   const pnlWins  = useMemo(() => filteredClosed.filter(t => pnl(t) > 0), [filteredClosed]);
   const pnlLoss  = useMemo(() => filteredClosed.filter(t => pnl(t) < 0), [filteredClosed]);
   const pnlWr    = filteredClosed.length ? Math.round(pnlWins.length / filteredClosed.length * 100) : 0;
+  const pnlStats = useMemo(() => {
+    if (!filteredClosed.length) return {};
+    const winSum  = pnlWins.reduce((s, t) => s + pnl(t), 0);
+    const lossSum = Math.abs(pnlLoss.reduce((s, t) => s + pnl(t), 0));
+    const pnls    = filteredClosed.map(t => pnl(t));
+    return {
+      avgWin:  pnlWins.length ? +(winSum / pnlWins.length).toFixed(2) : null,
+      avgLoss: pnlLoss.length ? +(pnlLoss.reduce((s, t) => s + pnl(t), 0) / pnlLoss.length).toFixed(2) : null,
+      pf:      lossSum > 0 ? +(winSum / lossSum).toFixed(2) : null,
+      best:    pnlWins.length ? +Math.max(...pnlWins.map(t => pnl(t))).toFixed(2) : null,
+      worst:   pnlLoss.length ? +Math.min(...pnlLoss.map(t => pnl(t))).toFixed(2) : null,
+    };
+  }, [filteredClosed, pnlWins, pnlLoss]);
 
   const displayHistory = useMemo(() => {
     const lc = histSearch.toUpperCase();
@@ -1008,16 +1021,21 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
         ))}
 
         {tab === 'pnl' && (filteredClosed.length === 0 ? <Empty /> :
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))', gap: 0 }}>
             {[
-              ['Total PnL', `${sign(pnlTotal)} USDT`, pos(pnlTotal) ? 'var(--accent-green)' : 'var(--accent-red)'],
-              ['Win Rate',  `${pnlWr}%`,              pnlWr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'],
-              ['Trades',    String(filteredClosed.length), 'var(--text-primary)'],
-              ['W / L',     `${pnlWins.length} / ${pnlLoss.length}`, 'var(--text-primary)'],
+              ['Total PnL',  `${sign(pnlTotal)} USDT`, pos(pnlTotal) ? 'var(--accent-green)' : 'var(--accent-red)'],
+              ['Win Rate',   `${pnlWr}%`,              pnlWr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'],
+              ['Trades',     String(filteredClosed.length), 'var(--text-primary)'],
+              ['W / L',      `${pnlWins.length} / ${pnlLoss.length}`, 'var(--text-primary)'],
+              ...(pnlStats.avgWin  != null ? [['Avg Win',  `+${pnlStats.avgWin}`,  'var(--accent-green)']] : []),
+              ...(pnlStats.avgLoss != null ? [['Avg Loss', `${pnlStats.avgLoss}`,  'var(--accent-red)']]   : []),
+              ...(pnlStats.pf      != null ? [['Profit ×', `${pnlStats.pf}×`, pnlStats.pf >= 1 ? 'var(--accent-green)' : 'var(--accent-red)']] : []),
+              ...(pnlStats.best    != null ? [['Best',     `+${pnlStats.best}`,    'var(--accent-green)']] : []),
+              ...(pnlStats.worst   != null ? [['Worst',    `${pnlStats.worst}`,    'var(--accent-red)']]   : []),
             ].map(([l, v, col]) => (
-              <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
-                <div style={{ fontFamily: FM, fontSize: 22, fontWeight: 600, color: col }}>{v}</div>
+              <div key={l} style={{ padding: '16px 14px', borderRight: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{l}</div>
+                <div style={{ fontFamily: FM, fontSize: 18, fontWeight: 600, color: col }}>{v}</div>
               </div>
             ))}
           </div>
