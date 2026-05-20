@@ -491,9 +491,22 @@ export default function AccountTab() {
     <div style={{ maxWidth: 640, width: '100%' }}>
 
       {/* ── PROFILE ── */}
-      <div style={sectionHeader}>Profile</div>
+      <div style={sectionHeader}>{t.dashboard.account.profileTitle}</div>
       <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
 
+      {me?.email && (
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 16 }}>
+          <span style={rowLabel}>{t.dashboard.settings.accountEmail}</span>
+          <span style={{ ...rowValue, fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-muted)' }}>{maskEmail(me.email)}</span>
+        </div>
+      )}
+
+      {me?.username && (
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14, gap: 16 }}>
+          <span style={rowLabel}>{t.dashboard.settings.usernameLabel}</span>
+          <span style={{ ...rowValue, fontFamily: 'var(--font-mono)', fontSize: 13 }}>{me.username}</span>
+        </div>
+      )}
 
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 16 }}>
         <span style={rowLabel}>{t.dashboard.settings.plan}</span>
@@ -545,14 +558,14 @@ export default function AccountTab() {
 
       {/* ── TELEGRAM ── */}
       <div style={divider} />
-      <div style={sectionHeader}>Telegram</div>
+      <div style={sectionHeader}>{t.dashboard.account.telegramTitle}</div>
       <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
 
       <TelegramBlock me={me} onChange={reload} />
 
       {/* ── BILLING ── */}
       <div style={divider} />
-      <div style={sectionHeader}>Billing</div>
+      <div style={sectionHeader}>{t.dashboard.account.billingTitle}</div>
       <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
 
       <BillingBlock plan={me?.plan} trialDaysLeft={me?.trial_days_left} />

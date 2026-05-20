@@ -179,6 +179,8 @@ export const translations = {
         streaming:     'streaming',
         refreshSec:    '5s refresh',
         loadingLogs:   'Loading logs...',
+        searchLogs:    'Search logs…',
+        autoScroll:    'Auto-scroll',
       },
       analytics: {
         totalTrades:    'Total Trades',
@@ -825,6 +827,8 @@ export const translations = {
         streaming:     'streaming',
         refreshSec:    'cada 5s',
         loadingLogs:   'Cargando logs...',
+        searchLogs:    'Buscar logs…',
+        autoScroll:    'Auto-scroll',
       },
       analytics: {
         totalTrades:    'Total operaciones',
@@ -1471,6 +1475,8 @@ export const translations = {
         streaming:     'трансляція',
         refreshSec:    'оновл. 5с',
         loadingLogs:   'Завантаження логів...',
+        searchLogs:    'Пошук у логах…',
+        autoScroll:    'Автопрокрутка',
       },
       analytics: {
         totalTrades:    'Усього угод',
@@ -2117,6 +2123,8 @@ export const translations = {
         streaming:     'трансляция',
         refreshSec:    'обнов. 5с',
         loadingLogs:   'Загрузка логов...',
+        searchLogs:    'Поиск в логах…',
+        autoScroll:    'Автопрокрутка',
       },
       analytics: {
         totalTrades:    'Всего сделок',
@@ -2763,6 +2771,8 @@ export const translations = {
         streaming:     'streaming',
         refreshSec:    '5s Refresh',
         loadingLogs:   'Logs laden...',
+        searchLogs:    'Logs durchsuchen…',
+        autoScroll:    'Auto-Scroll',
       },
       analytics: {
         totalTrades:    'Trades gesamt',
@@ -3409,6 +3419,8 @@ export const translations = {
         streaming:     '直播',
         refreshSec:    '5秒刷新',
         loadingLogs:   '加载日志...',
+        searchLogs:    '搜索日志…',
+        autoScroll:    '自动滚动',
       },
       analytics: {
         totalTrades:    '总交易',
