@@ -4,7 +4,10 @@ import SettingsTab      from '@/components/user/SettingsTab';
 import AccountTab       from '@/components/user/AccountTab';
 import SecurityTab      from '@/components/user/SecurityTab';
 import ApiKeysTab       from '@/components/user/ApiKeysTab';
-const AssetsTab = lazy(() => import('@/components/user/AssetsTab'));
+const AssetsTab  = lazy(() => import('@/components/user/AssetsTab'));
+const TradesTab  = lazy(() => import('@/components/user/TradesTab'));
+const PnlTab     = lazy(() => import('@/components/user/PnlTab'));
+const ToolsTab   = lazy(() => import('@/components/user/ToolsTab'));
 import AnalyticsTab     from '@/components/user/AnalyticsTab';
 import MacroBotTab      from '@/components/user/MacroBotTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
@@ -54,6 +57,9 @@ function Page({ tab, allowedBots }) {
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} allowedBots={allowedBots} />;
   switch (tab) {
     case 'analytics': return <AnalyticsTab />;
+    case 'trades':    return <Suspense fallback={null}><TradesTab /></Suspense>;
+    case 'pnl':       return <Suspense fallback={null}><PnlTab /></Suspense>;
+    case 'tools':     return <Suspense fallback={null}><ToolsTab /></Suspense>;
     case 'account':   return <AccountTab />;
     case 'api-keys':  return <ApiKeysTab />;
     case 'security':  return <SecurityTab />;
@@ -106,11 +112,14 @@ export default function UserDashboard() {
   const isBot    = BOT_IDS.includes(tab);
   const allItems = [
     ...BOTS,
-    { id: 'analytics', label: 'Balance' },
-    { id: 'account',   label: 'Account'   },
-    { id: 'api-keys',  label: 'API Keys'  },
-    { id: 'security',  label: 'Security'  },
-    { id: 'settings',  label: 'Settings'  },
+    { id: 'analytics', label: 'Balance'  },
+    { id: 'trades',    label: 'Trades'   },
+    { id: 'pnl',       label: 'PnL'      },
+    { id: 'tools',     label: 'Tools'    },
+    { id: 'account',   label: 'Account'  },
+    { id: 'api-keys',  label: 'API Keys' },
+    { id: 'security',  label: 'Security' },
+    { id: 'settings',  label: 'Settings' },
   ];
   const pageLabel = allItems.find(x => x.id === tab)?.label ?? '';
 
@@ -171,6 +180,8 @@ export default function UserDashboard() {
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
 
         <NavItem id="analytics" label="Balance" />
+        <NavItem id="trades"    label="Trades"  />
+        <NavItem id="pnl"       label="PnL"     />
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
@@ -197,6 +208,10 @@ export default function UserDashboard() {
           <div style={{ padding: '10px 20px 2px 40px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, fontFamily: "'Courier New',monospace", opacity: 0.5 }}>MT5</div>
           {MT5_BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
         </>}
+
+        <div style={{ height: 1, background: border, margin: '8px 0' }}/>
+
+        <NavItem id="tools" label="Tools" />
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
