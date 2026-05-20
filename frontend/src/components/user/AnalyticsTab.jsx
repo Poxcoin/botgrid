@@ -374,6 +374,92 @@ function DayOfWeekChart({ trades }) {
   );
 }
 
+function HourOfDayChart({ trades }) {
+  const [hover, setHover] = React.useState(null);
+  const data = useMemo(() => {
+    const buckets = Array.from({ length: 24 }, (_, h) => ({ h, pnl: 0, trades: 0, wins: 0 }));
+    for (const tr of trades) {
+      const ms = parseInt(tr.closed_at);
+      if (!ms) continue;
+      const hour = new Date(ms).getUTCHours();
+      const p = parseFloat(tr.pnl ?? 0);
+      buckets[hour].pnl    += p;
+      buckets[hour].trades += 1;
+      if (p > 0) buckets[hour].wins += 1;
+    }
+    return buckets.map(b => ({ ...b, pnl: parseFloat(b.pnl.toFixed(2)) }));
+  }, [trades]);
+
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.pnl)), 0.01);
+  if (!trades.length) return null;
+
+  const SESSION_COLORS = {
+    asia:   'rgba(96,165,250,0.18)',
+    europe: 'rgba(167,139,250,0.14)',
+    us:     'rgba(251,191,36,0.13)',
+  };
+  const sessionFor = h => h >= 0 && h < 8 ? 'asia' : h >= 8 && h < 16 ? 'europe' : 'us';
+
+  return (
+    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '16px 12px 8px', position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 90, position: 'relative' }}>
+        {/* session backgrounds */}
+        {['asia', 'europe', 'us'].map((s, si) => {
+          const start = si * 8;
+          return (
+            <div key={s} style={{
+              position: 'absolute', bottom: 20, top: 0,
+              left: `${(start / 24) * 100}%`, width: `${(8 / 24) * 100}%`,
+              background: SESSION_COLORS[s], pointerEvents: 'none',
+            }} />
+          );
+        })}
+        {data.map((d, i) => {
+          const barH = Math.abs(d.pnl) / maxAbs * 64;
+          const pos = d.pnl >= 0;
+          const isH = hover === i;
+          return (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', position: 'relative', zIndex: 1 }}
+              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 70 }}>
+                {pos
+                  ? <div style={{ marginTop: 'auto', width: '100%', height: barH || 1.5, background: isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)', transition: 'background 100ms' }} />
+                  : <div style={{ marginTop: 'auto', width: '100%', height: barH || 1.5, background: isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.65)', transition: 'background 100ms' }} />
+                }
+              </div>
+              {i % 4 === 0 && (
+                <div style={{ fontFamily: MONO, fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{i}h</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: 16, marginTop: 10, fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+        <span style={{ background: SESSION_COLORS.asia,   padding: '1px 6px' }}>Asia 00–08 UTC</span>
+        <span style={{ background: SESSION_COLORS.europe, padding: '1px 6px' }}>Europe 08–16 UTC</span>
+        <span style={{ background: SESSION_COLORS.us,     padding: '1px 6px' }}>US 16–24 UTC</span>
+      </div>
+      {hover != null && (
+        <div style={{
+          position: 'absolute', top: 8,
+          left: Math.min(Math.max(`${(hover / 24) * 100}%`, '4px'), 'calc(100% - 130px)'),
+          transform: hover < 12 ? 'none' : 'translateX(-100%)',
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+          padding: '7px 12px', fontFamily: MONO, fontSize: 11, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
+        }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>{String(hover).padStart(2,'0')}:00 UTC</div>
+          <div style={{ color: data[hover].pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
+            {data[hover].pnl >= 0 ? '+' : ''}{data[hover].pnl.toFixed(2)} USDT
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
+            {data[hover].trades} trades · {data[hover].trades ? Math.round(data[hover].wins / data[hover].trades * 100) : 0}% WR
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EquityCurve({ trades }) {
   const wrapRef = useRef(null);
   const [w, setW] = useState(0);
@@ -777,6 +863,14 @@ export default function AnalyticsTab() {
         <div style={{ marginBottom: 32 }}>
           <SectionLabel title="Day of Week" right="avg PnL by weekday" />
           <DayOfWeekChart trades={allTrades} />
+        </div>
+      )}
+
+      {/* Hour of day breakdown */}
+      {allTrades.length >= 10 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionLabel title="Hour of Day (UTC)" right="cumulative PnL by hour" />
+          <HourOfDayChart trades={allTrades} />
         </div>
       )}
 
