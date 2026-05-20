@@ -346,7 +346,7 @@ function Mt5KeysSection() {
   };
 
   const remove = async () => {
-    if (!confirm('Remove MT5 credentials? The macro bot will stop trading.')) return;
+    if (!confirm(ta.mt5ConfirmRemove)) return;
     setDeleting(true);
     await API('/api/users/mt5-keys', { method: 'DELETE' }).catch(() => {});
     setData({ configured: false }); setLogin(''); setPass(''); setServer('');
@@ -406,9 +406,9 @@ function Mt5KeysSection() {
               </div>
             )}
             {[
-              { label: 'MT5 Login (account number)', val: login, set: setLogin, ph: 'Account number', type: 'text' },
-              { label: 'MT5 Password', val: pass, set: setPass, ph: '••••••••••', type: 'password' },
-              { label: 'MT5 Server', val: server, set: setServer, ph: 'ICMarketsSC-Demo', type: 'text' },
+              { label: ta.mt5LoginLabel, val: login, set: setLogin, ph: ta.mt5LoginPh, type: 'text' },
+              { label: ta.mt5PasswordLabel, val: pass, set: setPass, ph: '••••••••••', type: 'password' },
+              { label: ta.mt5ServerLabel, val: server, set: setServer, ph: 'ICMarketsSC-Demo', type: 'text' },
             ].map(({ label, val, set, ph, type }) => (
               <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: FM, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</label>
@@ -476,12 +476,10 @@ export default function ApiKeysTab() {
         <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{ta.secNote}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {[
-            'Grant Trade + Position permissions only. Never enable Withdrawal.',
-            'Restrict key to the trading server IP — contact support for the address.',
-            'Keys are stored encrypted — once saved they cannot be read back.',
-            me?.totp_enabled
-              ? '✓ Two-factor authentication is enabled on your account.'
-              : '2FA is not enabled — enable it in Settings for better protection.',
+            ta.secNote1,
+            ta.secNote2,
+            ta.secNote3,
+            me?.totp_enabled ? ta.secNote4yes : ta.secNote4no,
           ].map((line, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontFamily: FF, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               <span style={{ marginTop: 2, flexShrink: 0 }}>·</span>
