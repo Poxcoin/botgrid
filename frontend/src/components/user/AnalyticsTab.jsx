@@ -794,8 +794,11 @@ export default function AnalyticsTab() {
       const d = new Date(ms).toISOString().slice(0, 10);
       dayMap[d] = (dayMap[d] ?? 0) + parseFloat(t.pnl ?? 0);
     }
-    const bestDayEntry = Object.entries(dayMap).reduce((a, b) => (b[1] > a[1] ? b : a), [null, -Infinity]);
-    const bestDay = bestDayEntry[0] ? { date: bestDayEntry[0], pnl: parseFloat(bestDayEntry[1].toFixed(2)) } : null;
+    const entries = Object.entries(dayMap);
+    const bestDayEntry  = entries.length ? entries.reduce((a, b) => (b[1] > a[1] ? b : a), [null, -Infinity]) : [null, null];
+    const worstDayEntry = entries.length ? entries.reduce((a, b) => (b[1] < a[1] ? b : a), [null,  Infinity]) : [null, null];
+    const bestDay  = bestDayEntry[0]  ? { date: bestDayEntry[0],  pnl: parseFloat(bestDayEntry[1].toFixed(2))  } : null;
+    const worstDay = worstDayEntry[0] ? { date: worstDayEntry[0], pnl: parseFloat(worstDayEntry[1].toFixed(2)) } : null;
 
     return {
       totalPnl: parseFloat(totalPnl.toFixed(2)),
@@ -806,7 +809,7 @@ export default function AnalyticsTab() {
       profitFactor: totalLoss > 0 ? +(totalWin / totalLoss).toFixed(2) : null,
       maxDrawdown: maxDD > 0 ? +maxDD.toFixed(2) : null,
       avgDuration: durCount > 0 ? Math.round(durSum / durCount) : null,
-      bestDay,
+      bestDay, worstDay,
       byCoin: agg(coinMap),
       bySource: agg(srcMap),
       best:  byDate.slice(0, 5).map(t => ({ coin: t.symbol, pnl: parseFloat(t.pnl ?? 0), closed_at: t.closed_at, side: t.side, source: t.source, duration_min: (() => { const o = parseInt(t.opened_at), c = parseInt(t.closed_at); return (o && c && c > o) ? Math.round((c - o) / 60000) : null; })() })),
@@ -814,7 +817,7 @@ export default function AnalyticsTab() {
     };
   }, [allTrades]);
 
-  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay } = periodStats;
+  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay, worstDay } = periodStats;
   const mergedBySource = periodStats.bySource;
 
   const botCols = [
@@ -923,6 +926,13 @@ export default function AnalyticsTab() {
           value={bestDay ? <span style={{ color: bestDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}`}</span> : '—'}
           sub={bestDay?.date ?? ''}
         />
+        {worstDay && (
+          <StatCard
+            label="Worst Day"
+            value={<span style={{ color: worstDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${worstDay.pnl >= 0 ? '+' : ''}${parseFloat(worstDay.pnl).toFixed(2)}`}</span>}
+            sub={worstDay.date}
+          />
+        )}
         {avgTrade != null && (
           <StatCard
             label="Avg Trade"
