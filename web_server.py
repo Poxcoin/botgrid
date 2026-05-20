@@ -1380,7 +1380,7 @@ async def get_user_balance(
     try:
         b = _bybit_balance(ex)
         return {"usdt_wallet": b["wallet"], "usdt_equity": b["equity"],
-                "unrealized_pnl": b["unrealized_pnl"], "usdt_free": b["wallet"]}
+                "unrealized_pnl": b["unrealized_pnl"], "usdt_free": b["usdt_free"]}
     except Exception as e:
         import logging; logging.getLogger("kado").error("exchange error: %s", e)
         raise HTTPException(status_code=502, detail="Exchange request failed")
