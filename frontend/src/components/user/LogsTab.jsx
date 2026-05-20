@@ -50,7 +50,6 @@ export default function LogsTab() {
         <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 500 }}>{t.dashboard.logs.systemLogs}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-green)', fontWeight: 600 }}>
-            <span className="pulse-dot" />
             {t.dashboard.logs.streaming}
           </span>
           <span>{t.dashboard.logs.refreshSec}</span>

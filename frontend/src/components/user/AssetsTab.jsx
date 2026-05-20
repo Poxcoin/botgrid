@@ -9,7 +9,7 @@ const MONO = "'Courier New','SF Mono',monospace";
 
 function dp(v) { if (!v) return 4; if (v >= 10000) return 1; if (v >= 100) return 2; return 4; }
 
-function BalanceCard({ label, value, color, accent, live }) {
+function BalanceCard({ label, value, color, accent }) {
   const topBorder = accent === 'green' ? '2px solid var(--accent-green)'
                   : accent === 'red'   ? '2px solid var(--accent-red)'
                   : '1px solid var(--border-subtle)';
@@ -28,7 +28,6 @@ function BalanceCard({ label, value, color, accent, live }) {
         {label}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {live && <span className="pulse-dot" />}
         <div style={{ fontSize: 26, fontWeight: 700, color: color || 'var(--text-primary)', fontFamily: MONO, letterSpacing: '-.02em', lineHeight: 1.1 }}>
           {value}
         </div>
@@ -448,7 +447,6 @@ export default function AssetsTab() {
           value={equity}
           color={balance?.equity != null ? 'var(--accent-green)' : 'var(--text-muted)'}
           accent={balance?.equity != null ? 'green' : undefined}
-          live={!!balance}
         />
         <BalanceCard
           label="Wallet Balance"
