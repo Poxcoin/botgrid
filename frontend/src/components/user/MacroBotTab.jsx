@@ -2,17 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CrosshairMode } from 'lightweight-charts';
 import { useTheme } from '@/lib/ThemeContext';
 import { useLang } from '@/lib/LangContext';
+import { useIsMobile } from '@/lib/useIsMobile';
 
-const B     = 'var(--border-subtle)';
-const MUTED = 'var(--text-muted)';
-const MONO  = 'var(--font-mono)';
-const C_UP  = '#0ecb81';
-const C_DN  = '#f6465d';
+const FM = 'var(--font-mono)';
+const FF = 'var(--font-sans)';
+const C_UP = '#0ecb81';
+const C_DN = '#f6465d';
 
-const TF_OPTIONS = [
-  { v: '1', l: '1m' }, { v: '5', l: '5m' }, { v: '15', l: '15m' },
-  { v: '60', l: '1h' }, { v: '240', l: '4h' }, { v: 'D', l: '1D' },
-];
+const TF_LABELS = { '1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','D':'1D' };
 
 const SYMS = {
   macro: [{ label: 'EUR/USD', api: 'EUR/USD' }, { label: 'GBP/USD', api: 'GBP/USD' }],
@@ -25,41 +22,23 @@ const apiGet = p =>
   fetch(p, { headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` } })
     .then(r => r.ok ? r.json() : null).catch(() => null);
 
-/* ── same StatBox as BotTab ───────────────────────────────────── */
-function StatBox({ label, value, sub, color }) {
-  return (
-    <div
-      style={{
-        flex: 1, background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 12, padding: '20px 22px',
-        transition: 'border-color 200ms ease',
-      }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-    >
-      <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: MUTED, fontFamily: MONO, marginBottom: 10 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: color || 'var(--text-primary)', fontFamily: MONO, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)', marginTop: 8, fontFamily: MONO }}>{sub}</div>}
-    </div>
-  );
-}
+const sign = v => { const n = +v; return isNaN(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2); };
 
-/* ── no MT5 key banner ────────────────────────────────────────── */
+/* ── no MT5 key banner ────────────────────────────────────────────────────── */
 function NoKeyBanner() {
   const { t } = useLang();
   const tm = t.dashboard.macro;
   return (
-    <div style={{ border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+    <div style={{ border: '1px solid var(--border-subtle)', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap', flexShrink: 0 }}>
       <div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>{tm.noMt5Title}</div>
-        <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>{tm.noMt5Desc}</div>
+        <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>{tm.noMt5Title}</div>
+        <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.6 }}>{tm.noMt5Desc}</div>
       </div>
       <button
         onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
         style={{
           background: 'var(--text-primary)', color: 'var(--bg-base)',
-          border: 'none', padding: '9px 20px', fontFamily: MONO,
+          border: 'none', padding: '9px 20px', fontFamily: FM,
           fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
           textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0,
         }}
@@ -70,36 +49,34 @@ function NoKeyBanner() {
   );
 }
 
-/* ── forex candlestick chart ──────────────────────────────────── */
+/* ── forex chart — same structure as OverviewTab Chart ───────────────────── */
 function ForexChart({ symbols }) {
   const { theme } = useTheme();
   const [symIdx, setSymIdx] = useState(0);
   const [tf, setTf]         = useState('60');
 
-  const wrapRef  = useRef(null);
+  const elRef    = useRef(null);
   const chartRef = useRef(null);
   const candleRef = useRef(null);
   const volRef   = useRef(null);
   const timerRef = useRef(null);
+  const dark     = theme !== 'light';
 
   const sym = symbols[symIdx]?.api;
 
-  /* init chart once */
   useEffect(() => {
-    const el = wrapRef.current;
+    const el = elRef.current;
     if (!el) return;
 
-    const dark = theme !== 'light';
-    const tClr = dark ? 'rgba(240,242,245,0.45)' : 'rgba(10,10,10,0.45)';
-    const gClr = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)';
-    const bClr = dark ? 'rgba(255,255,255,0.09)' : 'rgba(0,0,0,0.09)';
+    const tClr = dark ? 'rgba(240,242,245,0.4)' : 'rgba(10,10,10,0.4)';
+    const gClr = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+    const bClr = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
     const lBg  = dark ? '#1a1a1a' : '#f0f0f0';
 
     const chart = createChart(el, {
-      width:  el.offsetWidth || 600,
-      height: 380,
-      layout: { background: { color: 'transparent' }, textColor: tClr, fontFamily: MONO, fontSize: 10 },
-      grid: { vertLines: { color: gClr }, horzLines: { color: gClr } },
+      autoSize: true,
+      layout: { background: { color: 'transparent' }, textColor: tClr, fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
+      grid:    { vertLines: { color: gClr }, horzLines: { color: gClr } },
       crosshair: {
         mode: CrosshairMode.Normal,
         vertLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg },
@@ -117,41 +94,34 @@ function ForexChart({ symbols }) {
       wickUpColor: C_UP, wickDownColor: C_DN,
     });
     const vol = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
-    vol.priceScale().applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+    vol.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 
     chartRef.current  = chart;
     candleRef.current = candle;
     volRef.current    = vol;
 
-    /* resize observer */
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect?.width;
-      if (w && chartRef.current) chartRef.current.applyOptions({ width: w });
-    });
-    ro.observe(el);
-
     return () => {
-      ro.disconnect();
       if (timerRef.current) clearInterval(timerRef.current);
       try { chart.remove(); } catch {}
       chartRef.current = null; candleRef.current = null; volRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* theme update without remount */
   useEffect(() => {
     if (!chartRef.current) return;
-    const dark = theme !== 'light';
+    const tClr = dark ? 'rgba(240,242,245,0.4)' : 'rgba(10,10,10,0.4)';
+    const gClr = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+    const bClr = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+    const lBg  = dark ? '#1a1a1a' : '#f0f0f0';
     chartRef.current.applyOptions({
-      layout: { textColor: dark ? 'rgba(240,242,245,0.45)' : 'rgba(10,10,10,0.45)' },
-      grid: {
-        vertLines: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' },
-        horzLines: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)' },
-      },
+      layout: { textColor: tClr },
+      grid:   { vertLines: { color: gClr }, horzLines: { color: gClr } },
+      crosshair: { vertLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg }, horzLine: { color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg } },
+      rightPriceScale: { borderColor: bClr },
+      timeScale: { borderColor: bClr },
     });
-  }, [theme]);
+  }, [dark]);
 
-  /* load + poll on symbol/tf change */
   useEffect(() => {
     if (!candleRef.current || !sym) return;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -161,7 +131,7 @@ function ForexChart({ symbols }) {
         .then(bars => {
           if (!Array.isArray(bars) || !candleRef.current) return;
           const sorted = [...bars].sort((a, b) => a.time - b.time);
-          candleRef.current.setData(sorted.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
+          candleRef.current.setData(sorted.map(b => ({ time: b.time, open: +b.open, high: +b.high, low: +b.low, close: +b.close })));
           volRef.current?.setData(sorted.map(b => ({ time: b.time, value: b.volume || 0, color: b.close >= b.open ? C_UP + '55' : C_DN + '55' })));
           chartRef.current?.timeScale().fitContent();
         });
@@ -172,41 +142,57 @@ function ForexChart({ symbols }) {
   }, [sym, tf]);
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {symbols.map((o, i) => (
-            <button key={o.api} onClick={() => setSymIdx(i)} style={{
-              fontFamily: MONO, fontSize: 10, padding: '4px 12px',
-              border: `1px solid ${i === symIdx ? 'var(--border-default)' : B}`,
-              borderRadius: 100, cursor: 'pointer',
-              background: i === symIdx ? 'var(--bg-elevated)' : 'transparent',
-              color: i === symIdx ? 'var(--text-primary)' : MUTED,
-              letterSpacing: '0.08em',
-            }}>{o.label}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 3 }}>
-          {TF_OPTIONS.map(({ v, l }) => (
-            <button key={v} onClick={() => setTf(v)} style={{
-              fontFamily: MONO, fontSize: 10, padding: '4px 9px',
-              border: `1px solid ${tf === v ? 'var(--border-default)' : B}`,
-              borderRadius: 100, cursor: 'pointer',
-              background: tf === v ? 'var(--bg-elevated)' : 'transparent',
-              color: tf === v ? 'var(--text-primary)' : MUTED,
-            }}>{l}</button>
-          ))}
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 320px)', minHeight: 420, border: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden', flexShrink: 0 }}>
+
+      {/* Toolbar — mirrors OverviewTab's chart toolbar */}
+      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {/* Symbol tabs */}
+        {symbols.map((o, i) => (
+          <button key={o.api} onClick={() => setSymIdx(i)} style={{
+            height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer',
+            fontFamily: FM, fontSize: 11,
+            background: i === symIdx ? 'var(--bg-elevated)' : 'transparent',
+            border: `1px solid ${i === symIdx ? 'var(--border-strong)' : 'transparent'}`,
+            color: i === symIdx ? 'var(--text-primary)' : 'var(--text-muted)',
+            fontWeight: i === symIdx ? 600 : 400,
+          }}>{o.label}</button>
+        ))}
+
+        <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px', flexShrink: 0 }} />
+
+        {/* TF buttons */}
+        {['1','5','15','60','240','D'].map(v => (
+          <button key={v} onClick={() => setTf(v)} style={{
+            height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer',
+            fontFamily: FM, fontSize: 11,
+            background: tf === v ? 'var(--bg-elevated)' : 'transparent',
+            border: `1px solid ${tf === v ? 'var(--border-strong)' : 'transparent'}`,
+            color: tf === v ? 'var(--text-primary)' : 'var(--text-muted)',
+            fontWeight: tf === v ? 600 : 400,
+          }}>{TF_LABELS[v]}</button>
+        ))}
+
+        <div style={{ marginLeft: 'auto', flexShrink: 0, fontFamily: FM, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingRight: 4 }}>
+          MT5 · IC MARKETS
         </div>
       </div>
-      <div ref={wrapRef} style={{ width: '100%', height: 380, background: 'var(--bg-base)', border: `1px solid ${B}` }} />
+
+      {/* Chart canvas */}
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <div ref={elRef} style={{ width: '100%', height: '100%' }} />
+      </div>
     </div>
   );
 }
 
-/* ── main ─────────────────────────────────────────────────────── */
+/* ── main ─────────────────────────────────────────────────────────────────── */
 export default function MacroBotTab({ botId }) {
   const { t, lang } = useLang();
-  const tm = t.dashboard.macro;
+  const isMobile    = useIsMobile();
+  const tm          = t.dashboard.macro;
+  const ta          = t.dashboard.analytics;
+  const to          = t.dashboard.overview;
+
   const [trades, setTrades] = useState([]);
   const [stats,  setStats]  = useState(null);
   const [mt5,    setMt5]    = useState(undefined);
@@ -224,12 +210,12 @@ export default function MacroBotTab({ botId }) {
   }, []);
 
   const isGold   = botId === 'gold';
-  const symbols  = isGold ? ['XAUUSD'] : ['EURUSD', 'GBPUSD'];
-  const filtered = trades.filter(t => symbols.includes(t.symbol));
-  const closed   = filtered.filter(t => t.status === 'closed');
+  const symFilter = isGold ? ['XAUUSD'] : ['EURUSD', 'GBPUSD'];
+  const filtered  = trades.filter(tr => symFilter.includes(tr.symbol));
+  const closed    = filtered.filter(tr => tr.status === 'closed');
 
-  const wins    = closed.filter(t => t.profit_usd > 0).length;
-  const netPnl  = closed.reduce((acc, t) => acc + (t.profit_usd || 0), 0);
+  const wins    = closed.filter(tr => tr.profit_usd > 0).length;
+  const netPnl  = closed.reduce((acc, tr) => acc + (tr.profit_usd || 0), 0);
   const winRate = closed.length ? Math.round(wins / closed.length * 100) : null;
   const pf      = stats?.profit_factor;
 
@@ -237,77 +223,97 @@ export default function MacroBotTab({ botId }) {
 
   if (mt5 === undefined) return null;
 
-  return (
-    <div style={{ padding: '0 0 40px' }}>
+  const statGrid = isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)';
 
-      {/* ── stats ─────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <StatBox
-          label={tm.statTrades}
-          value={closed.length || '—'}
-          sub={tm.m1?.tag || 'MT5 · IC Markets'}
-        />
-        <StatBox
-          label={tm.statWinRate}
-          value={winRate != null ? `${winRate}%` : '—'}
-          color={winRate != null ? (winRate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)') : undefined}
-          sub={closed.length ? `${wins}W / ${closed.length - wins}L` : null}
-        />
-        <StatBox
-          label={tm.statNetPnl}
-          value={closed.length ? `${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}` : '—'}
-          color={netPnl > 0 ? 'var(--accent-green)' : netPnl < 0 ? 'var(--accent-red)' : undefined}
-          sub="USDT"
-        />
-        <StatBox
-          label="Profit Factor"
-          value={pf != null && isFinite(pf) ? pf.toFixed(2) : '—'}
-          sub="all time"
-        />
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* ── STATS — same flat-border style as OverviewTab ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: statGrid, gap: 0, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+        {[
+          {
+            label: tm.statTrades,
+            value: closed.length || '—',
+            sub: 'MT5 · IC Markets',
+            good: null,
+          },
+          {
+            label: tm.statWinRate,
+            value: winRate != null ? `${winRate}%` : '—',
+            sub: closed.length ? `${wins}W / ${closed.length - wins}L` : '—',
+            good: winRate != null ? winRate >= 50 : null,
+          },
+          {
+            label: tm.statNetPnl,
+            value: closed.length ? `${sign(netPnl)} USDT` : '—',
+            sub: 'realized',
+            good: closed.length ? netPnl >= 0 : null,
+          },
+          {
+            label: 'Profit Factor',
+            value: pf != null && isFinite(pf) ? pf.toFixed(2) + '×' : '—',
+            sub: 'all time',
+            good: pf != null ? pf >= 1 : null,
+          },
+        ].map((s, i) => {
+          const cols = isMobile ? 2 : 4;
+          const rightBorder = isMobile
+            ? (i % 2 === 0 ? '1px solid var(--border-subtle)' : 'none')
+            : (i < 3 ? '1px solid var(--border-subtle)' : 'none');
+          const bottomBorder = isMobile && i < 2 ? '1px solid var(--border-subtle)' : 'none';
+          return (
+            <div key={s.label} style={{ padding: isMobile ? '14px 14px' : '20px 20px', borderRight: rightBorder, borderBottom: bottomBorder }}>
+              <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{s.label}</div>
+              <div style={{ fontFamily: FM, fontSize: isMobile ? 16 : 22, fontWeight: 600, letterSpacing: '-0.02em', color: s.good === null ? 'var(--text-primary)' : s.good ? 'var(--accent-green)' : 'var(--accent-red)' }}>{s.value}</div>
+              {s.sub && <div style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{s.sub}</div>}
+            </div>
+          );
+        })}
       </div>
 
-      {/* ── no key banner ─────────────────────────────────────── */}
+      {/* ── NO KEY BANNER ── */}
       {mt5?.configured !== true && <NoKeyBanner />}
 
-      {/* ── chart ─────────────────────────────────────────────── */}
+      {/* ── CHART — same structure as OverviewTab's Chart component ── */}
       <ForexChart symbols={SYMS[botId] || SYMS.macro} />
 
-      {/* ── trades table ─────────────────────────────────────── */}
-      <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
-        <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{tm.recentTrades}</span>
-          <span style={{ fontFamily: MONO, fontSize: 9, color: MUTED, letterSpacing: '0.12em' }}>MT5 · IC MARKETS</span>
+      {/* ── TRADES TABLE ── */}
+      <div style={{ border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
+        <div style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
+          <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{tm.recentTrades}</span>
+          <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>MT5 · IC MARKETS · SL 20 pips · TP 35 pips</span>
         </div>
+
         {filtered.length === 0 ? (
-          <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: MONO, fontSize: 11, color: MUTED }}>{tm.noTradesYet}</div>
+          <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>{tm.noTradesYet}</div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: FM, fontSize: 11 }}>
               <thead>
-                <tr style={{ borderBottom: `1px solid ${B}` }}>
+                <tr>
                   {[tm.colSymbol, tm.colEvent, tm.colDir, tm.colPips, tm.colUsd, tm.colTime].map((h, i) => (
-                    <th key={h} style={{ textAlign: i === 0 ? 'left' : 'right', padding: '8px 16px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED, fontWeight: 400 }}>{h}</th>
+                    <th key={h} style={{ padding: '8px 16px', textAlign: i === 0 ? 'left' : 'right', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, borderBottom: '1px solid var(--border-subtle)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.slice(0, 30).map((tr, i) => {
+                {filtered.slice(0, 50).map((tr, i) => {
                   const pos   = tr.profit_usd > 0;
                   const dt    = tr.close_time || tr.open_time;
                   const dtStr = dt ? new Date(dt).toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
                   return (
-                    <tr key={i} style={{ borderBottom: `1px solid ${B}` }}
+                    <tr key={i}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
-                      <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 700 }}>{tr.symbol}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-secondary)', fontSize: 10 }}>{tr.event || '—'}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: tr.direction === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)' }}>{tr.direction}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: MUTED }}>{tr.profit_pips != null ? `${tr.profit_pips > 0 ? '+' : ''}${tr.profit_pips}` : '—'}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: pos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                      <td style={{ padding: '10px 16px', color: 'var(--text-primary)', fontWeight: 700, borderBottom: '1px solid var(--border-subtle)' }}>{tr.symbol}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontSize: 10, borderBottom: '1px solid var(--border-subtle)' }}>{tr.event || '—'}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: tr.direction === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)', borderBottom: '1px solid var(--border-subtle)' }}>{tr.direction}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)' }}>{tr.profit_pips != null ? `${tr.profit_pips > 0 ? '+' : ''}${tr.profit_pips}` : '—'}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700, color: pos ? 'var(--accent-green)' : 'var(--accent-red)', borderBottom: '1px solid var(--border-subtle)' }}>
                         {tr.profit_usd != null ? `${pos ? '+' : ''}${tr.profit_usd.toFixed(2)}` : '—'}
                       </td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{dtStr}</td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', fontSize: 10, borderBottom: '1px solid var(--border-subtle)' }}>{dtStr}</td>
                     </tr>
                   );
                 })}
@@ -317,9 +323,6 @@ export default function MacroBotTab({ botId }) {
         )}
       </div>
 
-      <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, letterSpacing: '0.08em', lineHeight: 1.8 }}>
-        Event-driven · SL 20 pips · TP 35 pips · 25min auto-exit · R:R 1.75:1
-      </div>
     </div>
   );
 }
