@@ -6,29 +6,24 @@ export const cursorStateRef = { x: -9999, y: -9999, vx: 0, vy: 0, moving: false 
 
 function buildAxons(W, H, isMobile) {
   const count = isMobile ? 8 : 32;
-  // Two bloom origins — lines radiate outward from each like a burst
-  const origins = [
-    { x: W * 0.38, y: H * 0.46 },
-    { x: W * 0.64, y: H * 0.54 },
-  ];
-  const perOrigin = Math.ceil(count / origins.length);
-  return Array.from({ length: count }, (_, i) => {
-    const o = origins[Math.floor(i / perOrigin)];
-    const localI = i % perOrigin;
-    const total = Math.min(perOrigin, count - Math.floor(i / perOrigin) * perOrigin);
-    return {
-      ox: o.x + (Math.random() - 0.5) * W * 0.025,
-      oy: o.y + (Math.random() - 0.5) * H * 0.025,
-      angle: (localI / total) * Math.PI * 2 + (Math.random() - 0.5) * 0.18,
-      len: 380 + Math.random() * Math.max(W, H) * 0.65,
-      amp: 7 + Math.random() * 26,
-      freq: 0.4 + Math.random() * 1.5,
-      phase: Math.random() * Math.PI * 2,
-      speed: 0.06 + Math.random() * 0.18,
-      w: 0.35 + Math.random() * 0.5,
-      op: 0.11 + Math.random() * 0.13,
-    };
-  });
+  // Single origin: top-left corner — all lines fan outward from there
+  const ox = W * 0.04;
+  const oy = H * 0.06;
+  // Fan angle: from ~-10° (nearly right) to ~100° (slightly past down)
+  const angleMin = -0.18;
+  const angleMax = Math.PI * 0.56;
+  return Array.from({ length: count }, (_, i) => ({
+    ox: ox + (Math.random() - 0.5) * W * 0.02,
+    oy: oy + (Math.random() - 0.5) * H * 0.02,
+    angle: angleMin + (i / (count - 1)) * (angleMax - angleMin) + (Math.random() - 0.5) * 0.12,
+    len: 420 + Math.random() * Math.max(W, H) * 0.7,
+    amp: 8 + Math.random() * 28,
+    freq: 0.4 + Math.random() * 1.5,
+    phase: Math.random() * Math.PI * 2,
+    speed: 0.06 + Math.random() * 0.18,
+    w: 0.35 + Math.random() * 0.5,
+    op: 0.11 + Math.random() * 0.13,
+  }));
 }
 
 function makeNode(W, H) {
