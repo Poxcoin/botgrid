@@ -71,9 +71,11 @@ def sync_user_trades(user_id: int) -> int:
 
     db = SessionLocal()
     try:
-        key_row = db.query(UserApiKey).filter_by(user_id=user_id, exchange="bybit").first()
-        if not key_row:
+        key_rows = db.query(UserApiKey).filter_by(user_id=user_id, exchange="bybit").all()
+        if not key_rows:
             return 0
+        # Prefer live key for sync; fall back to demo
+        key_row = next((k for k in key_rows if not k.is_demo), key_rows[0])
 
         ex = _build_exchange(key_row)
         if not ex:
@@ -233,10 +235,10 @@ def sync_all_users() -> None:
 
     db = SessionLocal()
     try:
-        user_ids = [
+        user_ids = list({
             r[0]
             for r in db.query(UserApiKey.user_id).filter_by(exchange="bybit").all()
-        ]
+        })
     finally:
         db.close()
 
