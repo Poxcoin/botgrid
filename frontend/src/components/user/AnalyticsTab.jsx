@@ -731,10 +731,10 @@ export default function AnalyticsTab() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
         <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
-          No API key connected
+          {t.dashboard.analytics.noKeyTitle}
         </div>
         <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', marginBottom: 28, lineHeight: 1.6 }}>
-          Connect your Bybit API key to see personal analytics —<br />balance, PnL, trade history and coin breakdown.
+          {t.dashboard.analytics.noKeyDesc}
         </div>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
@@ -746,7 +746,7 @@ export default function AnalyticsTab() {
             cursor: 'pointer',
           }}
         >
-          Add API Key →
+          {t.dashboard.analytics.noKeyBtn}
         </button>
       </div>
     );
@@ -756,10 +756,10 @@ export default function AnalyticsTab() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
         <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
-          No trades yet
+          {t.dashboard.analytics.noTradesTitle}
         </div>
         <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          API key connected. Analytics will appear here once<br />the bot executes trades on your account.
+          {t.dashboard.analytics.noTradesDesc}
         </div>
       </div>
     );
@@ -968,46 +968,46 @@ export default function AnalyticsTab() {
         />
         {worstDay && (
           <StatCard
-            label="Worst Day"
+            label={t.dashboard.analytics.worstDay}
             value={<span style={{ color: worstDay.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${worstDay.pnl >= 0 ? '+' : ''}${parseFloat(worstDay.pnl).toFixed(2)}`}</span>}
             sub={worstDay.date}
           />
         )}
         {avgTrade != null && (
           <StatCard
-            label="Avg Trade"
+            label={t.dashboard.analytics.avgTrade}
             value={<span style={{ color: avgTrade >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{`${avgTrade >= 0 ? '+' : ''}${avgTrade.toFixed(2)}`}</span>}
-            sub="USDT per trade"
+            sub="USDT"
           />
         )}
         {streak > 0 && (
           <StatCard
-            label="Current Streak"
+            label={t.dashboard.analytics.currentStreak}
             value={<span style={{ color: streakDir ? 'var(--accent-green)' : 'var(--accent-red)' }}>{streak}×</span>}
-            sub={streakDir ? 'winning' : 'losing'}
+            sub={streakDir ? t.dashboard.analytics.winning : t.dashboard.analytics.losing}
           />
         )}
         {profitFactor != null && (
           <StatCard
-            label="Profit Factor"
+            label={t.dashboard.analytics.profitFactor}
             value={profitFactor >= 1
               ? <span style={{ color: 'var(--accent-green)' }}>{profitFactor}×</span>
               : <span style={{ color: 'var(--accent-red)' }}>{profitFactor}×</span>}
-            sub="gross win / gross loss"
+            sub={t.dashboard.analytics.grossPerLoss}
           />
         )}
         {maxDrawdown != null && (
           <StatCard
-            label="Max Drawdown"
+            label={t.dashboard.analytics.maxDrawdown}
             value={<span style={{ color: 'var(--accent-red)' }}>−{maxDrawdown}</span>}
-            sub="USDT from peak"
+            sub={t.dashboard.analytics.fromPeak}
           />
         )}
         {avgDuration != null && (
           <StatCard
-            label="Avg Duration"
+            label={t.dashboard.analytics.avgDuration}
             value={avgDuration < 60 ? `${avgDuration}m` : avgDuration < 1440 ? `${Math.floor(avgDuration / 60)}h ${avgDuration % 60}m` : `${Math.floor(avgDuration / 1440)}d`}
-            sub="per closed trade"
+            sub={t.dashboard.analytics.perTrade}
           />
         )}
       </div>
