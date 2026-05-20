@@ -67,18 +67,21 @@ function priceDp(v) {
 }
 
 function PositionsTable({ positions }) {
+  const { t } = useLang();
+  const td = t.dashboard;
   if (!positions || !positions.length) return null;
+  const posHeaders = [td.hSymbol, td.hSide, td.hLev, td.hEntry, td.hMark, td.hUnrealPnl, td.hRoe, td.hSL, td.hTP, td.hLiq];
   return (
     <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${B}` }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Open Positions</span>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{td.overview.openPositions}</span>
         <span style={{ fontFamily: MONO, fontSize: 11, color: '#777' }}>{positions.length}</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${B}` }}>
-              {['Symbol', 'Side', 'Lev', 'Entry', 'Mark', 'Unreal. PnL', 'ROE%', 'SL', 'TP', 'Liq'].map((h, i) => (
+              {posHeaders.map((h, i) => (
                 <th key={h} style={{
                   textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
                   fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
@@ -127,7 +130,12 @@ function PositionsTable({ positions }) {
 }
 
 function CoinBreakdown({ trades }) {
+  const { t } = useLang();
+  const td = t.dashboard;
+  const ta = t.dashboard.analytics;
   if (!trades || !trades.length) return null;
+
+  const coinHeaders = [ta.hCoin, ta.hTrades, ta.hWinRate, ta.hPnlUsdt];
 
   // Compute per-coin stats from live Bybit closed-pnl data
   const map = {};
@@ -147,14 +155,14 @@ function CoinBreakdown({ trades }) {
   return (
     <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Top Coins — 30d</span>
-        <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--border-strong)', letterSpacing: '0.12em' }}>LIVE · FROM BYBIT</span>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{td.bot.topCoins30d}</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--border-strong)', letterSpacing: '0.12em' }}>{td.bot.liveFromBybit}</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${B}` }}>
-              {['Coin', 'Trades', 'Win Rate', 'PnL (USDT)'].map((h, i) => (
+              {coinHeaders.map((h, i) => (
                 <th key={h} style={{
                   textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
                   fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
@@ -188,22 +196,27 @@ function CoinBreakdown({ trades }) {
 }
 
 function BotsSection({ bots, heartbeat }) {
+  const { t } = useLang();
+  const td = t.dashboard;
+  const ta = t.dashboard.analytics;
   if (!bots || !bots.length) return null;
 
   const rows = [...bots].sort((a, b) => Math.abs(b.pnl) - Math.abs(a.pnl));
   if (!rows.length) return null;
 
+  const botHeaders = [td.hBot, ta.hTrades, ta.hWinRate, ta.hPnlUsdt, td.overview.lastTrade];
+
   return (
     <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Bot Performance</span>
-        <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--border-strong)', letterSpacing: '0.12em' }}>ALL TIME</span>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>{td.botPerformance}</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--border-strong)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{ta.allTime}</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
           <thead>
             <tr style={{ borderBottom: `1px solid ${B}` }}>
-              {['Bot', 'Trades', 'Win Rate', 'PnL (USDT)', 'Last Trade'].map((h, i) => (
+              {botHeaders.map((h, i) => (
                 <th key={h} style={{
                   textAlign: i === 0 ? 'left' : 'right', padding: '8px 20px',
                   fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase',
@@ -219,9 +232,9 @@ function BotsSection({ bots, heartbeat }) {
               const minAgo = hb?.last_trade_min_ago;
               let lastStr = '—';
               if (minAgo != null) {
-                if (minAgo < 60) lastStr = `${minAgo}m ago`;
-                else if (minAgo < 1440) lastStr = `${Math.floor(minAgo / 60)}h ago`;
-                else lastStr = `${Math.floor(minAgo / 1440)}d ago`;
+                if (minAgo < 60) lastStr = `${minAgo}m ${td.bot.ago}`;
+                else if (minAgo < 1440) lastStr = `${Math.floor(minAgo / 60)}h ${td.bot.ago}`;
+                else lastStr = `${Math.floor(minAgo / 1440)}d ${td.bot.ago}`;
               }
               const wr = b.win_rate;
               return (
@@ -311,7 +324,7 @@ export default function BotTab() {
         <StatBox
           label={t.dashboard.bot.balance}
           value={balance ? `$${balance.wallet.toFixed(2)}` : '—'}
-          sub={balance ? `Equity $${balance.equity.toFixed(2)}` : 'connect key'}
+          sub={balance ? `${t.dashboard.bot.equity} $${balance.equity.toFixed(2)}` : t.dashboard.bot.connectKey}
         />
         <StatBox
           label={`30d ${t.dashboard.analytics.totalPnl}`}

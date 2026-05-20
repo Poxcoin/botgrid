@@ -114,7 +114,7 @@ export const translations = {
       refresh:       'Refresh',
       prev:          'Prev',
       next:          'Next',
-      hSymbol: 'Symbol', hSide: 'Side', hSource: 'Source', hEntry: 'Entry', hExit: 'Exit', hPnL: 'PnL', hStatus: 'Status', hDate: 'Date', hTime: 'Time', hAsset: 'Asset', hAction: 'Action', hScore: 'Score', hNews: 'News', hMonth: 'Month', hQty: 'Qty', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Search coin…', noTradesPeriod: 'No closed trades in this period', hLev: 'Lev', hMark: 'Mark', hUnrealPnl: 'Unreal PnL', hSL: 'SL', hTP: 'TP', hLiq: 'Liq', hValue: 'Value', botPerformance: 'Bot Performance',
+      hSymbol: 'Symbol', hSide: 'Side', hSource: 'Source', hEntry: 'Entry', hExit: 'Exit', hPnL: 'PnL', hStatus: 'Status', hDate: 'Date', hTime: 'Time', hAsset: 'Asset', hAction: 'Action', hScore: 'Score', hNews: 'News', hMonth: 'Month', hQty: 'Qty', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Search coin…', noTradesPeriod: 'No closed trades in this period', hLev: 'Lev', hMark: 'Mark', hUnrealPnl: 'Unreal PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liq', hValue: 'Value', botPerformance: 'Bot Performance',
       overview: {
         monthlyPnl:       'Monthly PnL',
         openPositions:    'Open positions',
@@ -157,6 +157,10 @@ export const translations = {
         intelligenceFeed: 'Intelligence Feed',
         auto30s:          'auto 30s',
         noSignalsYet:     'No signals yet',
+        topCoins30d:      'Top Coins — 30d',
+        liveFromBybit:    'LIVE · FROM BYBIT',
+        equity:           'Equity',
+        connectKey:       'Connect key',
       },
       pnl: {
         totalGross:       'Total gross PnL',
@@ -961,7 +965,7 @@ export const translations = {
       refresh:       'Actualizar',
       prev:          'Anterior',
       next:          'Siguiente',
-      hSymbol: 'Símbolo', hSide: 'Lado', hSource: 'Fuente', hEntry: 'Entrada', hExit: 'Salida', hPnL: 'PnL', hStatus: 'Estado', hDate: 'Fecha', hTime: 'Hora', hAsset: 'Activo', hAction: 'Acción', hScore: 'Score', hNews: 'Noticias', hMonth: 'Mes', hQty: 'Ctd', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Buscar moneda…', noTradesPeriod: 'Sin operaciones en este período', hLev: 'Apal.', hMark: 'Marca', hUnrealPnl: 'PnL No Real.', hSL: 'SL', hTP: 'TP', hLiq: 'Liq.', hValue: 'Valor', botPerformance: 'Rendimiento del Bot',
+      hSymbol: 'Símbolo', hSide: 'Lado', hSource: 'Fuente', hEntry: 'Entrada', hExit: 'Salida', hPnL: 'PnL', hStatus: 'Estado', hDate: 'Fecha', hTime: 'Hora', hAsset: 'Activo', hAction: 'Acción', hScore: 'Score', hNews: 'Noticias', hMonth: 'Mes', hQty: 'Ctd', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Buscar moneda…', noTradesPeriod: 'Sin operaciones en este período', hLev: 'Apal.', hMark: 'Marca', hUnrealPnl: 'PnL No Real.', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liq.', hValue: 'Valor', botPerformance: 'Rendimiento del Bot',
       overview: {
         monthlyPnl:       'PnL mensual',
         openPositions:    'Posiciones abiertas',
@@ -1004,6 +1008,10 @@ export const translations = {
         intelligenceFeed: 'Feed de inteligencia',
         auto30s:          'auto 30s',
         noSignalsYet:     'Aún no hay señales',
+        topCoins30d:      'Top Monedas — 30d',
+        liveFromBybit:    'LIVE · DE BYBIT',
+        equity:           'Capital',
+        connectKey:       'Conectar clave',
       },
       pnl: {
         totalGross:       'PnL bruto total',
@@ -1808,7 +1816,7 @@ export const translations = {
       refresh:       'Оновити',
       prev:          'Назад',
       next:          'Далі',
-      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Джерело', hEntry: 'Вхід', hExit: 'Вихід', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Час', hAsset: 'Актив', hAction: 'Дія', hScore: 'Скор', hNews: 'Новини', hMonth: 'Місяць', hQty: 'Кіл', hDur: 'Тривал', hBot: 'Бот', searchCoin: 'Пошук монети…', noTradesPeriod: 'Немає закритих угод за цей період', hLev: 'Плече', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hSL: 'SL', hTP: 'TP', hLiq: 'Ліквід.', hValue: 'Вартість', botPerformance: 'Ефективність ботів',
+      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Джерело', hEntry: 'Вхід', hExit: 'Вихід', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Час', hAsset: 'Актив', hAction: 'Дія', hScore: 'Скор', hNews: 'Новини', hMonth: 'Місяць', hQty: 'Кіл', hDur: 'Тривал', hBot: 'Бот', searchCoin: 'Пошук монети…', noTradesPeriod: 'Немає закритих угод за цей період', hLev: 'Плече', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Ліквід.', hValue: 'Вартість', botPerformance: 'Ефективність ботів',
       overview: {
         monthlyPnl:       'Місячний PnL',
         openPositions:    'Відкриті позиції',
@@ -1851,6 +1859,10 @@ export const translations = {
         intelligenceFeed: 'Інтелект-стрічка',
         auto30s:          'авто 30с',
         noSignalsYet:     'Поки що немає сигналів',
+        topCoins30d:      'Топ монети — 30д',
+        liveFromBybit:    'LIVE · З BYBIT',
+        equity:           'Капітал',
+        connectKey:       'Підключити ключ',
       },
       pnl: {
         totalGross:       'Загальний валовий PnL',
@@ -2655,7 +2667,7 @@ export const translations = {
       refresh:       'Обновить',
       prev:          'Назад',
       next:          'Далее',
-      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Источник', hEntry: 'Вход', hExit: 'Выход', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Время', hAsset: 'Актив', hAction: 'Действие', hScore: 'Скор', hNews: 'Новости', hMonth: 'Месяц', hQty: 'Кол', hDur: 'Длит', hBot: 'Бот', searchCoin: 'Поиск монеты…', noTradesPeriod: 'Нет закрытых сделок за этот период', hLev: 'Плечо', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hSL: 'SL', hTP: 'TP', hLiq: 'Ликвид.', hValue: 'Стоимость', botPerformance: 'Производительность ботов',
+      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Источник', hEntry: 'Вход', hExit: 'Выход', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Время', hAsset: 'Актив', hAction: 'Действие', hScore: 'Скор', hNews: 'Новости', hMonth: 'Месяц', hQty: 'Кол', hDur: 'Длит', hBot: 'Бот', searchCoin: 'Поиск монеты…', noTradesPeriod: 'Нет закрытых сделок за этот период', hLev: 'Плечо', hMark: 'Маркет', hUnrealPnl: 'Нереал. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Ликвид.', hValue: 'Стоимость', botPerformance: 'Производительность ботов',
       overview: {
         monthlyPnl:       'Месячный PnL',
         openPositions:    'Открытые позиции',
@@ -2698,6 +2710,10 @@ export const translations = {
         intelligenceFeed: 'Лента интеллекта',
         auto30s:          'авто 30с',
         noSignalsYet:     'Пока нет сигналов',
+        topCoins30d:      'Топ монеты — 30д',
+        liveFromBybit:    'LIVE · С BYBIT',
+        equity:           'Капитал',
+        connectKey:       'Подключить ключ',
       },
       pnl: {
         totalGross:       'Общий валовой PnL',
@@ -3502,7 +3518,7 @@ export const translations = {
       refresh:       'Aktualisieren',
       prev:          'Zurück',
       next:          'Weiter',
-      hSymbol: 'Symbol', hSide: 'Seite', hSource: 'Quelle', hEntry: 'Einstieg', hExit: 'Ausstieg', hPnL: 'PnL', hStatus: 'Status', hDate: 'Datum', hTime: 'Zeit', hAsset: 'Asset', hAction: 'Aktion', hScore: 'Score', hNews: 'News', hMonth: 'Monat', hQty: 'Menge', hDur: 'Dauer', hBot: 'Bot', searchCoin: 'Münze suchen…', noTradesPeriod: 'Keine abgeschl. Trades in diesem Zeitraum', hLev: 'Heb.', hMark: 'Mark', hUnrealPnl: 'Unreal. PnL', hSL: 'SL', hTP: 'TP', hLiq: 'Liquidat.', hValue: 'Wert', botPerformance: 'Bot-Leistung',
+      hSymbol: 'Symbol', hSide: 'Seite', hSource: 'Quelle', hEntry: 'Einstieg', hExit: 'Ausstieg', hPnL: 'PnL', hStatus: 'Status', hDate: 'Datum', hTime: 'Zeit', hAsset: 'Asset', hAction: 'Aktion', hScore: 'Score', hNews: 'News', hMonth: 'Monat', hQty: 'Menge', hDur: 'Dauer', hBot: 'Bot', searchCoin: 'Münze suchen…', noTradesPeriod: 'Keine abgeschl. Trades in diesem Zeitraum', hLev: 'Heb.', hMark: 'Mark', hUnrealPnl: 'Unreal. PnL', hRoe: 'ROE%', hSL: 'SL', hTP: 'TP', hLiq: 'Liquidat.', hValue: 'Wert', botPerformance: 'Bot-Leistung',
       overview: {
         monthlyPnl:       'Monatlicher PnL',
         openPositions:    'Offene Positionen',
@@ -3545,6 +3561,10 @@ export const translations = {
         intelligenceFeed: 'Intelligence-Feed',
         auto30s:          'auto 30s',
         noSignalsYet:     'Noch keine Signale',
+        topCoins30d:      'Top Coins — 30T',
+        liveFromBybit:    'LIVE · VON BYBIT',
+        equity:           'Eigenkapital',
+        connectKey:       'Schlüssel verbinden',
       },
       pnl: {
         totalGross:       'Brutto-PnL gesamt',
@@ -4349,7 +4369,7 @@ export const translations = {
       refresh:       '刷新',
       prev:          '上一页',
       next:          '下一页',
-      hSymbol: '符号', hSide: '方向', hSource: '来源', hEntry: '入场', hExit: '出场', hPnL: 'PnL', hStatus: '状态', hDate: '日期', hTime: '时间', hAsset: '资产', hAction: '动作', hScore: '评分', hNews: '新闻', hMonth: '月份', hQty: '数量', hDur: '时长', hBot: '机器人', searchCoin: '搜索币种…', noTradesPeriod: '本周期无已关闭交易', hLev: '杠杆', hMark: '标价', hUnrealPnl: '未实现PnL', hSL: 'SL', hTP: 'TP', hLiq: '强平', hValue: '价值', botPerformance: '机器人表现',
+      hSymbol: '符号', hSide: '方向', hSource: '来源', hEntry: '入场', hExit: '出场', hPnL: 'PnL', hStatus: '状态', hDate: '日期', hTime: '时间', hAsset: '资产', hAction: '动作', hScore: '评分', hNews: '新闻', hMonth: '月份', hQty: '数量', hDur: '时长', hBot: '机器人', searchCoin: '搜索币种…', noTradesPeriod: '本周期无已关闭交易', hLev: '杠杆', hMark: '标价', hUnrealPnl: '未实现PnL', hRoe: '收益率%', hSL: 'SL', hTP: 'TP', hLiq: '强平', hValue: '价值', botPerformance: '机器人表现',
       overview: {
         monthlyPnl:       '月度 PnL',
         openPositions:    '未平仓位',
@@ -4392,6 +4412,10 @@ export const translations = {
         intelligenceFeed: '情报流',
         auto30s:          '自动 30 秒',
         noSignalsYet:     '暂无信号',
+        topCoins30d:      '热门币种 — 30天',
+        liveFromBybit:    'LIVE · 来自 BYBIT',
+        equity:           '权益',
+        connectKey:       '连接密钥',
       },
       pnl: {
         totalGross:       '总毛 PnL',
