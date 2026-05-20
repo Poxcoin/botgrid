@@ -13,7 +13,7 @@ import requests
 
 from config.settings import (
     TG_BOT_TOKEN, TG_CHAT_ID,
-    BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING,
+    BYBIT_API_KEY, BYBIT_SECRET, IS_DEMO_TRADING,
     LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT,
     ALT_LEVERAGE, ALT_TP, ALT_SL,
 )
@@ -118,7 +118,7 @@ def _balance_text():
         bal = ex.fetch_balance()
         free  = bal.get("USDT", {}).get("free",  0)
         total = bal.get("USDT", {}).get("total", 0)
-        mode  = "Demo" if IS_DEMO_TRADING else ("Testnet" if USE_TESTNET else "Live")
+        mode  = "Demo" if IS_DEMO_TRADING else "Live"
         return (
             f"💰 <b>Баланс Bybit</b>  <i>{mode}</i>\n\n"
             f"Вільно:  <b>{free:.2f} USDT</b>\n"

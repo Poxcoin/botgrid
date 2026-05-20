@@ -24,7 +24,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from pydantic import EmailStr
 from typing import Annotated
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID, USERBOT_TOKEN
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID, USERBOT_TOKEN
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
 from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key
@@ -2640,8 +2640,6 @@ async def get_dashboard_data(token: str = Depends(require_any_auth)):
                         balance_info["free"]  = free
                         break
             else:
-                if USE_TESTNET:
-                    exchange.set_sandbox_mode(True)
                 exchange.load_markets()
                 try:
                     balance = exchange.fetch_balance({'accountType': 'unified'})
@@ -3306,9 +3304,9 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
     if body.init_data and bot_token:
         tg_user = _verify_tg_init_data(body.init_data, bot_token)
 
-    # Dev fallback: allow empty initData only in testnet/demo
+    # Dev fallback: allow empty initData only in demo mode
     if tg_user is None:
-        if not (USE_TESTNET or IS_DEMO_TRADING):
+        if not IS_DEMO_TRADING:
             raise HTTPException(status_code=401, detail="Invalid Telegram session")
         tg_user = {"id": 0}
 

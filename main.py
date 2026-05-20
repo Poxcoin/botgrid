@@ -453,12 +453,10 @@ def handle_telegram_commands(processed_updates):
             send_telegram_message("\n".join(lines), chat_id)
 
         elif text == "/balance":
-            from config.settings import BYBIT_SECRET, USE_TESTNET
+            from config.settings import BYBIT_SECRET
             ex = ccxt.bybit({"apiKey": BYBIT_API_KEY, "secret": BYBIT_SECRET, "enableRateLimit": True})
             if IS_DEMO_TRADING:
                 ex.urls["api"] = ex.urls["demotrading"]
-            if USE_TESTNET:
-                ex.set_sandbox_mode(True)
             ex.options["adjustForTimeDifference"] = True
             balance = get_free_usdt(ex)
             send_telegram_message(f"💰 <b>Баланс Bybit:</b> {balance} USDT", chat_id)

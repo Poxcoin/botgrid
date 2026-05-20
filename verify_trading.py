@@ -1,35 +1,32 @@
 import ccxt
 import os
 import sys
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, IS_DEMO_TRADING
 
 def test_trade_permissions():
-    print(f"--- Тест торговых прав (Testnet={USE_TESTNET}) ---")
-    
+    mode = "Demo" if IS_DEMO_TRADING else "Live"
+    print(f"--- Тест торговых прав ({mode}) ---")
+
     exchange = ccxt.bybit({
         'apiKey': BYBIT_API_KEY,
         'secret': BYBIT_SECRET,
         'options': {'defaultType': 'swap'}
     })
-    
-    if USE_TESTNET:
-        exchange.set_sandbox_mode(True)
-    
+
+    if IS_DEMO_TRADING:
+        exchange.urls['api'] = exchange.urls['demotrading']
+
     symbol = "BTC/USDT:USDT"
-    
+
     try:
-        # 1. Пробуем изменить плечо (это требует прав на торговлю)
         print(f"1. Пробую выставить плечо x3 для {symbol}...")
         try:
             exchange.set_leverage(3, symbol)
             print("✅ Плечо успешно установлено!")
         except Exception as e:
-            print(f"⚠️ Плечо (может быть уже установлено): {e}")
+            print(f"⚠️ Плечо (може бути вже встановлено): {e}")
 
-        # 2. Пробуем создать тестовый мини-ордер (Market)
-        # Мы используем минимально возможный объем
         print(f"\n2. Пробую создать тестовый ордер (Buy Market)...")
-        # Для BTC минималка обычно 0.001 или 0.01
         order = exchange.create_order(
             symbol=symbol,
             type='market',
@@ -38,8 +35,7 @@ def test_trade_permissions():
             params={'category': 'linear'}
         )
         print(f"✅ УСПЕХ! Ордер создан, ID: {order.get('id')}")
-        
-        # 3. Сразу закрываем его (продаем обратно)
+
         print(f"\n3. Закрываю тестовый ордер...")
         close_order = exchange.create_order(
             symbol=symbol,

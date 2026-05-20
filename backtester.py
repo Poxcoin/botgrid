@@ -16,7 +16,7 @@ import time
 import json
 from datetime import datetime, timedelta, timezone
 from config.settings import (
-    BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET,
+    BYBIT_API_KEY, BYBIT_SECRET,
     LEVERAGE, TRADE_PERCENT_SIZE,
     TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT,
 )
@@ -36,8 +36,6 @@ def init_exchange() -> ccxt.Exchange:
         "enableRateLimit": True,
         "options": {"defaultType": "swap", "adjustForTimeDifference": True},
     })
-    if USE_TESTNET:
-        ex.set_sandbox_mode(True)
     return ex
 
 

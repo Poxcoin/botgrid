@@ -4,7 +4,6 @@ import ccxt
 from config.settings import (
     BYBIT_API_KEY,
     BYBIT_SECRET,
-    USE_TESTNET,
     TRADE_PERCENT_SIZE,
     LEVERAGE,
     TAKE_PROFIT_PERCENT,
@@ -154,14 +153,7 @@ def _init_exchange() -> ccxt.Exchange:
     if IS_DEMO_TRADING:
         exchange.urls['api'] = exchange.urls['demotrading']
         exchange.options['defaultType'] = 'linear'
-        # Bybit Demo не підтримує /v5/asset/coin/query-info → 10032 всередині load_markets()
         exchange.has['fetchCurrencies'] = False
-    if USE_TESTNET:
-        exchange.urls['api'] = {
-            'public': 'https://api-testnet.bybit.com',
-            'private': 'https://api-testnet.bybit.com',
-        }
-        exchange.set_sandbox_mode(True)
     # Markets потрібні для market_id() та інших symbol lookups.
     # fetchCurrencies вже відключено вище, тому load_markets() безпечний на Demo.
     exchange.load_markets()

@@ -40,9 +40,6 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 # ==========================================
 # ТОРГОВЫЕ НАСТРОЙКИ (РИСК-МЕНЕДЖМЕНТ)
 # ==========================================
-# Настройки сети (Testnet или Demo/Mainnet)
-# По умолчанию True (Testnet). Установите False в .env для Demo или Real.
-USE_TESTNET = os.getenv("USE_TESTNET", "True").lower() == "true"
 IS_DEMO_TRADING = os.getenv("IS_DEMO_TRADING", "False").lower() == "true"
 TRADE_PERCENT_SIZE = 5      # Мы заходим на 5% от свободного баланса USDT
 LEVERAGE = 2                # Плечо BTC/ETH (тепер тільки для Funding Rate/Grid, не news)

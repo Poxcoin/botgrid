@@ -1,19 +1,20 @@
 import ccxt
-from config.settings import BYBIT_API_KEY, BYBIT_SECRET, USE_TESTNET
+from config.settings import BYBIT_API_KEY, BYBIT_SECRET, IS_DEMO_TRADING
 
 def test_api():
-    print(f"Testing Bybit API (Testnet: {USE_TESTNET})...")
-    
+    mode = "Demo" if IS_DEMO_TRADING else "Live"
+    print(f"Testing Bybit API ({mode})...")
+
     exchange = ccxt.bybit({
         'apiKey': BYBIT_API_KEY,
         'secret': BYBIT_SECRET,
         'enableRateLimit': True,
         'options': {'defaultType': 'swap'},
     })
-    
-    if USE_TESTNET:
-        exchange.set_sandbox_mode(True)
-    
+
+    if IS_DEMO_TRADING:
+        exchange.urls['api'] = exchange.urls['demotrading']
+
     try:
         balance = exchange.fetch_balance()
         print("✅ Connection Successful!")
