@@ -308,7 +308,7 @@ function CoinCard({ r, maxAbsPnl }) {
         {r.trades} trades
       </div>
       {hovered && (r.avg_win > 0 || r.avg_loss < 0) && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
           {r.avg_win > 0 && (
             <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--accent-green)' }}>
               avg W: +{parseFloat(r.avg_win).toFixed(2)}
@@ -317,6 +317,11 @@ function CoinCard({ r, maxAbsPnl }) {
           {r.avg_loss < 0 && (
             <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--accent-red)' }}>
               avg L: {parseFloat(r.avg_loss).toFixed(2)}
+            </span>
+          )}
+          {r.avg_win > 0 && r.avg_loss < 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 9, color: (r.avg_win / Math.abs(r.avg_loss)) >= 1 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+              R:R {(r.avg_win / Math.abs(r.avg_loss)).toFixed(2)}
             </span>
           )}
         </div>
@@ -625,22 +630,17 @@ export default function AnalyticsTab() {
   const [botSortAsc,  setBotSortAsc]  = useState(false);
   const [tradeSource, setTradeSource] = useState('ALL');
 
-  const fetchData = useCallback(async (days = 0) => {
+  const fetchStatic = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
-      const [analyticsRes, tradesRes, balanceRes] = await Promise.all([
+      const [analyticsRes, balanceRes] = await Promise.all([
         fetch('/api/users/analytics', { headers }),
-        fetch(`/api/users/closed-pnl?days=${days}`, { headers }),
         fetch('/api/users/balance', { headers }),
       ]);
       if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
       setData(await analyticsRes.json());
-      if (tradesRes.ok) {
-        const j = await tradesRes.json();
-        setAllTrades(j.trades || []);
-      }
       if (balanceRes.ok) setBalance(await balanceRes.json());
     } catch (e) {
       setError(e.message);
@@ -649,7 +649,21 @@ export default function AnalyticsTab() {
     }
   }, []);
 
-  useEffect(() => { fetchData(allDays); }, [fetchData, allDays]);
+  const fetchTrades = useCallback(async (days) => {
+    const headers = { Authorization: `Bearer ${getToken()}` };
+    try {
+      const res = await fetch(`/api/users/closed-pnl?days=${days}`, { headers });
+      if (res.ok) { const j = await res.json(); setAllTrades(j.trades || []); }
+    } catch {}
+  }, []);
+
+  const fetchData = useCallback((days = 0) => {
+    fetchStatic();
+    fetchTrades(days);
+  }, [fetchStatic, fetchTrades]);
+
+  useEffect(() => { fetchStatic(); fetchTrades(allDays); }, [fetchStatic, fetchTrades]);
+  useEffect(() => { fetchTrades(allDays); }, [allDays, fetchTrades]);
 
   if (loading) {
     return (
