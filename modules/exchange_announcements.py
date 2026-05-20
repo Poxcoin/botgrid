@@ -90,14 +90,26 @@ def _poll_binance() -> list[dict]:
         )
         if resp.status_code != 200:
             raise ValueError(f"HTTP {resp.status_code}")
-        catalogs = resp.json().get("data", {}).get("catalogs", [])
+        try:
+            body = resp.json()
+        except Exception:
+            raise ValueError("invalid JSON in Binance response")
+        # Guard: data may be None or not a dict if Binance returns an error envelope
+        data = body.get("data") if isinstance(body, dict) else None
+        catalogs = data.get("catalogs", []) if isinstance(data, dict) else []
         _fail_count["binance"] = 0
         new_items = []
         for catalog in catalogs:
+            if not isinstance(catalog, dict):
+                continue
             if catalog.get("catalogId") != 48:
                 continue
-            for article in catalog.get("articles", []):
-                item_id = f"binance_{article['id']}"
+            for article in catalog.get("articles", []) or []:
+                if not isinstance(article, dict):
+                    continue
+                item_id = f"binance_{article.get('id', '')}"
+                if not article.get('id'):
+                    continue
                 with _seen_lock:
                     if item_id in _seen_ids:
                         continue

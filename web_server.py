@@ -60,6 +60,12 @@ except Exception:
 _pnl_history: dict = {}
 _PNL_ALERT_THRESHOLD = 200.0  # USD drop within 1 hour triggers alert
 
+# Per-position unrealized loss alert state
+# key: "{user_id}:{symbol}" → last_alert_unix_ts
+_unreal_loss_last_alert: dict = {}
+_UNREAL_LOSS_THRESHOLD = -50.0   # USD; configurable
+_UNREAL_LOSS_COOLDOWN  = 3600    # 1 alert per position per hour
+
 def _tg_alert(text: str):
     """Fire-and-forget TG message to admin chat."""
     token = os.getenv("TG_BOT_TOKEN", "")
@@ -76,12 +82,18 @@ def _tg_alert(text: str):
 
 
 async def _pnl_alert_loop():
-    """Every 5 min: check unrealized PnL per user; alert if drops > threshold in last hour."""
+    """Every 5 min: check unrealized PnL per user.
+
+    Runs two checks:
+    1. _pnl_alert_check  — alerts if aggregate PnL dropped >$200 in last hour
+    2. _unrealized_loss_check — alerts per-position if unrealized loss < -$50
+    """
     await asyncio.sleep(300)
     while True:
         try:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, _pnl_alert_check)
+            await loop.run_in_executor(None, _unrealized_loss_check)
         except Exception as e:
             print(f"[PNL_ALERT] error: {e}")
         await asyncio.sleep(300)
@@ -121,6 +133,44 @@ def _pnl_alert_check():
                         _pnl_history[kr.user_id] = [(now_ts, upnl)]
             except Exception as e:
                 print(f"[PNL_ALERT] user {kr.user_id}: {e}")
+    finally:
+        db.close()
+
+
+def _unrealized_loss_check():
+    """Check every open position for all users; alert if unrealized loss < threshold.
+
+    Fires at most once per position per _UNREAL_LOSS_COOLDOWN seconds to avoid spam.
+    Alert format matches Council spec:
+      ⚠️ Unrealized loss alert: {symbol} position is at -{loss}$ unrealized
+    """
+    from database import SessionLocal
+    db = SessionLocal()
+    try:
+        key_rows = db.query(UserApiKey).filter_by(exchange="bybit").all()
+        now_ts = time.time()
+        for kr in key_rows:
+            try:
+                ex = _init_user_exchange(kr)
+                if not ex:
+                    continue
+                positions = _bybit_positions(ex)
+                for pos in positions:
+                    upnl   = pos["unrealized_pnl"]
+                    symbol = pos["symbol"]
+                    if upnl >= _UNREAL_LOSS_THRESHOLD:
+                        continue
+                    alert_key  = f"{kr.user_id}:{symbol}"
+                    last_alert = _unreal_loss_last_alert.get(alert_key, 0)
+                    if now_ts - last_alert < _UNREAL_LOSS_COOLDOWN:
+                        continue
+                    _unreal_loss_last_alert[alert_key] = now_ts
+                    loss = abs(upnl)
+                    _tg_alert(
+                        f"⚠️ Unrealized loss alert: {symbol} position is at -${loss:.2f} unrealized"
+                    )
+            except Exception as e:
+                print(f"[UNREAL_LOSS] user {kr.user_id}: {e}")
     finally:
         db.close()
 
