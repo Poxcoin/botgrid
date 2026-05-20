@@ -31,6 +31,7 @@ export default function PnlTab() {
   const totalNet   = rows.reduce((s, r) => s + r.net_pnl, 0);
 
   const maxAbs = Math.max(...rows.map(r => Math.abs(r.gross_pnl)), 1);
+  const multiYear = new Set(rows.map(r => r.year)).size > 1;
 
   const headers = [t.dashboard.hMonth, t.dashboard.pnl.hGrossPnl, t.dashboard.pnl.hFee, t.dashboard.pnl.hNetPnl, t.dashboard.pnl.hPaid];
 
@@ -79,7 +80,7 @@ export default function PnlTab() {
                         transition: 'background 100ms',
                       }} />
                       <div style={{ fontSize: 10, color: isH ? 'var(--text-secondary)' : 'var(--muted-fg)', letterSpacing: '0.05em', whiteSpace: 'nowrap', transition: 'color 100ms' }}>
-                        {MONTHS[r.month - 1]}
+                        {MONTHS[r.month - 1]}{multiYear ? ` '${String(r.year).slice(2)}` : ''}
                       </div>
                     </div>
                   );
