@@ -383,7 +383,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
   const tradesRef  = useRef([]);
   tradesRef.current = trades;
 
-  const [tf,         setTf]         = useState('60');
+  const [tf,         setTf]         = useState(() => localStorage.getItem('kado_chart_tf') || '60');
   const [showLine,   setShowLine]   = useState(false);
   const [activeInds, setActiveInds] = useState({});
   const [isFS,       setIsFS]       = useState(false);
@@ -789,7 +789,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
         <div style={{ width: 8, flexShrink: 0 }} />
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px', flexShrink: 0 }} />
         {['1','5','15','60','240','D'].map(t => (
-          <button key={t} onClick={() => setTf(t)} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{TF_LABELS[t]}</button>
+          <button key={t} onClick={() => { setTf(t); localStorage.setItem('kado_chart_tf', t); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: tf === t ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${tf === t ? 'var(--border-strong)' : 'transparent'}`, color: tf === t ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: tf === t ? 600 : 400 }}>{TF_LABELS[t]}</button>
         ))}
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
         <button onClick={() => setIsFS(v => !v)} title={isFS ? 'Exit fullscreen (Esc)' : 'Fullscreen'} style={{ height: 22, width: 22, borderRadius: 3, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isFS ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${isFS ? 'var(--border-strong)' : 'transparent'}`, color: isFS ? 'var(--text-primary)' : 'var(--text-muted)', padding: 0, flexShrink: 0 }}>

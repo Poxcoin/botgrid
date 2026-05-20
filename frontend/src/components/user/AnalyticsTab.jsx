@@ -1141,10 +1141,10 @@ export default function AnalyticsTab() {
         </div>
       )}
 
-      {/* Trading calendar heatmap */}
-      {dailyPnl.length >= 7 && (
+      {/* Trading calendar heatmap — all-time only; filtered periods leave most cells empty */}
+      {allDays === 0 && dailyPnl.length >= 7 && (
         <div style={{ marginBottom: 32 }}>
-          <SectionLabel title={t.dashboard.analytics.calendarHeatmap} right={allDays === 0 ? t.dashboard.analytics.allTime : `${t.dashboard.analytics.lastDays} ${allDays}d`} />
+          <SectionLabel title={t.dashboard.analytics.calendarHeatmap} right={t.dashboard.analytics.allTime} />
           <CalendarHeatmap dailyPnl={dailyPnl} />
         </div>
       )}
