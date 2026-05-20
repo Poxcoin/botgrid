@@ -124,15 +124,15 @@ function PositionSizeCalc() {
   return (
     <div style={cardStyle}>
       <div style={cardTitleStyle}>{tt.posSizeCalc}</div>
-      <InputField label="Account Balance (USDT)" value={balance} onChange={setBalance} />
-      <InputField label="Risk per Trade (%)" value={risk} onChange={setRisk} step={0.1} max={100} />
-      <InputField label="Entry Price" value={entry} onChange={setEntry} />
-      <InputField label="Stop Loss Price" value={sl} onChange={setSl} />
+      <InputField label={tt.balance} value={balance} onChange={setBalance} />
+      <InputField label={tt.riskPct} value={risk} onChange={setRisk} step={0.1} max={100} />
+      <InputField label={tt.entryPrice} value={entry} onChange={setEntry} />
+      <InputField label={tt.slPrice} value={sl} onChange={setSl} />
       <div style={resultBoxStyle}>
-        <ResultRow label="Risk Amount (USDT)" value={riskAmount !== null ? fmt(riskAmount) : '—'} />
-        <ResultRow label="Position Size (USDT)" value={positionUSDT !== null ? fmt(positionUSDT) : '—'} />
-        <ResultRow label="Quantity (coins)" value={qty !== null ? fmt(qty, 6) : '—'} />
-        <ResultRow label="Max Leverage" value={maxLev !== null ? `${fmt(maxLev, 1)}x` : '—'} last />
+        <ResultRow label={tt.riskAmount} value={riskAmount !== null ? fmt(riskAmount) : '—'} />
+        <ResultRow label={tt.posSize} value={positionUSDT !== null ? fmt(positionUSDT) : '—'} />
+        <ResultRow label={tt.qty} value={qty !== null ? fmt(qty, 6) : '—'} />
+        <ResultRow label={tt.maxLev} value={maxLev !== null ? `${fmt(maxLev, 1)}x` : '—'} last />
       </div>
     </div>
   );
@@ -177,16 +177,16 @@ function RiskRewardCalc() {
   return (
     <div style={cardStyle}>
       <div style={cardTitleStyle}>{tt.rrCalc}</div>
-      <InputField label="Entry Price" value={entry} onChange={setEntry} />
-      <InputField label="Stop Loss Price" value={sl} onChange={setSl} />
-      <InputField label="Take Profit Price" value={tp} onChange={setTp} />
-      <InputField label="Position Size (USDT)" value={size} onChange={setSize} />
+      <InputField label={tt.entryPrice} value={entry} onChange={setEntry} />
+      <InputField label={tt.slPrice} value={sl} onChange={setSl} />
+      <InputField label={tt.tpPrice} value={tp} onChange={setTp} />
+      <InputField label={tt.posSize} value={size} onChange={setSize} />
       <div style={resultBoxStyle}>
-        <ResultRow label="Risk (USDT)" value={riskUSDT !== null ? fmt(riskUSDT) : '—'} />
-        <ResultRow label="Reward (USDT)" value={rewardUSDT !== null ? fmt(rewardUSDT) : '—'} />
-        <ResultRow label="Risk %" value={riskPct !== null ? `${fmt(riskPct)}%` : '—'} />
-        <ResultRow label="Reward %" value={rewardPct !== null ? `${fmt(rewardPct)}%` : '—'} />
-        <ResultRow label="R:R Ratio" value={rr !== null ? `1 : ${fmt(rr)}` : '—'} />
+        <ResultRow label={tt.riskUSDT} value={riskUSDT !== null ? fmt(riskUSDT) : '—'} />
+        <ResultRow label={tt.rewardUSDT} value={rewardUSDT !== null ? fmt(rewardUSDT) : '—'} />
+        <ResultRow label={tt.riskPctLbl} value={riskPct !== null ? `${fmt(riskPct)}%` : '—'} />
+        <ResultRow label={tt.rewardPctLbl} value={rewardPct !== null ? `${fmt(rewardPct)}%` : '—'} />
+        <ResultRow label={tt.rrRatio} value={rr !== null ? `1 : ${fmt(rr)}` : '—'} />
         <div style={{ paddingTop: 10, marginTop: 6, borderTop: '1px solid var(--border-subtle)' }}>
           <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: verdictColor }}>
             {verdict ?? '—'}
@@ -236,15 +236,15 @@ function LiquidationCalc() {
           </button>
         ))}
       </div>
-      <InputField label="Entry Price" value={entry} onChange={setEntry} />
-      <InputField label="Leverage (×)" value={lev} onChange={setLev} step={1} max={200} />
+      <InputField label={tt.entryPrice} value={entry} onChange={setEntry} />
+      <InputField label={tt.leverage} value={lev} onChange={setLev} step={1} max={200} />
       <div style={resultBoxStyle}>
-        <ResultRow label="Liquidation Price" value={liqPrice !== null ? fmt(liqPrice, 4) : '—'} />
-        <ResultRow label="Distance to Liq" value={distPct !== null ? `${fmt(distPct)}%` : '—'} />
-        <ResultRow label="Maintenance Margin" value="0.5%" last />
+        <ResultRow label={tt.liqPrice} value={liqPrice !== null ? fmt(liqPrice, 4) : '—'} />
+        <ResultRow label={tt.distToLiq} value={distPct !== null ? `${fmt(distPct)}%` : '—'} />
+        <ResultRow label={tt.maintMargin} value="0.5%" last />
       </div>
       <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.6, opacity: 0.7 }}>
-        Simplified Bybit isolated margin formula. Actual liq price may differ slightly.
+        {tt.liqNote}
       </div>
     </div>
   );
@@ -278,9 +278,9 @@ function CompoundCalc() {
   return (
     <div style={cardStyle}>
       <div style={cardTitleStyle}>{tt.compoundCalc}</div>
-      <InputField label="Starting Balance (USDT)" value={balance} onChange={setBalance} />
-      <InputField label="Monthly Return (%)" value={monthly} onChange={setMonthly} step={0.1} />
-      <InputField label="Months" value={months} onChange={setMonths} step={1} max={60} />
+      <InputField label={tt.startBalance} value={balance} onChange={setBalance} />
+      <InputField label={tt.monthlyReturn} value={monthly} onChange={setMonthly} step={0.1} />
+      <InputField label={tt.months} value={months} onChange={setMonths} step={1} max={60} />
 
       {valid && rows.length > 0 && (
         <>
