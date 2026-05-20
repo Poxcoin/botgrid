@@ -414,6 +414,9 @@ function PnlChart({ hasKey }) {
 }
 
 export default function AssetsTab() {
+  const { t } = useLang();
+  const ta     = t.dashboard.analytics;
+  const to     = t.dashboard.overview;
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -450,24 +453,24 @@ export default function AssetsTab() {
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
         <BalanceCard
-          label="Total Equity"
+          label={ta.bEquity}
           value={equity}
           color={balance?.equity != null ? 'var(--accent-green)' : 'var(--text-muted)'}
           accent={balance?.equity != null ? 'green' : undefined}
         />
         <BalanceCard
-          label="Wallet Balance"
+          label={ta.bWallet}
           value={wallet}
           color={balance?.wallet != null ? 'var(--text-primary)' : 'var(--text-muted)'}
         />
         <BalanceCard
-          label="Unrealized PnL"
+          label={ta.bUnrealized}
           value={unrealVal}
           color={unrealColor}
           accent={unrealTotal > 0 ? 'green' : unrealTotal < 0 ? 'red' : undefined}
         />
         <BalanceCard
-          label="Realized PnL (All Time)"
+          label={to.realized}
           value={realVal}
           color={realColor}
           accent={summary?.total_realized > 0 ? 'green' : summary?.total_realized < 0 ? 'red' : undefined}

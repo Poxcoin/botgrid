@@ -1250,7 +1250,7 @@ export default function AnalyticsTab() {
               <input
                 value={tradeSearch}
                 onChange={e => { setTradeSearch(e.target.value); setTradePage(1); }}
-                placeholder="Symbol…"
+                placeholder={t.dashboard.searchCoin}
                 style={{
                   background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 3,
                   color: 'var(--text-primary)', fontFamily: MONO, fontSize: 10, padding: '4px 10px',
