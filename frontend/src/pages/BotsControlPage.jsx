@@ -165,7 +165,7 @@ export default function BotsControlPage() {
         }}
         onMouseEnter={e => e.currentTarget.style.color = fg}
         onMouseLeave={e => e.currentTarget.style.color = muted}>
-          ← {t.dashboard.tabAccount}
+          {t.dashboard.tabAccount}
         </Link>
         <button
           onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
