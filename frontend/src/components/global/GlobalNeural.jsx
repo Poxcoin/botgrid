@@ -22,29 +22,29 @@ function getRouteShift(pathname) {
 
 function buildAxons(W, H, isMobile) {
   const count = isMobile ? 8 : 30;
-  const bx = W * 0.04;
-  const by = H * 0.80;
+  const bx = W * 0.05;
+  const by = H * 0.78;
   const aMin = -Math.PI * 0.48;
-  const aMax = 0.08;
+  const aMax = 0.10;
   return Array.from({ length: count }, (_, i) => ({
-    ox: bx + (Math.random() - 0.5) * W * 0.015,
-    oy: by + (Math.random() - 0.5) * H * 0.015,
-    angle: aMin + (i / (count - 1)) * (aMax - aMin) + (Math.random() - 0.5) * 0.09,
-    len: 500 + Math.random() * Math.max(W, H) * 0.85,
-    amp: 12 + Math.random() * 32,
-    freq: 0.4 + Math.random() * 1.4,
+    ox: bx + (Math.random() - 0.5) * W * 0.012,
+    oy: by + (Math.random() - 0.5) * H * 0.012,
+    angle: aMin + (i / (count - 1)) * (aMax - aMin) + (Math.random() - 0.5) * 0.07,
+    len: 480 + Math.random() * Math.max(W, H) * 0.82,
+    amp: 4 + Math.random() * 14,
+    freq: 0.5 + Math.random() * 1.2,
     phase: Math.random() * Math.PI * 2,
-    speed: 0.08 + Math.random() * 0.22,
-    w: 0.4 + Math.random() * 0.55,
-    op: 0.13 + Math.random() * 0.14,
-    // Position drift — origin breathes visibly
-    dox: (Math.random() - 0.5) * W * 0.10,
-    doy: (Math.random() - 0.5) * H * 0.07,
-    df:  0.05 + Math.random() * 0.07,
+    speed: 0.25 + Math.random() * 0.45,
+    w: 0.45 + Math.random() * 0.65,
+    op: 0.13 + Math.random() * 0.11,
+    // Origin drift
+    dox: (Math.random() - 0.5) * W * 0.08,
+    doy: (Math.random() - 0.5) * H * 0.06,
+    df:  0.12 + Math.random() * 0.10,
     dp:  Math.random() * Math.PI * 2,
-    // Angle drift — each line sweeps its direction slowly
-    da:  (Math.random() - 0.5) * 0.22,
-    daf: 0.03 + Math.random() * 0.05,
+    // Per-line angle sweep
+    da:  (Math.random() - 0.5) * 0.15,
+    daf: 0.06 + Math.random() * 0.06,
   }));
 }
 
@@ -101,7 +101,7 @@ export default function GlobalNeural() {
     let scrollAngleTarget = 0;
     const onScroll = () => {
       const maxScroll = Math.max(1, document.body.scrollHeight - window.innerHeight);
-      scrollAngleTarget = (window.scrollY / maxScroll) * 0.24 - 0.12;
+      scrollAngleTarget = (window.scrollY / maxScroll) * 0.40 - 0.20;
     };
     window.addEventListener('scroll', onScroll, { passive: true });
 
@@ -191,8 +191,10 @@ export default function GlobalNeural() {
 
       // Lerp route angle and scroll angle
       routeShiftRef.current += (routeTargetRef.current - routeShiftRef.current) * Math.min(1, dt * 0.0016);
-      scrollAngle += (scrollAngleTarget - scrollAngle) * Math.min(1, dt * 0.004);
-      const totalShift = routeShiftRef.current + scrollAngle;
+      scrollAngle += (scrollAngleTarget - scrollAngle) * Math.min(1, dt * 0.008);
+      // Global breathing — all lines sweep together, period ~13s, clearly visible
+      const globalBreath = Math.sin(t * 0.48) * 0.12;
+      const totalShift = routeShiftRef.current + scrollAngle + globalBreath;
 
       ctx.clearRect(0, 0, W, H);
 
@@ -210,8 +212,9 @@ export default function GlobalNeural() {
 
         const grad = ctx.createLinearGradient(ox, oy, tipX, tipY);
         grad.addColorStop(0,    `rgba(${rgb},${baseOp})`);
-        grad.addColorStop(0.30, `rgba(${rgb},${baseOp * 0.85})`);
-        grad.addColorStop(0.65, `rgba(${rgb},${baseOp * 0.38})`);
+        grad.addColorStop(0.55, `rgba(${rgb},${baseOp * 0.88})`);
+        grad.addColorStop(0.80, `rgba(${rgb},${baseOp * 0.35})`);
+        grad.addColorStop(0.95, `rgba(${rgb},${baseOp * 0.04})`);
         grad.addColorStop(1,    `rgba(${rgb},0)`);
 
         ctx.beginPath();
