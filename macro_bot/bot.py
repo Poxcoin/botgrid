@@ -192,9 +192,12 @@ class MacroBot:
                             MAX_TRADES, name, signal.instrument)
                 break
 
+            sl = signal.sl_pips or STOP_LOSS_PIPS
+            tp = signal.tp_pips or TAKE_PROFIT_PIPS
+
             volume = self.mt5.calculate_volume(
                 balance, RISK_PCT, signal.strength,
-                STOP_LOSS_PIPS, instrument=signal.instrument,
+                sl, instrument=signal.instrument,
             )
 
             result = await self._mt5_call(
@@ -202,8 +205,8 @@ class MacroBot:
                 signal.instrument,
                 signal.direction,
                 volume,
-                STOP_LOSS_PIPS,
-                TAKE_PROFIT_PIPS,
+                sl,
+                tp,
                 f"macro:{name[:12]}",
             )
 

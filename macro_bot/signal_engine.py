@@ -30,65 +30,138 @@ class Signal:
     actual:      float
     forecast:    float
     description: str
+    sl_pips:     float = 0.0   # 0 = use global config default
+    tp_pips:     float = 0.0
 
 
 # Per-event configuration
-# historical_std: typical month-over-month surprise size
+# historical_std: typical surprise size (used to normalize deviation into sigma)
 # instruments: traded pairs — all are USD-quote (hot USD = SHORT)
+# instrument_params: optional per-instrument SL/TP override (pips)
+#   XAUUSD uses wider TP: Gold momentum carries 40-80 pips on strong data
+#   (forex: SL=20/TP=35 default; gold: SL=25/TP=55)
+_GOLD_PARAMS = {"sl_pips": 25, "tp_pips": 55}
+
 EVENT_CONFIG = {
+    # ── Inflation ──────────────────────────────────────────────────────────
     "CPI m/m": {
-        "instruments":   ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.15,
-        "min_deviation":  0.3,
+        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.15,
+        "min_deviation":   0.3,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
     },
     "Core CPI m/m": {
-        "instruments":   ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.12,
-        "min_deviation":  0.3,
+        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.12,
+        "min_deviation":   0.3,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
     },
     "CPI y/y": {
-        "instruments":   ["EURUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.2,
-        "min_deviation":  0.4,
-    },
-    "NFP": {
-        "instruments":   ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 80_000,
-        "min_deviation":  0.4,
-    },
-    "Non-Farm Employment Change": {
-        "instruments":   ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 80_000,
-        "min_deviation":  0.4,
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.2,
+        "min_deviation":   0.4,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
     },
     "PCE Price Index m/m": {
-        "instruments":   ["EURUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.1,
-        "min_deviation":  0.3,
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.1,
+        "min_deviation":   0.3,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
     },
     "Core PCE Price Index m/m": {
-        "instruments":   ["EURUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.1,
-        "min_deviation":  0.3,
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.1,
+        "min_deviation":   0.3,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
     },
     "PPI m/m": {
-        "instruments":   ["EURUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.2,
-        "min_deviation":  0.5,
+        "instruments":    ["EURUSD", "XAUUSD"],   # was EURUSD only
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.2,
+        "min_deviation":   0.5,
+        "instrument_params": {"XAUUSD": {"sl_pips": 25, "tp_pips": 45}},
     },
+    # ── Employment ────────────────────────────────────────────────────────
+    "NFP": {
+        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  80_000,
+        "min_deviation":   0.4,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
+    },
+    "Non-Farm Employment Change": {
+        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  80_000,
+        "min_deviation":   0.4,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
+    },
+    # ADP: precursor to NFP; Gold reacts ~60% as strongly
+    "ADP Non-Farm Employment Change": {
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  50_000,
+        "min_deviation":   0.5,
+        "instrument_params": {"XAUUSD": {"sl_pips": 22, "tp_pips": 45}},
+    },
+    # Jobless Claims: high claims = bad economy = USD weak = Gold LONG
+    # hot data (high claims) → USD DOWN → rule is inverted
+    "Initial Jobless Claims": {
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_down_on_hot",   # more claims = USD weaker
+        "historical_std":  20_000,
+        "min_deviation":   0.6,                # needs bigger surprise (weekly noise)
+        "instrument_params": {"XAUUSD": {"sl_pips": 20, "tp_pips": 40}},
+    },
+    # ── Activity / Growth ─────────────────────────────────────────────────
     "Prelim GDP q/q": {
-        "instruments":   ["EURUSD", "XAUUSD"],
-        "rule":          "usd_up_on_hot",
-        "historical_std": 0.5,
-        "min_deviation":  0.6,
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.5,
+        "min_deviation":   0.6,
+        "instrument_params": {"XAUUSD": _GOLD_PARAMS},
+    },
+    "ISM Manufacturing PMI": {
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  2.0,
+        "min_deviation":   0.5,
+        "instrument_params": {"XAUUSD": {"sl_pips": 20, "tp_pips": 40}},
+    },
+    "ISM Services PMI": {
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  2.0,
+        "min_deviation":   0.5,
+        "instrument_params": {"XAUUSD": {"sl_pips": 20, "tp_pips": 40}},
+    },
+    "Retail Sales m/m": {
+        "instruments":    ["EURUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.4,
+        "min_deviation":   0.5,
+        "instrument_params": {"XAUUSD": {"sl_pips": 20, "tp_pips": 40}},
+    },
+    # ── Fed / Monetary policy ──────────────────────────────────────────────
+    # FOMC: rate hike (actual > forecast) = USD up = Gold DOWN
+    "Federal Funds Rate": {
+        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.25,              # 0.25% step is 1 sigma
+        "min_deviation":   0.8,               # only react to actual surprise
+        "instrument_params": {"XAUUSD": {"sl_pips": 30, "tp_pips": 80}},
+    },
+    "FOMC Rate Decision": {
+        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
+        "rule":           "usd_up_on_hot",
+        "historical_std":  0.25,
+        "min_deviation":   0.8,
+        "instrument_params": {"XAUUSD": {"sl_pips": 30, "tp_pips": 80}},
     },
 }
 
@@ -138,6 +211,7 @@ def generate_signals(
         log.info("Deviation %.2fσ below threshold %.2f — no trade", deviation, min_dev)
         return []
 
+    instrument_params = config.get("instrument_params", {})
     signals = []
     for instrument in instruments:
         if rule == "usd_up_on_hot":
@@ -160,6 +234,7 @@ def generate_signals(
             continue
 
         strength = min(abs(deviation) / 2.0, 1.0)
+        iparams = instrument_params.get(instrument, {})
         signals.append(Signal(
             event=event_name,
             instrument=instrument,
@@ -169,6 +244,8 @@ def generate_signals(
             actual=actual,
             forecast=forecast,
             description=desc,
+            sl_pips=iparams.get("sl_pips", 0.0),
+            tp_pips=iparams.get("tp_pips", 0.0),
         ))
 
     return signals

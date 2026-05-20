@@ -12,10 +12,10 @@ MT5_FILES_PATH    = os.getenv("MT5_FILES_PATH", "")
 
 # Risk
 RISK_PCT          = float(os.getenv("MACRO_RISK_PCT", "0.015"))   # 1.5% per trade
-MAX_TRADES        = int(os.getenv("MACRO_MAX_TRADES", "2"))
-STOP_LOSS_PIPS    = int(os.getenv("MACRO_SL_PIPS", "15"))
-TAKE_PROFIT_PIPS  = int(os.getenv("MACRO_TP_PIPS", "20"))
-EXIT_MINUTES      = int(os.getenv("MACRO_EXIT_MINUTES", "20"))
+MAX_TRADES        = int(os.getenv("MACRO_MAX_TRADES", "3"))        # 3: EURUSD+GBPUSD+XAUUSD simultaneously
+STOP_LOSS_PIPS    = int(os.getenv("MACRO_SL_PIPS", "20"))          # forex default (Gold overridden per-signal)
+TAKE_PROFIT_PIPS  = int(os.getenv("MACRO_TP_PIPS", "35"))          # forex default
+EXIT_MINUTES      = int(os.getenv("MACRO_EXIT_MINUTES", "25"))
 
 DEVIATION_MIN     = float(os.getenv("MACRO_DEV_MIN", "0.3"))
 

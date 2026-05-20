@@ -22,7 +22,7 @@ MT5_FILES = Path.home() / ".wine/drive_c/users" / os.getenv("USER", "minus") / \
 ORDER_FILE  = MT5_FILES / "macro_orders.json"
 RESULT_FILE = MT5_FILES / "macro_result.json"
 
-TIMEOUT_SEC = 10.0   # max wait for EA response
+TIMEOUT_SEC = 60.0   # max wait for EA response (IC Markets can be slow on weekends)
 
 
 class MT5Client:
