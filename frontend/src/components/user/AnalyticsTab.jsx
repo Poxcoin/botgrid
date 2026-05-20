@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLang } from '@/lib/LangContext';
 
 const MONO = "var(--font-mono)";
@@ -309,6 +309,127 @@ function CoinGrid({ coins }) {
   );
 }
 
+function EquityCurve({ trades }) {
+  const wrapRef = useRef(null);
+  const [w, setW] = useState(0);
+  const [hover, setHover] = useState(null);
+
+  useEffect(() => {
+    if (!wrapRef.current) return;
+    setW(wrapRef.current.offsetWidth);
+    let raf = null;
+    const ro = new ResizeObserver(entries => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setW(entries[0].contentRect.width));
+    });
+    ro.observe(wrapRef.current);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
+  const data = useMemo(() => {
+    const sorted = [...trades]
+      .filter(t => t.pnl != null)
+      .sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
+    let cum = 0;
+    return sorted.map(t => {
+      cum += parseFloat(t.pnl ?? 0);
+      const ms = parseInt(t.closed_at);
+      return { t: ms ? new Date(ms).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) : '', v: parseFloat(cum.toFixed(2)) };
+    });
+  }, [trades]);
+
+  if (data.length < 2) return null;
+
+  const H = 220;
+  const PAD = { top: 16, right: 12, bottom: 28, left: 60 };
+
+  const geom = useMemo(() => {
+    if (!w) return null;
+    const vals  = data.map(d => d.v);
+    const minV  = Math.min(...vals, 0);
+    const maxV  = Math.max(...vals, 0);
+    const range = maxV - minV || 1;
+    const isPos = vals[vals.length - 1] >= 0;
+    const color = isPos ? '#0ecb81' : '#f6465d';
+    const cW    = w - PAD.left - PAD.right;
+    const cH    = H - PAD.top - PAD.bottom;
+    const sx    = i => PAD.left + (i / Math.max(data.length - 1, 1)) * cW;
+    const sy    = v => PAD.top + cH - ((v - minV) / range) * cH;
+    const zeroY = sy(0);
+    const pts   = data.map((d, i) => `${sx(i)},${sy(d.v)}`).join(' ');
+    const area  = data.length > 1
+      ? `M${sx(0)},${zeroY} ` + data.map((d, i) => `L${sx(i)},${sy(d.v)}`).join(' ') + ` L${sx(data.length - 1)},${zeroY} Z`
+      : '';
+    const yTicks = [0, 1, 2, 3, 4].map(i => ({ v: minV + range * i / 4, y: sy(minV + range * i / 4) }));
+    const xIdxs = data.length <= 1 ? [0]
+      : [0, Math.floor(data.length * 0.25), Math.floor(data.length * 0.5), Math.floor(data.length * 0.75), data.length - 1]
+          .filter((v, i, a) => a.indexOf(v) === i);
+    return { color, cW, cH, sx, sy, zeroY, pts, area, yTicks, xIdxs };
+  }, [data, w]);
+
+  return (
+    <div ref={wrapRef} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', position: 'relative' }}>
+      {w > 0 && geom && (
+        <svg width={w} height={H} style={{ display: 'block', fontFamily: MONO }} onMouseLeave={() => setHover(null)}>
+          <defs>
+            <linearGradient id="ec-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={geom.color} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={geom.color} stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          {geom.yTicks.map((t, i) => (
+            <g key={i}>
+              <line x1={PAD.left} x2={w - PAD.right} y1={t.y} y2={t.y}
+                stroke={t.v === 0 ? 'var(--border-default)' : 'var(--border-subtle)'}
+                strokeWidth={t.v === 0 ? 1 : 0.5} strokeDasharray={t.v === 0 ? '0' : '3 4'} />
+              <text x={PAD.left - 6} y={t.y + 3.5} textAnchor="end" fontSize={9} fill="var(--text-muted)">
+                {t.v >= 0 ? (t.v === 0 ? '0' : `+${t.v.toFixed(0)}`) : t.v.toFixed(0)}
+              </text>
+            </g>
+          ))}
+          {geom.xIdxs.map(i => (
+            <text key={i} x={geom.sx(i)} y={H - 6} textAnchor="middle" fontSize={9} fill="var(--text-muted)">
+              {data[i]?.t ?? ''}
+            </text>
+          ))}
+          {geom.area && <path d={geom.area} fill="url(#ec-grad)" />}
+          <polyline points={geom.pts} fill="none" stroke={geom.color} strokeWidth={1.5} strokeLinejoin="round" />
+          {/* hover interaction zone */}
+          {data.map((d, i) => (
+            <rect key={i} x={geom.sx(i) - (geom.cW / data.length / 2)} y={PAD.top}
+              width={geom.cW / data.length} height={geom.cH}
+              fill="transparent"
+              onMouseEnter={() => setHover(i)} />
+          ))}
+          {hover != null && (
+            <>
+              <line x1={geom.sx(hover)} x2={geom.sx(hover)} y1={PAD.top} y2={H - PAD.bottom}
+                stroke="var(--border-default)" strokeWidth={1} strokeDasharray="3 3" />
+              <circle cx={geom.sx(hover)} cy={geom.sy(data[hover].v)} r={4}
+                fill={geom.color} stroke="var(--bg-base)" strokeWidth={2} />
+            </>
+          )}
+        </svg>
+      )}
+      {hover != null && data[hover] && (
+        <div style={{
+          position: 'absolute', top: 8,
+          left: Math.min(Math.max(geom.sx(hover), PAD.left + 40), w - 120),
+          transform: 'translateX(-50%)',
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+          padding: '7px 12px', fontFamily: MONO, fontSize: 11, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
+        }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>{data[hover].t}</div>
+          <div style={{ color: data[hover].v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
+            {data[hover].v >= 0 ? '+' : ''}{data[hover].v.toFixed(2)} USDT
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>trade {hover + 1} of {data.length}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AnalyticsTab() {
   const { t } = useLang();
   const [data, setData] = useState(null);
@@ -544,6 +665,14 @@ export default function AnalyticsTab() {
         <SectionLabel title={t.dashboard.analytics.dailyPnl30} />
         <DailyChart daily={daily} t={t} />
       </div>
+
+      {/* Equity curve — all-time cumulative PnL */}
+      {allTrades.length >= 2 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionLabel title="Equity Curve" right={`${allTrades.length} trades · all time`} />
+          <EquityCurve trades={allTrades} />
+        </div>
+      )}
 
       {/* By coin — card grid like bot CoinTicker */}
       {by_coin && by_coin.length > 0 && (
