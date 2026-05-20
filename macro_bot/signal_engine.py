@@ -147,22 +147,9 @@ EVENT_CONFIG = {
         "min_deviation":   0.5,
         "instrument_params": {"XAUUSD": {"sl_pips": 20, "tp_pips": 40}},
     },
-    # ── Fed / Monetary policy ──────────────────────────────────────────────
-    # FOMC: rate hike (actual > forecast) = USD up = Gold DOWN
-    "Federal Funds Rate": {
-        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":           "usd_up_on_hot",
-        "historical_std":  0.25,              # 0.25% step is 1 sigma
-        "min_deviation":   0.8,               # only react to actual surprise
-        "instrument_params": {"XAUUSD": {"sl_pips": 30, "tp_pips": 80}},
-    },
-    "FOMC Rate Decision": {
-        "instruments":    ["EURUSD", "GBPUSD", "XAUUSD"],
-        "rule":           "usd_up_on_hot",
-        "historical_std":  0.25,
-        "min_deviation":   0.8,
-        "instrument_params": {"XAUUSD": {"sl_pips": 30, "tp_pips": 80}},
-    },
+    # FOMC Rate Decision — DISABLED: backtest 16.7% WR, -10 pips (2026-05-20)
+    # "Federal Funds Rate" and "FOMC Rate Decision" removed from EVENT_CONFIG.
+    # High statement uncertainty + initial fake-outs make algo entry unreliable.
 }
 
 
