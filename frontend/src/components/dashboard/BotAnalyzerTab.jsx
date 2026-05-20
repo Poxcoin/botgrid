@@ -46,15 +46,61 @@ function BotCard({ label, data }) {
   );
 }
 
+function DailyPnlChart({ daily }) {
+  const [hover, setHover] = useState(null);
+  if (!daily || !daily.length) return null;
+  const W = 720, H = 160;
+  const PAD_L = 52, PAD_R = 16, PAD_T = 12, PAD_B = 28;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+  const maxAbs = Math.max(...daily.map(d => Math.abs(d.pnl)), 0.01);
+  const barW   = Math.max(3, Math.floor(chartW / daily.length) - 3);
+  const step   = chartW / daily.length;
+  const yZero  = PAD_T + chartH / 2;
+  return (
+    <div style={{ background: '#fafafa', border: '1px solid rgba(0,0,0,0.12)', padding: 12, position: 'relative' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block', fontFamily: "'Courier New',monospace" }} preserveAspectRatio="xMidYMid meet" onMouseLeave={() => setHover(null)}>
+        {[0].map(v => { const y = yZero; return <line key={v} x1={PAD_L} x2={W - PAD_R} y1={y} y2={y} stroke="rgba(0,0,0,0.15)" strokeWidth={1} />; })}
+        {daily.map((d, i) => {
+          const x    = PAD_L + i * step + (step - barW) / 2;
+          const pos  = d.pnl >= 0;
+          const barH = Math.abs(d.pnl) / maxAbs * (chartH / 2);
+          const y    = pos ? yZero - barH : yZero;
+          return (
+            <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: 'pointer' }}>
+              <rect x={x - 2} y={PAD_T} width={barW + 4} height={chartH} fill="transparent" />
+              <rect x={x} y={y} width={barW} height={Math.max(barH, 1)} fill={hover === i ? (pos ? '#0ecb81' : '#f6465d') : (pos ? 'rgba(14,203,129,0.65)' : 'rgba(246,70,93,0.65)')} rx={1} />
+              {i % Math.max(1, Math.floor(daily.length / 6)) === 0 && (
+                <text x={x + barW / 2} y={H - 6} textAnchor="middle" fontSize={9} fill="rgba(0,0,0,0.4)">{d.date ? d.date.slice(5) : ''}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      {hover != null && daily[hover] && (
+        <div style={{ position: 'absolute', left: `${((PAD_L + hover * step + step / 2) / W) * 100}%`, top: 6, transform: 'translateX(-50%)', background: '#fff', border: '1px solid rgba(0,0,0,0.15)', padding: '6px 10px', fontSize: 11, fontFamily: "'Courier New',monospace", pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10 }}>
+          <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: 9, marginBottom: 3 }}>{daily[hover].date}</div>
+          <div style={{ color: daily[hover].pnl >= 0 ? '#15803d' : '#dc2626', fontWeight: 700 }}>
+            {daily[hover].pnl >= 0 ? '+' : ''}{daily[hover].pnl.toFixed(2)} USDT
+          </div>
+          <div style={{ color: 'rgba(0,0,0,0.4)', fontSize: 9 }}>{daily[hover].trades} trades</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BotAnalyzerTab() {
-  const [stats,  setStats]  = useState(null);
-  const [report, setReport] = useState(null);
-  const [trades, setTrades] = useState([]);
+  const [stats,     setStats]     = useState(null);
+  const [report,    setReport]    = useState(null);
+  const [trades,    setTrades]    = useState([]);
+  const [breakdown, setBreakdown] = useState(null);
 
   useEffect(() => {
     authFetch('/api/stats').then(r => r.ok ? r.json() : null).then(d => d && setStats(d)).catch(() => {});
     authFetch('/api/bot-pnl').then(r => r.ok ? r.json() : null).then(d => d && setReport(d)).catch(() => {});
     authFetch('/api/bot-trades?n=30').then(r => r.ok ? r.json() : null).then(d => d?.trades && setTrades(d.trades)).catch(() => {});
+    authFetch('/api/analytics/breakdown').then(r => r.ok ? r.json() : null).then(d => d && setBreakdown(d)).catch(() => {});
   }, []);
 
   const composite = LIVE_FACTORS.reduce((acc, f) => acc + Math.abs(f.value) * f.weight, 0).toFixed(1);
@@ -110,6 +156,57 @@ export default function BotAnalyzerTab() {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Daily PnL chart + per-coin breakdown from all_trades */}
+      {breakdown && (
+        <div className="space-y-0">
+          <div className="border border-kado-black">
+            <div className="px-5 h-10 flex items-center justify-between border-b border-kado-black/15">
+              <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">Daily PnL — Last 30 Days (all_trades)</span>
+              <span className="font-mono text-[10px] text-kado-gray">
+                total {breakdown.summary?.total_pnl >= 0 ? '+' : ''}{breakdown.summary?.total_pnl ?? 0} USDT · {breakdown.summary?.total_trades ?? 0} trades
+              </span>
+            </div>
+            <div className="p-4">
+              <DailyPnlChart daily={breakdown.daily} />
+            </div>
+          </div>
+
+          {breakdown.by_coin?.length > 0 && (
+            <div className="border border-kado-black border-t-0">
+              <div className="px-5 h-10 flex items-center border-b border-kado-black/15">
+                <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">Per Coin Breakdown</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse font-mono text-[11px]">
+                  <thead>
+                    <tr className="border-b border-kado-black/15">
+                      {['Coin','Trades','Wins','WR%','PnL','Avg Win','Avg Loss'].map(h => (
+                        <th key={h} className="px-4 py-2 text-left tracking-[0.12em] uppercase text-kado-gray font-normal text-[9px]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {breakdown.by_coin.slice(0, 20).map((r, i) => (
+                      <tr key={i} className="border-b border-kado-black/8 hover:bg-kado-black/3">
+                        <td className="px-4 py-2 font-bold">{r.coin}</td>
+                        <td className="px-4 py-2 text-kado-gray">{r.trades}</td>
+                        <td className="px-4 py-2 text-kado-gray">{r.wins}</td>
+                        <td className="px-4 py-2">{r.trades > 0 ? Math.round(r.wins / r.trades * 100) : 0}%</td>
+                        <td className={`px-4 py-2 font-bold ${r.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                          {r.pnl >= 0 ? '+' : ''}{r.pnl.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-green-700">{r.avg_win > 0 ? `+${r.avg_win.toFixed(2)}` : '—'}</td>
+                        <td className="px-4 py-2 text-red-500">{r.avg_loss < 0 ? r.avg_loss.toFixed(2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

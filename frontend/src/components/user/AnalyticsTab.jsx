@@ -124,7 +124,9 @@ function DailyChart({ daily, t }) {
               <rect x={x - 2} y={PAD_T} width={barW + 4} height={chartH} fill="transparent" />
               <rect
                 x={x} y={y} width={barW} height={Math.max(barH, 1)}
-                fill={isHovered ? 'var(--text-primary)' : 'var(--text-muted)'}
+                fill={isHovered
+                  ? (positive ? 'var(--accent-green)' : 'var(--accent-red)')
+                  : (positive ? 'rgba(14,203,129,0.65)' : 'rgba(246,70,93,0.65)')}
                 rx={1}
               />
               {i % Math.max(1, Math.floor(daily.length / 6)) === 0 && (
@@ -154,9 +156,14 @@ function DailyChart({ daily, t }) {
           <div style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
             {daily[hover].date}
           </div>
-          <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 13 }}>
+          <div style={{ color: daily[hover].pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
             {daily[hover].pnl >= 0 ? '+' : ''}{daily[hover].pnl.toFixed(2)} USDT
           </div>
+          {daily[hover].trades != null && (
+            <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
+              {daily[hover].trades} trade{daily[hover].trades !== 1 ? 's' : ''}
+            </div>
+          )}
         </div>
       )}
     </div>
