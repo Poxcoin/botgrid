@@ -814,6 +814,7 @@ export default function AnalyticsTab() {
     { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${parseFloat(r.pnl).toFixed(2)}` },
     { key: 'avg_win', label: t.dashboard.analytics.hAvgWin, align: 'right', render: r => r.avg_win > 0 ? `+${parseFloat(r.avg_win).toFixed(2)}` : parseFloat(r.avg_win).toFixed(2) },
     { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right', muted: true, render: r => parseFloat(r.avg_loss || 0).toFixed(2) },
+    { key: '_rr', label: 'R:R', align: 'right', muted: true, render: r => r.avg_win > 0 && r.avg_loss < 0 ? (r.avg_win / Math.abs(r.avg_loss)).toFixed(2) : '—' },
   ];
 
   const coinCols = [
@@ -823,6 +824,7 @@ export default function AnalyticsTab() {
     { key: 'pnl', label: t.dashboard.analytics.hPnlUsdt, align: 'right', render: r => `${r.pnl >= 0 ? '+' : ''}${parseFloat(r.pnl).toFixed(2)}` },
     { key: 'avg_win', label: t.dashboard.analytics.hAvgWin, align: 'right', render: r => r.avg_win > 0 ? `+${parseFloat(r.avg_win).toFixed(2)}` : '—' },
     { key: 'avg_loss', label: t.dashboard.analytics.hAvgLoss, align: 'right', muted: true, render: r => r.avg_loss < 0 ? parseFloat(r.avg_loss).toFixed(2) : '—' },
+    { key: '_rr', label: 'R:R', align: 'right', muted: true, render: r => r.avg_win > 0 && r.avg_loss < 0 ? (r.avg_win / Math.abs(r.avg_loss)).toFixed(2) : '—' },
   ];
 
   const fmtDuration = r => {
@@ -892,7 +894,7 @@ export default function AnalyticsTab() {
       }}>
         <StatCard
           label={t.dashboard.analytics.totalTrades}
-          value={allTrades.length || (summary?.total_trades ?? 0)}
+          value={allTrades.length}
           sub={`${periodStats.wins}W · ${periodStats.losses}L`}
         />
         <StatCard
