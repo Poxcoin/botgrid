@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { authFetch } from '@/lib/api';
 import { useChartWidth } from '@/lib/useChartWidth';
+import { useLang } from '@/lib/LangContext';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
@@ -67,11 +68,13 @@ function NoKeyBanner() {
 
 function PositionsTable({ positions }) {
   if (!positions || !positions.length) return null;
-  const cols = ['Coin', 'Side', 'Lev', 'Qty', 'Value (USDT)', 'Entry', 'Mark', 'Unreal PnL', 'SL', 'TP', 'Liq'];
+  const { t } = useLang();
+  const td = t.dashboard;
+  const cols = [td.analytics.hCoin, td.hSide, td.hLev, td.hQty, `${td.hValue} (USDT)`, td.hEntry, td.hMark, td.hUnrealPnl, td.hSL, td.hTP, td.hLiq];
   return (
     <div style={{ border: '1px solid var(--border-subtle)', marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border-subtle)' }}>
-        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Open Positions</span>
+        <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{td.overview.openPositions}</span>
         <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--accent-green)' }}>{positions.length}</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
@@ -131,10 +134,12 @@ function PositionsTable({ positions }) {
 
 function BotPerformanceCards({ bots }) {
   if (!bots || !bots.length) return null;
+  const { t } = useLang();
+  const td = t.dashboard;
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
-        Bot Performance
+        {td.botPerformance}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
         {bots.map((bot, i) => {
@@ -154,11 +159,11 @@ function BotPerformanceCards({ bots }) {
               </div>
               <div style={{ display: 'flex', gap: 16 }}>
                 <div>
-                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Trades</div>
+                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>{td.analytics.hTrades}</div>
                   <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{bot.trades ?? '—'}</div>
                 </div>
                 <div>
-                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Win Rate</div>
+                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>{td.overview.winRate}</div>
                   <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{bot.win_rate != null ? `${bot.win_rate}%` : '—'}</div>
                 </div>
               </div>
@@ -217,6 +222,8 @@ const ChartTooltip = ({ active, payload }) => {
 };
 
 function PnlChart({ hasKey }) {
+  const { t } = useLang();
+  const td = t.dashboard;
   const [chartRef, chartW] = useChartWidth();
   const [days, setDays]           = useState(30);
   const [rawData, setRawData]     = useState(null);
@@ -338,9 +345,9 @@ function PnlChart({ hasKey }) {
         {stats && (
           <div style={{ display: 'flex', gap: 32, marginBottom: 16, flexWrap: 'wrap' }}>
             {[
-              { label: 'PnL', val: `${stats.pnl >= 0 ? '+' : ''}$${stats.pnl.toFixed(2)}`, color: stats.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
-              { label: 'Trades', val: stats.trades },
-              { label: 'Win Rate', val: `${stats.wr}%` },
+              { label: td.hPnL, val: `${stats.pnl >= 0 ? '+' : ''}$${stats.pnl.toFixed(2)}`, color: stats.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' },
+              { label: td.analytics.hTrades, val: stats.trades },
+              { label: td.overview.winRate, val: `${stats.wr}%` },
               { label: 'W / L', val: `${stats.wins} / ${stats.losses}` },
             ].map(({ label, val, color: c }) => (
               <div key={label}>
