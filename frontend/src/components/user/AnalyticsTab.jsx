@@ -297,6 +297,20 @@ function CoinCard({ r, maxAbsPnl }) {
       <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
         {r.trades} trades
       </div>
+      {hovered && (r.avg_win > 0 || r.avg_loss < 0) && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+          {r.avg_win > 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--accent-green)' }}>
+              avg W: +{parseFloat(r.avg_win).toFixed(2)}
+            </span>
+          )}
+          {r.avg_loss < 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--accent-red)' }}>
+              avg L: {parseFloat(r.avg_loss).toFixed(2)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -592,6 +606,8 @@ export default function AnalyticsTab() {
   const [allTrades, setAllTrades] = useState([]);
   const [tradePage, setTradePage] = useState(1);
   const [allDays,   setAllDays]   = useState(0);
+  const [tradeSearch, setTradeSearch] = useState('');
+  const [tradeSide,   setTradeSide]   = useState('ALL');
 
   const fetchData = useCallback(async (days = 0) => {
     setLoading(true);
@@ -995,13 +1011,43 @@ export default function AnalyticsTab() {
 
       {/* All trades — paginated, newest first */}
       {allTrades.length > 0 && (() => {
-        const sorted = [...allTrades].sort((a, b) => parseInt(b.closed_at) - parseInt(a.closed_at));
-        const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+        const lc = tradeSearch.toLowerCase();
+        const filtered = [...allTrades]
+          .filter(t => {
+            if (tradeSide !== 'ALL' && (t.side || '').toUpperCase() !== tradeSide) return false;
+            if (lc && !(t.symbol || '').toLowerCase().includes(lc)) return false;
+            return true;
+          })
+          .sort((a, b) => parseInt(b.closed_at) - parseInt(a.closed_at));
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
         const page = Math.min(tradePage, totalPages);
-        const pageRows = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+        const btnSide = {
+          background: 'none', border: '1px solid var(--border-subtle)', fontFamily: MONO,
+          fontSize: 10, letterSpacing: '0.1em', padding: '4px 10px', cursor: 'pointer', transition: 'all 120ms',
+        };
         return (
           <div style={{ marginBottom: 32 }}>
-            <SectionLabel title="All Trades" right={`${allTrades.length} total`} />
+            <SectionLabel title="All Trades" right={`${filtered.length !== allTrades.length ? `${filtered.length} / ` : ''}${allTrades.length} total`} />
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {['ALL', 'LONG', 'SHORT'].map(s => (
+                <button key={s} onClick={() => { setTradeSide(s); setTradePage(1); }} style={{
+                  ...btnSide,
+                  borderColor: tradeSide === s ? (s === 'LONG' ? 'var(--accent-green)' : s === 'SHORT' ? 'var(--accent-red)' : 'var(--border-default)') : 'var(--border-subtle)',
+                  color: tradeSide === s ? (s === 'LONG' ? 'var(--accent-green)' : s === 'SHORT' ? 'var(--accent-red)' : 'var(--text-primary)') : 'var(--text-muted)',
+                }}>{s}</button>
+              ))}
+              <input
+                value={tradeSearch}
+                onChange={e => { setTradeSearch(e.target.value); setTradePage(1); }}
+                placeholder="Symbol…"
+                style={{
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 3,
+                  color: 'var(--text-primary)', fontFamily: MONO, fontSize: 10, padding: '4px 10px',
+                  outline: 'none', width: 110, letterSpacing: '0.04em',
+                }}
+              />
+            </div>
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
               <DataTable
                 cols={allTradesCols}
@@ -1039,7 +1085,7 @@ export default function AnalyticsTab() {
       })()}
 
       <div style={{ paddingTop: 20, borderTop: '1px solid var(--border-subtle)' }}>
-        <button onClick={fetchData} style={{
+        <button onClick={() => fetchData(allDays)} style={{
           background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)',
           fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
           padding: '8px 20px', cursor: 'pointer', transition: 'border-color 150ms, color 150ms',
