@@ -1142,16 +1142,16 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
         {tab === 'pnl' && (filteredClosed.length === 0 ? <Empty /> :
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(110px,1fr))', gap: 0 }}>
             {[
-              ['Total PnL',  `${sign(pnlTotal)} USDT`, pos(pnlTotal) ? 'var(--accent-green)' : 'var(--accent-red)'],
-              ['Win Rate',   `${pnlWr}%`,              pnlWr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'],
-              ['Trades',     String(filteredClosed.length), 'var(--text-primary)'],
-              ['W / L',      `${pnlWins.length} / ${pnlLoss.length}`, 'var(--text-primary)'],
-              ...(pnlStats.avgWin  != null ? [['Avg Win',  `+${pnlStats.avgWin}`,  'var(--accent-green)']] : []),
-              ...(pnlStats.avgLoss != null ? [['Avg Loss', `${pnlStats.avgLoss}`,  'var(--accent-red)']]   : []),
+              [ta.totalPnl,    `${sign(pnlTotal)} USDT`, pos(pnlTotal) ? 'var(--accent-green)' : 'var(--accent-red)'],
+              [to.winRate,     `${pnlWr}%`,              pnlWr >= 50 ? 'var(--accent-green)' : 'var(--accent-red)'],
+              [ta.hTrades,     String(filteredClosed.length), 'var(--text-primary)'],
+              [to.wl,          `${pnlWins.length} / ${pnlLoss.length}`, 'var(--text-primary)'],
+              ...(pnlStats.avgWin  != null ? [[ta.hAvgWin,  `+${pnlStats.avgWin}`,  'var(--accent-green)']] : []),
+              ...(pnlStats.avgLoss != null ? [[ta.hAvgLoss, `${pnlStats.avgLoss}`,  'var(--accent-red)']]   : []),
               ...(pnlStats.avgWin != null && pnlStats.avgLoss != null ? (() => { const rr = +(pnlStats.avgWin / Math.abs(pnlStats.avgLoss)).toFixed(2); return [['R:R', `${rr}`, rr >= 1 ? 'var(--accent-green)' : 'var(--accent-red)']]; })() : []),
-              ...(pnlStats.pf      != null ? [['Profit ×', `${pnlStats.pf}×`, pnlStats.pf >= 1 ? 'var(--accent-green)' : 'var(--accent-red)']] : []),
-              ...(pnlStats.best    != null ? [['Best',     `+${pnlStats.best}`,    'var(--accent-green)']] : []),
-              ...(pnlStats.worst   != null ? [['Worst',    `${pnlStats.worst}`,    'var(--accent-red)']]   : []),
+              ...(pnlStats.pf      != null ? [[ta.profitFactor, `${pnlStats.pf}×`, pnlStats.pf >= 1 ? 'var(--accent-green)' : 'var(--accent-red)']] : []),
+              ...(pnlStats.best    != null ? [[to.best,     `+${pnlStats.best}`,    'var(--accent-green)']] : []),
+              ...(pnlStats.worst   != null ? [[to.worst,    `${pnlStats.worst}`,    'var(--accent-red)']]   : []),
             ].map(([l, v, col]) => (
               <div key={l} style={{ padding: '16px 14px', borderRight: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>{l}</div>
@@ -1178,10 +1178,10 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           balance ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 0 }}>
               {[
-                ['Wallet Balance', `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}`, true],
-                ['Equity',         `$${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}`, true],
-                ['Unrealized PnL', `${sign(balance.unrealized_pnl)} USDT`, pos(balance.unrealized_pnl)],
-                ['Available',      `$${(+(balance.usdt_free ?? 0)).toFixed(2)}`, true],
+                [ta.bWallet,     `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}`, true],
+                [ta.bEquity,     `$${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}`, true],
+                [ta.bUnrealized, `${sign(balance.unrealized_pnl)} USDT`, pos(balance.unrealized_pnl)],
+                [ta.bAvailable,  `$${(+(balance.usdt_free ?? 0)).toFixed(2)}`, true],
               ].map(([l, v, good]) => (
                 <div key={l} style={{ padding: '20px 18px', borderRight: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{l}</div>
@@ -1235,6 +1235,9 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const dbSource  = dbSources[0]; // primary key for heartbeat + labels
   const isMobile  = useIsMobile();
   const isLocked  = false;
+  const { t }     = useLang();
+  const to        = t.dashboard.overview;
+  const ta        = t.dashboard.analytics;
 
   // ── Real-time WebSocket feed ──────────────────────────────────────────────
   const { positions, balance, openOrders, trades, connected, noKey } = useLiveStream();
@@ -1460,10 +1463,10 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       {/* ── STATS ─────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', gap: 0, border: '1px solid var(--border-subtle)', flexShrink: 0 }}>
         {[
-          { label: 'Balance',    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `equity $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
-          { label: 'Unrealized', value: botPos.length > 0 ? `${sign(botUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} open position${botPos.length !== 1 ? 's' : ''}` : 'no open positions', good: botPos.length ? pos(botUnreal) : null },
-          { label: 'Realized',   value: stats.n > 0 ? `${sign(stats.total)} USDT` : '—', sub: stats.n > 0 ? `${stats.n} closed trades` : 'no trades yet', good: stats.n > 0 ? pos(stats.total) : null },
-          { label: 'Win Rate',   value: stats.n > 0 ? `${stats.wr}%` : '—', sub: stats.n > 0 ? `${stats.wins}W / ${stats.n - stats.wins}L` : '—', good: stats.n > 0 ? stats.wr >= 50 : null },
+          { label: ta.bWallet,    value: balance ? `$${(+(balance.usdt_wallet ?? balance.wallet ?? 0)).toFixed(2)}` : '—', sub: (balance?.usdt_equity ?? balance?.equity) ? `${ta.bEquity.toLowerCase()} $${(+(balance.usdt_equity ?? balance.equity ?? 0)).toFixed(2)}` : null, good: null },
+          { label: ta.bUnrealized, value: botPos.length > 0 ? `${sign(botUnreal)} USDT` : '—', sub: botPos.length ? `${botPos.length} ${to.openPositions.toLowerCase()}` : to.noOpenPos, good: botPos.length ? pos(botUnreal) : null },
+          { label: to.realized,   value: stats.n > 0 ? `${sign(stats.total)} USDT` : '—', sub: stats.n > 0 ? `${stats.n} ${to.closedTrades}` : to.noTrades, good: stats.n > 0 ? pos(stats.total) : null },
+          { label: to.winRate,    value: stats.n > 0 ? `${stats.wr}%` : '—', sub: stats.n > 0 ? `${stats.wins}W / ${stats.n - stats.wins}L` : '—', good: stats.n > 0 ? stats.wr >= 50 : null },
         ].map((s, i) => {
           const cols = isMobile ? 2 : 4;
           const last = i === 3;
@@ -1483,7 +1486,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
 
       {/* ── BOT STATUS ────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap', flexShrink: 0, alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none' }}>
-        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 2, flexShrink: 0 }}>Bots</span>
+        <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginRight: 2, flexShrink: 0 }}>{to.bots}</span>
         {ALL_BOTS_CONFIG.map(b => {
           const h = heartbeat[b.source];
           const ago = h?.last_trade_min_ago;
