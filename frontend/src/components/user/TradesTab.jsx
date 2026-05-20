@@ -47,7 +47,7 @@ export default function TradesTab() {
   useEffect(() => {
     setLoading(true);
     API(`/api/users/closed-pnl?days=${days}`)
-      .then(setData).catch(console.error).finally(() => setLoading(false));
+      .then(setData).catch(() => {}).finally(() => setLoading(false));
   }, [days]);
 
   const allTrades = data?.trades ?? [];

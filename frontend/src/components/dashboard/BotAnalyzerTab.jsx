@@ -1,11 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LIVE_FACTORS, WIN_RATE_SERIES } from '@/lib/mockData';
+import { LIVE_FACTORS } from '@/lib/mockData';
 import { authFetch } from '@/lib/api';
-import { useChartWidth } from '@/lib/useChartWidth';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  BarChart, Bar, Cell,
-} from 'recharts';
 
 function FactorBar({ label, value, weight, unit }) {
   const pct = Math.max(5, Math.min(100, Math.abs(value) * 10));
@@ -27,59 +22,103 @@ function FactorBar({ label, value, weight, unit }) {
   );
 }
 
-function WinRateChart() {
-  const [ref, w] = useChartWidth();
+function BotCard({ label, data }) {
+  if (!data) return null;
+  const pnl = data.total ?? 0;
+  const pos = pnl >= 0;
   return (
-    <div ref={ref} className="p-5" style={{ height: 280 }}>
-      {w > 0 && (
-        <LineChart width={w} height={240} data={WIN_RATE_SERIES} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid stroke="#0A0A0A" strokeOpacity={0.08} />
-          <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
-          <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[40, 80]} />
-          <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
-          <Line type="monotone" dataKey="winRate" stroke="#0A0A0A" strokeWidth={2} dot={false} isAnimationActive={false} />
-        </LineChart>
-      )}
-    </div>
-  );
-}
-
-function AvgScoreChart() {
-  const [ref, w] = useChartWidth();
-  return (
-    <div ref={ref} className="p-5" style={{ height: 280 }}>
-      {w > 0 && (
-        <BarChart width={w} height={240} data={WIN_RATE_SERIES} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-          <CartesianGrid stroke="#0A0A0A" strokeOpacity={0.08} />
-          <XAxis dataKey="day" tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} />
-          <YAxis tick={{ fontFamily: 'JetBrains Mono', fontSize: 10, fill: '#737373' }} axisLine={{ stroke: '#0A0A0A' }} tickLine={false} domain={[5, 9]} />
-          <Tooltip contentStyle={{ background: '#0A0A0A', color: '#fff', border: 'none', fontFamily: 'JetBrains Mono', fontSize: 11 }} />
-          <Bar dataKey="avgScore" isAnimationActive={false}>
-            {WIN_RATE_SERIES.map((_, i) => <Cell key={i} fill={i % 5 === 0 ? '#0047FF' : '#0A0A0A'} />)}
-          </Bar>
-        </BarChart>
-      )}
+    <div className="border border-kado-black/15 p-4 flex flex-col gap-1">
+      <div className="font-mono text-[9px] tracking-[0.25em] uppercase text-kado-gray mb-2">{label}</div>
+      <div className={`font-black font-mono text-2xl tabular-nums ${pos ? '' : 'text-red-600'}`}>
+        {pos ? '+' : ''}{pnl.toFixed(2)} <span className="text-sm font-normal text-kado-gray">USDT</span>
+      </div>
+      <div className="font-mono text-[10px] text-kado-gray flex gap-4 mt-1">
+        <span>{data.trades ?? 0} trades</span>
+        <span>{data.wr ?? 0}% WR</span>
+        <span className={data.today >= 0 ? '' : 'text-red-500'}>
+          today {data.today >= 0 ? '+' : ''}{(data.today ?? 0).toFixed(2)}
+        </span>
+        <span className={data.week >= 0 ? '' : 'text-red-500'}>
+          7d {data.week >= 0 ? '+' : ''}{(data.week ?? 0).toFixed(2)}
+        </span>
+      </div>
     </div>
   );
 }
 
 export default function BotAnalyzerTab() {
-  const [stats, setStats] = useState(null);
+  const [stats,  setStats]  = useState(null);
+  const [report, setReport] = useState(null);
+  const [trades, setTrades] = useState([]);
 
   useEffect(() => {
     authFetch('/api/stats').then(r => r.ok ? r.json() : null).then(d => d && setStats(d)).catch(() => {});
+    authFetch('/api/bot-pnl').then(r => r.ok ? r.json() : null).then(d => d && setReport(d)).catch(() => {});
+    authFetch('/api/bot-trades?n=30').then(r => r.ok ? r.json() : null).then(d => d?.trades && setTrades(d.trades)).catch(() => {});
   }, []);
 
   const composite = LIVE_FACTORS.reduce((acc, f) => acc + Math.abs(f.value) * f.weight, 0).toFixed(1);
 
   return (
     <div className="p-4 md:p-8 space-y-8">
+
+      {/* Per-bot PnL cards */}
+      {report && (
+        <div>
+          <div className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray mb-3">Bot Performance — All Time</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 border border-kado-black/15">
+            {[
+              { label: 'Signal Bot', key: 'signal'  },
+              { label: 'Grid Bot',   key: 'grid'    },
+              { label: 'Funding',    key: 'funding'  },
+              { label: 'Cascade',   key: 'cascade'  },
+            ].map(b => <BotCard key={b.key} label={b.label} data={report[b.key]} />)}
+          </div>
+        </div>
+      )}
+
+      {/* Top / Worst coins */}
+      {report && (report.top_coins?.length > 0 || report.worst_coins?.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+          <div className="border border-kado-black lg:-mr-px">
+            <div className="px-5 h-10 flex items-center border-b border-kado-black/15">
+              <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">Top Coins</span>
+            </div>
+            <div className="p-4 space-y-2">
+              {(report.top_coins ?? []).map(([coin, pnl]) => (
+                <div key={coin} className="flex justify-between font-mono text-[12px]">
+                  <span>{coin}</span>
+                  <span className={pnl >= 0 ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="border border-kado-black">
+            <div className="px-5 h-10 flex items-center border-b border-kado-black/15">
+              <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">Worst Coins</span>
+            </div>
+            <div className="p-4 space-y-2">
+              {(report.worst_coins ?? []).map(([coin, pnl]) => (
+                <div key={coin} className="flex justify-between font-mono text-[12px]">
+                  <span>{coin}</span>
+                  <span className={pnl >= 0 ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}>
+                    {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
         {/* Scoring formula */}
         <div className="border border-kado-black lg:-mr-px">
           <div className="px-5 h-12 flex items-center justify-between border-b border-kado-black">
             <h3 className="font-black tracking-tight text-lg">Scoring Formula</h3>
-            <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">LIVE VALUES</span>
+            <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">WEIGHTS</span>
           </div>
           <div className="p-5">
             <div className="font-mono text-[11px] tracking-[0.2em] uppercase text-kado-gray mb-4 leading-relaxed">
@@ -95,7 +134,7 @@ export default function BotAnalyzerTab() {
           </div>
         </div>
 
-        {/* Real stats */}
+        {/* Live Statistics */}
         <div className="border border-kado-black">
           <div className="px-5 h-12 flex items-center justify-between border-b border-kado-black">
             <h3 className="font-black tracking-tight text-lg">Live Statistics</h3>
@@ -121,23 +160,46 @@ export default function BotAnalyzerTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-        <div className="border border-kado-black lg:-mr-px">
-          <div className="px-5 h-12 flex items-center justify-between border-b border-kado-black">
-            <h3 className="font-black tracking-tight text-lg">Win Rate Over Time</h3>
-            <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">30 DAYS · DEMO</span>
-          </div>
-          <WinRateChart />
-        </div>
-
+      {/* Recent trades */}
+      {trades.length > 0 && (
         <div className="border border-kado-black">
           <div className="px-5 h-12 flex items-center justify-between border-b border-kado-black">
-            <h3 className="font-black tracking-tight text-lg">Avg Score per Day</h3>
-            <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">30 DAYS · DEMO</span>
+            <h3 className="font-black tracking-tight text-lg">Recent Bot Trades</h3>
+            <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">{trades.length} TRADES</span>
           </div>
-          <AvgScoreChart />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse font-mono text-[11px]">
+              <thead>
+                <tr className="border-b border-kado-black/15">
+                  {['Bot','Coin','Side','Entry','Exit','PnL','Result','Duration'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left tracking-[0.15em] uppercase text-kado-gray font-normal text-[9px]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {trades.map((tr, i) => {
+                  const win = tr.result === 'WIN';
+                  const pnl = parseFloat(tr.pnl_usdt ?? 0);
+                  return (
+                    <tr key={i} className="border-b border-kado-black/8 hover:bg-kado-black/3">
+                      <td className="px-4 py-2 uppercase text-[10px]">{tr.bot_source}</td>
+                      <td className="px-4 py-2 font-bold">{tr.coin}</td>
+                      <td className="px-4 py-2">{tr.action}</td>
+                      <td className="px-4 py-2 text-kado-gray">{tr.entry_price ? (+tr.entry_price).toFixed(4) : '—'}</td>
+                      <td className="px-4 py-2 text-kado-gray">{tr.exit_price  ? (+tr.exit_price).toFixed(4)  : '—'}</td>
+                      <td className={`px-4 py-2 font-bold ${pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                        {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
+                      </td>
+                      <td className={`px-4 py-2 font-bold ${win ? 'text-green-700' : 'text-red-600'}`}>{tr.result ?? '—'}</td>
+                      <td className="px-4 py-2 text-kado-gray">{tr.duration_min != null ? `${tr.duration_min}m` : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
