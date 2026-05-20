@@ -45,9 +45,7 @@ export default function SystemLogsTab() {
         <div className="h-12 px-5 flex items-center justify-between border-b border-kado-black">
           <h3 className="font-black tracking-tight text-lg">System Logs</h3>
           <div className="flex items-center gap-4 font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">
-            <span className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-green-500 animate-blink" /> streaming
-            </span>
+            <span>streaming</span>
             <span>refresh 5s</span>
           </div>
         </div>

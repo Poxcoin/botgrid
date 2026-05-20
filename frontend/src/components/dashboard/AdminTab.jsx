@@ -330,12 +330,9 @@ function DispatcherPanel() {
     <div className="border border-kado-black">
       <div className="px-5 h-12 border-b border-kado-black flex items-center justify-between">
         <h3 className="font-black tracking-tight text-lg">Running Bots</h3>
-        <div className="flex items-center gap-3">
-          <span className="w-1.5 h-1.5 bg-green-500 animate-blink" />
-          <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">
-            {instances.length} active · 15s refresh
-          </span>
-        </div>
+        <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">
+          {instances.length} active · 15s refresh
+        </span>
       </div>
       {instances.length === 0 ? (
         <div className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">
