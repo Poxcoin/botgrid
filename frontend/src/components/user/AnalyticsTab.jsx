@@ -184,7 +184,7 @@ function DailyChart({ daily, t }) {
           </div>
           {daily[hover].trades != null && (
             <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
-              {daily[hover].trades} trade{daily[hover].trades !== 1 ? 's' : ''}
+              {daily[hover].trades} {t.dashboard.analytics.tradesLbl}
             </div>
           )}
         </div>
@@ -369,7 +369,7 @@ const shortDay = (dayIdx, locale) =>
   new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2023, 0, 1 + dayIdx));
 
 function DayOfWeekChart({ trades }) {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const locale = LOCALE_MAP[lang] || 'en-US';
   const [hover, setHover] = React.useState(null);
   const data = useMemo(() => {
@@ -423,7 +423,7 @@ function DayOfWeekChart({ trades }) {
             {data[hover].pnl >= 0 ? '+' : ''}{data[hover].pnl.toFixed(2)} USDT
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
-            {data[hover].trades} trades · {data[hover].trades ? Math.round(data[hover].wins / data[hover].trades * 100) : 0}% WR
+            {data[hover].trades} {t.dashboard.analytics.tradesLbl} · {data[hover].trades ? Math.round(data[hover].wins / data[hover].trades * 100) : 0}% {t.dashboard.analytics.hWinRate}
           </div>
         </div>
       )}
@@ -432,6 +432,7 @@ function DayOfWeekChart({ trades }) {
 }
 
 function HourOfDayChart({ trades }) {
+  const { t } = useLang();
   const [hover, setHover] = React.useState(null);
   const data = useMemo(() => {
     const buckets = Array.from({ length: 24 }, (_, h) => ({ h, pnl: 0, trades: 0, wins: 0 }));
@@ -509,7 +510,7 @@ function HourOfDayChart({ trades }) {
             {data[hover].pnl >= 0 ? '+' : ''}{data[hover].pnl.toFixed(2)} USDT
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
-            {data[hover].trades} trades · {data[hover].trades ? Math.round(data[hover].wins / data[hover].trades * 100) : 0}% WR
+            {data[hover].trades} {t.dashboard.analytics.tradesLbl} · {data[hover].trades ? Math.round(data[hover].wins / data[hover].trades * 100) : 0}% {t.dashboard.analytics.hWinRate}
           </div>
         </div>
       )}
@@ -520,7 +521,7 @@ function HourOfDayChart({ trades }) {
 const CURVE_LOC = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' };
 
 function EquityCurve({ trades }) {
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const wrapRef = useRef(null);
   const [w, setW] = useState(0);
   const [hover, setHover] = useState(null);
@@ -635,7 +636,7 @@ function EquityCurve({ trades }) {
           <div style={{ color: data[hover].v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
             {data[hover].v >= 0 ? '+' : ''}{data[hover].v.toFixed(2)} USDT
           </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>trade {hover + 1} of {data.length}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>{t.dashboard.analytics.tradesLbl} #{hover + 1} / {data.length}</div>
         </div>
       )}
     </div>
@@ -1036,7 +1037,7 @@ export default function AnalyticsTab() {
             </button>
           ))}
           <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center', marginLeft: 6 }}>
-            {allTrades.length} trades
+            {allTrades.length} {t.dashboard.analytics.tradesLbl}
           </span>
         </div>
       )}
@@ -1104,15 +1105,15 @@ export default function AnalyticsTab() {
                     </div>
                     <div style={{ display: 'flex', gap: 20 }}>
                       <div>
-                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Trades</div>
+                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>{t.dashboard.analytics.hTrades}</div>
                         <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{s.trades}</div>
                       </div>
                       <div>
-                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Win Rate</div>
+                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>{t.dashboard.analytics.hWinRate}</div>
                         <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{wr}%</div>
                       </div>
                       <div>
-                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Avg Trade</div>
+                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>{t.dashboard.analytics.avgTrade}</div>
                         <div style={{ fontFamily: MONO, fontSize: 13, color: s.trades ? (s.pnl / s.trades >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-muted)' }}>
                           {s.trades ? `${s.pnl / s.trades >= 0 ? '+' : ''}${(s.pnl / s.trades).toFixed(2)}` : '—'}
                         </div>

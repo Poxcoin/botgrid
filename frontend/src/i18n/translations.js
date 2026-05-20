@@ -256,6 +256,7 @@ export const translations = {
         bEquity:        'Equity',
         bUnrealized:    'Unrealized',
         bAvailable:     'Available',
+        tradesLbl:      'trades',
       },
       panel: {
         openOrders:   'Open Orders',
@@ -1090,6 +1091,7 @@ export const translations = {
         bEquity:        'Capital',
         bUnrealized:    'No realizado',
         bAvailable:     'Disponible',
+        tradesLbl:      'operaciones',
       },
       panel: {
         openOrders:   'Órdenes abiertas',
@@ -1924,6 +1926,7 @@ export const translations = {
         bEquity:        'Капітал',
         bUnrealized:    'Нереалізоване',
         bAvailable:     'Доступно',
+        tradesLbl:      'угод',
       },
       panel: {
         openOrders:   'Відкриті ордери',
@@ -2758,6 +2761,7 @@ export const translations = {
         bEquity:        'Капитал',
         bUnrealized:    'Нереализ.',
         bAvailable:     'Доступно',
+        tradesLbl:      'сделок',
       },
       panel: {
         openOrders:   'Открытые ордера',
@@ -3592,6 +3596,7 @@ export const translations = {
         bEquity:        'Kapital',
         bUnrealized:    'Unrealis.',
         bAvailable:     'Verfügbar',
+        tradesLbl:      'Trades',
       },
       panel: {
         openOrders:   'Offene Orders',
@@ -4426,6 +4431,7 @@ export const translations = {
         bEquity:        '净值',
         bUnrealized:    '未实现',
         bAvailable:     '可用',
+        tradesLbl:      '笔',
       },
       panel: {
         openOrders:   '挂单',
