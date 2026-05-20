@@ -1035,6 +1035,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
               ['W / L',      `${pnlWins.length} / ${pnlLoss.length}`, 'var(--text-primary)'],
               ...(pnlStats.avgWin  != null ? [['Avg Win',  `+${pnlStats.avgWin}`,  'var(--accent-green)']] : []),
               ...(pnlStats.avgLoss != null ? [['Avg Loss', `${pnlStats.avgLoss}`,  'var(--accent-red)']]   : []),
+              ...(pnlStats.avgWin != null && pnlStats.avgLoss != null ? (() => { const rr = +(pnlStats.avgWin / Math.abs(pnlStats.avgLoss)).toFixed(2); return [['R:R', `${rr}`, rr >= 1 ? 'var(--accent-green)' : 'var(--accent-red)']]; })() : []),
               ...(pnlStats.pf      != null ? [['Profit ×', `${pnlStats.pf}×`, pnlStats.pf >= 1 ? 'var(--accent-green)' : 'var(--accent-red)']] : []),
               ...(pnlStats.best    != null ? [['Best',     `+${pnlStats.best}`,    'var(--accent-green)']] : []),
               ...(pnlStats.worst   != null ? [['Worst',    `${pnlStats.worst}`,    'var(--accent-red)']]   : []),

@@ -3,17 +3,16 @@ import { authFetch } from '@/lib/api';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLang } from '@/lib/LangContext';
 
-const B    = 'rgba(255,255,255,0.06)';
-const MUTED = '#555';
-const MONO  = "'Courier New','SF Mono',monospace";
+const B    = 'var(--border-subtle)';
+const MUTED = 'var(--text-muted)';
+const MONO  = 'var(--font-mono)';
 
 function StatBox({ label, value, sub, color }) {
-  const topBorder = '1px solid rgba(255,255,255,0.08)';
   return (
     <div
       style={{
         flex: 1, background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)', borderTop: topBorder,
+        border: '1px solid var(--border-subtle)',
         borderRadius: 12, padding: '20px 22px',
         transition: 'border-color 200ms ease',
       }}
@@ -91,28 +90,28 @@ function PositionsTable({ positions }) {
               const isLong   = p.side === 'LONG';
               const isProfit = (p.unrealized_pnl ?? 0) >= 0;
               return (
-                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '11px 20px', color: '#ccc', fontWeight: 700 }}>{p.symbol}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: '#aaa' }}>{p.side}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#888' }}>{p.leverage ?? '—'}×</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.entry_price?.toFixed(priceDp(p.entry_price)) ?? '—'}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: '#999' }}>{p.mark_price?.toFixed(priceDp(p.mark_price)) ?? '—'}</td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? '#ccc' : '#888' }}>
+                  <td style={{ padding: '11px 20px', color: 'var(--text-primary)', fontWeight: 700 }}>{p.symbol}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)' }}>{p.side}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-muted)' }}>{p.leverage ?? '—'}×</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-secondary)' }}>{p.entry_price?.toFixed(priceDp(p.entry_price)) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: 'var(--text-secondary)' }}>{p.mark_price?.toFixed(priceDp(p.mark_price)) ?? '—'}</td>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isProfit ? '+' : ''}{(p.unrealized_pnl ?? 0).toFixed(2)}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: isProfit ? '#ccc' : '#888' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: isProfit ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isProfit ? '+' : ''}{p.pnl_pct ?? '—'}%
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? '#888' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.stop_loss ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                     {p.stop_loss?.toFixed(priceDp(p.stop_loss)) ?? '—'}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? '#aaa' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.take_profit ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                     {p.take_profit?.toFixed(priceDp(p.take_profit)) ?? '—'}
                   </td>
-                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? '#666' : '#333' }}>
+                  <td style={{ padding: '11px 20px', textAlign: 'right', color: p.liq_price ? 'var(--text-muted)' : 'var(--border-default)' }}>
                     {p.liq_price?.toFixed(priceDp(p.liq_price)) ?? '—'}
                   </td>
                 </tr>
@@ -147,7 +146,7 @@ function CoinBreakdown({ trades }) {
     <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
         <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Top Coins — 30d</span>
-        <span style={{ fontFamily: MONO, fontSize: 9, color: '#333', letterSpacing: '0.12em' }}>LIVE · FROM BYBIT</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--border-strong)', letterSpacing: '0.12em' }}>LIVE · FROM BYBIT</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
@@ -166,14 +165,14 @@ function CoinBreakdown({ trades }) {
             {rows.map((r, i) => {
               const isPos = r.pnl >= 0;
               return (
-                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '10px 20px', color: '#ccc', fontWeight: 700, letterSpacing: '0.04em' }}>{r.coin}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.trades}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{r.wr}%</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? '#ccc' : '#888' }}>
+                  <td style={{ padding: '10px 20px', color: 'var(--text-primary)', fontWeight: 700, letterSpacing: '0.04em' }}>{r.coin}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: 'var(--text-muted)' }}>{r.trades}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: r.wr >= 50 ? 'var(--accent-green)' : 'var(--text-muted)' }}>{r.wr}%</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isPos ? '+' : ''}{parseFloat(r.pnl).toFixed(2)}
                   </td>
                 </tr>
@@ -196,7 +195,7 @@ function BotsSection({ bots, heartbeat }) {
     <div style={{ border: `1px solid ${B}`, marginBottom: 24 }}>
       <div style={{ padding: '0 20px', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
         <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED }}>Bot Performance</span>
-        <span style={{ fontFamily: MONO, fontSize: 9, color: '#333', letterSpacing: '0.12em' }}>ALL TIME</span>
+        <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--border-strong)', letterSpacing: '0.12em' }}>ALL TIME</span>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
@@ -224,17 +223,17 @@ function BotsSection({ bots, heartbeat }) {
               }
               const wr = b.win_rate;
               return (
-                <tr key={i} style={{ borderBottom: `1px solid rgba(255,255,255,0.025)` }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
-                  <td style={{ padding: '10px 20px', color: '#ccc', fontWeight: 700 }}>{b.label}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', color: '#888' }}>{b.trades ? `${wr}%` : '—'}</td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? '#ccc' : '#888' }}>
+                  <td style={{ padding: '10px 20px', color: 'var(--text-primary)', fontWeight: 700 }}>{b.label}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: 'var(--text-muted)' }}>{b.trades}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: b.trades && wr >= 50 ? 'var(--accent-green)' : 'var(--text-muted)' }}>{b.trades ? `${wr}%` : '—'}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', fontWeight: 700, color: isPos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {isPos ? '+' : ''}{parseFloat(b.pnl).toFixed(2)}
                   </td>
-                  <td style={{ padding: '10px 20px', textAlign: 'right', color: MUTED, fontSize: 10 }}>{lastStr}</td>
+                  <td style={{ padding: '10px 20px', textAlign: 'right', color: 'var(--text-muted)', fontSize: 10 }}>{lastStr}</td>
                 </tr>
               );
             })}
