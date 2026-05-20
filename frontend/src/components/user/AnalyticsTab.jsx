@@ -1502,48 +1502,39 @@ export default function AnalyticsTab() {
 
         return (
           <div style={{ marginBottom: 32, marginTop: 32 }}>
-            <SectionLabel title={t.dashboard.pnl.monthlyGrossPnl} right={`${pnlRows.length} mo`} />
+            <SectionLabel title={t.dashboard.pnl.monthlyGrossPnl} right={`${pnlRows.length} ${t.dashboard.analytics.tradesLbl.replace('trades','mo').trim()}`} />
 
-            {/* Stat cards — BotTab style */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+            {/* Stat cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border-subtle)', marginBottom: 1 }}>
               {[
-                { label: t.dashboard.pnl.totalGross, val: totalGross },
-                { label: t.dashboard.pnl.totalFee,   val: totalFee },
-                { label: t.dashboard.pnl.totalNet,   val: totalNet },
-              ].map(({ label, val }) => (
-                <div key={label} style={{
-                  flex: 1, minWidth: 120, background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)', borderRadius: 12,
-                  padding: '20px 22px', transition: 'border-color 200ms',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}
-                >
-                  <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{label}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+                { label: t.dashboard.pnl.totalGross, val: totalGross, col: true },
+                { label: t.dashboard.pnl.totalFee,   val: totalFee,   col: false },
+                { label: t.dashboard.pnl.totalNet,   val: totalNet,   col: true },
+              ].map(({ label, val, col }) => (
+                <div key={label} style={{ padding: '18px 20px', background: 'var(--bg-base)' }}>
+                  <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{label}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: col ? (val >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)' }}>
                     {val >= 0 ? '+' : ''}{val.toFixed(2)}
                   </div>
-                  <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', marginTop: 6, letterSpacing: '0.1em' }}>USDT</div>
                 </div>
               ))}
             </div>
 
-            {/* Monthly bar chart — neutral single color */}
-            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '16px 20px 12px', marginBottom: 12, position: 'relative' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 84 }}>
+            {/* Monthly bar chart */}
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '12px 16px 8px', marginBottom: 1, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
                 {reversed.map((r, i) => {
-                  const h = Math.abs(r.gross_pnl) / maxAbs * 60;
+                  const h = Math.abs(r.gross_pnl) / maxAbs * 64;
+                  const pos = r.gross_pnl >= 0;
                   const isH = hovBar === i;
                   return (
                     <div key={`${r.year}-${r.month}`}
-                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'default' }}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'default' }}
                       onMouseEnter={() => setHovBar(i)} onMouseLeave={() => setHovBar(null)}>
-                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 64 }}>
-                        <div style={{
-                          marginTop: 'auto', width: '100%', height: Math.max(h, 2), borderRadius: 3,
-                          background: isH ? 'var(--text-secondary)' : 'var(--border-strong)',
-                          transition: 'background 120ms',
-                        }} />
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 66 }}>
+                        <div style={{ marginTop: 'auto', width: '100%', height: Math.max(h, 2),
+                          background: pos ? (isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)') : (isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.65)'),
+                          transition: 'background 100ms' }} />
                       </div>
                       <div style={{ fontFamily: MONO, fontSize: 8, color: isH ? 'var(--text-secondary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {shortMonth(r.month - 1, locale)}{multiYear ? ` '${String(r.year).slice(2)}` : ''}
@@ -1554,45 +1545,45 @@ export default function AnalyticsTab() {
               </div>
               {hovBar != null && reversed[hovBar] && (
                 <div style={{
-                  position: 'absolute', top: 12,
+                  position: 'absolute', top: 8,
                   left: `${(hovBar / reversed.length + 0.5 / reversed.length) * 100}%`,
                   transform: 'translateX(-50%)',
-                  background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 8,
-                  padding: '8px 14px', fontFamily: MONO, fontSize: 11,
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+                  padding: '7px 12px', fontFamily: MONO, fontSize: 11,
                   pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
                 }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 4 }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>
                     {shortMonth(reversed[hovBar].month - 1, locale)} {reversed[hovBar].year}
                   </div>
-                  <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 13 }}>
-                    {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} USDT
+                  <div style={{ color: reversed[hovBar].gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
+                    {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} {t.dashboard.pnl.gross}
                   </div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>
                     {t.dashboard.pnl.net} {reversed[hovBar].net_pnl >= 0 ? '+' : ''}{reversed[hovBar].net_pnl.toFixed(2)}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Cumulative net PnL line — accent blue */}
+            {/* Cumulative net PnL line */}
             {cumN >= 2 && (
-              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '14px 20px', marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderTop: 'none', padding: '10px 16px 8px', marginBottom: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{t.dashboard.pnl.cumNetPnl}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: cumCol }}>
                     {cumPos ? '+' : ''}{cumPts[cumPts.length - 1].toFixed(2)} USDT
                   </div>
                 </div>
                 <svg viewBox={`0 0 100 ${cumH}`} preserveAspectRatio="none" style={{ width: '100%', height: cumH, display: 'block' }}>
-                  <path d={areaPth} fill="rgba(66,153,225,0.08)" />
-                  <path d={linePth} fill="none" stroke="var(--accent-blue)" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
-                  <circle cx={cumXs[cumXs.length-1].toFixed(1)} cy={cumYs[cumYs.length-1].toFixed(1)} r="2" fill="var(--accent-blue)" vectorEffect="non-scaling-stroke" />
+                  <path d={areaPth} fill={cumPos ? 'rgba(14,203,129,0.08)' : 'rgba(246,70,93,0.08)'} />
+                  <path d={linePth} fill="none" stroke={cumCol} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+                  <circle cx={cumXs[cumXs.length-1].toFixed(1)} cy={cumYs[cumYs.length-1].toFixed(1)} r="2" fill={cumCol} vectorEffect="non-scaling-stroke" />
                 </svg>
               </div>
             )}
 
             {/* Monthly table */}
-            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderTop: 'none' }}>
               <DataTable
                 cols={pnlTableCols}
                 rows={pnlRows}
