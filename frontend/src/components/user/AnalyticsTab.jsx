@@ -894,15 +894,15 @@ export default function AnalyticsTab() {
   };
 
   const allTradesCols = [
-    { key: 'date', label: 'Date', muted: true, render: r => { const ms = parseInt(r.closed_at); const loc = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' }[lang]||'en-US'; return ms ? new Date(ms).toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; } },
-    { key: 'symbol', label: 'Symbol', bold: true, render: r => r.symbol || '—' },
-    { key: 'side', label: 'Side', render: r => <span style={{ color: r.side === 'LONG' ? 'var(--accent-green)' : r.side === 'SHORT' ? 'var(--accent-red)' : 'var(--text-muted)' }}>{r.side || '—'}</span> },
-    { key: 'entry_price', label: 'Entry', render: r => r.entry_price ? (+r.entry_price).toFixed(4) : '—' },
-    { key: 'exit_price', label: 'Exit', render: r => r.exit_price ? (+r.exit_price).toFixed(4) : '—' },
-    { key: 'qty', label: 'Qty', muted: true, render: r => r.qty ? (+r.qty).toFixed(3) : '—' },
-    { key: '_dur', label: 'Dur', muted: true, render: fmtDuration },
-    { key: 'source', label: 'Source', muted: true, render: r => BOT_LABELS[r.source] || r.source || '—' },
-    { key: 'pnl', label: 'PnL', align: 'right', bold: true, render: r => `${(r.pnl ?? 0) >= 0 ? '+' : ''}${(r.pnl ?? 0).toFixed(2)}` },
+    { key: 'date', label: t.dashboard.hDate, muted: true, render: r => { const ms = parseInt(r.closed_at); const loc = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' }[lang]||'en-US'; return ms ? new Date(ms).toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; } },
+    { key: 'symbol', label: t.dashboard.hSymbol, bold: true, render: r => r.symbol || '—' },
+    { key: 'side', label: t.dashboard.hSide, render: r => <span style={{ color: r.side === 'LONG' ? 'var(--accent-green)' : r.side === 'SHORT' ? 'var(--accent-red)' : 'var(--text-muted)' }}>{r.side || '—'}</span> },
+    { key: 'entry_price', label: t.dashboard.hEntry, render: r => r.entry_price ? (+r.entry_price).toFixed(4) : '—' },
+    { key: 'exit_price', label: t.dashboard.hExit, render: r => r.exit_price ? (+r.exit_price).toFixed(4) : '—' },
+    { key: 'qty', label: t.dashboard.hQty, muted: true, render: r => r.qty ? (+r.qty).toFixed(3) : '—' },
+    { key: '_dur', label: t.dashboard.hDur, muted: true, render: fmtDuration },
+    { key: 'source', label: t.dashboard.hSource, muted: true, render: r => BOT_LABELS[r.source] || r.source || '—' },
+    { key: 'pnl', label: t.dashboard.hPnL, align: 'right', bold: true, render: r => `${(r.pnl ?? 0) >= 0 ? '+' : ''}${(r.pnl ?? 0).toFixed(2)}` },
   ];
 
   const sign = v => (v >= 0 ? '+' : '') + parseFloat(v ?? 0).toFixed(2);
