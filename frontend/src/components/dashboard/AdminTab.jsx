@@ -122,8 +122,10 @@ function PlatformStats() {
 // ── InvoicesPanel ─────────────────────────────────────────────────────────────
 
 function InvoicesPanel() {
-  const [invoices, setInvoices] = useState(null);
-  const [marking, setMarking] = useState(null);
+  const [invoices,   setInvoices]   = useState(null);
+  const [marking,    setMarking]    = useState(null);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchUser,   setSearchUser]   = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -143,12 +145,54 @@ function InvoicesPanel() {
     setMarking(null);
   };
 
+  const visible = useMemo(() => {
+    if (!invoices) return [];
+    const lc = searchUser.toLowerCase();
+    return invoices.filter(inv => {
+      if (statusFilter === 'PAID'    && !inv.fee_paid)  return false;
+      if (statusFilter === 'PENDING' &&  inv.fee_paid)  return false;
+      if (lc && !(inv.user_email || '').toLowerCase().includes(lc)) return false;
+      return true;
+    });
+  }, [invoices, statusFilter, searchUser]);
+
+  const totalCollected = useMemo(() => (invoices || []).filter(i => i.fee_paid).reduce((s, i) => s + i.fee, 0), [invoices]);
+  const totalPending   = useMemo(() => (invoices || []).filter(i => !i.fee_paid).reduce((s, i) => s + i.fee, 0), [invoices]);
+
   return (
     <div className="border border-kado-black">
       <div className="px-5 h-12 border-b border-kado-black flex items-center justify-between">
         <h3 className="font-black tracking-tight text-lg">Performance Fee Invoices</h3>
-        <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">25% of profit</span>
+        <div className="flex items-center gap-4 font-mono text-[10px] tracking-[0.2em] uppercase">
+          <span className="text-green-700">Collected ${totalCollected.toFixed(2)}</span>
+          <span className="text-amber-600">Pending ${totalPending.toFixed(2)}</span>
+        </div>
       </div>
+
+      {/* Filter bar */}
+      <div className="px-5 py-3 border-b border-kado-black/15 flex items-center gap-3 flex-wrap bg-kado-black/[0.02]">
+        {['ALL', 'PENDING', 'PAID'].map(s => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`font-mono text-[10px] tracking-[0.15em] uppercase px-3 py-1 border transition-colors ${statusFilter === s ? 'bg-kado-black text-white border-kado-black' : 'border-kado-black/20 text-kado-gray hover:border-kado-black/40'}`}
+          >
+            {s}
+          </button>
+        ))}
+        <input
+          value={searchUser}
+          onChange={e => setSearchUser(e.target.value)}
+          placeholder="Filter by email…"
+          className="font-mono text-[11px] border border-kado-black/20 bg-white px-3 py-1.5 outline-none w-44"
+        />
+        {invoices && (
+          <span className="font-mono text-[10px] text-kado-gray ml-auto">
+            {visible.length !== invoices.length ? `${visible.length} / ${invoices.length}` : `${invoices.length} invoices`}
+          </span>
+        )}
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
@@ -166,9 +210,9 @@ function InvoicesPanel() {
           <tbody>
             {invoices === null ? (
               <tr><td colSpan={8} className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">Loading...</td></tr>
-            ) : invoices.length === 0 ? (
-              <tr><td colSpan={8} className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">No invoices yet</td></tr>
-            ) : invoices.map(inv => (
+            ) : visible.length === 0 ? (
+              <tr><td colSpan={8} className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">No matching invoices</td></tr>
+            ) : visible.map(inv => (
               <tr key={inv.id} className="border-t border-kado-black/15 hover:bg-kado-black/[0.02]">
                 <td className="px-5 py-3 font-mono text-[12px]">{inv.user_email || `#${inv.user_id}`}</td>
                 <td className="px-5 py-3 font-mono text-kado-gray">{MONTHS[inv.month - 1]} {inv.year}</td>
