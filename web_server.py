@@ -1554,11 +1554,11 @@ async def get_plan_features(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    """Return the list of bot IDs this user's plan grants access to."""
-    user = _get_user_from_token(credentials.credentials, db)
-    from modules.saas_dispatcher import PLAN_BOTS
-    allowed = PLAN_BOTS.get(user.effective_plan, set())
-    return {"bots": sorted(allowed)}
+    """Return the list of bot IDs this user has access to — all bots, no plan gate."""
+    _get_user_from_token(credentials.credentials, db)
+    all_bots = ["news", "fr", "fr_extreme", "grid", "listing", "whale",
+                "cascade", "orderflow", "sweep", "ob", "sniper", "altcoin"]
+    return {"bots": sorted(all_bots)}
 
 
 @app.get("/api/users/bot-summary")
