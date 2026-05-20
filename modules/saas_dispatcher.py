@@ -33,7 +33,7 @@ def _schedule_fr_close(user: dict, symbol: str, side: str, qty: float,
     def _run():
         time.sleep(delay_min * 60)
         try:
-            ex = _build_exchange(user["api_key"], user["secret"], user["is_testnet"])
+            ex = _build_exchange(user["api_key"], user["secret"], user["is_demo"])
             order_side = "sell" if side == "LONG" else "buy"
             ex.create_order(symbol, "market", order_side, qty, params={
                 "category":    "linear",
@@ -47,26 +47,13 @@ def _schedule_fr_close(user: dict, symbol: str, side: str, qty: float,
 
     threading.Thread(target=_run, daemon=True, name=f"fr-close-{symbol}").start()
 
-# Bots available per plan
-PLAN_BOTS = {
-    "trial":       {"grid"},
-    "free":        set(),
-    "basic":       {"grid", "news"},
-    "pro":         {"grid", "news", "fr", "liq_cascade", "listing", "whale", "dex", "cascade", "orderflow", "sweep", "fr_extreme", "ob", "signal"},
-    "performance": {"grid", "news", "fr", "liq_cascade", "listing", "whale", "dex", "cascade", "orderflow", "sweep", "fr_extreme", "ob", "signal"},
-}
-
-
 def _get_active_users(source: str) -> list[dict]:
-    """Return users who can trade this signal source."""
+    """Return all active users with API keys — no plan gate."""
     db = SessionLocal()
     try:
         users = db.query(User).filter(User.is_active == True).all()
         result = []
         for u in users:
-            allowed = PLAN_BOTS.get(u.effective_plan, set())
-            if source not in allowed:
-                continue
             if not u.api_keys:
                 continue
             key_row = next((k for k in u.api_keys if k.exchange == "bybit"), None)
@@ -79,7 +66,7 @@ def _get_active_users(source: str) -> list[dict]:
             result.append({
                 "user_id":         u.user_id if hasattr(u, "user_id") else u.id,
                 "tg_chat_id":      u.tg_chat_id,
-                "is_testnet":      key_row.is_testnet,
+                "is_demo":      key_row.is_demo,
                 "api_key":         api_key,
                 "secret":          secret,
                 "trade_size_pct":  None,  # risk-based auto sizing
@@ -89,14 +76,14 @@ def _get_active_users(source: str) -> list[dict]:
         db.close()
 
 
-def _build_exchange(api_key: str, secret: str, is_testnet: bool) -> ccxt.bybit:
+def _build_exchange(api_key: str, secret: str, is_demo: bool) -> ccxt.bybit:
     ex = ccxt.bybit({
         "apiKey": api_key,
         "secret": secret,
         "options": {"defaultType": "linear"},
     })
     ex.has["fetchCurrencies"] = False
-    if is_testnet:
+    if is_demo:
         ex.urls["api"] = ex.urls["demotrading"]
     ex.load_markets()
     return ex
@@ -192,7 +179,7 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         finally:
             _db.close()
 
-        ex = _build_exchange(user["api_key"], user["secret"], user["is_testnet"])
+        ex = _build_exchange(user["api_key"], user["secret"], user["is_demo"])
 
         # Balance → position size (risk-based: 1% of balance per trade)
         balance = _get_free_usdt(ex)
