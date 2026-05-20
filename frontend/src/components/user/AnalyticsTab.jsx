@@ -311,6 +311,69 @@ function CoinGrid({ coins }) {
   );
 }
 
+const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function DayOfWeekChart({ trades }) {
+  const [hover, setHover] = React.useState(null);
+  const data = useMemo(() => {
+    const buckets = Array.from({ length: 7 }, (_, i) => ({ day: i, pnl: 0, trades: 0, wins: 0 }));
+    for (const tr of trades) {
+      const ms = parseInt(tr.closed_at);
+      if (!ms) continue;
+      const dow = new Date(ms).getDay();
+      const p = parseFloat(tr.pnl ?? 0);
+      buckets[dow].pnl += p;
+      buckets[dow].trades += 1;
+      if (p > 0) buckets[dow].wins += 1;
+    }
+    return buckets.map(b => ({ ...b, pnl: parseFloat(b.pnl.toFixed(2)) }));
+  }, [trades]);
+
+  const maxAbs = Math.max(...data.map(d => Math.abs(d.pnl)), 0.01);
+  if (!trades.length) return null;
+
+  return (
+    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '16px 16px 8px', position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
+        {data.map((d, i) => {
+          const barH = Math.abs(d.pnl) / maxAbs * 64;
+          const pos = d.pnl >= 0;
+          const isH = hover === i;
+          return (
+            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'default' }}
+              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 68 }}>
+                {pos
+                  ? <div style={{ marginTop: 'auto', width: '100%', height: barH || 2, background: isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)', transition: 'background 100ms' }} />
+                  : <div style={{ marginTop: 'auto', width: '100%', height: barH || 2, background: isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.65)', transition: 'background 100ms' }} />
+                }
+              </div>
+              <div style={{ fontFamily: MONO, fontSize: 9, color: hover === i ? 'var(--text-secondary)' : 'var(--text-muted)', letterSpacing: '0.06em' }}>
+                {DOW_LABELS[d.day]}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hover != null && (
+        <div style={{
+          position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+          padding: '7px 14px', fontFamily: MONO, fontSize: 11, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
+        }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>{DOW_LABELS[data[hover].day]}</div>
+          <div style={{ color: data[hover].pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
+            {data[hover].pnl >= 0 ? '+' : ''}{data[hover].pnl.toFixed(2)} USDT
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 2 }}>
+            {data[hover].trades} trades · {data[hover].trades ? Math.round(data[hover].wins / data[hover].trades * 100) : 0}% WR
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EquityCurve({ trades }) {
   const wrapRef = useRef(null);
   const [w, setW] = useState(0);
@@ -706,6 +769,14 @@ export default function AnalyticsTab() {
         <div style={{ marginBottom: 32 }}>
           <SectionLabel title="Equity Curve" right={`${allTrades.length} trades · all time`} />
           <EquityCurve trades={allTrades} />
+        </div>
+      )}
+
+      {/* Day of week breakdown */}
+      {allTrades.length >= 7 && (
+        <div style={{ marginBottom: 32 }}>
+          <SectionLabel title="Day of Week" right="avg PnL by weekday" />
+          <DayOfWeekChart trades={allTrades} />
         </div>
       )}
 
