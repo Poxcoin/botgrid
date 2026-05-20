@@ -728,68 +728,84 @@ export default function AnalyticsTab() {
     );
   }
 
-  const winRate = summary?.total_trades ? pct(summary.wins, summary.total_trades) : '—';
-  const totalPnl = summary?.total_pnl ?? 0;
   const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
 
-  const { avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration } = useMemo(() => {
-    if (!allTrades.length) return { avgTrade: null, streak: 0, streakDir: null, profitFactor: null, maxDrawdown: null, avgDuration: null };
+  // All stats computed from allTrades so they respond to the period selector
+  const periodStats = useMemo(() => {
+    if (!allTrades.length) return {
+      totalPnl: 0, wins: 0, losses: 0, winRate: '—',
+      avgTrade: null, streak: 0, streakDir: null, profitFactor: null, maxDrawdown: null, avgDuration: null,
+      byCoin: [], bySource: [], best: [], worst: [],
+    };
+
     const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
-    const total = sorted.reduce((s, t) => s + parseFloat(t.pnl ?? 0), 0);
-    const avg = total / sorted.length;
-    let count = 0;
-    let dir = null;
-    for (let i = sorted.length - 1; i >= 0; i--) {
-      const w = parseFloat(sorted[i].pnl ?? 0) > 0;
-      if (dir === null) { dir = w; count = 1; }
-      else if (dir === w) count++;
-      else break;
-    }
+    let totalPnl = 0, wins = 0;
     let totalWin = 0, totalLoss = 0, peak = 0, equity = 0, maxDD = 0;
     let durSum = 0, durCount = 0;
+    const coinMap = {}, srcMap = {};
+
     for (const t of sorted) {
       const p = parseFloat(t.pnl ?? 0);
+      totalPnl += p;
+      if (p > 0) wins += 1;
+
+      // coin aggregation
+      const c = t.symbol || '';
+      if (!coinMap[c]) coinMap[c] = { coin: c, trades: 0, pnl: 0, wins: 0, win_pnls: [], loss_pnls: [] };
+      coinMap[c].trades += 1; coinMap[c].pnl += p;
+      if (p > 0) { coinMap[c].wins += 1; coinMap[c].win_pnls.push(p); } else { coinMap[c].loss_pnls.push(p); }
+
+      // source aggregation (merge news+signal → Signal Bot)
+      const src = t.source || 'other';
+      const lbl = BOT_LABELS[src] || src;
+      if (!srcMap[lbl]) srcMap[lbl] = { source: src, label: lbl, trades: 0, pnl: 0, wins: 0, win_pnls: [], loss_pnls: [] };
+      srcMap[lbl].trades += 1; srcMap[lbl].pnl += p;
+      if (p > 0) { srcMap[lbl].wins += 1; srcMap[lbl].win_pnls.push(p); } else { srcMap[lbl].loss_pnls.push(p); }
+
+      // advanced metrics
       if (p > 0) totalWin += p; else totalLoss += Math.abs(p);
       equity += p;
       if (equity > peak) peak = equity;
       const dd = peak - equity;
       if (dd > maxDD) maxDD = dd;
-      const o = parseInt(t.opened_at), c = parseInt(t.closed_at);
-      if (o && c && c > o) { durSum += (c - o) / 60000; durCount++; }
+      const o = parseInt(t.opened_at), cl = parseInt(t.closed_at);
+      if (o && cl && cl > o) { durSum += (cl - o) / 60000; durCount++; }
     }
-    const avgDurMin = durCount > 0 ? Math.round(durSum / durCount) : null;
+
+    // streak
+    let count = 0, dir = null;
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const w = parseFloat(sorted[i].pnl ?? 0) > 0;
+      if (dir === null) { dir = w; count = 1; } else if (dir === w) count++; else break;
+    }
+
+    const agg = map => Object.values(map).map(v => ({
+      ...v, pnl: parseFloat(v.pnl.toFixed(2)),
+      avg_win:  v.win_pnls.length  ? parseFloat((v.win_pnls.reduce((s, x) => s + x, 0)  / v.win_pnls.length).toFixed(2))  : 0,
+      avg_loss: v.loss_pnls.length ? parseFloat((v.loss_pnls.reduce((s, x) => s + x, 0) / v.loss_pnls.length).toFixed(2)) : 0,
+    })).sort((a, b) => b.pnl - a.pnl);
+
+    const byDate = [...allTrades].sort((a, b) => parseFloat(b.pnl ?? 0) - parseFloat(a.pnl ?? 0));
+    const losses = allTrades.length - wins;
+
     return {
-      avgTrade: avg,
-      streak: count,
-      streakDir: dir,
+      totalPnl: parseFloat(totalPnl.toFixed(2)),
+      wins, losses,
+      winRate: allTrades.length ? pct(wins, allTrades.length) : '—',
+      avgTrade: totalPnl / allTrades.length,
+      streak: count, streakDir: dir,
       profitFactor: totalLoss > 0 ? +(totalWin / totalLoss).toFixed(2) : null,
       maxDrawdown: maxDD > 0 ? +maxDD.toFixed(2) : null,
-      avgDuration: avgDurMin,
+      avgDuration: durCount > 0 ? Math.round(durSum / durCount) : null,
+      byCoin: agg(coinMap),
+      bySource: agg(srcMap),
+      best:  byDate.slice(0, 5).map(t => ({ coin: t.symbol, pnl: parseFloat(t.pnl ?? 0), closed_at: t.closed_at, side: t.side, source: t.source, duration_min: (() => { const o = parseInt(t.opened_at), c = parseInt(t.closed_at); return (o && c && c > o) ? Math.round((c - o) / 60000) : null; })() })),
+      worst: byDate.slice(-5).reverse().map(t => ({ coin: t.symbol, pnl: parseFloat(t.pnl ?? 0), closed_at: t.closed_at, side: t.side, source: t.source, duration_min: (() => { const o = parseInt(t.opened_at), c = parseInt(t.closed_at); return (o && c && c > o) ? Math.round((c - o) / 60000) : null; })() })),
     };
   }, [allTrades]);
 
-  // Merge rows that share the same display label (e.g. "news"+"signal" → single "Signal Bot" row)
-  const mergedBySource = Object.values(
-    (data?.by_source ?? []).reduce((acc, r) => {
-      const key = r.label || r.source;
-      if (!acc[key]) {
-        acc[key] = { ...r, _winSum: r.wins * (r.avg_win || 0), _lossSum: (r.trades - r.wins) * (r.avg_loss || 0) };
-      } else {
-        const prev = acc[key];
-        const losses = r.trades - r.wins;
-        prev.trades   += r.trades;
-        prev.pnl       = +(prev.pnl + r.pnl).toFixed(2);
-        prev.wins     += r.wins;
-        prev._winSum  += r.wins * (r.avg_win || 0);
-        prev._lossSum += losses * (r.avg_loss || 0);
-      }
-      return acc;
-    }, {})
-  ).map(r => ({
-    ...r,
-    avg_win:  r.wins > 0           ? +(r._winSum  / r.wins).toFixed(2)               : 0,
-    avg_loss: (r.trades - r.wins) > 0 ? +(r._lossSum / (r.trades - r.wins)).toFixed(2) : 0,
-  })).sort((a, b) => b.pnl - a.pnl);
+  const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration } = periodStats;
+  const mergedBySource = periodStats.bySource;
 
   const botCols = [
     { key: 'source', label: t.dashboard.analytics.hSource, bold: true, render: r => r.label || r.source },
@@ -876,8 +892,8 @@ export default function AnalyticsTab() {
       }}>
         <StatCard
           label={t.dashboard.analytics.totalTrades}
-          value={summary?.total_trades ?? 0}
-          sub={`${summary?.wins ?? 0}W · ${summary?.losses ?? 0}L`}
+          value={allTrades.length || (summary?.total_trades ?? 0)}
+          sub={`${periodStats.wins}W · ${periodStats.losses}L`}
         />
         <StatCard
           label={t.dashboard.analytics.totalPnl}
@@ -888,7 +904,7 @@ export default function AnalyticsTab() {
         <StatCard
           label={t.dashboard.analytics.winRate}
           value={winRate === '—' ? '—' : <span style={{ color: parseFloat(winRate) >= 50 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{winRate}</span>}
-          sub={`${summary?.wins ?? 0} ${t.dashboard.analytics.wins}`}
+          sub={`${periodStats.wins} ${t.dashboard.analytics.wins}`}
         />
         <StatCard
           label={t.dashboard.analytics.bestDay}
@@ -1038,14 +1054,14 @@ export default function AnalyticsTab() {
       })()}
 
       {/* By coin — card grid or table */}
-      {by_coin && by_coin.length > 0 && (
+      {periodStats.byCoin.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 10, marginBottom: 16 }}>
             <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               {t.dashboard.analytics.byCoin}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)' }}>{by_coin.length} {t.dashboard.analytics.coinsSort}</span>
+              <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)' }}>{periodStats.byCoin.length} {t.dashboard.analytics.coinsSort}</span>
               <div style={{ display: 'flex', gap: 2 }}>
                 {['cards', 'table'].map(v => (
                   <button key={v} onClick={() => setCoinView(v)} style={{
@@ -1059,12 +1075,12 @@ export default function AnalyticsTab() {
             </div>
           </div>
           {coinView === 'cards'
-            ? <CoinGrid coins={by_coin} />
+            ? <CoinGrid coins={periodStats.byCoin} />
             : (
               <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
                 <DataTable
                   cols={coinCols}
-                  rows={[...by_coin].sort((a, b) => {
+                  rows={[...periodStats.byCoin].sort((a, b) => {
                     let va, vb;
                     if (coinSort === '_wr') { va = a.trades ? a.wins / a.trades : 0; vb = b.trades ? b.wins / b.trades : 0; }
                     else { va = parseFloat(a[coinSort] ?? 0); vb = parseFloat(b[coinSort] ?? 0); }
@@ -1107,21 +1123,21 @@ export default function AnalyticsTab() {
       )}
 
       {/* Top 5 best / worst trades */}
-      {(best?.length > 0 || worst?.length > 0) && (
+      {(periodStats.best.length > 0 || periodStats.worst.length > 0) && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
-          {best?.length > 0 && (
+          {periodStats.best.length > 0 && (
             <div>
               <SectionLabel title={t.dashboard.analytics.topBest} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {best.map((tr, i) => <TradeRow key={i} tr={tr} />)}
+                {periodStats.best.map((tr, i) => <TradeRow key={i} tr={tr} />)}
               </div>
             </div>
           )}
-          {worst?.length > 0 && (
+          {periodStats.worst.length > 0 && (
             <div>
               <SectionLabel title={t.dashboard.analytics.topWorst} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {worst.map((tr, i) => <TradeRow key={i} tr={tr} />)}
+                {periodStats.worst.map((tr, i) => <TradeRow key={i} tr={tr} />)}
               </div>
             </div>
           )}
