@@ -1067,7 +1067,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const isLocked  = false;
 
   // ── Real-time WebSocket feed ──────────────────────────────────────────────
-  const { positions, balance, openOrders, trades, connected } = useLiveStream();
+  const { positions, balance, openOrders, trades, connected, noKey } = useLiveStream();
 
   const [coin,      setCoin]      = useState('BTC');
   const [isBW,      setIsBW]      = useState(false);
@@ -1236,6 +1236,21 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--text-primary)', fontWeight: 600 }}>Bot not available on your plan</div>
       <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--text-muted)' }}>Upgrade to access this bot</div>
       <a href="/pricing" style={{ marginTop: 8, padding: '10px 24px', background: 'var(--accent-green)', color: '#000', borderRadius: 6, fontWeight: 700, fontSize: 13, textDecoration: 'none' }}>Upgrade Plan</a>
+    </div>
+  );
+
+  if (noKey) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 12, textAlign: 'center', padding: '0 24px' }}>
+      <div style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>No API Key Connected</div>
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 360 }}>
+        Connect your Bybit API key to see live positions, balance, and trade history for this bot.
+      </div>
+      <button
+        onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
+        style={{ marginTop: 8, padding: '10px 24px', background: 'var(--text-primary)', color: 'var(--bg-base)', border: 'none', fontFamily: FM, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer' }}
+      >
+        Add API Key →
+      </button>
     </div>
   );
 

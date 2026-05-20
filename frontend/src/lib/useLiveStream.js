@@ -17,6 +17,7 @@ export function useLiveStream() {
   const [trades,     setTrades]     = useState([]);
   const [connected,  setConnected]  = useState(false);
   const [ts,         setTs]         = useState(null);
+  const [noKey,      setNoKey]      = useState(false);
 
   const wsRef        = useRef(null);
   const reconnectRef = useRef(null);
@@ -69,8 +70,14 @@ export function useLiveStream() {
     ws.onclose = (ev) => {
       if (!mountedRef.current) return;
       setConnected(false);
-      // 4001 = auth error — don't reconnect (token invalid/expired)
+      // 4001 = auth invalid/expired — redirect to login
       if (ev.code === 4001) return;
+      // 4002 = no API key connected — no point retrying until user adds a key
+      if (ev.code === 4002) { setNoKey(true); return; }
+      // 4029 = rate limited — back off 30s before retrying
+      if (ev.code === 4029) { reconnectRef.current = setTimeout(connect, 30000); return; }
+      // 4003 = internal server error — back off 10s
+      if (ev.code === 4003) { reconnectRef.current = setTimeout(connect, 10000); return; }
       reconnectRef.current = setTimeout(connect, 3000);
     };
 
@@ -87,5 +94,5 @@ export function useLiveStream() {
     };
   }, [connect]);
 
-  return { positions, balance, openOrders, trades, connected, ts };
+  return { positions, balance, openOrders, trades, connected, ts, noKey };
 }
