@@ -39,7 +39,7 @@ function CandleChart({ x, y, width, height, count = 40, seed = 42, opacity = 0.0
       {/* Grid lines */}
       {[0, 0.25, 0.5, 0.75, 1].map(t => (
         <line key={t} x1={x} x2={x + width} y1={y + height * t} y2={y + height * t}
-          stroke="white" strokeWidth="0.4" strokeDasharray="4 8" opacity="0.4" />
+          stroke="white" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.55" />
       ))}
       {/* Candles */}
       {candles.map((c, i) => {
@@ -56,7 +56,7 @@ function CandleChart({ x, y, width, height, count = 40, seed = 42, opacity = 0.0
         );
       })}
       {/* Price line */}
-      <polyline points={closePts} fill="none" stroke="white" strokeWidth="0.8" opacity="0.5" />
+      <polyline points={closePts} fill="none" stroke="white" strokeWidth="1.0" opacity="0.7" />
     </g>
   );
 }
@@ -68,17 +68,21 @@ function BackgroundCharts() {
       preserveAspectRatio="xMidYMid slice"
       viewBox="0 0 1400 900"
     >
-      {/* Main chart — right side */}
-      <CandleChart x={640} y={60} width={720} height={340} count={48} seed={77} opacity={0.07} />
-      {/* Secondary chart — bottom left */}
-      <CandleChart x={20} y={520} width={420} height={220} count={32} seed={133} opacity={0.05} />
-      {/* Micro chart — top left corner */}
-      <CandleChart x={20} y={40} width={260} height={140} count={26} seed={211} opacity={0.04} />
+      {/* Main chart — right side, dominant */}
+      <CandleChart x={620} y={40} width={760} height={380} count={52} seed={77} opacity={0.18} />
+      {/* Mid chart — bottom center */}
+      <CandleChart x={340} y={560} width={520} height={240} count={38} seed={133} opacity={0.12} />
+      {/* Left chart — mid height */}
+      <CandleChart x={0} y={180} width={360} height={200} count={30} seed={211} opacity={0.09} />
+      {/* Micro chart — top left */}
+      <CandleChart x={20} y={20} width={300} height={150} count={28} seed={317} opacity={0.07} />
+      {/* Far right bottom */}
+      <CandleChart x={1040} y={560} width={360} height={200} count={28} seed={419} opacity={0.10} />
       {/* Volume bars — right bottom */}
-      {generateCandles(48, 60, 20, 99).map((c, i) => (
+      {generateCandles(52, 60, 22, 99).map((c, i) => (
         <rect key={i}
-          x={640 + i * 15 + 1} y={820 - c.high * 1.2} width={10} height={c.high * 1.2}
-          fill="white" opacity={0.03 + (c.close > c.open ? 0.02 : 0)} />
+          x={620 + i * 14 + 1} y={830 - c.high * 1.4} width={10} height={c.high * 1.4}
+          fill="white" opacity={0.05 + (c.close > c.open ? 0.03 : 0)} />
       ))}
     </svg>
   );
