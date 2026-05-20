@@ -22,7 +22,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Optional
 
-from modules.market_data import get_funding_rate, get_open_interest
+from modules.market_data import get_funding_rate, get_open_interest, get_market_metrics
 from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
@@ -55,7 +55,7 @@ FR_BULL_MAJOR  = 0.009    # >0.009% (90% of BTC/ETH hard cap) → SHORT
 FR_BEAR_MAJOR  = 0.006    # <-0.006% (unusually negative) → LONG
 
 OI_CONFIRM_PCT  = 1.0     # OI grew ≥1% in last 4h → size_mult 1.3x
-HURST_MAX       = 0.65    # H > 0.65 = strong trend → skip FR signals (mean-reversion fails in trends)
+HURST_MAX       = 0.55    # H > 0.55 = trend detected → skip FR signals (was 0.65, too permissive)
 
 
 def _get_thresholds(symbol: str) -> tuple[float, float]:
@@ -216,6 +216,18 @@ def run_fr_extreme_engine() -> None:
                         continue
                 except Exception:
                     pass  # if hurst check fails, proceed anyway
+
+                # BTC trend filter: don't SHORT when market is in uptrend
+                if sig["direction"] == "SHORT":
+                    try:
+                        btc_metrics = get_market_metrics("BTC") if coin != "BTC" else get_market_metrics(coin)
+                        btc_trend = (btc_metrics or {}).get("trend_24h_percent", 0.0)
+                        if btc_trend >= 0.5:
+                            print(f"[FRE] ⛔ {coin} SHORT — BTC +{btc_trend:.1f}% (ринок росте)")
+                            time.sleep(COIN_SLEEP)
+                            continue
+                    except Exception:
+                        pass
 
                 direction  = sig["direction"]
                 size_mult  = sig["size_mult"]

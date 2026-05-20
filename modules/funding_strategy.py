@@ -65,7 +65,7 @@ RSI_LONG_MAX  = 75   # блокуємо тільки явний перегрів
 RSI_SHORT_MIN = 25   # блокуємо тільки явний перепродаж
 
 BTC_LONG_BLOCK_TREND  = -3.0   # блокуємо тільки при сильному обвалі BTC
-BTC_SHORT_BLOCK_TREND = +3.0   # блокуємо тільки при сильному ралі BTC
+BTC_SHORT_BLOCK_TREND = +0.5   # блокуємо SHORT вже при помірному зростанні BTC
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
 # Критерії: >$50M добового обсягу на Bybit, є на Binance perps, EMA200 доступна
@@ -192,6 +192,11 @@ def _calc_signal(coin: str) -> dict | None:
             return None  # ринок вже продали, momentum закінчився
         if btc_trend >= BTC_SHORT_BLOCK_TREND:
             print(f"[FR] ⛔ {coin} SHORT — BTC +{btc_trend:.1f}% (ринок росте)")
+            return None
+        # EMA50 > EMA200 → макро-аптренд → hard block (симетрично до LONG-фільтру)
+        ema50, ema200 = _get_ema_trend(coin)
+        if ema50 is not None and ema200 is not None and ema50 > ema200:
+            print(f"[FR] ⛔ {coin} SHORT — EMA50({ema50:.2f}) > EMA200({ema200:.2f}) аптренд")
             return None
 
     # 7. Size: більший FR → більша позиція

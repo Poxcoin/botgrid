@@ -20,6 +20,10 @@ _seen_ids: set = set()
 _seen_lock = threading.Lock()
 _running = False
 
+# Per-source backoff: retry after N seconds on consecutive failures
+_backoff: dict = {"binance": 0.0, "okx": 0.0}
+_fail_count: dict = {"binance": 0, "okx": 0}
+
 _SESSION = requests.Session()
 _SESSION.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -75,13 +79,19 @@ def _make_item(title: str, item_id: str, source: str, ts_ms: int, description: s
 
 
 def _poll_binance() -> list[dict]:
+    now = time.time()
+    if now < _backoff["binance"]:
+        return []
     try:
         resp = _SESSION.get(
             "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query",
             params={"type": 1, "pageNo": 1, "pageSize": 10},
             timeout=4,
         )
+        if resp.status_code != 200:
+            raise ValueError(f"HTTP {resp.status_code}")
         catalogs = resp.json().get("data", {}).get("catalogs", [])
+        _fail_count["binance"] = 0
         new_items = []
         for catalog in catalogs:
             if catalog.get("catalogId") != 48:
@@ -105,12 +115,19 @@ def _poll_binance() -> list[dict]:
                 print(f"[ANN] 🔔 Binance: {title}")
         return new_items
     except Exception as e:
-        print(f"[ANN] Binance помилка: {type(e).__name__}")
+        _fail_count["binance"] += 1
+        wait = min(60 * _fail_count["binance"], 600)  # backoff up to 10 min
+        _backoff["binance"] = now + wait
+        if _fail_count["binance"] <= 2:
+            print(f"[ANN] Binance помилка: {type(e).__name__} (backoff {wait}s)")
         return []
 
 
 def _poll_okx() -> list[dict]:
     """OKX New Listings announcements."""
+    now = time.time()
+    if now < _backoff["okx"]:
+        return []
     try:
         resp = _SESSION.get(
             "https://www.okx.com/priapi/v1/operate/article",
@@ -118,9 +135,10 @@ def _poll_okx() -> list[dict]:
             timeout=4,
         )
         if resp.status_code != 200:
-            return []
+            raise ValueError(f"HTTP {resp.status_code}")
         data = resp.json().get("data", {})
         articles = data.get("articles", []) if isinstance(data, dict) else []
+        _fail_count["okx"] = 0
         new_items = []
         for article in articles:
             item_id = f"okx_{article.get('id', '')}"
@@ -141,7 +159,11 @@ def _poll_okx() -> list[dict]:
             print(f"[ANN] 🔔 OKX: {title}")
         return new_items
     except Exception as e:
-        print(f"[ANN] OKX помилка: {type(e).__name__}")
+        _fail_count["okx"] += 1
+        wait = min(60 * _fail_count["okx"], 600)
+        _backoff["okx"] = now + wait
+        if _fail_count["okx"] <= 2:
+            print(f"[ANN] OKX помилка: {type(e).__name__} (backoff {wait}s)")
         return []
 
 
