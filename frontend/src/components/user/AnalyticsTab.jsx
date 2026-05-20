@@ -1043,6 +1043,9 @@ export default function AnalyticsTab() {
 
   const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay, worstDay, dailyPnl } = periodStats;
   const mergedBySource = periodStats.bySource;
+  const breakEvenWr = profitFactor != null && profitFactor > 0
+    ? Math.round(100 / (1 + profitFactor))
+    : null;
 
   const botCols = [
     { key: 'source', label: t.dashboard.analytics.hSource, bold: true, render: r => r.label || r.source },
@@ -1153,7 +1156,7 @@ export default function AnalyticsTab() {
         {/* Right: 3 supporting KPIs */}
         <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)' }}>
           {[
-            { label: t.dashboard.analytics.winRate, value: winRate, accent: winRate !== '—' && parseFloat(winRate) >= 50 ? 'pos' : (winRate === '—' ? null : 'neg'), sub: `${periodStats.wins}W · ${periodStats.losses}L` },
+            { label: t.dashboard.analytics.winRate, value: winRate, accent: winRate !== '—' ? (totalPnl > 0 ? 'pos' : 'neg') : null, sub: `${periodStats.wins}W · ${periodStats.losses}L${breakEvenWr != null ? ` · BE ~${breakEvenWr}%` : ''}` },
             { label: t.dashboard.analytics.profitFactor, value: profitFactor == null ? '—' : `${profitFactor}×`, accent: profitFactor == null ? null : (profitFactor >= 1 ? 'pos' : 'neg'), sub: t.dashboard.analytics.grossPerLoss },
             { label: t.dashboard.analytics.maxDrawdown, value: maxDrawdown == null ? '—' : `−${maxDrawdown}`, accent: maxDrawdown == null ? null : 'neg', sub: t.dashboard.analytics.fromPeak },
           ].map((k, i, arr) => {
@@ -1474,7 +1477,7 @@ export default function AnalyticsTab() {
                       <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, textAlign: 'right', color: pos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                         {pos ? '+' : ''}{pnl.toFixed(2)}
                       </span>
-                      <span style={{ fontFamily: MONO, fontSize: 10, textAlign: 'right', color: wr >= 50 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, textAlign: 'right', color: r.trades && pos ? 'var(--accent-green)' : 'var(--text-muted)' }}>
                         {r.trades ? `${wr}%` : '—'}
                       </span>
                     </div>
