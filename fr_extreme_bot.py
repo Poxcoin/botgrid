@@ -251,6 +251,18 @@ def run_fr_extreme_engine() -> None:
 
                 _cooldowns[symbol] = now
 
+                # FR extreme = contrarian signal: high positive FR → market overbought (BEAR)
+                # high negative FR → market oversold (BULL)
+                try:
+                    from modules.market_state import set_state, MarketCondition
+                    fr_val = sig.get("fr", 0)
+                    ms = MarketCondition.BEAR if sig["direction"] == "SHORT" else MarketCondition.BULL
+                    conf = min(abs(fr_val) * 10, 0.9)
+                    set_state(symbol, ms, "fr_extreme", confidence=conf,
+                              reason=f"FR={fr_val:+.4f}% extreme")
+                except Exception:
+                    pass
+
                 if FR_EXTREME_TRADING:
                     try:
                         trade_size = round(SIZE_PCT * size_mult, 2)

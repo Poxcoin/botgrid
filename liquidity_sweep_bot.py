@@ -333,6 +333,15 @@ def run_sweep_engine() -> None:
 
                 _cooldowns[symbol] = now
 
+                # Publish market view to shared state
+                try:
+                    from modules.market_state import set_state, MarketCondition
+                    ms = MarketCondition.BULL if direction == "LONG" else MarketCondition.BEAR
+                    set_state(symbol, ms, "sweep", confidence=0.75,
+                              reason=f"sweep {direction} {signal['sweep_pct']:.3f}%")
+                except Exception:
+                    pass
+
                 if SWEEP_TRADING:
                     try:
                         coin = symbol.replace("/USDT:USDT", "")

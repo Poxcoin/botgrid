@@ -279,6 +279,15 @@ def run_orderflow_engine() -> None:
                 tg_body = _build_tg_msg(direction, sig_type, symbol, ctx)
                 _cooldowns[symbol] = now
 
+                # Publish market view to shared state
+                try:
+                    from modules.market_state import set_state, MarketCondition
+                    ms = MarketCondition.BULL if direction == "LONG" else MarketCondition.BEAR
+                    set_state(symbol, ms, "orderflow", confidence=0.8,
+                              reason=f"orderflow {direction} {sig_type}")
+                except Exception:
+                    pass
+
                 if ORDERFLOW_TRADING:
                     try:
                         coin = symbol.replace("/USDT:USDT", "")
