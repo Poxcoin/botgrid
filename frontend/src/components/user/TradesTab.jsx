@@ -35,8 +35,34 @@ const BOT_LABELS = {
   other:       'Other',
 };
 
+const LANG_LOCALE = { en: 'en-US', es: 'es-ES', uk: 'uk-UA', ru: 'ru-RU', de: 'de-DE', zh: 'zh-CN' };
+
+function exportCSV(trades) {
+  const hdr = ['Date', 'Symbol', 'Bot', 'Side', 'Entry Price', 'Exit Price', 'Qty', 'PnL (USDT)'];
+  const rows = trades.map(tr => {
+    const ms = parseInt(tr.closed_at);
+    const date = ms ? new Date(ms).toISOString().slice(0, 16).replace('T', ' ') : '';
+    return [
+      date,
+      tr.symbol,
+      BOT_LABELS[tr.source] ?? tr.source ?? '',
+      tr.side,
+      tr.entry_price ?? '',
+      tr.exit_price ?? '',
+      tr.qty ?? '',
+      parseFloat(tr.pnl ?? 0).toFixed(2),
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+  const csv = [hdr.join(','), ...rows].join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: `kado_trades_${new Date().toISOString().slice(0,10)}.csv` });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function TradesTab() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const locale = LANG_LOCALE[lang] || 'en-US';
   const [data,       setData]      = useState(null);
   const [loading,    setLoading]   = useState(true);
   const [days,       setDays]      = useState(30);
@@ -132,6 +158,15 @@ export default function TradesTab() {
             {trades.length} / {allTrades.length}
           </span>
         )}
+        {trades.length > 0 && (
+          <button onClick={() => exportCSV(trades)}
+            style={{ ...btnBase, marginLeft: 'auto', flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            ↓ CSV
+          </button>
+        )}
       </div>
 
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'auto' }}>
@@ -183,7 +218,7 @@ export default function TradesTab() {
             ) : trades.map((tr, i) => {
               const closedMs  = parseInt(tr.closed_at);
               const closedStr = closedMs
-                ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                ? new Date(closedMs).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })
                 : '—';
               const isLong = tr.side === 'LONG';
               const srcLabel = BOT_LABELS[tr.source] ?? tr.source ?? '—';

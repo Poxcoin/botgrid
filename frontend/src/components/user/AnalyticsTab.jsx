@@ -211,8 +211,10 @@ function DataTable({ cols, rows, getRowColor }) {
 }
 
 function TradeRow({ tr }) {
+  const { lang } = useLang();
+  const loc = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' }[lang] || 'en-US';
   const closedMs = parseInt(tr.closed_at);
-  const dateStr = closedMs ? new Date(closedMs).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) : '—';
+  const dateStr = closedMs ? new Date(closedMs).toLocaleDateString(loc, { day: '2-digit', month: '2-digit' }) : '—';
   const pnl = tr.pnl ?? 0;
   return (
     <div style={{
@@ -431,7 +433,7 @@ function EquityCurve({ trades }) {
 }
 
 export default function AnalyticsTab() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [data, setData] = useState(null);
   const [balance, setBalance] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -585,7 +587,7 @@ export default function AnalyticsTab() {
   ];
 
   const allTradesCols = [
-    { key: 'date', label: 'Date', muted: true, render: r => { const ms = parseInt(r.closed_at); return ms ? new Date(ms).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; } },
+    { key: 'date', label: 'Date', muted: true, render: r => { const ms = parseInt(r.closed_at); const loc = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' }[lang]||'en-US'; return ms ? new Date(ms).toLocaleDateString(loc, { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'; } },
     { key: 'symbol', label: 'Symbol', bold: true, render: r => r.symbol || '—' },
     { key: 'side', label: 'Side', render: r => r.side || '—' },
     { key: 'entry_price', label: 'Entry', render: r => r.entry_price ? (+r.entry_price).toFixed(4) : '—' },
