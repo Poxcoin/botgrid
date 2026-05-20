@@ -1287,6 +1287,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const { t }     = useLang();
   const to        = t.dashboard.overview;
   const ta        = t.dashboard.analytics;
+  const tp        = t.dashboard.panel;
 
   // ── Real-time WebSocket feed ──────────────────────────────────────────────
   const { positions, balance, openOrders, trades, connected, noKey } = useLiveStream();
@@ -1439,7 +1440,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
   const takeProfit = activePos?.take_profit ?? 0;
 
   const handleClose = useCallback(async (symbol) => {
-    if (!confirm(`Close ${symbol} position?`)) return;
+    if (!confirm(`${tp.closePositionQ}: ${symbol}?`)) return;
     try {
       const r = await fetch('/api/users/close-position', {
         method: 'POST',
@@ -1449,12 +1450,12 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
       // WS update arrives automatically within 2s — no manual poll needed
     } catch (e) {
-      alert(`Failed to close ${symbol}: ${e.message}`);
+      alert(`${tp.closeFailed} ${symbol}: ${e.message}`);
     }
   }, []);
 
   const handleCancelOrder = useCallback(async (orderId, symbol) => {
-    if (!confirm(`Cancel ${symbol} order?`)) return;
+    if (!confirm(`${tp.cancelOrderQ}: ${symbol}?`)) return;
     try {
       const r = await fetch('/api/users/cancel-order', {
         method: 'POST',
@@ -1464,7 +1465,7 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
       // WS update arrives automatically within 2s
     } catch (e) {
-      alert(`Failed to cancel order: ${e.message}`);
+      alert(`${tp.cancelFailed}: ${e.message}`);
     }
   }, []);
 
