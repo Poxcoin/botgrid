@@ -5,18 +5,18 @@ import { useTheme } from '@/lib/ThemeContext';
 export const cursorStateRef = { x: -9999, y: -9999, vx: 0, vy: 0, moving: false };
 
 function buildAxons(W, H, isMobile) {
-  const count = isMobile ? 4 : 28;
+  const count = isMobile ? 8 : 38;
   return Array.from({ length: count }, () => ({
-    ox: W * 0.05 + Math.random() * W * 0.28,
-    oy: H * 0.62 + Math.random() * H * 0.48,
-    angle: -Math.PI * 0.9 + Math.random() * Math.PI * 0.85,
-    len: 320 + Math.random() * W * 0.68,
-    amp: 5 + Math.random() * 20,
-    freq: 0.6 + Math.random() * 2.0,
+    ox: Math.random() * W,
+    oy: Math.random() * H,
+    angle: -Math.PI + Math.random() * Math.PI * 2,
+    len: 280 + Math.random() * W * 0.7,
+    amp: 6 + Math.random() * 28,
+    freq: 0.5 + Math.random() * 1.8,
     phase: Math.random() * Math.PI * 2,
-    speed: 0.10 + Math.random() * 0.26,
-    w: 0.2 + Math.random() * 0.3,
-    op: 0.04 + Math.random() * 0.07,
+    speed: 0.08 + Math.random() * 0.22,
+    w: 0.3 + Math.random() * 0.5,
+    op: 0.10 + Math.random() * 0.14,
   }));
 }
 
