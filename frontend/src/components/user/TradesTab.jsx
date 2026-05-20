@@ -5,13 +5,6 @@ const API = (path) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
 }).then(r => r.ok ? r.json() : Promise.reject(r.status));
 
-const PERIODS = [
-  { label: '7d',   days: 7 },
-  { label: '30d',  days: 30 },
-  { label: '90d',  days: 90 },
-  { label: '180d', days: 180 },
-  { label: 'All',  days: 0 },
-];
 
 const BOT_LABELS = {
   grid:        'Grid',
@@ -63,6 +56,14 @@ function exportCSV(trades) {
 export default function TradesTab() {
   const { t, lang } = useLang();
   const locale = LANG_LOCALE[lang] || 'en-US';
+  const td = t.dashboard;
+  const PERIODS = [
+    { label: '7d',   days: 7 },
+    { label: '30d',  days: 30 },
+    { label: '90d',  days: 90 },
+    { label: '180d', days: 180 },
+    { label: td.analytics.all, days: 0 },
+  ];
   const [data,       setData]      = useState(null);
   const [loading,    setLoading]   = useState(true);
   const [days,       setDays]      = useState(30);
@@ -145,13 +146,13 @@ export default function TradesTab() {
         {['ALL', ...availableSrcs].map(s => (
           <button key={s} onClick={() => setFilterSrc(s)}
             style={{ ...btnBase, ...(filterSrc === s ? activeBtn : {}) }}>
-            {s === 'ALL' ? 'All Bots' : (BOT_LABELS[s] || s)}
+            {s === 'ALL' ? td.analytics.allBots : (BOT_LABELS[s] || s)}
           </button>
         ))}
         <div style={{ width: 1, height: 18, background: 'var(--border-subtle)', margin: '0 4px' }} />
         <input
           value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search coin…"
+          placeholder={td.searchCoin}
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 6,
             color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 11,
             padding: '5px 12px', outline: 'none', width: 130 }}
@@ -177,15 +178,15 @@ export default function TradesTab() {
           <thead>
             <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-default)' }}>
               {[
-                { label: 'Date',   col: 'date' },
-                { label: 'Symbol', col: 'symbol' },
-                { label: 'Bot',    col: null },
-                { label: 'Side',   col: null },
-                { label: 'Entry',  col: null },
-                { label: 'Exit',   col: null },
-                { label: 'Qty',    col: null },
-                { label: 'Dur',    col: null },
-                { label: 'PnL',    col: 'pnl' },
+                { label: td.hDate,   col: 'date' },
+                { label: td.hSymbol, col: 'symbol' },
+                { label: td.hBot,    col: null },
+                { label: td.hSide,   col: null },
+                { label: td.hEntry,  col: null },
+                { label: td.hExit,   col: null },
+                { label: td.hQty,    col: null },
+                { label: td.hDur,    col: null },
+                { label: td.hPnL,    col: 'pnl' },
               ].map(({ label, col }) => (
                 <th key={label}
                   onClick={col ? () => toggleSort(col) : undefined}
@@ -217,7 +218,7 @@ export default function TradesTab() {
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: 0.4 }}>
                   <path d="M3 3v18h18M7 14l4-4 4 4 5-5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>No closed trades in this period</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{td.noTradesPeriod}</div>
               </td></tr>
             ) : trades.map((tr, i) => {
               const closedMs  = parseInt(tr.closed_at);

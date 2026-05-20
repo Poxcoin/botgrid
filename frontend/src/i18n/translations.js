@@ -112,7 +112,7 @@ export const translations = {
       refresh:       'Refresh',
       prev:          'Prev',
       next:          'Next',
-      hSymbol: 'Symbol', hSide: 'Side', hSource: 'Source', hEntry: 'Entry', hExit: 'Exit', hPnL: 'PnL', hStatus: 'Status', hDate: 'Date', hTime: 'Time', hAsset: 'Asset', hAction: 'Action', hScore: 'Score', hNews: 'News', hMonth: 'Month', hQty: 'Qty', hDur: 'Dur',
+      hSymbol: 'Symbol', hSide: 'Side', hSource: 'Source', hEntry: 'Entry', hExit: 'Exit', hPnL: 'PnL', hStatus: 'Status', hDate: 'Date', hTime: 'Time', hAsset: 'Asset', hAction: 'Action', hScore: 'Score', hNews: 'News', hMonth: 'Month', hQty: 'Qty', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Search coin…', noTradesPeriod: 'No closed trades in this period',
       overview: {
         monthlyPnl:       'Monthly PnL',
         openPositions:    'Open positions',
@@ -809,7 +809,7 @@ export const translations = {
       refresh:       'Actualizar',
       prev:          'Anterior',
       next:          'Siguiente',
-      hSymbol: 'Símbolo', hSide: 'Lado', hSource: 'Fuente', hEntry: 'Entrada', hExit: 'Salida', hPnL: 'PnL', hStatus: 'Estado', hDate: 'Fecha', hTime: 'Hora', hAsset: 'Activo', hAction: 'Acción', hScore: 'Score', hNews: 'Noticias', hMonth: 'Mes', hQty: 'Ctd', hDur: 'Dur',
+      hSymbol: 'Símbolo', hSide: 'Lado', hSource: 'Fuente', hEntry: 'Entrada', hExit: 'Salida', hPnL: 'PnL', hStatus: 'Estado', hDate: 'Fecha', hTime: 'Hora', hAsset: 'Activo', hAction: 'Acción', hScore: 'Score', hNews: 'Noticias', hMonth: 'Mes', hQty: 'Ctd', hDur: 'Dur', hBot: 'Bot', searchCoin: 'Buscar moneda…', noTradesPeriod: 'Sin operaciones en este período',
       overview: {
         monthlyPnl:       'PnL mensual',
         openPositions:    'Posiciones abiertas',
@@ -1506,7 +1506,7 @@ export const translations = {
       refresh:       'Оновити',
       prev:          'Назад',
       next:          'Далі',
-      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Джерело', hEntry: 'Вхід', hExit: 'Вихід', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Час', hAsset: 'Актив', hAction: 'Дія', hScore: 'Скор', hNews: 'Новини', hMonth: 'Місяць', hQty: 'Кіл', hDur: 'Тривал',
+      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Джерело', hEntry: 'Вхід', hExit: 'Вихід', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Час', hAsset: 'Актив', hAction: 'Дія', hScore: 'Скор', hNews: 'Новини', hMonth: 'Місяць', hQty: 'Кіл', hDur: 'Тривал', hBot: 'Бот', searchCoin: 'Пошук монети…', noTradesPeriod: 'Немає закритих угод за цей період',
       overview: {
         monthlyPnl:       'Місячний PnL',
         openPositions:    'Відкриті позиції',
@@ -2203,7 +2203,7 @@ export const translations = {
       refresh:       'Обновить',
       prev:          'Назад',
       next:          'Далее',
-      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Источник', hEntry: 'Вход', hExit: 'Выход', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Время', hAsset: 'Актив', hAction: 'Действие', hScore: 'Скор', hNews: 'Новости', hMonth: 'Месяц', hQty: 'Кол', hDur: 'Длит',
+      hSymbol: 'Символ', hSide: 'Сторона', hSource: 'Источник', hEntry: 'Вход', hExit: 'Выход', hPnL: 'PnL', hStatus: 'Статус', hDate: 'Дата', hTime: 'Время', hAsset: 'Актив', hAction: 'Действие', hScore: 'Скор', hNews: 'Новости', hMonth: 'Месяц', hQty: 'Кол', hDur: 'Длит', hBot: 'Бот', searchCoin: 'Поиск монеты…', noTradesPeriod: 'Нет закрытых сделок за этот период',
       overview: {
         monthlyPnl:       'Месячный PnL',
         openPositions:    'Открытые позиции',
@@ -2900,7 +2900,7 @@ export const translations = {
       refresh:       'Aktualisieren',
       prev:          'Zurück',
       next:          'Weiter',
-      hSymbol: 'Symbol', hSide: 'Seite', hSource: 'Quelle', hEntry: 'Einstieg', hExit: 'Ausstieg', hPnL: 'PnL', hStatus: 'Status', hDate: 'Datum', hTime: 'Zeit', hAsset: 'Asset', hAction: 'Aktion', hScore: 'Score', hNews: 'News', hMonth: 'Monat', hQty: 'Menge', hDur: 'Dauer',
+      hSymbol: 'Symbol', hSide: 'Seite', hSource: 'Quelle', hEntry: 'Einstieg', hExit: 'Ausstieg', hPnL: 'PnL', hStatus: 'Status', hDate: 'Datum', hTime: 'Zeit', hAsset: 'Asset', hAction: 'Aktion', hScore: 'Score', hNews: 'News', hMonth: 'Monat', hQty: 'Menge', hDur: 'Dauer', hBot: 'Bot', searchCoin: 'Münze suchen…', noTradesPeriod: 'Keine abgeschl. Trades in diesem Zeitraum',
       overview: {
         monthlyPnl:       'Monatlicher PnL',
         openPositions:    'Offene Positionen',
@@ -3597,7 +3597,7 @@ export const translations = {
       refresh:       '刷新',
       prev:          '上一页',
       next:          '下一页',
-      hSymbol: '符号', hSide: '方向', hSource: '来源', hEntry: '入场', hExit: '出场', hPnL: 'PnL', hStatus: '状态', hDate: '日期', hTime: '时间', hAsset: '资产', hAction: '动作', hScore: '评分', hNews: '新闻', hMonth: '月份', hQty: '数量', hDur: '时长',
+      hSymbol: '符号', hSide: '方向', hSource: '来源', hEntry: '入场', hExit: '出场', hPnL: 'PnL', hStatus: '状态', hDate: '日期', hTime: '时间', hAsset: '资产', hAction: '动作', hScore: '评分', hNews: '新闻', hMonth: '月份', hQty: '数量', hDur: '时长', hBot: '机器人', searchCoin: '搜索币种…', noTradesPeriod: '本周期无已关闭交易',
       overview: {
         monthlyPnl:       '月度 PnL',
         openPositions:    '未平仓位',

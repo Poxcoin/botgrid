@@ -6,10 +6,14 @@ const API = (path) => fetch(path, {
   headers: { Authorization: `Bearer ${localStorage.getItem('kado_token')}` },
 }).then(r => r.ok ? r.json() : Promise.reject(r.status));
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PNLTAB_LOCALE = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE', zh:'zh-CN' };
+// monthIdx is 0-based (0=Jan)
+const shortMonth = (monthIdx, locale) =>
+  new Intl.DateTimeFormat(locale, { month: 'short' }).format(new Date(2000, monthIdx, 1));
 
 export default function PnlTab() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const locale = PNLTAB_LOCALE[lang] || 'en-US';
   const isMobile = useIsMobile();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,7 +84,7 @@ export default function PnlTab() {
                         transition: 'background 100ms',
                       }} />
                       <div style={{ fontSize: 10, color: isH ? 'var(--text-secondary)' : 'var(--muted-fg)', letterSpacing: '0.05em', whiteSpace: 'nowrap', transition: 'color 100ms' }}>
-                        {MONTHS[r.month - 1]}{multiYear ? ` '${String(r.year).slice(2)}` : ''}
+                        {shortMonth(r.month - 1, locale)}{multiYear ? ` '${String(r.year).slice(2)}` : ''}
                       </div>
                     </div>
                   );
@@ -96,7 +100,7 @@ export default function PnlTab() {
                   pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
                 }}>
                   <div style={{ fontSize: 9, color: 'var(--muted-fg)', marginBottom: 5, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    {MONTHS[reversed[hovBar].month - 1]} {reversed[hovBar].year}
+                    {shortMonth(reversed[hovBar].month - 1, locale)} {reversed[hovBar].year}
                   </div>
                   <div style={{ color: reversed[hovBar].gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13, marginBottom: 3 }}>
                     {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} gross
@@ -147,7 +151,7 @@ export default function PnlTab() {
             <tr><td colSpan={5} style={{ padding: '40px 0', color: 'var(--muted-fg)', textAlign: 'center' }}>{t.dashboard.pnl.noPnlData}</td></tr>
           ) : rows.map(r => (
             <tr key={`${r.year}-${r.month}`} style={{ borderBottom: '1px solid var(--border)' }}>
-              <td style={{ padding: '12px 0' }}>{MONTHS[r.month - 1]} {r.year}</td>
+              <td style={{ padding: '12px 0' }}>{shortMonth(r.month - 1, locale)} {r.year}</td>
               <td style={{ padding: '12px 0', color: r.gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{r.gross_pnl >= 0 ? '+' : ''}{r.gross_pnl.toFixed(2)}</td>
               <td style={{ padding: '12px 0', color: 'var(--muted-fg)' }}>{r.performance_fee.toFixed(2)}</td>
               <td style={{ padding: '12px 0', color: r.net_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>{r.net_pnl >= 0 ? '+' : ''}{r.net_pnl.toFixed(2)}</td>
