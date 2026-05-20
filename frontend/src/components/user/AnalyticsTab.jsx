@@ -86,7 +86,8 @@ export default function AnalyticsTab() {
     if (!allTrades.length) return {
       totalPnl: 0, wins: 0, losses: 0, winRate: '—',
       avgTrade: null, streak: 0, streakDir: null, profitFactor: null, maxDrawdown: null, avgDuration: null,
-      byCoin: [], bySource: [], best: [], worst: [],
+      bestDay: null, worstDay: null,
+      byCoin: [], bySource: [], best: [], worst: [], dailyPnl: [],
     };
 
     const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
