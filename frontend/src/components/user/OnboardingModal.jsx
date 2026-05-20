@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useLang } from '@/lib/LangContext';
 
 const FF   = "-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif";
 const MONO = "'Courier New','SF Mono',monospace";
@@ -21,33 +22,10 @@ const CheckCircle = () => (
   </svg>
 );
 
-// ── Strategy cards data ────────────────────────────────────────────────────────
-const STRATEGIES = [
-  {
-    name: 'Grid Bot',
-    badge: 'Recommended',
-    risk: 'Low',
-    riskColor: '#00d4aa',
-    desc: 'Places buy/sell orders in a price range. Best for sideways markets. Profits from volatility automatically.',
-  },
-  {
-    name: 'Signal Bot',
-    badge: null,
-    risk: 'Medium',
-    riskColor: '#f5a623',
-    desc: 'Follows news & market signals to enter altcoin trades. Higher upside, needs more market movement.',
-  },
-  {
-    name: 'Funding Rate',
-    badge: null,
-    risk: 'Low–Medium',
-    riskColor: '#f5a623',
-    desc: 'Exploits funding rate anomalies between long and short positions. Works in any market direction.',
-  },
-];
-
 // ── Terms step (step 0) ───────────────────────────────────────────────────────
 function TermsStep({ onNext }) {
+  const { t } = useLang();
+  const to = t.dashboard.onboarding;
   const [tosOk, setTosOk] = useState(false);
   const [ageOk, setAgeOk] = useState(false);
   const [busy,  setBusy]  = useState(false);
@@ -74,9 +52,9 @@ function TermsStep({ onNext }) {
 
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>Review &amp; accept terms</div>
+      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 6 }}>{to.termsTitle}</div>
       <p style={{ color: '#666', fontSize: 13, lineHeight: 1.6, margin: '0 0 22px' }}>
-        Before activating automated trading, please read and confirm the following.
+        {to.termsDesc}
       </p>
 
       {checkRow(tosOk, setTosOk,
@@ -94,9 +72,7 @@ function TermsStep({ onNext }) {
       )}
 
       <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 22, padding: '10px 14px', background: '#080808', borderRadius: 6, border: '1px solid #111' }}>
-        KADO charges a <strong style={{ color: '#666' }}>25% performance fee</strong> on net monthly profits under a high-water-mark policy.
-        A <strong style={{ color: '#666' }}>5% referral bonus</strong> applies when you invite other traders.
-        No fee is charged in losing months.
+        {to.feeNote}
       </div>
 
       <button onClick={handleAccept} disabled={!tosOk || !ageOk || busy} style={{
@@ -106,7 +82,7 @@ function TermsStep({ onNext }) {
         color: tosOk && ageOk ? '#000' : '#444',
         cursor: tosOk && ageOk ? 'pointer' : 'not-allowed',
       }}>
-        {busy ? 'Saving…' : 'I Agree — Continue →'}
+        {busy ? to.saving : to.iAgree}
       </button>
     </div>
   );
@@ -114,33 +90,34 @@ function TermsStep({ onNext }) {
 
 // ── Step components ────────────────────────────────────────────────────────────
 function WelcomeStep({ username, onNext }) {
+  const { t } = useLang();
+  const to = t.dashboard.onboarding;
+
   return (
     <div style={{ textAlign: 'center', padding: '8px 0' }}>
       <div style={{ fontSize: 40, marginBottom: 16 }}>👋</div>
       <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 8 }}>
-        Welcome to KADO, {username || 'trader'}!
+        {to.welcomeTitle.replace('{name}', username || 'trader')}
       </div>
       <p style={{ color: '#888', fontSize: 14, lineHeight: 1.6, margin: '0 0 32px' }}>
-        Let's get your trading bot running in 3 quick steps.
+        {to.welcomeDesc}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 36, textAlign: 'left' }}>
-        {[
-          { n: '1', label: 'Connect your Bybit API key' },
-          { n: '2', label: 'Learn about your strategies' },
-          { n: '3', label: 'Connect Telegram (optional)' },
-        ].map(s => (
-          <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
-            <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{s.n}</span>
-            <span style={{ fontSize: 13, color: '#ccc' }}>{s.label}</span>
+        {[to.welcomeStep1, to.welcomeStep2, to.welcomeStep3].map((label, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#111', border: '1px solid #1f1f1f', borderRadius: 8 }}>
+            <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
+            <span style={{ fontSize: 13, color: '#ccc' }}>{label}</span>
           </div>
         ))}
       </div>
-      <button onClick={onNext} style={btnPrimary}>Get Started →</button>
+      <button onClick={onNext} style={btnPrimary}>{to.getStarted}</button>
     </div>
   );
 }
 
 function ApiKeyStep({ onNext, onGoToKeys }) {
+  const { t } = useLang();
+  const to = t.dashboard.onboarding;
   const [checking, setChecking] = useState(false);
   const [err, setErr] = useState('');
 
@@ -152,10 +129,10 @@ function ApiKeyStep({ onNext, onGoToKeys }) {
       if (me.has_api_keys) {
         onNext();
       } else {
-        setErr('No API key found. Add one in the API Keys tab, then come back.');
+        setErr(to.noKeyFound);
       }
     } catch {
-      setErr('Could not verify. Please try again.');
+      setErr(to.verifyError);
     } finally {
       setChecking(false);
     }
@@ -163,9 +140,9 @@ function ApiKeyStep({ onNext, onGoToKeys }) {
 
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Connect your Bybit API key</div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{to.apiKeyTitle}</div>
       <p style={{ color: '#888', fontSize: 13, lineHeight: 1.6, margin: '0 0 20px' }}>
-        Your key lets KADO trade on your behalf. No withdrawal permission needed.
+        {to.apiKeyDesc}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
         {[
@@ -182,22 +159,31 @@ function ApiKeyStep({ onNext, onGoToKeys }) {
       </div>
       {err && <div style={{ color: '#ff6b6b', fontSize: 12, marginBottom: 12 }}>{err}</div>}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button onClick={onGoToKeys} style={btnSecondary}>Open API Keys tab ↗</button>
+        <button onClick={onGoToKeys} style={btnSecondary}>{to.openApiKeysTab}</button>
         <button onClick={handleCheck} disabled={checking} style={btnPrimary}>
-          {checking ? 'Checking...' : "I've connected my key →"}
+          {checking ? to.checking : to.keyConnected}
         </button>
       </div>
-      <button onClick={onNext} style={btnSkip}>Skip for now</button>
+      <button onClick={onNext} style={btnSkip}>{to.skip}</button>
     </div>
   );
 }
 
 function StrategyStep({ onNext }) {
+  const { t } = useLang();
+  const to = t.dashboard.onboarding;
+
+  const STRATEGIES = [
+    { name: 'Grid Bot',      badge: 'Recommended', risk: 'Low',        riskColor: '#00d4aa', desc: 'Places buy/sell orders in a price range. Best for sideways markets. Profits from volatility automatically.' },
+    { name: 'Signal Bot',    badge: null,          risk: 'Medium',      riskColor: '#f5a623', desc: 'Follows news & market signals to enter altcoin trades. Higher upside, needs more market movement.' },
+    { name: 'Funding Rate',  badge: null,          risk: 'Low–Medium',  riskColor: '#f5a623', desc: 'Exploits funding rate anomalies between long and short positions. Works in any market direction.' },
+  ];
+
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Your trading strategies</div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{to.stratTitle}</div>
       <p style={{ color: '#888', fontSize: 13, lineHeight: 1.6, margin: '0 0 20px' }}>
-        KADO runs multiple strategies in parallel. All are active by default — no manual selection needed.
+        {to.stratDesc}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
         {STRATEGIES.map(s => (
@@ -213,25 +199,30 @@ function StrategyStep({ onNext }) {
           </div>
         ))}
       </div>
-      <button onClick={onNext} style={btnPrimary}>Got it →</button>
+      <button onClick={onNext} style={btnPrimary}>{to.gotIt}</button>
     </div>
   );
 }
 
 function TelegramStep({ onNext, onSkip }) {
+  const { t } = useLang();
+  const to = t.dashboard.onboarding;
   const botUsername = 'KADO_c_BOT';
+
   return (
     <div>
-      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Connect Telegram <span style={{ fontSize: 13, color: '#555', fontWeight: 400 }}>(optional)</span></div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
+        {to.tgTitle} <span style={{ fontSize: 13, color: '#555', fontWeight: 400 }}>{to.tgOptional}</span>
+      </div>
       <p style={{ color: '#888', fontSize: 13, lineHeight: 1.6, margin: '0 0 20px' }}>
-        Get instant trade notifications, balance updates, and alerts directly in Telegram.
+        {to.tgDesc}
       </p>
       <div style={{ padding: '16px', background: '#0d0d0d', border: '1px solid #1f1f1f', borderRadius: 8, marginBottom: 24 }}>
-        <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>What you'll receive:</div>
-        {['Trade opened / closed notifications', 'Daily PnL summary', 'Balance alerts', 'Strategy signals'].map(i => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12, color: '#bbb' }}>
+        <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>{to.tgWhatYouGet}</div>
+        {[to.tgItem1, to.tgItem2, to.tgItem3, to.tgItem4].map(item => (
+          <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 12, color: '#bbb' }}>
             <CheckCircle />
-            <span>{i}</span>
+            <span>{item}</span>
           </div>
         ))}
       </div>
@@ -239,22 +230,25 @@ function TelegramStep({ onNext, onSkip }) {
         <a href={`https://t.me/${botUsername}`} target="_blank" rel="noreferrer" style={{ ...btnPrimary, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
           Connect @{botUsername} ↗
         </a>
-        <button onClick={onNext} style={btnSecondary}>Already connected</button>
+        <button onClick={onNext} style={btnSecondary}>{to.alreadyConnected}</button>
       </div>
-      <button onClick={onSkip} style={btnSkip}>Skip for now</button>
+      <button onClick={onSkip} style={btnSkip}>{to.skip}</button>
     </div>
   );
 }
 
 function SuccessStep({ onClose }) {
+  const { t } = useLang();
+  const to = t.dashboard.onboarding;
+
   return (
     <div style={{ textAlign: 'center', padding: '16px 0' }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
-      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 8 }}>You're all set!</div>
+      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', marginBottom: 8 }}>{to.successTitle}</div>
       <p style={{ color: '#888', fontSize: 14, lineHeight: 1.6, margin: '0 0 32px' }}>
-        Your bot is watching the markets. Signals and trades will appear in the dashboard within minutes.
+        {to.successDesc}
       </p>
-      <button onClick={onClose} style={btnPrimary}>Open Dashboard →</button>
+      <button onClick={onClose} style={btnPrimary}>{to.openDashboard}</button>
     </div>
   );
 }
@@ -292,8 +286,6 @@ function ProgressDots({ step, total }) {
 
 // ── Main modal ─────────────────────────────────────────────────────────────────
 export default function OnboardingModal({ username, onClose, onGoToKeys }) {
-  // step 0 = Terms (skip if already accepted)
-  // step 1 = Welcome, 2 = API Key, 3 = Strategy, 4 = Telegram, 5+ = Success
   const needsTerms = (() => {
     try { return JSON.parse(localStorage.getItem(CONSENT_KEY) || '{}')?.legal !== true; } catch { return true; }
   })();
