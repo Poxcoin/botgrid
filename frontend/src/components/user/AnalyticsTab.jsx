@@ -531,31 +531,33 @@ function CalendarHeatmap({ dailyPnl }) {
 
   const maxAbs = useMemo(() => Math.max(...dailyPnl.map(d => Math.abs(d.pnl)), 0.01), [dailyPnl]);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const startDate = new Date(todayStr + 'T00:00:00');
-  startDate.setDate(startDate.getDate() - 7 * 52);
-  startDate.setDate(startDate.getDate() - startDate.getDay()); // rewind to Sunday
-
-  const allDates = [];
-  for (const d = new Date(startDate); d.toISOString().slice(0, 10) <= todayStr; d.setDate(d.getDate() + 1)) {
-    allDates.push(new Date(d).toISOString().slice(0, 10));
-  }
-
-  const weeks = [];
-  for (let i = 0; i < allDates.length; i += 7) {
-    weeks.push(allDates.slice(i, i + 7).map(ds => ({ date: ds, data: dayMap[ds] || null })));
-  }
-
-  const monthLabels = [];
-  let prevMonth = -1;
-  weeks.forEach((week, wi) => {
-    const d = new Date(week[0].date + 'T00:00:00');
-    const m = d.getMonth();
-    if (m !== prevMonth) {
-      prevMonth = m;
-      monthLabels.push({ text: new Intl.DateTimeFormat(locale, { month: 'short' }).format(d), wi });
+  const { todayStr, weeks, monthLabels } = useMemo(() => {
+    const ts = new Date().toISOString().slice(0, 10);
+    const start = new Date(ts + 'T00:00:00');
+    start.setDate(start.getDate() - 7 * 52);
+    start.setDate(start.getDate() - start.getDay());
+    const dates = [];
+    const cur = new Date(start);
+    while (cur.toISOString().slice(0, 10) <= ts) {
+      dates.push(new Date(cur).toISOString().slice(0, 10));
+      cur.setDate(cur.getDate() + 1);
     }
-  });
+    const wks = [];
+    for (let i = 0; i < dates.length; i += 7) {
+      wks.push(dates.slice(i, i + 7).map(ds => ({ date: ds, data: dayMap[ds] || null })));
+    }
+    const labels = [];
+    let prev = -1;
+    wks.forEach((week, wi) => {
+      const d = new Date(week[0].date + 'T00:00:00');
+      const m = d.getMonth();
+      if (m !== prev) {
+        prev = m;
+        labels.push({ text: new Intl.DateTimeFormat(locale, { month: 'short' }).format(d), wi });
+      }
+    });
+    return { todayStr: ts, weeks: wks, monthLabels: labels };
+  }, [dayMap, locale]);
 
   const getColor = data => {
     if (!data) return 'var(--bg-elevated)';
