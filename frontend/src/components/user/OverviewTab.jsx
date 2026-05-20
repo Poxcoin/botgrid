@@ -153,6 +153,34 @@ function calcRSI(bars, period = 14) {
   return result;
 }
 
+function calcMACD(bars, fast = 12, slow = 26, sig = 9) {
+  const n = bars.length;
+  const macdArr = Array(n).fill(null);
+  const sigArr  = Array(n).fill(null);
+  const histArr = Array(n).fill(null);
+  if (n < slow + sig) return { macdArr, sigArr, histArr };
+  const kf = 2 / (fast + 1), ks = 2 / (slow + 1), kk = 2 / (sig + 1);
+  const cls = bars.map(b => b.close);
+  let fe = cls.slice(0, fast).reduce((a, b) => a + b, 0) / fast;
+  for (let i = fast; i < slow; i++) fe = cls[i] * kf + fe * (1 - kf);
+  let se = cls.slice(0, slow).reduce((a, b) => a + b, 0) / slow;
+  macdArr[slow - 1] = fe - se;
+  for (let i = slow; i < n; i++) {
+    fe = cls[i] * kf + fe * (1 - kf);
+    se = cls[i] * ks + se * (1 - ks);
+    macdArr[i] = fe - se;
+  }
+  const fi = slow - 1;
+  let sg = macdArr.slice(fi, fi + sig).reduce((a, b) => a + b, 0) / sig;
+  const si = fi + sig - 1;
+  sigArr[si] = sg; histArr[si] = macdArr[si] - sg;
+  for (let i = si + 1; i < n; i++) {
+    sg = macdArr[i] * kk + sg * (1 - kk);
+    sigArr[i] = sg; histArr[i] = macdArr[i] - sg;
+  }
+  return { macdArr, sigArr, histArr };
+}
+
 function OrderBook({ coin }) {
   const [book, setBook] = useState({ b: [], a: [] });
   useEffect(() => {
@@ -398,6 +426,15 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
       const v = calcRSI(bars);
       refs.RSI[0].setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
     }
+    if (refs.MACD?.[0]) {
+      const { macdArr, sigArr, histArr } = calcMACD(bars);
+      refs.MACD[0].setData(bars.map((b, i) => ({ time: b.time, value: macdArr[i] })).filter(d => d.value != null));
+      refs.MACD[1].setData(bars.map((b, i) => ({ time: b.time, value: sigArr[i]  })).filter(d => d.value != null));
+      refs.MACD[2].setData(bars.map((b, i) => ({
+        time: b.time, value: histArr[i],
+        color: (histArr[i] ?? 0) >= 0 ? 'rgba(14,203,129,0.6)' : 'rgba(246,70,93,0.6)',
+      })).filter(d => d.value != null));
+    }
   }
 
   function applyData(bars) {
@@ -613,7 +650,18 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     if (activeInds[name]) {
       (indRefs.current[name] || []).forEach(s => { try { chart.removeSeries(s); } catch {} });
       delete indRefs.current[name];
-      if (name === 'RSI') volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+      if (name === 'RSI') {
+        const macdOn = !!activeInds.MACD;
+        volRef.current?.priceScale().applyOptions({ scaleMargins: { top: macdOn ? 0.92 : 0.82, bottom: 0 } });
+        if (macdOn && indRefs.current.MACD?.[0])
+          indRefs.current.MACD[0].priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 } });
+      }
+      if (name === 'MACD') {
+        const rsiOn = !!activeInds.RSI;
+        volRef.current?.priceScale().applyOptions({ scaleMargins: { top: rsiOn ? 0.92 : 0.82, bottom: 0 } });
+        if (rsiOn && indRefs.current.RSI?.[0])
+          indRefs.current.RSI[0].priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 } });
+      }
       setActiveInds(p => ({ ...p, [name]: false }));
     } else {
       const bars = barsRef.current;
@@ -639,14 +687,40 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
           indRefs.current.BOLL = [upper, mid, lower];
         } else if (name === 'RSI') {
           const rsi = chart.addLineSeries({ priceScaleId: 'rsi', color: '#9b59b6', lineWidth: 1.5, lastValueVisible: true, priceLineVisible: false });
-          rsi.priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 }, drawTicks: true });
           rsi.createPriceLine({ price: 70, color: 'rgba(246,70,93,0.45)', lineStyle: LineStyle.Dashed, lineWidth: 1 });
           rsi.createPriceLine({ price: 50, color: 'rgba(150,150,150,0.3)', lineStyle: LineStyle.Dashed, lineWidth: 1 });
           rsi.createPriceLine({ price: 30, color: 'rgba(14,203,129,0.45)', lineStyle: LineStyle.Dashed, lineWidth: 1 });
           const v = calcRSI(bars);
           rsi.setData(bars.map((b, i) => ({ time: b.time, value: v[i] })).filter(d => d.value != null));
-          volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.92, bottom: 0 } });
+          if (activeInds.MACD) {
+            rsi.priceScale().applyOptions({ scaleMargins: { top: 0.66, bottom: 0.28 }, drawTicks: true });
+            indRefs.current.MACD?.[0]?.priceScale().applyOptions({ scaleMargins: { top: 0.80, bottom: 0.02 } });
+            volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.95, bottom: 0 } });
+          } else {
+            rsi.priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 }, drawTicks: true });
+            volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.92, bottom: 0 } });
+          }
           indRefs.current.RSI = [rsi];
+        } else if (name === 'MACD') {
+          const macdLine = chart.addLineSeries({ priceScaleId: 'macd', color: '#2962ff', lineWidth: 1.5, lastValueVisible: true, priceLineVisible: false });
+          const sigLine  = chart.addLineSeries({ priceScaleId: 'macd', color: '#ff6d00', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+          const histSer  = chart.addHistogramSeries({ priceScaleId: 'macd', lastValueVisible: false, priceLineVisible: false });
+          const { macdArr, sigArr, histArr } = calcMACD(bars);
+          macdLine.setData(bars.map((b, i) => ({ time: b.time, value: macdArr[i] })).filter(d => d.value != null));
+          sigLine.setData(bars.map((b, i) => ({ time: b.time, value: sigArr[i] })).filter(d => d.value != null));
+          histSer.setData(bars.map((b, i) => ({
+            time: b.time, value: histArr[i],
+            color: (histArr[i] ?? 0) >= 0 ? 'rgba(14,203,129,0.6)' : 'rgba(246,70,93,0.6)',
+          })).filter(d => d.value != null));
+          if (activeInds.RSI) {
+            macdLine.priceScale().applyOptions({ scaleMargins: { top: 0.80, bottom: 0.02 }, drawTicks: true });
+            indRefs.current.RSI?.[0]?.priceScale().applyOptions({ scaleMargins: { top: 0.66, bottom: 0.28 } });
+            volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.95, bottom: 0 } });
+          } else {
+            macdLine.priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.02 }, drawTicks: true });
+            volRef.current?.priceScale().applyOptions({ scaleMargins: { top: 0.92, bottom: 0 } });
+          }
+          indRefs.current.MACD = [macdLine, sigLine, histSer];
         }
         setActiveInds(p => ({ ...p, [name]: true }));
       } catch {}
@@ -662,7 +736,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
         <button onClick={() => { showLRef.current = true; setShowLine(true); }} style={{ height: 22, padding: '0 8px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 11, background: showLine ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${showLine ? 'var(--border-strong)' : 'transparent'}`, color: showLine ? 'var(--text-primary)' : 'var(--text-muted)' }}>Line</button>
         <div style={{ width: 1, height: 16, background: 'var(--border-subtle)', margin: '0 4px' }} />
         <span style={{ fontFamily: FF, fontSize: 10, color: 'var(--text-muted)', marginRight: 2 }}>Ind</span>
-        {['MA','EMA','BOLL','RSI'].map(name => (
+        {['MA','EMA','BOLL','RSI','MACD'].map(name => (
           <button key={name} onClick={() => toggleInd(name)} style={{ height: 22, padding: '0 7px', borderRadius: 3, cursor: 'pointer', fontFamily: FM, fontSize: 10, background: activeInds[name] ? 'var(--bg-elevated)' : 'transparent', border: `1px solid ${activeInds[name] ? 'var(--border-strong)' : 'transparent'}`, color: activeInds[name] ? 'var(--text-primary)' : 'var(--text-muted)' }}>{name}</button>
         ))}
         <div style={{ width: 8, flexShrink: 0 }} />

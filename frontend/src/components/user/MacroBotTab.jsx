@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createChart, CrosshairMode } from 'lightweight-charts';
 import { useTheme } from '@/lib/ThemeContext';
+import { useLang } from '@/lib/LangContext';
+
+const MACRO_LOCALE = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE', zh:'zh-CN' };
 
 const MONO  = "'Courier New','SF Mono',monospace";
 const B     = 'var(--border-subtle)';
@@ -187,6 +190,7 @@ function NoKeyBanner() {
 
 /* ── main ─────────────────────────────────────────────────────── */
 export default function MacroBotTab({ botId }) {
+  const { lang } = useLang();
   const [trades, setTrades] = useState([]);
   const [mt5,    setMt5]    = useState(undefined);
 
@@ -273,7 +277,7 @@ export default function MacroBotTab({ botId }) {
                 {filtered.slice(0, 30).map((t, i) => {
                   const pos = t.profit_usd > 0;
                   const dt  = t.close_time || t.open_time;
-                  const dtStr = dt ? new Date(dt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+                  const dtStr = dt ? new Date(dt).toLocaleString(MACRO_LOCALE[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
                   return (
                     <tr key={i}
                       style={{ borderBottom: `1px solid ${B}` }}
