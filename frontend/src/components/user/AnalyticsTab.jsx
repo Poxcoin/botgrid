@@ -789,84 +789,8 @@ export default function AnalyticsTab() {
   useEffect(() => { fetchStatic(); fetchTrades(allDays); }, [fetchStatic, fetchTrades]);
   useEffect(() => { fetchTrades(allDays); }, [allDays, fetchTrades]);
 
-  if (loading) {
-    return (
-      <div>
-        <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
-        <div style={{ display: 'flex', gap: 1, marginBottom: 1, flexWrap: 'wrap' }}>
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} style={{ flex: 1, minWidth: 140, background: 'var(--bg-base)', padding: '28px 24px' }}>
-              <Skeleton w={60} h={9} />
-              <div style={{ marginTop: 14 }}><Skeleton w={100} h={26} /></div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 1 }}><Skeleton h={200} /></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', padding: '40px 0' }}>
-        <div style={{ marginBottom: 12, letterSpacing: '0.08em' }}>{t.dashboard.analytics.errorPrefix} {error}</div>
-        <button onClick={() => fetchData(allDays)} style={{
-          background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)',
-          fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
-          padding: '7px 16px', cursor: 'pointer',
-        }}>
-          {t.dashboard.analytics.retry}
-        </button>
-      </div>
-    );
-  }
-
-  const { summary, by_coin, daily, best, worst } = data || {};
-  const hasKey = data?.has_key ?? false;
-  const noData = data !== null
-    && (summary?.total_trades ?? 0) === 0
-    && !daily?.length
-    && !by_coin?.length;
-
-  if (noData && !hasKey) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
-          {t.dashboard.analytics.noKeyTitle}
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', marginBottom: 28, lineHeight: 1.6 }}>
-          {t.dashboard.analytics.noKeyDesc}
-        </div>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
-          style={{
-            background: 'var(--text-primary)', color: 'var(--bg-base)',
-            border: 'none', padding: '10px 24px',
-            fontFamily: MONO, fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            cursor: 'pointer',
-          }}
-        >
-          {t.dashboard.analytics.noKeyBtn}
-        </button>
-      </div>
-    );
-  }
-
-  if (noData && hasKey) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
-          {t.dashboard.analytics.noTradesTitle}
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          {t.dashboard.analytics.noTradesDesc}
-        </div>
-      </div>
-    );
-  }
-
   // All stats computed from allTrades so they respond to the period selector
+  // NOTE: must be before any early returns (loading/error/noData) to keep hook count stable
   const periodStats = useMemo(() => {
     if (!allTrades.length) return {
       totalPnl: 0, wins: 0, losses: 0, winRate: '—',
@@ -957,6 +881,83 @@ export default function AnalyticsTab() {
       worst: byDate.slice(-5).reverse().map(t => ({ coin: t.symbol, pnl: parseFloat(t.pnl ?? 0), closed_at: t.closed_at, side: t.side, source: t.source, duration_min: (() => { const o = parseInt(t.opened_at), c = parseInt(t.closed_at); return (o && c && c > o) ? Math.round((c - o) / 60000) : null; })() })),
     };
   }, [allTrades]);
+
+  if (loading) {
+    return (
+      <div>
+        <style>{`@keyframes kado-skeleton { 0%,100%{opacity:.4} 50%{opacity:.8} }`}</style>
+        <div style={{ display: 'flex', gap: 1, marginBottom: 1, flexWrap: 'wrap' }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ flex: 1, minWidth: 140, background: 'var(--bg-base)', padding: '28px 24px' }}>
+              <Skeleton w={60} h={9} />
+              <div style={{ marginTop: 14 }}><Skeleton w={100} h={26} /></div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 1 }}><Skeleton h={200} /></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', padding: '40px 0' }}>
+        <div style={{ marginBottom: 12, letterSpacing: '0.08em' }}>{t.dashboard.analytics.errorPrefix} {error}</div>
+        <button onClick={() => fetchData(allDays)} style={{
+          background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)',
+          fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase',
+          padding: '7px 16px', cursor: 'pointer',
+        }}>
+          {t.dashboard.analytics.retry}
+        </button>
+      </div>
+    );
+  }
+
+  const { summary, by_coin, daily, best, worst } = data || {};
+  const hasKey = data?.has_key ?? false;
+  const noData = data !== null
+    && (summary?.total_trades ?? 0) === 0
+    && !daily?.length
+    && !by_coin?.length;
+
+  if (noData && !hasKey) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
+          {t.dashboard.analytics.noKeyTitle}
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', marginBottom: 28, lineHeight: 1.6 }}>
+          {t.dashboard.analytics.noKeyDesc}
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
+          style={{
+            background: 'var(--text-primary)', color: 'var(--bg-base)',
+            border: 'none', padding: '10px 24px',
+            fontFamily: MONO, fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          {t.dashboard.analytics.noKeyBtn}
+        </button>
+      </div>
+    );
+  }
+
+  if (noData && hasKey) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
+        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
+          {t.dashboard.analytics.noTradesTitle}
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          {t.dashboard.analytics.noTradesDesc}
+        </div>
+      </div>
+    );
+  }
 
   const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay, worstDay, dailyPnl } = periodStats;
   const mergedBySource = periodStats.bySource;
