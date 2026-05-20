@@ -2306,7 +2306,7 @@ async def admin_list_users(
         db.query(
             UserTrade.user_id,
             func.count(UserTrade.id).label("total"),
-            func.sum(case([(UserTrade.status == "open", 1)], else_=0)).label("open"),
+            func.sum(case((UserTrade.status == "open", 1), else_=0)).label("open"),
         )
         .filter(UserTrade.user_id.in_(user_ids))
         .group_by(UserTrade.user_id)
@@ -2423,13 +2423,13 @@ async def owner_users_pnl(
         db.query(
             UserTrade.user_id,
             func.count(UserTrade.id).label("total"),
-            func.sum(case([(UserTrade.status == "closed", 1)], else_=0)).label("closed_count"),
-            func.sum(case([(UserTrade.status == "open", 1)], else_=0)).label("open_count"),
+            func.sum(case((UserTrade.status == "closed", 1), else_=0)).label("closed_count"),
+            func.sum(case((UserTrade.status == "open", 1), else_=0)).label("open_count"),
             func.sum(
-                case([(UserTrade.status == "closed", UserTrade.pnl_usdt)], else_=0)
+                case((UserTrade.status == "closed", UserTrade.pnl_usdt), else_=0)
             ).label("total_pnl"),
             func.sum(
-                case([((UserTrade.status == "closed") & (UserTrade.pnl_usdt > 0), 1)], else_=0)
+                case(((UserTrade.status == "closed") & (UserTrade.pnl_usdt > 0), 1), else_=0)
             ).label("wins"),
         )
         .filter(UserTrade.user_id.in_(user_ids))
