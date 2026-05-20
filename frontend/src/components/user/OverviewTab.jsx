@@ -20,7 +20,6 @@ const pnl  = t => parseFloat(t?.pnl_usdt ?? t?.pnl ?? 0);
 const fix  = (v, d = 2) => v == null || isNaN(+v) ? '—' : (+v).toFixed(d);
 const sign = (v, d = 2) => { const n = +v; return isNaN(n) ? '—' : (n >= 0 ? '+' : '') + n.toFixed(d); };
 const pos  = v => +v >= 0;
-const dstr = s => s ? new Date(s).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
 /* ══════════════════════════════════════════════════════════════════
    MARKET TRADES

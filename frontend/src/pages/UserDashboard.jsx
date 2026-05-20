@@ -13,6 +13,7 @@ import MacroBotTab from '@/components/user/MacroBotTab';
 import OnboardingModal  from '@/components/user/OnboardingModal';
 import { useIsMobile }  from '@/lib/useIsMobile';
 import { useTheme }     from '@/lib/ThemeContext';
+import { useLang }      from '@/lib/LangContext';
 
 const BYBIT_BOTS = [
   { id: 'signal',    label: 'Signal'         },
@@ -73,6 +74,7 @@ export default function UserDashboard() {
   const user              = getUser();
   const isMobile          = useIsMobile();
   const { theme, toggle } = useTheme();
+  const { t }             = useLang();
   const dark              = theme === 'dark';
 
   const [tab,        setTab]        = useState('signal');
@@ -179,9 +181,9 @@ export default function UserDashboard() {
       {/* nav links */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
 
-        <NavItem id="analytics" label="Balance" />
-        <NavItem id="trades"    label="Trades"  />
-        <NavItem id="pnl"       label="PnL"     />
+        <NavItem id="analytics" label={t.dashboard.tabOverview} />
+        <NavItem id="trades"    label={t.dashboard.tabTrades}  />
+        <NavItem id="pnl"       label={t.dashboard.tabPnl}     />
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
@@ -198,7 +200,7 @@ export default function UserDashboard() {
         }}
         onMouseEnter={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; } }}
         onMouseLeave={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = isBot ? fg : muted; e.currentTarget.style.background = 'transparent'; } }}>
-          <span>Bots</span>
+          <span>{t.dashboard.navBots}</span>
           <span style={{ fontSize: 9, opacity: 0.5 }}>{botsOpen ? '▾' : '▸'}</span>
         </button>
 
@@ -211,15 +213,15 @@ export default function UserDashboard() {
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
-        <NavItem id="tools" label="Tools" />
+        <NavItem id="tools" label={t.dashboard.navTools} />
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
         {[
-          { id: 'account',  label: 'Account'  },
-          { id: 'api-keys', label: 'API Keys' },
-          { id: 'security', label: 'Security' },
-          { id: 'settings', label: 'Settings' },
+          { id: 'account',  label: t.dashboard.tabAccount  },
+          { id: 'api-keys', label: t.dashboard.tabApiKeys  },
+          { id: 'security', label: t.dashboard.tabSecurity },
+          { id: 'settings', label: t.dashboard.tabSettings },
         ].map(item => <NavItem key={item.id} id={item.id} label={item.label} />)}
       </nav>
 
