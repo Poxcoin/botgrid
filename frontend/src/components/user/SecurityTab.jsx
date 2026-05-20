@@ -157,7 +157,7 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
     try {
       await API('/api/users/keys', { method: 'POST', body: JSON.stringify({ api_key: apiKey, secret, is_demo: testnet }) });
       setSuccess(t.dashboard.security.keysSaved);
-      onUpdate({ has_api_keys: true, api_key_testnet: testnet });
+      onUpdate({ has_api_keys: true, api_key_demo: testnet });
       setApiKey(''); setSecret(''); setRevealed(null);
     } catch (e) { setError(e); }
     finally { setSaving(false); }
@@ -190,7 +190,7 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
         <div style={{ width: 7, height: 7, borderRadius: '50%', background: me?.has_api_keys ? 'var(--text-secondary)' : 'var(--muted-fg)', opacity: me?.has_api_keys ? 1 : 0.35 }} />
         <span style={{ fontSize: 13 }}>{t.dashboard.security.bybitApiPrefix} {me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}</span>
-        {me?.has_api_keys && me?.api_key_testnet && <span style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.1em' }}>{t.dashboard.security.testnetTag}</span>}
+        {me?.has_api_keys && me?.api_key_demo && <span style={{ fontSize: 10, color: 'var(--muted-fg)', letterSpacing: '0.1em' }}>{t.dashboard.security.testnetTag}</span>}
         {me?.has_api_keys && <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '0.08em' }}>{t.dashboard.security.activeStatus}</span>}
       </div>
 
@@ -383,7 +383,7 @@ export default function SecurityTab() {
           <SecurityRow
             label={t.dashboard.security.bybitKeysHeader}
             description={me?.has_api_keys
-              ? (me.api_key_testnet ? t.dashboard.security.apiKeysActiveTestnet : t.dashboard.security.apiKeysActiveLive)
+              ? (me.api_key_demo ? t.dashboard.security.apiKeysActiveTestnet : t.dashboard.security.apiKeysActiveLive)
               : t.dashboard.security.apiKeysInactive}
             status={me?.has_api_keys ? t.dashboard.security.connected : t.dashboard.security.notConnected}
             action={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
