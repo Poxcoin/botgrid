@@ -148,11 +148,17 @@ def _poll_okx() -> list[dict]:
         )
         if resp.status_code != 200:
             raise ValueError(f"HTTP {resp.status_code}")
-        data = resp.json().get("data", {})
+        try:
+            body_okx = resp.json()
+        except Exception:
+            raise ValueError("invalid JSON in OKX response")
+        data = body_okx.get("data", {}) if isinstance(body_okx, dict) else {}
         articles = data.get("articles", []) if isinstance(data, dict) else []
         _fail_count["okx"] = 0
         new_items = []
         for article in articles:
+            if not isinstance(article, dict):
+                continue
             item_id = f"okx_{article.get('id', '')}"
             with _seen_lock:
                 if item_id in _seen_ids:
