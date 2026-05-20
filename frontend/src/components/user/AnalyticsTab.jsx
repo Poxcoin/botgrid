@@ -547,6 +547,22 @@ export default function AnalyticsTab() {
   const totalPnl = summary?.total_pnl ?? 0;
   const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
 
+  const { avgTrade, streak, streakDir } = useMemo(() => {
+    if (!allTrades.length) return { avgTrade: null, streak: 0, streakDir: null };
+    const sorted = [...allTrades].sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
+    const total = sorted.reduce((s, t) => s + parseFloat(t.pnl ?? 0), 0);
+    const avg = total / sorted.length;
+    let count = 0;
+    let dir = null;
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      const w = parseFloat(sorted[i].pnl ?? 0) > 0;
+      if (dir === null) { dir = w; count = 1; }
+      else if (dir === w) count++;
+      else break;
+    }
+    return { avgTrade: avg, streak: count, streakDir: dir };
+  }, [allTrades]);
+
   // Merge rows that share the same display label (e.g. "news"+"signal" → single "Signal Bot" row)
   const mergedBySource = Object.values(
     (data?.by_source ?? []).reduce((acc, r) => {
@@ -660,6 +676,20 @@ export default function AnalyticsTab() {
           value={bestDay ? `${bestDay.pnl >= 0 ? '+' : ''}${parseFloat(bestDay.pnl).toFixed(2)}` : '—'}
           sub={bestDay?.date ?? ''}
         />
+        {avgTrade != null && (
+          <StatCard
+            label="Avg Trade"
+            value={`${avgTrade >= 0 ? '+' : ''}${avgTrade.toFixed(2)}`}
+            sub="USDT per trade"
+          />
+        )}
+        {streak > 0 && (
+          <StatCard
+            label="Current Streak"
+            value={`${streak}×`}
+            sub={streakDir ? '✓ wins' : '✗ losses'}
+          />
+        )}
       </div>
 
       {/* Daily PnL chart — last 30 days */}
