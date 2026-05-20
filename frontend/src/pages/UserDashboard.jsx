@@ -77,10 +77,11 @@ export default function UserDashboard() {
   const { t }             = useLang();
   const dark              = theme === 'dark';
 
-  const [tab,        setTab]        = useState('signal');
-  const [botsOpen,   setBotsOpen]   = useState(true);
-  const [drop,       setDrop]       = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [tab,          setTab]        = useState('signal');
+  const [botsOpen,     setBotsOpen]   = useState(true);
+  const [balanceOpen,  setBalanceOpen] = useState(false);
+  const [drop,         setDrop]       = useState(false);
+  const [drawerOpen,   setDrawerOpen] = useState(false);
   const dropRef = useRef(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const allowedBots = usePlanFeatures();
@@ -111,7 +112,9 @@ export default function UserDashboard() {
 
   const goTab = id => { setTab(id); setDrawerOpen(false); };
 
-  const isBot    = BOT_IDS.includes(tab);
+  const BALANCE_IDS = ['analytics', 'trades', 'pnl'];
+  const isBot     = BOT_IDS.includes(tab);
+  const isBalance = BALANCE_IDS.includes(tab);
   const pageLabel = isBot
     ? BOTS.find(b => b.id === tab)?.label ?? ''
     : ({
@@ -181,9 +184,28 @@ export default function UserDashboard() {
       {/* nav links */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
 
-        <NavItem id="analytics" label={t.dashboard.tabAnalytics} />
-        <NavItem id="trades"    label={t.dashboard.tabTrades}  />
-        <NavItem id="pnl"       label={t.dashboard.tabPnl}     />
+        {/* Balance parent */}
+        <button onClick={() => setBalanceOpen(v => !v)} style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '11px 20px', minHeight: 44,
+          background: isBalance && !balanceOpen ? fg : 'transparent',
+          border: 'none', cursor: 'pointer',
+          color: isBalance ? (balanceOpen ? fg : bg) : muted,
+          fontSize: 13, fontFamily: 'inherit',
+          letterSpacing: '0.01em',
+          transition: 'background 0.12s, color 0.12s',
+        }}
+        onMouseEnter={e => { if (!(isBalance && !balanceOpen)) { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; } }}
+        onMouseLeave={e => { if (!(isBalance && !balanceOpen)) { e.currentTarget.style.color = isBalance ? fg : muted; e.currentTarget.style.background = 'transparent'; } }}>
+          <span>{t.dashboard.navBalance ?? 'Balance'}</span>
+          <span style={{ fontSize: 9, opacity: 0.5 }}>{balanceOpen ? '▾' : '▸'}</span>
+        </button>
+
+        {balanceOpen && <>
+          <NavItem id="analytics" label={t.dashboard.tabAnalytics} indent />
+          <NavItem id="trades"    label={t.dashboard.tabTrades}    indent />
+          <NavItem id="pnl"       label={t.dashboard.tabPnl}       indent />
+        </>}
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 

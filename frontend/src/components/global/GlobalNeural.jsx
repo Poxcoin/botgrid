@@ -208,7 +208,7 @@ export default function GlobalNeural() {
           const cdx = wx - cursorStateRef.x, cdy = wy - cursorStateRef.y;
           const cd = Math.sqrt(cdx * cdx + cdy * cdy);
           const warp = cd < 300 && cd > 0 ? (1 - cd / 300) * 3 : 0;
-          const wave = Math.sin(p * s.freq * Math.PI * 2 + s.phase + t * s.speed) * s.amp * Math.sqrt(p);
+          const wave = Math.sin(p * s.freq * Math.PI * 2 + s.phase + t * s.speed) * s.amp * (0.25 + p * 0.75);
           const x = wx + Math.cos(perp) * wave + (cd > 0 ? (cdx / cd) * warp : 0);
           const y = wy + Math.sin(perp) * wave + (cd > 0 ? (cdy / cd) * warp : 0);
           seg === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
