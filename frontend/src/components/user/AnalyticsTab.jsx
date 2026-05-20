@@ -417,6 +417,29 @@ export default function AnalyticsTab() {
   const totalPnl = summary?.total_pnl ?? 0;
   const bestDay = daily?.length ? daily.reduce((a, b) => (b.pnl > a.pnl ? b : a), daily[0]) : null;
 
+  // Merge rows that share the same display label (e.g. "news"+"signal" → single "Signal Bot" row)
+  const mergedBySource = Object.values(
+    (data?.by_source ?? []).reduce((acc, r) => {
+      const key = r.label || r.source;
+      if (!acc[key]) {
+        acc[key] = { ...r, _winSum: r.wins * (r.avg_win || 0), _lossSum: (r.trades - r.wins) * (r.avg_loss || 0) };
+      } else {
+        const prev = acc[key];
+        const losses = r.trades - r.wins;
+        prev.trades   += r.trades;
+        prev.pnl       = +(prev.pnl + r.pnl).toFixed(2);
+        prev.wins     += r.wins;
+        prev._winSum  += r.wins * (r.avg_win || 0);
+        prev._lossSum += losses * (r.avg_loss || 0);
+      }
+      return acc;
+    }, {})
+  ).map(r => ({
+    ...r,
+    avg_win:  r.wins > 0           ? +(r._winSum  / r.wins).toFixed(2)               : 0,
+    avg_loss: (r.trades - r.wins) > 0 ? +(r._lossSum / (r.trades - r.wins)).toFixed(2) : 0,
+  })).sort((a, b) => b.pnl - a.pnl);
+
   const botCols = [
     { key: 'source', label: t.dashboard.analytics.hSource, bold: true, render: r => r.label || r.source },
     { key: 'trades', label: t.dashboard.analytics.hTrades, align: 'right' },
@@ -524,14 +547,14 @@ export default function AnalyticsTab() {
       )}
 
       {/* By bot source */}
-      {(data?.by_source?.length > 0) && (
+      {mergedBySource.length > 0 && (
         <div style={{ marginBottom: 32 }}>
           <SectionLabel
             title={t.dashboard.analytics.byBotSource}
-            right={`${data.by_source.length} ${t.dashboard.analytics.sources}`}
+            right={`${mergedBySource.length} ${t.dashboard.analytics.sources}`}
           />
           <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
-            <DataTable cols={botCols} rows={data.by_source}
+            <DataTable cols={botCols} rows={mergedBySource}
               getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
             />
           </div>
