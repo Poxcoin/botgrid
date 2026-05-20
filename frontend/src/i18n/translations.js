@@ -5140,6 +5140,8 @@ export const translations = {
         stratFundingDesc: '利用多空持仓之间的资金费率异常。适用于任何市场方向。',
       },
       macro: {
+        m1: { tag: 'EURUSD · GBPUSD · MT5', name: '宏观外汇机器人', hook: '宏观数据发布的瞬间入场交易。', desc: '监控美国经济数据发布 — CPI、NFP、零售销售、FOMC — 通过FRED和BLS API。当实际数据与预测显著偏差时，机器人同时进入EURUSD和GBPUSD。所有仓位在20分钟后平仓。风险回报比1.33:1，止损15点。', pills: ['事件驱动', '20分钟退出', '止损15点'] },
+        m2: { tag: 'XAUUSD · MT5', name: '黄金事件机器人', hook: '美国强劲数据看跌黄金 — 反之亦然。', desc: '黄金对美国通胀和就业数据意外变化反应强烈。机器人在宏观事件同一时间窗口内交易XAU/USD：美国数据强劲时做空（美元走强），数据疲软时做多。无论盈亏，20分钟后退出。IC Markets模拟账户。', pills: ['与美元反向', '宏观驱动', 'IC Markets'] },
         noMt5Title:    '未连接MT5账户',
         noMt5Desc:     '连接您的IC Markets MT5凭据，以查看实时统计数据和交易历史。',
         addMt5Btn:     '添加MT5账户 →',

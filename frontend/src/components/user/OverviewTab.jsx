@@ -1637,6 +1637,73 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
 
       {/* ── PANEL ─────────────────────────────────────────────── */}
       <Panel botTrades={periodTrades} botPositions={botPos} openOrders={openOrders} onClose={handleClose} onCancelOrder={handleCancelOrder} filterCoin={coin} balance={balance}/>
+
+      {/* ── TRADE HISTORY ─────────────────────────────────────── */}
+      {(() => {
+        const historyTrades = periodTrades.filter(t => t.closed_at).slice(0, 30);
+        return (
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-primary)', fontWeight: 600 }}>
+                {t.dashboard.panel.tradeHistory}
+              </span>
+              <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', padding: '1px 5px', border: '1px solid var(--border-subtle)' }}>
+                {historyTrades.length}
+              </span>
+            </div>
+            {/* Table */}
+            {historyTrades.length === 0 ? (
+              <div style={{ padding: '32px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>
+                No closed trades
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {['Symbol', 'Side', 'Entry', 'Exit', 'PnL (USDT)', 'Date'].map((col, i) => (
+                        <th key={col} style={{ padding: '6px 14px', fontFamily: FM, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 400, textAlign: i >= 2 ? 'right' : 'left', background: 'var(--bg-surface)', position: 'sticky', top: 0, whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyTrades.map(tr => {
+                      const p = pnl(tr);
+                      const isLong = (tr.side || '').toUpperCase() === 'LONG';
+                      const dateStr = tr.closed_at
+                        ? new Date(tr.closed_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+                        : '—';
+                      return (
+                        <tr key={tr.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                            {sym(tr.symbol)}
+                          </td>
+                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: isLong ? 'var(--accent-green)' : 'var(--accent-red)', whiteSpace: 'nowrap' }}>
+                            {(tr.side || '').toUpperCase() || '—'}
+                          </td>
+                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {tr.entry_price != null ? (+tr.entry_price).toFixed(2) : '—'}
+                          </td>
+                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {tr.exit_price != null ? (+tr.exit_price).toFixed(2) : '—'}
+                          </td>
+                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: p > 0 ? 'var(--accent-green)' : p < 0 ? 'var(--accent-red)' : 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                            {p > 0 ? '+' : ''}{p.toFixed(2)}
+                          </td>
+                          <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            {dateStr}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
