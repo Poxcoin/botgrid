@@ -21,30 +21,19 @@ function getRouteShift(pathname) {
 }
 
 function buildAxons(W, H, isMobile) {
-  const count = isMobile ? 8 : 30;
-  const bx = W * 0.05;
-  const by = H * 0.78;
-  const aMin = -Math.PI * 0.48;
-  const aMax = 0.10;
-  return Array.from({ length: count }, (_, i) => ({
-    ox: bx + (Math.random() - 0.5) * W * 0.012,
-    oy: by + (Math.random() - 0.5) * H * 0.012,
-    angle: aMin + (i / (count - 1)) * (aMax - aMin) + (Math.random() - 0.5) * 0.07,
-    len: 480 + Math.random() * Math.max(W, H) * 0.82,
-    amp: 4 + Math.random() * 14,
-    freq: 0.5 + Math.random() * 1.2,
+  const count = isMobile ? 8 : 38;
+  // Origins spread across left 60% × full height — not one cluster
+  return Array.from({ length: count }, () => ({
+    ox: W * 0.03 + Math.random() * W * 0.58,
+    oy: H * 0.10 + Math.random() * H * 0.85,
+    angle: -Math.PI + Math.random() * Math.PI * 2,
+    len: 260 + Math.random() * W * 0.60,
+    amp: 14 + Math.random() * 26,   // wide gentle curves
+    freq: 0.35 + Math.random() * 0.55, // 0.35-0.9 cycles — smooth, not jaggy
     phase: Math.random() * Math.PI * 2,
-    speed: 0.25 + Math.random() * 0.45,
-    w: 0.45 + Math.random() * 0.65,
-    op: 0.13 + Math.random() * 0.11,
-    // Origin drift
-    dox: (Math.random() - 0.5) * W * 0.08,
-    doy: (Math.random() - 0.5) * H * 0.06,
-    df:  0.12 + Math.random() * 0.10,
-    dp:  Math.random() * Math.PI * 2,
-    // Per-line angle sweep
-    da:  (Math.random() - 0.5) * 0.15,
-    daf: 0.06 + Math.random() * 0.06,
+    speed: 0.10 + Math.random() * 0.20, // slow elegant drift
+    w: 0.3 + Math.random() * 0.45,
+    op: 0.10 + Math.random() * 0.13,
   }));
 }
 
@@ -189,41 +178,33 @@ export default function GlobalNeural() {
       const stormOver = ts - stormStart > STORM_MS;
       const rgb = themeRef.current === 'dark' ? '255,255,255' : '10,10,10';
 
-      // Lerp route angle and scroll angle
       routeShiftRef.current += (routeTargetRef.current - routeShiftRef.current) * Math.min(1, dt * 0.0016);
-      scrollAngle += (scrollAngleTarget - scrollAngle) * Math.min(1, dt * 0.008);
-      // Global breathing — all lines sweep together, period ~13s, clearly visible
-      const globalBreath = Math.sin(t * 0.48) * 0.12;
-      const totalShift = routeShiftRef.current + scrollAngle + globalBreath;
+      scrollAngle += (scrollAngleTarget - scrollAngle) * Math.min(1, dt * 0.006);
+      const totalShift = routeShiftRef.current + scrollAngle;
 
       ctx.clearRect(0, 0, W, H);
 
-      // ── Layer 1: Axon strands — fading gradient tip ──
+      // ── Layer 1: Axon strands — gradient fade at tip ──
       for (const s of axons) {
-        const ox = s.ox + s.dox * Math.sin(t * s.df + s.dp);
-        const oy = s.oy + s.doy * Math.cos(t * s.df * 0.75 + s.dp);
-        const angle = s.angle + totalShift + s.da * Math.sin(t * s.daf + s.dp * 1.3);
-
-        // Approximate tip for gradient (straight-line direction, wavy path is close enough)
-        const tipX = ox + Math.cos(angle) * s.len;
-        const tipY = oy + Math.sin(angle) * s.len;
+        const angle = s.angle + totalShift;
+        const tipX = s.ox + Math.cos(angle) * s.len;
+        const tipY = s.oy + Math.sin(angle) * s.len;
         const axonMult = isDashRef.current ? 0.12 : 1.0;
         const baseOp = s.op * axonMult * (0.7 + 0.3 * Math.sin(t * 0.7 + s.phase));
 
-        const grad = ctx.createLinearGradient(ox, oy, tipX, tipY);
+        const grad = ctx.createLinearGradient(s.ox, s.oy, tipX, tipY);
         grad.addColorStop(0,    `rgba(${rgb},${baseOp})`);
-        grad.addColorStop(0.55, `rgba(${rgb},${baseOp * 0.88})`);
+        grad.addColorStop(0.55, `rgba(${rgb},${baseOp * 0.9})`);
         grad.addColorStop(0.80, `rgba(${rgb},${baseOp * 0.35})`);
-        grad.addColorStop(0.95, `rgba(${rgb},${baseOp * 0.04})`);
         grad.addColorStop(1,    `rgba(${rgb},0)`);
 
         ctx.beginPath();
         const perp = angle + Math.PI / 2;
-        for (let seg = 0; seg <= 32; seg++) {
-          const p = seg / 32;
+        for (let seg = 0; seg <= 30; seg++) {
+          const p = seg / 30;
           const dist = p * s.len;
-          const wx = ox + Math.cos(angle) * dist;
-          const wy = oy + Math.sin(angle) * dist;
+          const wx = s.ox + Math.cos(angle) * dist;
+          const wy = s.oy + Math.sin(angle) * dist;
           const cdx = wx - cursorStateRef.x, cdy = wy - cursorStateRef.y;
           const cd = Math.sqrt(cdx * cdx + cdy * cdy);
           const warp = cd < 300 && cd > 0 ? (1 - cd / 300) * 3 : 0;
