@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { useLang } from '@/lib/LangContext';
 
 const MONO = 'var(--font-mono)';
 
@@ -99,6 +100,8 @@ function fmt(n, decimals = 2) {
 }
 
 function PositionSizeCalc() {
+  const { t } = useLang();
+  const tt = t.dashboard.tools;
   const [balance, setBalance] = useState('1000');
   const [risk, setRisk] = useState('1');
   const [entry, setEntry] = useState('');
@@ -120,7 +123,7 @@ function PositionSizeCalc() {
 
   return (
     <div style={cardStyle}>
-      <div style={cardTitleStyle}>Position Size Calculator</div>
+      <div style={cardTitleStyle}>{tt.posSizeCalc}</div>
       <InputField label="Account Balance (USDT)" value={balance} onChange={setBalance} />
       <InputField label="Risk per Trade (%)" value={risk} onChange={setRisk} step={0.1} max={100} />
       <InputField label="Entry Price" value={entry} onChange={setEntry} />
@@ -136,6 +139,8 @@ function PositionSizeCalc() {
 }
 
 function RiskRewardCalc() {
+  const { t } = useLang();
+  const tt = t.dashboard.tools;
   const [entry, setEntry] = useState('');
   const [sl, setSl] = useState('');
   const [tp, setTp] = useState('');
@@ -143,35 +148,35 @@ function RiskRewardCalc() {
 
   const e = parseFloat(entry);
   const s = parseFloat(sl);
-  const t = parseFloat(tp);
+  const tpVal = parseFloat(tp);
   const sz = parseFloat(size);
 
-  const valid = e > 0 && s > 0 && t > 0 && sz > 0 && e !== s && e !== t;
+  const valid = e > 0 && s > 0 && tpVal > 0 && sz > 0 && e !== s && e !== tpVal;
 
   const riskUSDT = valid ? Math.abs(e - s) / e * sz : null;
-  const rewardUSDT = valid ? Math.abs(t - e) / e * sz : null;
+  const rewardUSDT = valid ? Math.abs(tpVal - e) / e * sz : null;
   const riskPct = valid ? Math.abs(e - s) / e * 100 : null;
-  const rewardPct = valid ? Math.abs(t - e) / e * 100 : null;
+  const rewardPct = valid ? Math.abs(tpVal - e) / e * 100 : null;
   const rr = valid && riskUSDT > 0 ? rewardUSDT / riskUSDT : null;
 
   let verdict = null;
   let verdictColor = 'var(--text-muted)';
   if (rr !== null) {
     if (rr >= 2) {
-      verdict = 'Good setup ✓';
+      verdict = tt.goodSetup;
       verdictColor = 'var(--accent-green)';
     } else if (rr >= 1) {
-      verdict = 'OK';
+      verdict = tt.okSetup;
       verdictColor = '#f59e0b';
     } else {
-      verdict = 'Poor risk/reward';
+      verdict = tt.poorRR;
       verdictColor = 'var(--accent-red)';
     }
   }
 
   return (
     <div style={cardStyle}>
-      <div style={cardTitleStyle}>Risk / Reward Calculator</div>
+      <div style={cardTitleStyle}>{tt.rrCalc}</div>
       <InputField label="Entry Price" value={entry} onChange={setEntry} />
       <InputField label="Stop Loss Price" value={sl} onChange={setSl} />
       <InputField label="Take Profit Price" value={tp} onChange={setTp} />
@@ -193,6 +198,8 @@ function RiskRewardCalc() {
 }
 
 function LiquidationCalc() {
+  const { t } = useLang();
+  const tt = t.dashboard.tools;
   const [entry, setEntry] = useState('');
   const [lev, setLev] = useState('10');
   const [side, setSide] = useState('LONG');
@@ -214,7 +221,7 @@ function LiquidationCalc() {
 
   return (
     <div style={cardStyle}>
-      <div style={cardTitleStyle}>Liquidation Price Calculator</div>
+      <div style={cardTitleStyle}>{tt.liqCalc}</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['LONG', 'SHORT'].map(s => (
           <button key={s} onClick={() => setSide(s)} style={{
@@ -244,6 +251,8 @@ function LiquidationCalc() {
 }
 
 function CompoundCalc() {
+  const { t } = useLang();
+  const tt = t.dashboard.tools;
   const [balance, setBalance] = useState('10000');
   const [monthly, setMonthly] = useState('5');
   const [months,  setMonths]  = useState('12');
@@ -268,7 +277,7 @@ function CompoundCalc() {
 
   return (
     <div style={cardStyle}>
-      <div style={cardTitleStyle}>Compound Growth Calculator</div>
+      <div style={cardTitleStyle}>{tt.compoundCalc}</div>
       <InputField label="Starting Balance (USDT)" value={balance} onChange={setBalance} />
       <InputField label="Monthly Return (%)" value={monthly} onChange={setMonthly} step={0.1} />
       <InputField label="Months" value={months} onChange={setMonths} step={1} max={60} />
@@ -312,7 +321,7 @@ function CompoundCalc() {
                 padding: '6px 12px', fontFamily: MONO, fontSize: 11,
                 pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
               }}>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 3 }}>Month {rows[hovIdx].month}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 3 }}>{tt.month} {rows[hovIdx].month}</div>
                 <div style={{ fontWeight: 700, color: 'var(--accent-green)' }}>${rows[hovIdx].value.toFixed(2)}</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>+{((rows[hovIdx].value - b) / b * 100).toFixed(1)}%</div>
               </div>
@@ -320,9 +329,9 @@ function CompoundCalc() {
           </div>
 
           <div style={resultBoxStyle}>
-            <ResultRow label="Final Balance" value={`$${fmt(finalVal)}`} />
-            <ResultRow label="Total Gain" value={`$${fmt(totalGain)}`} />
-            <ResultRow label="Growth" value={`+${fmt(gainPct)}%`} last />
+            <ResultRow label={tt.finalBalance} value={`$${fmt(finalVal)}`} />
+            <ResultRow label={tt.totalGain} value={`$${fmt(totalGain)}`} />
+            <ResultRow label={tt.growth} value={`+${fmt(gainPct)}%`} last />
           </div>
         </>
       )}
