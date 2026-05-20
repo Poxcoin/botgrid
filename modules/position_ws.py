@@ -48,13 +48,13 @@ def _coin_from_symbol(symbol: str) -> str:
     return symbol.replace("PERP", "").replace("USDT", "")
 
 
-def _fetch_closed_pnl(api_key: str, secret: str, is_testnet: bool,
+def _fetch_closed_pnl(api_key: str, secret: str, is_demo: bool,
                       symbol: str, opened_ms: int) -> tuple[float, float]:
     """REST: fetch closed PnL + funding settlements for this symbol since opened_ms."""
     try:
         from modules.saas_dispatcher import _build_exchange
         import time as _time
-        ex = _build_exchange(api_key, secret, is_testnet)
+        ex = _build_exchange(api_key, secret, is_demo)
 
         # 1. Price-based closed PnL
         resp = ex.private_get_v5_position_closed_pnl({
@@ -94,7 +94,7 @@ def _fetch_closed_pnl(api_key: str, secret: str, is_testnet: bool,
 
 
 def _close_trades(user_id: int, api_key: str, secret: str,
-                  is_testnet: bool, bybit_symbol: str) -> None:
+                  is_demo: bool, bybit_symbol: str) -> None:
     """Find open UserTrade records for this symbol+user and close them in DB."""
     from modules.saas_dispatcher import update_trade_closed
     coin = _coin_from_symbol(bybit_symbol)
@@ -117,7 +117,7 @@ def _close_trades(user_id: int, api_key: str, secret: str,
                 (trade.opened_at or datetime.now(timezone.utc)).timestamp() * 1000
             )
             exit_price, pnl_usdt = _fetch_closed_pnl(
-                api_key, secret, is_testnet, bybit_symbol, opened_ms
+                api_key, secret, is_demo, bybit_symbol, opened_ms
             )
             _notify_data = {
                 "symbol":     trade.symbol,
@@ -155,9 +155,9 @@ def _close_trades(user_id: int, api_key: str, secret: str,
 
 # ─── per-user WebSocket task ───────────────────────────────────────────────────
 
-async def _watch_user(user_id: int, api_key: str, secret: str, is_testnet: bool):
-    url  = WS_DEMO if is_testnet else WS_LIVE
-    mode = "demo" if is_testnet else "live"
+async def _watch_user(user_id: int, api_key: str, secret: str, is_demo: bool):
+    url  = WS_DEMO if is_demo else WS_LIVE
+    mode = "demo" if is_demo else "live"
     print(f"[WS] ▶ user={user_id} starting ({mode})")
 
     while True:
@@ -208,7 +208,7 @@ async def _watch_user(user_id: int, api_key: str, secret: str, is_testnet: bool)
                             if symbol:
                                 await loop.run_in_executor(
                                     None, _close_trades,
-                                    user_id, api_key, secret, is_testnet, symbol,
+                                    user_id, api_key, secret, is_demo, symbol,
                                 )
 
         except asyncio.CancelledError:
@@ -221,13 +221,13 @@ async def _watch_user(user_id: int, api_key: str, secret: str, is_testnet: bool)
 
 # ─── public API ───────────────────────────────────────────────────────────────
 
-def start_user(user_id: int, api_key: str, secret: str, is_testnet: bool) -> None:
+def start_user(user_id: int, api_key: str, secret: str, is_demo: bool) -> None:
     """Start (or ignore if already running) a WS watcher for this user."""
     existing = _tasks.get(user_id)
     if existing and not existing.done():
         return
     task = asyncio.get_running_loop().create_task(
-        _watch_user(user_id, api_key, secret, is_testnet),
+        _watch_user(user_id, api_key, secret, is_demo),
         name=f"pos-ws-u{user_id}",
     )
     _tasks[user_id] = task
@@ -259,7 +259,7 @@ async def sync_with_db() -> None:
             api_key = decrypt_field(key_row.api_key_enc)
             secret  = decrypt_field(key_row.secret_enc)
             if api_key and secret:
-                start_user(uid, api_key, secret, key_row.is_testnet)
+                start_user(uid, api_key, secret, key_row.is_demo)
 
         for uid in [u for u in list(_tasks) if u not in active_ids]:
             stop_user(uid)

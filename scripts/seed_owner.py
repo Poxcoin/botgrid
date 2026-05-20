@@ -88,7 +88,7 @@ try:
         exchange     = "bybit",
         api_key_enc  = encrypt_field(api_key),
         secret_enc   = encrypt_field(secret),
-        is_testnet   = is_demo,
+        is_demo      = is_demo,
     )
     db.add(api_row)
     db.commit()

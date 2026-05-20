@@ -198,7 +198,7 @@ async def _send_balance(message: Message):
         upnl = b["unrealized_pnl"]
         await message.answer(
             texts.BALANCE_INFO.format(
-                testnet_tag=" (testnet)" if key_row.is_testnet else "",
+                testnet_tag=" (demo)" if key_row.is_demo else "",
                 wallet=b["wallet"],
                 equity=b["equity"],
                 free=b["usdt_free"],
@@ -345,7 +345,7 @@ async def cmd_status(message: Message):
             if pos_cnt > 5:
                 open_lines += f"\n<i>+{pos_cnt - 5} more…</i>"
 
-        net_tag = " (testnet)" if key_row.is_testnet else ""
+        net_tag = " (demo)" if key_row.is_demo else ""
 
         text = (
             f"<b>KADO Status{net_tag}</b>\n\n"

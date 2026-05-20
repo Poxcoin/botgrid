@@ -55,7 +55,7 @@ def _get_users_with_open_trades() -> list[dict]:
                 "user_id":    uid,
                 "api_key":    api_key,
                 "secret":     secret,
-                "is_testnet": key_row.is_testnet,
+                "is_demo": key_row.is_demo,
             })
         return result
     finally:
@@ -78,7 +78,7 @@ def _check_user(user: dict) -> int:
     """Check one user's open trades against Bybit. Returns number of trades closed."""
     api_key    = user["api_key"]
     secret     = user["secret"]
-    is_testnet = user["is_testnet"]
+    is_demo = user["is_demo"]
     user_id    = user["user_id"]
 
     trades = _open_trades_for_user(user_id)
@@ -86,7 +86,7 @@ def _check_user(user: dict) -> int:
         return 0
 
     try:
-        ex = _build_exchange(api_key, secret, is_testnet)
+        ex = _build_exchange(api_key, secret, is_demo)
         positions = ex.fetch_positions(params={"category": "linear"})
         open_market_ids = {
             ex.market_id(p["symbol"])

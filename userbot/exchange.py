@@ -19,7 +19,7 @@ def init_user_exchange(key_row):
             "options": {"defaultType": "linear", "recvWindow": 10000},
         })
         ex.has["fetchCurrencies"] = False
-        if key_row.is_testnet:
+        if key_row.is_demo:
             ex.urls["api"] = ex.urls["demotrading"]
         return ex
     except Exception:

@@ -102,7 +102,7 @@ def _sync() -> None:
                 try:
                     ak  = decrypt_field(key_row.api_key_enc)
                     sec = decrypt_field(key_row.secret_enc)
-                    _start_user(user.id, ak, sec, is_demo=key_row.is_testnet,
+                    _start_user(user.id, ak, sec, is_demo=key_row.is_demo,
                                 tg_chat_id=getattr(user, "tg_chat_id", None))
                 except Exception as e:
                     logger.error(f"[DISPATCHER] Failed to start user {user.id}: {e}")
@@ -153,7 +153,7 @@ def sync_user(user_id: int) -> None:
             time.sleep(1)
         ak  = decrypt_field(key_row.api_key_enc)
         sec = decrypt_field(key_row.secret_enc)
-        _start_user(user_id, ak, sec, is_demo=key_row.is_testnet,
+        _start_user(user_id, ak, sec, is_demo=key_row.is_demo,
                     tg_chat_id=getattr(user, "tg_chat_id", None))
     except Exception as e:
         logger.error(f"[DISPATCHER] sync_user({user_id}) error: {e}")

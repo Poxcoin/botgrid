@@ -89,7 +89,7 @@ if "bybit_api_key" in existing and "bybit_secret" in existing:
         except Exception:
             enc_key = encrypt_field(raw_key)
             enc_sec = encrypt_field(raw_secret)
-        key_row = UserApiKey(user_id=uid, exchange="bybit", api_key_enc=enc_key, secret_enc=enc_sec, is_testnet=False)
+        key_row = UserApiKey(user_id=uid, exchange="bybit", api_key_enc=enc_key, secret_enc=enc_sec, is_demo=False)
         db.add(key_row)
         migrated += 1
     db.commit()
