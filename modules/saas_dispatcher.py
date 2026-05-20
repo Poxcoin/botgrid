@@ -209,6 +209,13 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         else:
             # Auto: size = 1% risk / (leverage × sl_pct), capped at 25%
             size_pct = min(1.0 * 100 / (leverage * sl_pct), 25.0)
+            # Score-based scaling: size = base × (score/10)²
+            # Only for signals with an explicit score (news/whale/sweep bots).
+            # score=7.0 → 49%, score=8.0 → 64%, score=9.5 → 90%, score=10+ → 100%
+            sig_score = signal.get("score")
+            if sig_score is not None:
+                scale = min((abs(sig_score) / 10.0) ** 2, 1.0)
+                size_pct = max(size_pct * scale, size_pct * 0.25)  # floor at 25% base
         size_usd = balance * (size_pct / 100) * leverage
 
         # Market price
@@ -254,7 +261,8 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
 
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    order.get("id"), fill, qty, "open")
-        print(f"[DISPATCHER] ✅ user={uid} {side} {symbol} qty={qty} fill={fill:.4f}")
+        _score_tag = f" score={signal.get('score'):.1f}→{size_pct:.1f}%" if signal.get("score") is not None else ""
+        print(f"[DISPATCHER] ✅ user={uid} {side} {symbol} qty={qty} fill={fill:.4f}{_score_tag}")
 
         try:
             from modules.tg_notifier import notify_user_trade

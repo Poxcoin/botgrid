@@ -185,6 +185,7 @@ def _saas_dispatch(signal: dict, source: str, leverage: int,
             "tp_pct":          tp_pct,
             "sl_pct":          sl_pct,
             "close_after_min": signal.get("close_after_min"),
+            "score":           abs(_score) if _score else None,
         })
     except Exception as e:
         print(f"[SAAS] dispatch error: {e}")
