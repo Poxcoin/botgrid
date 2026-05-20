@@ -250,8 +250,8 @@ class UserApiKey(Base):
     exchange      = Column(String, default="bybit")   # bybit
     api_key_enc   = Column(String, nullable=False)    # Fernet encrypted
     secret_enc    = Column(String, nullable=False)    # Fernet encrypted
-    is_testnet    = Column(Boolean, default=False)
-    last_verified = Column(DateTime, nullable=True)   # last successful ping
+    is_demo       = Column("is_testnet", Boolean, default=False)  # True = demo account, False = live
+    last_verified = Column(DateTime, nullable=True)
     created_at    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (UniqueConstraint("user_id", "exchange", "is_testnet", name="uq_user_exchange_testnet"),)

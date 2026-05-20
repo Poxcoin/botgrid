@@ -108,7 +108,7 @@ _exchange: Optional[ccxt.Exchange] = None
 # ─── Exchange init ────────────────────────────────────────────────────────────
 
 def _get_owner_key() -> tuple[str, str, bool] | None:
-    """Pull API key from DB for OWNER_USER_ID. Returns (api_key, secret, is_testnet) or None."""
+    """Pull API key from DB for OWNER_USER_ID. Returns (api_key, secret, is_demo) or None."""
     if not OWNER_USER_ID:
         return None
     try:
@@ -123,7 +123,7 @@ def _get_owner_key() -> tuple[str, str, bool] | None:
             secret = decrypt_field(row.secret_enc)
             if not key or not secret:
                 return None
-            return key, secret, row.is_testnet
+            return key, secret, row.is_demo
         finally:
             db.close()
     except Exception as e:
@@ -135,7 +135,7 @@ def _init_cascade_exchange() -> ccxt.Exchange:
     """
     Пріоритет:
     1. CASCADE_LIVE_MODE=True  → live ключі з .env
-    2. OWNER_USER_ID заданий   → ключ з БД (автоматично demo/live залежно від is_testnet)
+    2. OWNER_USER_ID заданий   → ключ з БД (автоматично demo/live залежно від is_demo)
     3. CASCADE_IS_DEMO + env   → старий demo fallback
     4. Fallback                → _init_exchange() (IS_DEMO_TRADING з .env)
     """
@@ -160,18 +160,18 @@ def _init_cascade_exchange() -> ccxt.Exchange:
     # Ключ з бази — не треба перестворювати при ротації ключів
     db_creds = _get_owner_key()
     if db_creds:
-        api_key, secret, is_testnet = db_creds
+        api_key, secret, is_demo = db_creds
         exchange = ccxt.bybit({
             "apiKey":  api_key,
             "secret":  secret,
             "enableRateLimit": True,
             "options": {"defaultType": "linear", "adjustForTimeDifference": True, "recvWindow": 10000},
         })
-        if is_testnet:
+        if is_demo:
             exchange.urls["api"] = exchange.urls["demotrading"]
         exchange.has["fetchCurrencies"] = False
         exchange.load_markets()
-        mode = "demo" if is_testnet else "live"
+        mode = "demo" if is_demo else "live"
         print(f"[CASCADE] 🔑 ключ з БД (user={OWNER_USER_ID}, {mode})")
         return exchange
 

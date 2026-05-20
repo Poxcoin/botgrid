@@ -494,12 +494,7 @@ class UpdateProfileRequest(BaseModel):
 class ApiKeyRequest(BaseModel):
     api_key: str
     secret: str
-    is_testnet: bool = False
     is_demo: bool = False
-
-    @property
-    def use_demo(self) -> bool:
-        return self.is_demo or self.is_testnet
 
 def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
@@ -756,8 +751,8 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         db.commit()
     sub = user.subscription
     key_rows = [k for k in user.api_keys if k.exchange == "bybit"]
-    live_key = next((k for k in key_rows if not k.is_testnet), None)
-    demo_key = next((k for k in key_rows if k.is_testnet), None)
+    live_key = next((k for k in key_rows if not k.is_demo), None)
+    demo_key = next((k for k in key_rows if k.is_demo), None)
     display_key = live_key or demo_key
     trial_days_left = None
     if user.plan == "trial" and user.trial_ends_at:
@@ -787,7 +782,7 @@ async def get_me(credentials: HTTPAuthorizationCredentials = Depends(security), 
         "has_api_keys": len(key_rows) > 0,
         "has_demo_key": demo_key is not None,
         "has_live_key": live_key is not None,
-        "api_key_demo": display_key.is_testnet if display_key else False,
+        "api_key_demo": display_key.is_demo if display_key else False,
         "bybit_api_key_masked": _mask(display_key.api_key_enc) if display_key else None,
         "bybit_demo_key_masked": _mask(demo_key.api_key_enc) if demo_key else None,
         "bybit_live_key_masked": _mask(live_key.api_key_enc) if live_key else None,
@@ -923,7 +918,7 @@ async def export_my_data(
         "api_keys": [
             {
                 "exchange":   k.exchange,
-                "is_testnet": k.is_testnet,
+                "is_demo": k.is_demo,
                 "created_at": k.created_at.isoformat() if k.created_at else None,
                 "note":       "Key values are encrypted and not included in this export for security.",
             }
@@ -1028,7 +1023,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
             'options':       {'defaultType': 'linear', 'recvWindow': 10000},
         })
         test_ex.has['fetchCurrencies'] = False
-        if body.use_demo:
+        if body.is_demo:
             test_ex.urls['api'] = test_ex.urls['demotrading']
         _bybit_positions(test_ex)   # raises on invalid key; empty list is fine
     except Exception as _e:
@@ -1043,14 +1038,14 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
     try:
         key_row = (
             db.query(UserApiKey)
-            .filter_by(user_id=user.id, exchange="bybit", is_testnet=body.use_demo)
+            .filter_by(user_id=user.id, exchange="bybit", is_demo=body.is_demo)
             .with_for_update()
             .first()
         )
         if key_row:
             key_row.api_key_enc   = encrypt_field(body.api_key)
             key_row.secret_enc    = encrypt_field(body.secret)
-            key_row.is_testnet    = body.use_demo
+            key_row.is_demo       = body.is_demo
             key_row.last_verified = datetime.utcnow()
         else:
             key_row = UserApiKey(
@@ -1058,7 +1053,7 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
                 exchange      = "bybit",
                 api_key_enc   = encrypt_field(body.api_key),
                 secret_enc    = encrypt_field(body.secret),
-                is_testnet    = body.use_demo,
+                is_demo       = body.is_demo,
                 last_verified = datetime.utcnow(),
             )
             db.add(key_row)
@@ -1072,9 +1067,9 @@ async def save_api_keys(body: ApiKeyRequest, credentials: HTTPAuthorizationCrede
 
 
 @app.delete("/api/users/keys")
-async def delete_api_keys(is_testnet: bool = Query(False), credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def delete_api_keys(is_demo: bool = Query(False), credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
-    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=is_testnet).delete()
+    db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_demo=is_demo).delete()
     db.commit()
     # Немедленно останавливаем боты
     asyncio.get_running_loop().run_in_executor(None, dispatcher_stop_user, user.id)
@@ -1313,7 +1308,7 @@ def _init_user_exchange(key_row):
             'options': {'defaultType': 'linear', 'recvWindow': 10000},
         })
         ex.has['fetchCurrencies'] = False
-        if key_row.is_testnet:
+        if key_row.is_demo:
             ex.urls['api'] = ex.urls['demotrading']
         # no load_markets() — we use raw V5 calls to avoid 3-4s overhead
         return ex
@@ -1609,7 +1604,7 @@ async def get_user_bot_summary(
     balance   = None
     positions = []
     key_rows  = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
-    key_row   = next((k for k in key_rows if not k.is_testnet), None) or (key_rows[0] if key_rows else None)
+    key_row   = next((k for k in key_rows if not k.is_demo), None) or (key_rows[0] if key_rows else None)
     has_key   = len(key_rows) > 0
     if key_row:
         ex = _init_user_exchange(key_row)
@@ -3114,8 +3109,8 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
     demo_row = None
 
     if user:
-        key_row  = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=False).first()
-        demo_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_testnet=True).first()
+        key_row  = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_demo=False).first()
+        demo_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit", is_demo=True).first()
         mt5_row  = db.query(UserMt5Key).filter_by(user_id=user.id).first()
 
     if user:

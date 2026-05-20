@@ -155,7 +155,7 @@ function ApiKeysSection_DEPRECATED({ me, onUpdate }) {
     if (!apiKey || !secret) { setError(t.dashboard.security.bothFieldsRequired); return; }
     setSaving(true);
     try {
-      await API('/api/users/keys', { method: 'POST', body: JSON.stringify({ api_key: apiKey, secret, is_testnet: testnet }) });
+      await API('/api/users/keys', { method: 'POST', body: JSON.stringify({ api_key: apiKey, secret, is_demo: testnet }) });
       setSuccess(t.dashboard.security.keysSaved);
       onUpdate({ has_api_keys: true, api_key_testnet: testnet });
       setApiKey(''); setSecret(''); setRevealed(null);

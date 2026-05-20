@@ -40,7 +40,7 @@ const STEPS = [
   {
     n: 1,
     title: 'Open Bybit API Management',
-    body: 'Log in to Bybit → click your avatar (top right) → select API Management. For Demo: go to testnet.bybit.com instead of bybit.com.',
+    body: 'Log in to Bybit → click your avatar (top right) → select API Management. For Demo account: switch to Demo Trading mode first (top-right menu on bybit.com), then go to API Management.',
   },
   {
     n: 2,
@@ -165,7 +165,7 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
     try {
       await API('/api/users/keys', {
         method: 'POST',
-        body: JSON.stringify({ api_key: apiKey.trim(), secret: secret.trim(), is_testnet: isTestnet }),
+        body: JSON.stringify({ api_key: apiKey.trim(), secret: secret.trim(), is_demo: isTestnet }),
       });
       onSaved(apiKey.trim());
     } catch (err) {
@@ -270,7 +270,7 @@ function KeySection({ title, badge, subtitle, isTestnet, maskedKey, onSaved, onD
     if (!confirm(`Remove ${title}? The bot will stop trading on this account.`)) return;
     setDeleting(true);
     try {
-      await API(`/api/users/keys?is_testnet=${isTestnet}`, { method: 'DELETE' });
+      await API(`/api/users/keys?is_demo=${isTestnet}`, { method: 'DELETE' });
       setLocalMasked(null); setShowForm(false);
       onDeleted?.();
     } catch (e) {

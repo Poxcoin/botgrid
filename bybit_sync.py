@@ -37,7 +37,7 @@ def _build_exchange(key_row) -> ccxt.bybit | None:
         "options": {"defaultType": "linear", "recvWindow": 10000},
     })
     ex.has["fetchCurrencies"] = False
-    if key_row.is_testnet:
+    if key_row.is_demo:
         ex.urls["api"] = ex.urls["demotrading"]
     return ex
 
