@@ -59,17 +59,15 @@ function TermsStep({ onNext }) {
 
       {checkRow(tosOk, setTosOk,
         <span>
-          I have read and accept the{' '}
-          <a href="/legal/terms" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>Terms of Service</a>,{' '}
-          <a href="/legal/risk-disclosure" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>Risk Disclosure</a>, and{' '}
-          <a href="/legal/privacy" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>Privacy Policy</a>.
-          I understand that cryptocurrency trading carries significant risk, including total loss of capital.
+          {to.tosAcceptPre}{' '}
+          <a href="/legal/terms" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>{to.tosTerms}</a>,{' '}
+          <a href="/legal/risk-disclosure" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>{to.tosRiskDoc}</a>, {to.tosAcceptAnd}{' '}
+          <a href="/legal/privacy" target="_blank" rel="noreferrer" style={{ color: '#fff', textDecoration: 'underline' }}>{to.tosPrivacy}</a>.{' '}
+          {to.tosAcceptPost}
         </span>
       )}
 
-      {checkRow(ageOk, setAgeOk,
-        'I am at least 18 years old and legally eligible to use this service in my jurisdiction.'
-      )}
+      {checkRow(ageOk, setAgeOk, to.ageConfirm)}
 
       <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 22, padding: '10px 14px', background: '#080808', borderRadius: 6, border: '1px solid #111' }}>
         {to.feeNote}
@@ -145,12 +143,7 @@ function ApiKeyStep({ onNext, onGoToKeys }) {
         {to.apiKeyDesc}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-        {[
-          'Log in to Bybit → Avatar → API Management',
-          'Create New Key → System-generated → name it "Kado"',
-          'Enable: Unified Trading (Read), Derivatives (Read + Trade). Disable Withdrawal.',
-          'Copy the API Key and Secret → paste in the API Keys tab',
-        ].map((s, i) => (
+        {[to.apiStep1, to.apiStep2, to.apiStep3, to.apiStep4].map((s, i) => (
           <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 12px', background: '#0d0d0d', border: '1px solid #1f1f1f', borderRadius: 6 }}>
             <span style={{ color: '#555', fontSize: 12, flexShrink: 0, lineHeight: '18px' }}>{i + 1}.</span>
             <span style={{ fontSize: 13, color: '#bbb', lineHeight: 1.5 }}>{s}</span>
