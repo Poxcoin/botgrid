@@ -3,6 +3,7 @@ import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { useLiveStream } from '@/lib/useLiveStream';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { useTheme } from '@/lib/ThemeContext';
+import { useLang } from '@/lib/LangContext';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
@@ -848,7 +849,12 @@ function EquityCurve({ data }) {
 /* ══════════════════════════════════════════════════════════════════
    BOTTOM PANEL
 ══════════════════════════════════════════════════════════════════ */
+const PANEL_LOCALE = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE', zh:'zh-CN' };
+
 function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, onCancelOrder = () => {}, filterCoin, balance }) {
+  const { t, lang } = useLang();
+  const tp = t.dashboard.panel;
+  const dstrLoc = s => s ? new Date(s).toLocaleString(PANEL_LOCALE[lang] || 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   const [tab, setTab] = useState('open');
   const [fundingRates, setFundingRates] = useState({});
   const [histSide,   setHistSide]   = useState('ALL');
@@ -907,12 +913,12 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
   }, [botPositions]);
 
   const TABS = [
-    { id: 'open',      label: 'Open Orders',   n: filteredOrders.length },
-    { id: 'positions', label: 'Positions',     n: filteredPos.length },
-    { id: 'history',   label: 'Trade History', n: null },
-    { id: 'pnl',       label: 'P&L',           n: null },
-    { id: 'equity',    label: 'Equity Curve',  n: null },
-    { id: 'assets',    label: 'Assets',        n: null },
+    { id: 'open',      label: tp.openOrders,   n: filteredOrders.length },
+    { id: 'positions', label: tp.positions,    n: filteredPos.length },
+    { id: 'history',   label: tp.tradeHistory, n: null },
+    { id: 'pnl',       label: tp.pnl,          n: null },
+    { id: 'equity',    label: tp.equityCurve,  n: null },
+    { id: 'assets',    label: tp.assets,       n: null },
   ];
 
   const Th = ({ v, r }) => (
@@ -922,7 +928,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
     <td style={{ padding: '7px 14px', fontFamily: FM, fontSize: 11, color: hi || 'var(--text-secondary)', textAlign: r ? 'right' : 'left', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-subtle)' }}>{v ?? '—'}</td>
   );
   const Empty = () => (
-    <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>EMPTY</div>
+    <div style={{ padding: '40px 0', textAlign: 'center', fontFamily: FM, fontSize: 9, letterSpacing: '0.2em', color: 'var(--text-muted)' }}>{tp.empty}</div>
   );
 
   return (
@@ -960,7 +966,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
             <thead><tr><Th v="Time"/><Th v="Symbol"/><Th v="Side"/><Th v="Type"/><Th v="Qty"/><Th v="Price" r/><Th v="Filled" r/><Th v="Status"/><Th v="Reduce"/><Th v=""/></tr></thead>
             <tbody>{filteredOrders.map((o, i) => (
               <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <Td v={dstr(o.created_at ? +o.created_at : null)}/>
+                <Td v={dstrLoc(o.created_at ? +o.created_at : null)}/>
                 <Td v={o.symbol} hi="var(--text-primary)"/>
                 <Td v={o.side} hi={o.side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
                 <Td v={o.order_type}/>
@@ -975,7 +981,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                     style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,109,0.15)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                    Cancel
+                    {tp.cancel}
                   </button>
                 </td>
               </tr>
@@ -1012,7 +1018,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                       style={{ fontFamily: FM, fontSize: 10, padding: '3px 8px', background: 'transparent', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', cursor: 'pointer' }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,77,109,0.15)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                      Close
+                      {tp.close}
                     </button>
                   </td>
                 </tr>
@@ -1048,7 +1054,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
                 const p = pnl(t);
                 return (
                   <tr key={i} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <Td v={dstr(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
+                    <Td v={dstrLoc(t.closed_at)}/><Td v={sym(t.symbol)} hi="var(--text-primary)"/>
                     <Td v={t.side} hi={t.side === 'LONG' || t.side === 'Buy' ? 'var(--accent-green)' : 'var(--accent-red)'}/>
                     <Td v={t.leverage ? `${t.leverage}x` : '—'}/>
                     <Td v={fix(t.qty, 3)}/><Td v={fix(t.entry_price, 4)}/><Td v={fix(t.exit_price, 4)}/>
@@ -1089,7 +1095,7 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
           let cum = 0;
           const data = sorted.map(t => {
             cum += parseFloat(t.pnl_usdt ?? t.pnl ?? 0);
-            return { t: dstr(t.closed_at), v: parseFloat(cum.toFixed(2)) };
+            return { t: dstrLoc(t.closed_at), v: parseFloat(cum.toFixed(2)) };
           });
           if (data.length === 0) return <Empty />;
           return <EquityCurve data={data} />;
