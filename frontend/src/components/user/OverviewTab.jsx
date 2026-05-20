@@ -350,14 +350,6 @@ function CoinTicker({ coins, selected, onSelect, coinPnl = {}, openCoins = null 
             textAlign: 'left', minWidth: 100,
             transition: 'background 150ms, border-color 150ms, box-shadow 150ms',
           }}>
-            {hasPos && (
-              <span title="Open position" style={{
-                position: 'absolute', top: 6, right: 6,
-                width: 6, height: 6, borderRadius: '50%',
-                background: 'var(--accent-green)',
-                boxShadow: '0 0 6px var(--accent-green)',
-              }} />
-            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>{c}</span>
               {t && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>{chg >= 0 ? '+' : ''}{chg?.toFixed(2)}%</span>}
