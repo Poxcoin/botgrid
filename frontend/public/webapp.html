@@ -10,26 +10,26 @@
 <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 <style>
 :root{
-  --bg:#030305;
-  --bg2:#07070d;
-  --bg3:#0d0d16;
-  --card:#0f0f1a;
-  --card2:#14141f;
+  --bg:#000000;
+  --bg2:#080808;
+  --bg3:#111111;
+  --card:#0f0f0f;
+  --card2:#171717;
   --fg:#eaecf2;
   --fg2:#7a849a;
-  --fg3:#3d4258;
-  --b:rgba(255,255,255,.065);
-  --bhi:rgba(255,255,255,.13);
-  --g:#00c896;
-  --r:#f04860;
+  --fg3:#3d4455;
+  --b:rgba(255,255,255,.07);
+  --bhi:rgba(255,255,255,.15);
+  --g:#0ecb81;
+  --r:#f6465d;
   --gold:#f0b430;
   --sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --mono:'JetBrains Mono','SF Mono',monospace;
   --nav-h:58px;
   --hdr-h:50px;
-  --rad:12px;
-  --rad-s:8px;
-  --rad-xs:5px;
+  --rad:6px;
+  --rad-s:4px;
+  --rad-xs:2px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;overscroll-behavior:none}
@@ -49,7 +49,7 @@ input{font-family:inherit}
 .sp-err-b{font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.8}
 
 /* header */
-.hdr{height:var(--hdr-h);flex-shrink:0;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--b);background:rgba(3,3,5,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.hdr{height:var(--hdr-h);flex-shrink:0;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid var(--b);background:rgba(0,0,0,.95);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .hdr-logo{font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.38em;color:var(--fg)}
 .hdr-mid{flex:1;display:flex;justify-content:center}
 .hdr-page{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3)}
@@ -64,14 +64,14 @@ input{font-family:inherit}
 .page.active{display:block}
 
 /* bottom nav */
-.nav-bar{min-height:var(--nav-h);flex-shrink:0;display:flex;align-items:stretch;border-top:1px solid var(--b);background:rgba(3,3,5,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-bottom:env(safe-area-inset-bottom)}
+.nav-bar{min-height:var(--nav-h);flex-shrink:0;display:flex;align-items:stretch;border-top:1px solid var(--b);background:rgba(0,0,0,.98);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);padding-bottom:env(safe-area-inset-bottom)}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--fg3);transition:color .15s;padding:10px 0 6px}
 .nav-btn.on{color:var(--fg)}
 .nav-icon{width:22px;height:22px}
 
 /* ══ HOME ══ */
 .hero{padding:24px 18px 20px;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 90% 80% at 15% 0%,rgba(0,200,150,.07) 0%,transparent 68%);pointer-events:none}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 90% 80% at 15% 0%,rgba(14,203,129,.06) 0%,transparent 68%);pointer-events:none}
 .hero-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg3);margin-bottom:9px}
 .hero-bal{font-size:40px;font-weight:800;letter-spacing:-.045em;line-height:1;color:var(--fg)}
 .hero-unit{font-family:var(--mono);font-size:11px;color:var(--fg3);letter-spacing:.1em;margin-top:5px}
@@ -104,8 +104,8 @@ input{font-family:inherit}
 .pos-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
 .pos-sym{font-size:15px;font-weight:700;letter-spacing:-.02em}
 .pos-badge{font-family:var(--mono);font-size:8px;padding:3px 8px;border-radius:4px;font-weight:700;letter-spacing:.05em}
-.pos-badge-long{background:rgba(0,200,150,.12);color:var(--g)}
-.pos-badge-short{background:rgba(240,72,96,.12);color:var(--r)}
+.pos-badge-long{background:rgba(14,203,129,.12);color:var(--g)}
+.pos-badge-short{background:rgba(246,70,93,.12);color:var(--r)}
 .pos-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .pos-kv-k{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);margin-bottom:3px}
 .pos-kv-v{font-family:var(--mono);font-size:12px;font-weight:500}
@@ -114,8 +114,8 @@ input{font-family:inherit}
 .sig-card{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--b);border-radius:var(--rad);padding:13px 15px;margin-bottom:8px}
 .sig-coin{font-size:14px;font-weight:700;letter-spacing:-.015em}
 .sig-dir{font-family:var(--mono);font-size:8px;padding:2px 7px;border-radius:4px;font-weight:700}
-.sig-dir-long{background:rgba(0,200,150,.1);color:var(--g)}
-.sig-dir-short{background:rgba(240,72,96,.1);color:var(--r)}
+.sig-dir-long{background:rgba(14,203,129,.1);color:var(--g)}
+.sig-dir-short{background:rgba(246,70,93,.1);color:var(--r)}
 .sig-meta{font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:4px}
 .sig-res{font-family:var(--mono);font-size:11px;font-weight:700}
 
@@ -139,7 +139,7 @@ input{font-family:inherit}
 .c-pill.on{border-color:rgba(255,255,255,.28);color:var(--fg);background:rgba(255,255,255,.05)}
 .tf-pill{font-family:var(--mono);font-size:9px;padding:5px 10px;border:1px solid var(--b);border-radius:var(--rad-xs);color:var(--fg3);background:none;transition:all .1s}
 .tf-pill.on{border-color:rgba(255,255,255,.25);color:var(--fg);background:rgba(255,255,255,.05)}
-.chart-box{background:var(--bg2)}
+.chart-box{background:var(--bg)}
 .chart-load{height:220px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--fg3)}
 
 /* ══ MARKETS ══ */
@@ -155,8 +155,8 @@ input{font-family:inherit}
 .mkt-sub{font-family:var(--mono);font-size:8px;color:var(--fg3);margin-top:2px}
 .mkt-price{font-family:var(--mono);font-size:12px;font-weight:600;text-align:right}
 .mkt-chg{font-family:var(--mono);font-size:10px;font-weight:700;text-align:center;padding:3px 5px;border-radius:4px}
-.mkt-chg-pos{background:rgba(0,200,150,.1);color:var(--g)}
-.mkt-chg-neg{background:rgba(240,72,96,.1);color:var(--r)}
+.mkt-chg-pos{background:rgba(14,203,129,.1);color:var(--g)}
+.mkt-chg-neg{background:rgba(246,70,93,.1);color:var(--r)}
 .mkt-vol{font-family:var(--mono);font-size:9px;color:var(--fg3);text-align:right}
 .chart-hdr{padding:16px 18px 0}
 .chart-hdr-sym{font-size:19px;font-weight:800;letter-spacing:-.03em;margin-bottom:4px}
@@ -496,7 +496,7 @@ const BOTS=[
 const PRICE_COINS=['BTC','ETH','SOL','BNB','XRP','DOGE','ADA','AVAX','LINK','TON','PEPE','SUI','INJ','ARB','UNI','WLD'];
 const TFS=[{v:'1',l:'1m'},{v:'5',l:'5m'},{v:'15',l:'15m'},{v:'60',l:'1h'},{v:'240',l:'4h'},{v:'D',l:'1D'}];
 const CAT_IDS=['ALL','CRYPTO','MACRO','GEOPOLITICS','COMMODITIES','MARKETS','ON-CHAIN','LISTINGS'];
-const CAT_COLORS={CRYPTO:'#8b95a8',MACRO:'#f59e0b',GEOPOLITICS:'#f04860',COMMODITIES:'#10b981',MARKETS:'#e8a000','ON-CHAIN':'#00c896',LISTINGS:'#a855f7'};
+const CAT_COLORS={CRYPTO:'#8b95a8',MACRO:'#f59e0b',GEOPOLITICS:'#f6465d',COMMODITIES:'#10b981',MARKETS:'#e8a000','ON-CHAIN':'#0ecb81',LISTINGS:'#a855f7'};
 const STRATEGIES=[
   {num:'01',name:'Steady',tags:['Grid Trading'],returns:'3–8%',
    desc:'Consistent passive income from price oscillation. No directional bets.',
@@ -718,29 +718,29 @@ function buildSvgChart(cs,coin){
   const maxV=Math.max(...cs.map(c=>c.v),1);
   const VH=40,ticks=5;
   let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block">`;
-  s+=`<rect width="${W}" height="${H}" fill="#07070d"/>`;
+  s+=`<rect width="${W}" height="${H}" fill="#000000"/>`;
   for(let i=0;i<=ticks;i++){
     const v=lo+(range*i/ticks);const y=yp(v);
-    s+=`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="rgba(255,255,255,.05)" stroke-width=".8"/>`;
+    s+=`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-width=".8"/>`;
     const lbl=v>=10000?(v/1000).toFixed(1)+'k':v>=1?v.toFixed(v>=100?0:2):v.toFixed(4);
-    s+=`<text x="${PL-6}" y="${y+3.5}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d4258">${lbl}</text>`;
+    s+=`<text x="${PL-6}" y="${y+3.5}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#3d4455">${lbl}</text>`;
   }
   const xStep=Math.max(1,Math.floor(n/6));
   cs.forEach((c,i)=>{
     if(i%xStep===0){
       const x=PL+i*step+step/2;const d=new Date(c.t);
-      s+=`<text x="${x}" y="${H-8}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#3d4258">${d.getMonth()+1}/${d.getDate()}</text>`;
+      s+=`<text x="${x}" y="${H-8}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="8" fill="#3d4455">${d.getMonth()+1}/${d.getDate()}</text>`;
     }
   });
   cs.forEach((c,i)=>{
     const x=PL+i*step+(step-bw)/2;
-    const up=c.c>=c.o;const col=up?'#00c896':'#f04860';
+    const up=c.c>=c.o;const col=up?'#0ecb81':'#f6465d';
     const vh=(c.v/maxV)*VH;
     s+=`<rect x="${x}" y="${H-PB-vh}" width="${bw}" height="${vh}" fill="${col}" opacity=".15"/>`;
   });
   cs.forEach((c,i)=>{
     const x=PL+i*step+(step-bw)/2;const mx=PL+i*step+step/2;
-    const up=c.c>=c.o;const col=up?'#00c896':'#f04860';
+    const up=c.c>=c.o;const col=up?'#0ecb81':'#f6465d';
     const bt=yp(Math.max(c.o,c.c));const bb=yp(Math.min(c.o,c.c));const bh=Math.max(bb-bt,1);
     s+=`<line x1="${mx}" y1="${yp(c.h)}" x2="${mx}" y2="${yp(c.l)}" stroke="${col}" stroke-width=".9"/>`;
     s+=`<rect x="${x}" y="${bt}" width="${bw}" height="${bh}" fill="${col}"/>`;
@@ -757,7 +757,7 @@ function buildSvgChart(cs,coin){
   s+=`<line x1="${PL}" y1="${ly}" x2="${W-PR}" y2="${ly}" stroke="rgba(255,255,255,.12)" stroke-width=".8" stroke-dasharray="4 3"/>`;
   s+=`<rect x="${W-PR-52}" y="${ly-9}" width="52" height="18" fill="rgba(255,255,255,.06)" rx="2"/>`;
   s+=`<text x="${W-PR-6}" y="${ly+5}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="9" fill="#eaecf2">${lpr}</text>`;
-  s+=`<text x="${PL+8}" y="${PT+14}" font-family="JetBrains Mono,monospace" font-size="11" font-weight="700" fill="#eaecf2" letter-spacing="1">${coin}/USDT</text>`;
+  s+=`<text x="${PL+8}" y="${PT+14}" font-family="JetBrains Mono,monospace" font-size="10" font-weight="700" fill="rgba(234,236,242,.7)" letter-spacing="2">${coin}/USDT</text>`;
   s+='</svg>';
   const div=document.createElement('div');div.innerHTML=s;return div.firstElementChild;
 }
@@ -908,7 +908,7 @@ async function init(){
   }
   let offset=0;
   function drawCandles(){
-    const cw=W/candles.length;ctx.save();ctx.globalAlpha=0.065;ctx.strokeStyle='#eaecf2';ctx.lineWidth=1;
+    const cw=W/candles.length;ctx.save();ctx.globalAlpha=0.04;ctx.strokeStyle='#eaecf2';ctx.lineWidth=1;
     const scaleY=H*.42,baseY=H*.7;
     candles.forEach(c=>{
       const x=c.x-offset;const yo=v=>baseY-v*scaleY;
