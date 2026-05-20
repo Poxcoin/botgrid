@@ -170,19 +170,29 @@ function DailyChart({ daily, t }) {
   );
 }
 
-function DataTable({ cols, rows, getRowColor }) {
+function DataTable({ cols, rows, getRowColor, sortCol, sortAsc, onSort }) {
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: MONO, fontSize: 11 }}>
         <thead>
           <tr>
-            {cols.map(c => (
-              <th key={c.key} style={{
-                textAlign: c.align || 'left', padding: '6px 12px',
-                borderBottom: '1px solid var(--border-subtle)',
-                color: 'var(--text-muted)', fontWeight: 400, letterSpacing: '0.1em', fontSize: 9, textTransform: 'uppercase',
-              }}>{c.label}</th>
-            ))}
+            {cols.map(c => {
+              const sortable = onSort && !c.key.startsWith('_');
+              const active   = sortCol === c.key;
+              return (
+                <th key={c.key}
+                  onClick={sortable ? () => onSort(c.key) : undefined}
+                  style={{
+                    textAlign: c.align || 'left', padding: '6px 12px',
+                    borderBottom: '1px solid var(--border-subtle)',
+                    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontWeight: active ? 600 : 400, letterSpacing: '0.1em', fontSize: 9, textTransform: 'uppercase',
+                    cursor: sortable ? 'pointer' : 'default', userSelect: 'none',
+                  }}>
+                  {c.label}{active ? (sortAsc ? ' ↑' : ' ↓') : sortable ? ' ·' : ''}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -609,6 +619,8 @@ export default function AnalyticsTab() {
   const [tradeSearch, setTradeSearch] = useState('');
   const [tradeSide,   setTradeSide]   = useState('ALL');
   const [coinView,    setCoinView]    = useState('cards');
+  const [coinSort,    setCoinSort]    = useState('pnl');
+  const [coinSortAsc, setCoinSortAsc] = useState(false);
 
   const fetchData = useCallback(async (days = 0) => {
     setLoading(true);
@@ -1025,8 +1037,16 @@ export default function AnalyticsTab() {
               <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
                 <DataTable
                   cols={coinCols}
-                  rows={[...by_coin].sort((a, b) => parseFloat(b.pnl) - parseFloat(a.pnl))}
+                  rows={[...by_coin].sort((a, b) => {
+                    let va, vb;
+                    if (coinSort === '_wr') { va = a.trades ? a.wins / a.trades : 0; vb = b.trades ? b.wins / b.trades : 0; }
+                    else { va = parseFloat(a[coinSort] ?? 0); vb = parseFloat(b[coinSort] ?? 0); }
+                    return coinSortAsc ? va - vb : vb - va;
+                  })}
                   getRowColor={(k, r) => k === 'pnl' ? (parseFloat(r.pnl) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'avg_win' ? 'var(--accent-green)' : k === 'avg_loss' ? 'var(--accent-red)' : null}
+                  sortCol={coinSort}
+                  sortAsc={coinSortAsc}
+                  onSort={col => { if (coinSort === col) setCoinSortAsc(a => !a); else { setCoinSort(col); setCoinSortAsc(false); } }}
                 />
               </div>
             )
