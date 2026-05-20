@@ -259,6 +259,96 @@ function BillingBlock({ plan, trialDaysLeft }) {
   return <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</div>;
 }
 
+// ── Referral block ────────────────────────────────────────────────────────────
+function ReferralBlock() {
+  const { t } = useLang();
+  const [data, setData] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    API('/api/users/referrals').then(setData).catch(() => {});
+  }, []);
+
+  function copyLink() {
+    if (!data?.ref_link) return;
+    navigator.clipboard.writeText(data.ref_link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  const at = t.dashboard.account;
+
+  if (!data) return <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.dashboard.settings.loading}</div>;
+
+  const statCard = { display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 16px', border: '1px solid var(--border-subtle)', borderRadius: 6, minWidth: 100 };
+  const statVal  = { fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 700 };
+  const statLbl  = { fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' };
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>{at.referralLink}</div>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20 }}>
+        <div style={{
+          flex: 1,
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 6,
+          padding: '9px 12px',
+          fontSize: 12,
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-muted)',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'ellipsis',
+        }}>
+          {data.ref_link || '—'}
+        </div>
+        <button
+          onClick={copyLink}
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-default)',
+            color: copied ? 'var(--text-secondary)' : 'var(--text-primary)',
+            borderRadius: 4,
+            padding: '9px 16px',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          {copied ? at.copied : at.copyLink}
+        </button>
+      </div>
+
+      {data.invited_count === 0 ? (
+        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{at.noReferrals}</div>
+      ) : (
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div style={statCard}>
+            <span style={statVal}>{data.invited_count ?? 0}</span>
+            <span style={statLbl}>{at.invitedCount}</span>
+          </div>
+          <div style={statCard}>
+            <span style={statVal}>{data.active_count ?? 0}</span>
+            <span style={statLbl}>{at.activeCount}</span>
+          </div>
+          <div style={statCard}>
+            <span style={{ ...statVal, color: 'var(--text-secondary)' }}>{(data.total_earned ?? 0).toFixed(2)}</span>
+            <span style={statLbl}>{at.totalEarned} USDT</span>
+          </div>
+          <div style={statCard}>
+            <span style={statVal}>{(data.pending ?? 0).toFixed(2)}</span>
+            <span style={statLbl}>{at.pendingEarned} USDT</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Telegram link block (with polling) ────────────────────────────────────────
 function TelegramBlock({ me, onChange }) {
   const { t } = useLang();
@@ -466,6 +556,13 @@ export default function AccountTab() {
       <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
 
       <BillingBlock plan={me?.plan} trialDaysLeft={me?.trial_days_left} />
+
+      {/* ── REFERRAL ── */}
+      <div style={divider} />
+      <div style={sectionHeader}>{t.dashboard.account.referralTitle}</div>
+      <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
+
+      <ReferralBlock />
 
     </div>
   );
