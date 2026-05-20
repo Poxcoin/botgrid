@@ -253,6 +253,8 @@ export default function BotTab() {
   const [pnl,       setPnl]       = useState(null);
   const [heartbeat, setHeartbeat] = useState(null);
   const [feedErr,   setFeedErr]   = useState(false);
+  const [sigAction, setSigAction] = useState('ALL');
+  const [sigSearch, setSigSearch] = useState('');
 
   const loadFeed = useCallback(async () => {
     try {
@@ -282,8 +284,13 @@ export default function BotTab() {
     return () => clearInterval(id);
   }, [loadFeed, loadLive]);
 
-  const signals = feed?.latest_signals ?? [];
-  const signalsToday = signals.filter(s =>
+  const allSignals = feed?.latest_signals ?? [];
+  const signals = allSignals.filter(s => {
+    if (sigAction !== 'ALL' && s.action !== sigAction) return false;
+    if (sigSearch && !(s.coin || '').toUpperCase().includes(sigSearch.toUpperCase())) return false;
+    return true;
+  });
+  const signalsToday = allSignals.filter(s =>
     new Date(s.timestamp).toDateString() === new Date().toDateString()
   ).length;
 
@@ -383,7 +390,40 @@ export default function BotTab() {
       <div style={{ border: `1px solid ${B}` }}>
         <div style={{ padding: '0 20px', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${B}` }}>
           <span style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: MUTED }}>{t.dashboard.bot.intelligenceFeed}</span>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>{t.dashboard.bot.auto30s}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: '#333' }}>{t.dashboard.bot.auto30s}</span>
+            <button
+              onClick={() => { loadFeed(); loadLive(); }}
+              style={{ background: 'transparent', border: `1px solid rgba(255,255,255,0.08)`, color: MUTED, fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em', padding: '4px 10px', cursor: 'pointer', transition: 'border-color 120ms, color 120ms' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; e.currentTarget.style.color = '#aaa'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = MUTED; }}
+            >
+              {t.dashboard.refresh}
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 6, borderBottom: `1px solid rgba(255,255,255,0.04)`, flexWrap: 'wrap' }}>
+          {['ALL', 'LONG', 'SHORT'].map(a => (
+            <button key={a} onClick={() => setSigAction(a)} style={{
+              background: 'transparent', fontFamily: MONO, fontSize: 10, letterSpacing: '0.1em',
+              padding: '3px 8px', cursor: 'pointer', transition: 'all 120ms',
+              border: `1px solid ${sigAction === a
+                ? (a === 'LONG' ? 'rgba(74,222,128,0.6)' : a === 'SHORT' ? 'rgba(248,113,113,0.6)' : 'rgba(255,255,255,0.2)')
+                : 'rgba(255,255,255,0.06)'}`,
+              color: sigAction === a
+                ? (a === 'LONG' ? '#4ade80' : a === 'SHORT' ? '#f87171' : '#aaa')
+                : MUTED,
+            }}>{a}</button>
+          ))}
+          <input
+            value={sigSearch}
+            onChange={e => setSigSearch(e.target.value)}
+            placeholder="Coin…"
+            style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.06)`, color: '#aaa', fontFamily: MONO, fontSize: 10, padding: '3px 8px', outline: 'none', width: 80, letterSpacing: '0.04em' }}
+          />
+          {(sigAction !== 'ALL' || sigSearch) && (
+            <span style={{ fontFamily: MONO, fontSize: 10, color: '#444' }}>{signals.length} / {allSignals.length}</span>
+          )}
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
