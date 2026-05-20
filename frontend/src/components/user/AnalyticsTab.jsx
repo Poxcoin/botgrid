@@ -780,6 +780,59 @@ export default function AnalyticsTab() {
         </div>
       )}
 
+      {/* Long vs Short breakdown */}
+      {allTrades.length >= 4 && (() => {
+        const sides = { LONG: { trades: 0, pnl: 0, wins: 0 }, SHORT: { trades: 0, pnl: 0, wins: 0 } };
+        for (const tr of allTrades) {
+          const side = (tr.side || '').toUpperCase();
+          if (!sides[side]) continue;
+          const p = parseFloat(tr.pnl ?? 0);
+          sides[side].trades += 1;
+          sides[side].pnl   += p;
+          if (p > 0) sides[side].wins += 1;
+        }
+        const hasBoth = sides.LONG.trades > 0 && sides.SHORT.trades > 0;
+        if (!hasBoth && sides.LONG.trades + sides.SHORT.trades < 4) return null;
+        return (
+          <div style={{ marginBottom: 32 }}>
+            <SectionLabel title="Long vs Short" right="direction breakdown" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--border-subtle)' }}>
+              {['LONG', 'SHORT'].map(side => {
+                const s = sides[side];
+                const pnl = parseFloat(s.pnl.toFixed(2));
+                const wr = s.trades ? Math.round(s.wins / s.trades * 100) : 0;
+                const pos = pnl >= 0;
+                const col = side === 'LONG' ? 'var(--accent-green)' : 'var(--accent-red)';
+                return (
+                  <div key={side} style={{ background: 'var(--bg-base)', padding: '20px 24px' }}>
+                    <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: col, marginBottom: 10, fontWeight: 700 }}>{side}</div>
+                    <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, color: pos ? 'var(--accent-green)' : 'var(--accent-red)', marginBottom: 8, letterSpacing: '-0.02em' }}>
+                      {pos ? '+' : ''}{pnl.toFixed(2)}
+                    </div>
+                    <div style={{ display: 'flex', gap: 20 }}>
+                      <div>
+                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Trades</div>
+                        <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{s.trades}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Win Rate</div>
+                        <div style={{ fontFamily: MONO, fontSize: 13, color: 'var(--text-primary)' }}>{wr}%</div>
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 2 }}>Avg Trade</div>
+                        <div style={{ fontFamily: MONO, fontSize: 13, color: s.trades ? (s.pnl / s.trades >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-muted)' }}>
+                          {s.trades ? `${s.pnl / s.trades >= 0 ? '+' : ''}${(s.pnl / s.trades).toFixed(2)}` : '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* By coin — card grid like bot CoinTicker */}
       {by_coin && by_coin.length > 0 && (
         <div style={{ marginBottom: 32 }}>
