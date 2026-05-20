@@ -432,7 +432,7 @@ export default function BotTab() {
           <input
             value={sigSearch}
             onChange={e => setSigSearch(e.target.value)}
-            placeholder="Coin…"
+            placeholder={t.dashboard.searchCoin}
             style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontFamily: MONO, fontSize: 10, padding: '3px 8px', outline: 'none', width: 80, letterSpacing: '0.04em' }}
           />
           {(sigAction !== 'ALL' || sigSearch) && (

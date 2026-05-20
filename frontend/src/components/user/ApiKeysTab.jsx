@@ -197,14 +197,14 @@ function KeyForm({ isTestnet, existing, onSaved, onCancel }) {
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>{ta.apiKeyLabel}</div>
         <div style={{ position: 'relative' }}>
-          <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="Paste your Bybit API key" style={inputStyle} autoComplete="new-password"/>
+          <input type={showKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={ta.pasteApiKey} style={inputStyle} autoComplete="new-password"/>
           <EyeBtn show={showKey} onToggle={() => setShowKey(v => !v)} />
         </div>
       </div>
       <div style={{ marginBottom: 20 }}>
         <div style={{ fontFamily: FM, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>{ta.secretLabel}</div>
         <div style={{ position: 'relative' }}>
-          <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder="Paste your Bybit secret" style={inputStyle} autoComplete="new-password"/>
+          <input type={showSec ? 'text' : 'password'} value={secret} onChange={e => setSecret(e.target.value)} placeholder={ta.pasteSecret} style={inputStyle} autoComplete="new-password"/>
           <EyeBtn show={showSec} onToggle={() => setShowSec(v => !v)} />
         </div>
       </div>
