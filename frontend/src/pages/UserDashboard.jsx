@@ -115,7 +115,7 @@ export default function UserDashboard() {
   const pageLabel = isBot
     ? BOTS.find(b => b.id === tab)?.label ?? ''
     : ({
-        analytics: t.dashboard.tabOverview,
+        analytics: t.dashboard.tabAnalytics,
         trades:    t.dashboard.tabTrades,
         pnl:       t.dashboard.tabPnl,
         tools:     t.dashboard.navTools,
@@ -181,7 +181,7 @@ export default function UserDashboard() {
       {/* nav links */}
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto', scrollbarWidth: 'none' }}>
 
-        <NavItem id="analytics" label={t.dashboard.tabOverview} />
+        <NavItem id="analytics" label={t.dashboard.tabAnalytics} />
         <NavItem id="trades"    label={t.dashboard.tabTrades}  />
         <NavItem id="pnl"       label={t.dashboard.tabPnl}     />
 

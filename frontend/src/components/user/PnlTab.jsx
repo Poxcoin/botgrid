@@ -118,6 +118,46 @@ export default function PnlTab() {
         );
       })()}
 
+      {/* Cumulative net PnL line */}
+      {!loading && rows.length >= 2 && (() => {
+        const sorted = [...rows].sort((a, b) => (a.year * 12 + a.month) - (b.year * 12 + b.month));
+        let cum = 0;
+        const points = sorted.map(r => { cum += r.net_pnl; return parseFloat(cum.toFixed(2)); });
+        const minV = Math.min(...points, 0);
+        const maxV = Math.max(...points, 0);
+        const range = (maxV - minV) || 1;
+        const H = 72, n = points.length;
+        const xs = points.map((_, i) => (i / (n - 1)) * 100);
+        const ys = points.map(v => H - ((v - minV) / range) * H);
+        const linePath = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+        const areaPath = `${linePath} L${xs[xs.length-1].toFixed(1)},${H} L0,${H} Z`;
+        const positive = points[points.length - 1] >= 0;
+        const col = positive ? 'var(--accent-green)' : 'var(--accent-red)';
+        const zeroY = H - ((-minV) / range) * H;
+        return (
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted-fg)' }}>
+                {t.dashboard.pnl.cumNetPnl}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: col }}>
+                {positive ? '+' : ''}{points[points.length - 1].toFixed(2)} USDT
+              </div>
+            </div>
+            <svg viewBox={`0 0 100 ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H, display: 'block' }}>
+              {minV < 0 && maxV > 0 && (
+                <line x1="0" y1={zeroY.toFixed(1)} x2="100" y2={zeroY.toFixed(1)}
+                  stroke="var(--border-default)" strokeWidth="0.4" strokeDasharray="2 1.5" />
+              )}
+              <path d={areaPath} fill={positive ? 'rgba(14,203,129,0.08)' : 'rgba(246,70,93,0.08)'} />
+              <path d={linePath} fill="none" stroke={col} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+              <circle cx={xs[xs.length-1].toFixed(1)} cy={ys[ys.length-1].toFixed(1)} r="2"
+                fill={col} vectorEffect="non-scaling-stroke" />
+            </svg>
+          </div>
+        );
+      })()}
+
       {/* Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
         <thead>
