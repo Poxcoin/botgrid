@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { Link } from 'react-router-dom';
 import OverviewTab      from '@/components/user/OverviewTab';
 import SettingsTab      from '@/components/user/SettingsTab';
 import AccountTab       from '@/components/user/AccountTab';
@@ -208,6 +209,24 @@ export default function UserDashboard() {
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 
         <NavItem id="tools" label={t.dashboard.navTools} />
+
+        {/* Bots → /trade (separate dashboard with bots-only sidebar) */}
+        <Link
+          to="/trade"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '11px 20px', minHeight: 44,
+            color: muted, fontSize: 13,
+            fontFamily: 'var(--font-sans)', textDecoration: 'none',
+            letterSpacing: '0.01em',
+            transition: 'background 0.12s, color 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = muted; e.currentTarget.style.background = 'transparent'; }}
+        >
+          <span>{t.dashboard.navBots ?? 'Bots'}</span>
+          <span style={{ fontSize: 11, opacity: 0.55 }}>↗</span>
+        </Link>
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>
 

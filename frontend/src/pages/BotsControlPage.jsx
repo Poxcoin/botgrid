@@ -152,27 +152,51 @@ export default function BotsControlPage() {
         <NavItem id="history" label="History" />
       </nav>
 
-      {/* footer: back to account + theme + logout */}
+      {/* footer: back to account (pill CTA) + logout */}
       <div style={{
         borderTop: `1px solid ${border}`,
-        padding: '10px 20px',
-        display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+        padding: '12px 16px',
+        display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
       }}>
-        <Link to="/account" title={t.dashboard.tabAccount} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: muted, fontSize: 12, flex: 1, lineHeight: 1, padding: '2px 4px',
-          textDecoration: 'none', fontFamily: 'inherit',
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = fg}
-        onMouseLeave={e => e.currentTarget.style.color = muted}>
-          {t.dashboard.tabAccount}
+        <Link
+          to="/account"
+          title={t.dashboard.tabAccount}
+          style={{
+            flex: 1,
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 14px',
+            background: 'var(--bg-elevated)',
+            border: `1px solid ${border}`,
+            color: muted, fontSize: 12,
+            fontFamily: 'inherit', textDecoration: 'none',
+            transition: 'background 150ms, border-color 150ms, color 150ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = fg; e.currentTarget.style.borderColor = borderHi; e.currentTarget.style.background = 'var(--bg-overlay)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; e.currentTarget.style.background = 'var(--bg-elevated)'; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+          </svg>
+          <span style={{ letterSpacing: '0.02em' }}>{t.dashboard.tabAccount}</span>
         </Link>
         <button
+          title={t.dashboard.logout}
           onClick={() => { localStorage.removeItem('kado_token'); localStorage.removeItem('kado_user'); window.location.href = '/auth'; }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, fontSize: 16, flexShrink: 0, lineHeight: 1, padding: '0 0 0 2px' }}
-          onMouseEnter={e => e.currentTarget.style.color = fg}
-          onMouseLeave={e => e.currentTarget.style.color = muted}>
-          ↪
+          style={{
+            background: 'transparent', border: `1px solid ${border}`,
+            cursor: 'pointer', color: muted, padding: '8px 10px',
+            transition: 'color 150ms, border-color 150ms',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = fg; e.currentTarget.style.borderColor = borderHi; }}
+          onMouseLeave={e => { e.currentTarget.style.color = muted; e.currentTarget.style.borderColor = border; }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
         </button>
       </div>
     </>
