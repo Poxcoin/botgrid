@@ -76,9 +76,8 @@ export default function UserDashboard() {
   const { t }             = useLang();
   const dark              = theme === 'dark';
 
-  const [tab,          setTab]        = useState('signal');
-  const [botsOpen,     setBotsOpen]   = useState(true);
-  const [balanceOpen,  setBalanceOpen] = useState(false);
+  const [tab,          setTab]        = useState('analytics');
+  const [balanceOpen,  setBalanceOpen] = useState(true);
   const [drop,         setDrop]       = useState(false);
   const [drawerOpen,   setDrawerOpen] = useState(false);
   const dropRef = useRef(null);
@@ -202,33 +201,6 @@ export default function UserDashboard() {
         {balanceOpen && <>
           <NavItem id="analytics" label={t.dashboard.tabAnalytics} indent />
           <NavItem id="trades"    label={t.dashboard.tabTrades}    indent />
-        </>}
-
-        <div style={{ height: 1, background: border, margin: '8px 0' }}/>
-
-        {/* Bots parent */}
-        <button onClick={() => setBotsOpen(v => !v)} style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '11px 20px', minHeight: 44,
-          background: isBot && !botsOpen ? fg : 'transparent',
-          border: 'none', cursor: 'pointer',
-          color: isBot ? (botsOpen ? fg : bg) : muted,
-          fontSize: 13, fontFamily: 'inherit',
-          letterSpacing: '0.01em',
-          transition: 'background 0.12s, color 0.12s',
-        }}
-        onMouseEnter={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = fg; e.currentTarget.style.background = 'var(--bg-overlay)'; } }}
-        onMouseLeave={e => { if (!(isBot && !botsOpen)) { e.currentTarget.style.color = isBot ? fg : muted; e.currentTarget.style.background = 'transparent'; } }}>
-          <span>{t.dashboard.navBots}</span>
-          <span style={{ fontSize: 9, opacity: 0.5 }}>{botsOpen ? '▾' : '▸'}</span>
-        </button>
-
-        {botsOpen && <>
-          <div style={{ padding: '6px 20px 2px 40px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, fontFamily: "'Courier New',monospace", opacity: 0.5 }}>BYBIT</div>
-          {BYBIT_BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
-          <div style={{ padding: '10px 20px 2px 40px', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, fontFamily: "'Courier New',monospace", opacity: 0.5 }}>MT5</div>
-          {MT5_BOTS.map(b => <NavItem key={b.id} id={b.id} label={b.label} indent />)}
-          <NavItem id="history" label="History" indent />
         </>}
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>

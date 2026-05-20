@@ -318,6 +318,19 @@ export default function LandingHeader() {
           {/* Right side */}
           <div className="flex items-center" style={{ gap: 12 }}>
 
+            <Link to="/bots"
+              className="hidden sm:inline-flex items-center"
+              style={{
+                background: 'transparent', color: '#fff', padding: '9px 22px', borderRadius: 100,
+                border: '1px solid rgba(255,255,255,0.18)',
+                fontSize: 14, fontWeight: 500, fontFamily: FONT, textDecoration: 'none',
+                transition: 'background 150ms, border-color 150ms',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.32)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; }}>
+              {t.nav.bots}
+            </Link>
+
             {isLoggedIn ? (
               <Link to="/account"
                 className="hidden sm:inline-flex items-center"
