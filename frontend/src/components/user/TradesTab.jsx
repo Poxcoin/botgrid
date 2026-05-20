@@ -125,7 +125,10 @@ export default function TradesTab() {
             <span style={{ color: data.total_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>
               {data.total_pnl >= 0 ? '+' : ''}{data.total_pnl} USDT
             </span>
-            {' '}· WR {data.win_rate}%
+            {' '}· WR{' '}
+            <span style={{ color: data.win_rate >= 50 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 600 }}>
+              {data.win_rate}%
+            </span>
           </span>
         )}
       </div>
@@ -181,6 +184,7 @@ export default function TradesTab() {
                 { label: 'Entry',  col: null },
                 { label: 'Exit',   col: null },
                 { label: 'Qty',    col: null },
+                { label: 'Dur',    col: null },
                 { label: 'PnL',    col: 'pnl' },
               ].map(({ label, col }) => (
                 <th key={label}
@@ -201,7 +205,7 @@ export default function TradesTab() {
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  {[1,2,3,4,5,6,7,8].map(j => (
+                  {[1,2,3,4,5,6,7,8,9].map(j => (
                     <td key={j} style={{ padding: '14px 16px' }}>
                       <div className="shimmer" style={{ height: 11, width: '70%', borderRadius: 3 }} />
                     </td>
@@ -209,7 +213,7 @@ export default function TradesTab() {
                 </tr>
               ))
             ) : trades.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: '48px 20px', color: 'var(--text-muted)', textAlign: 'center' }}>
+              <tr><td colSpan={9} style={{ padding: '48px 20px', color: 'var(--text-muted)', textAlign: 'center' }}>
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: '0 auto 12px', opacity: 0.4 }}>
                   <path d="M3 3v18h18M7 14l4-4 4 4 5-5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -242,6 +246,14 @@ export default function TradesTab() {
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.entry_price?.toFixed(4) ?? '—'}</td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{tr.exit_price?.toFixed(4) ?? '—'}</td>
                   <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{tr.qty?.toFixed(2)}</td>
+                  <td style={{ padding: '14px 16px', color: 'var(--text-muted)', fontSize: 11 }}>{(() => {
+                    const o = parseInt(tr.opened_at), c = parseInt(tr.closed_at);
+                    if (!o || !c || c <= o) return '—';
+                    const m = Math.round((c - o) / 60000);
+                    if (m < 60) return `${m}m`;
+                    if (m < 1440) return `${Math.floor(m / 60)}h ${m % 60}m`;
+                    return `${Math.floor(m / 1440)}d`;
+                  })()}</td>
                   <td style={{ padding: '14px 16px', fontWeight: 600, color: tr.pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
                     {tr.pnl >= 0 ? '+' : ''}{parseFloat(tr.pnl)?.toFixed(2) ?? '—'}
                   </td>
