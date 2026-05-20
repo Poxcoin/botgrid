@@ -1091,7 +1091,8 @@ async def reveal_api_keys(body: RevealKeyRequest, request: Request, credentials:
     user = _get_user_from_token(credentials.credentials, db)
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Wrong password")
-    key_row = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").first()
+    key_rows = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").all()
+    key_row  = next((k for k in key_rows if not k.is_demo), key_rows[0] if key_rows else None)
     if not key_row:
         raise HTTPException(status_code=404, detail="No API keys saved")
     api_key = decrypt_field(key_row.api_key_enc)
