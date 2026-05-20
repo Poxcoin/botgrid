@@ -29,17 +29,19 @@ function StatBox({ label, value, sub, color }) {
 }
 
 function NoKeyBanner() {
+  const { t } = useLang();
+  const ta = t.dashboard.analytics;
   return (
     <div style={{
       border: `1px solid ${B}`, padding: '32px 24px', marginBottom: 24,
       display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
     }}>
       <div>
-        <div style={{ fontFamily: MONO, fontSize: 11, color: '#ccc', marginBottom: 6 }}>
-          No Bybit API key connected
+        <div style={{ fontFamily: MONO, fontSize: 11, color: 'var(--text-primary)', marginBottom: 6 }}>
+          {ta.noKeyTitle}
         </div>
         <div style={{ fontFamily: MONO, fontSize: 10, color: MUTED, lineHeight: 1.6 }}>
-          Connect your key to see live balance, positions and trade history.
+          {ta.noKeyDesc}
         </div>
       </div>
       <button
@@ -51,7 +53,7 @@ function NoKeyBanner() {
           textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0,
         }}
       >
-        Add API Key →
+        {ta.noKeyBtn}
       </button>
     </div>
   );
@@ -312,9 +314,9 @@ export default function BotTab() {
           sub={balance ? `Equity $${balance.equity.toFixed(2)}` : 'connect key'}
         />
         <StatBox
-          label="30d PnL"
+          label={`30d ${t.dashboard.analytics.totalPnl}`}
           value={hasKey ? `${pnl30 >= 0 ? '+' : ''}$${pnl30.toFixed(2)}` : '—'}
-          sub={hasKey ? `${trades30} trades` : 'connect key'}
+          sub={hasKey ? `${trades30} ${t.dashboard.analytics.tradesLbl}` : null}
           color={pnl30 > 0 ? 'var(--accent-green)' : pnl30 < 0 ? 'var(--accent-red)' : 'var(--text-primary)'}
         />
         <StatBox
@@ -326,9 +328,9 @@ export default function BotTab() {
             : undefined}
         />
         <StatBox
-          label="Win Rate"
+          label={t.dashboard.overview.winRate}
           value={hasKey ? `${winRate}%` : '—'}
-          sub={hasKey ? `${pnl?.wins ?? 0}W / ${pnl?.losses ?? 0}L` : 'connect key'}
+          sub={hasKey ? `${pnl?.wins ?? 0}W / ${pnl?.losses ?? 0}L` : null}
         />
       </div>
 

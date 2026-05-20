@@ -1277,7 +1277,48 @@ export default function AnalyticsTab() {
             title={t.dashboard.analytics.byBotSource}
             right={`${mergedBySource.length} ${t.dashboard.analytics.sources}`}
           />
-          <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)' }}>
+          {/* Visual PnL bar chart */}
+          {(() => {
+            const sorted = [...mergedBySource].sort((a, b) => b.pnl - a.pnl);
+            const maxAbs = Math.max(...sorted.map(r => Math.abs(r.pnl)), 0.01);
+            return (
+              <div style={{ border: '1px solid var(--border-subtle)', borderBottom: 'none', marginBottom: 0 }}>
+                {sorted.map((r, i) => {
+                  const pnl = parseFloat(r.pnl);
+                  const pos = pnl >= 0;
+                  const barW = Math.abs(pnl) / maxAbs * 100;
+                  const wr = r.trades ? Math.round(r.wins / r.trades * 100) : 0;
+                  return (
+                    <div key={i} style={{
+                      display: 'grid', gridTemplateColumns: '110px 1fr 90px 60px',
+                      alignItems: 'center', gap: 12,
+                      padding: '9px 16px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      background: 'var(--bg-base)',
+                    }}>
+                      <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {r.label || r.source}
+                      </span>
+                      <div style={{ height: 6, background: 'var(--bg-elevated)', borderRadius: 1, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', width: `${barW}%`,
+                          background: pos ? 'rgba(14,203,129,0.7)' : 'rgba(246,70,93,0.7)',
+                          borderRadius: 1,
+                        }} />
+                      </div>
+                      <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, textAlign: 'right', color: pos ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                        {pos ? '+' : ''}{pnl.toFixed(2)}
+                      </span>
+                      <span style={{ fontFamily: MONO, fontSize: 10, textAlign: 'right', color: wr >= 50 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                        {r.trades ? `${wr}%` : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderTop: 'none' }}>
             <DataTable
               cols={botCols}
               rows={[...mergedBySource].sort((a, b) => {
