@@ -57,8 +57,8 @@ function Page({ tab, allowedBots }) {
   if (BOT_IDS.includes(tab)) return <OverviewTab botId={tab} allowedBots={allowedBots} />;
   switch (tab) {
     case 'analytics': return <Suspense fallback={null}><AnalyticsTab /></Suspense>;
+    case 'pnl':       return <Suspense fallback={null}><AnalyticsTab /></Suspense>;
     case 'trades':    return <Suspense fallback={null}><TradesTab /></Suspense>;
-    case 'pnl':       return <Suspense fallback={null}><PnlTab /></Suspense>;
     case 'tools':     return <Suspense fallback={null}><ToolsTab /></Suspense>;
     case 'account':   return <AccountTab />;
     case 'api-keys':  return <ApiKeysTab />;
@@ -111,7 +111,7 @@ export default function UserDashboard() {
 
   const goTab = id => { setTab(id); setDrawerOpen(false); };
 
-  const BALANCE_IDS = ['analytics', 'trades', 'pnl'];
+  const BALANCE_IDS = ['analytics', 'trades'];
   const isBot     = BOT_IDS.includes(tab);
   const isBalance = BALANCE_IDS.includes(tab);
   const pageLabel = isBot
@@ -119,7 +119,6 @@ export default function UserDashboard() {
     : ({
         analytics: t.dashboard.tabAnalytics,
         trades:    t.dashboard.tabTrades,
-        pnl:       t.dashboard.tabPnl,
         tools:     t.dashboard.navTools,
         account:   t.dashboard.tabAccount,
         'api-keys': t.dashboard.tabApiKeys,
@@ -203,7 +202,6 @@ export default function UserDashboard() {
         {balanceOpen && <>
           <NavItem id="analytics" label={t.dashboard.tabAnalytics} indent />
           <NavItem id="trades"    label={t.dashboard.tabTrades}    indent />
-          <NavItem id="pnl"       label={t.dashboard.tabPnl}       indent />
         </>}
 
         <div style={{ height: 1, background: border, margin: '8px 0' }}/>

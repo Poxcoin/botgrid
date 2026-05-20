@@ -736,6 +736,10 @@ function EquityCurve({ trades }) {
 
 const PAGE_SIZE = 50;
 
+const PNL_LOC = { en:'en-US', es:'es-ES', uk:'uk-UA', ru:'ru-RU', de:'de-DE', zh:'zh-CN' };
+const shortMonth = (monthIdx, locale) =>
+  new Intl.DateTimeFormat(locale, { month: 'short' }).format(new Date(2000, monthIdx, 1));
+
 export default function AnalyticsTab() {
   const { t, lang } = useLang();
   const [data, setData] = useState(null);
@@ -753,19 +757,23 @@ export default function AnalyticsTab() {
   const [botSort,     setBotSort]     = useState('pnl');
   const [botSortAsc,  setBotSortAsc]  = useState(false);
   const [tradeSource, setTradeSource] = useState('ALL');
+  const [pnlRows,     setPnlRows]     = useState([]);
+  const [hovBar,      setHovBar]      = useState(null);
 
   const fetchStatic = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const headers = { Authorization: `Bearer ${getToken()}` };
-      const [analyticsRes, balanceRes] = await Promise.all([
+      const [analyticsRes, balanceRes, pnlRes] = await Promise.all([
         fetch('/api/users/analytics', { headers }),
         fetch('/api/users/balance', { headers }),
+        fetch('/api/users/pnl', { headers }),
       ]);
       if (!analyticsRes.ok) throw new Error(`HTTP ${analyticsRes.status}`);
       setData(await analyticsRes.json());
       if (balanceRes.ok) setBalance(await balanceRes.json());
+      if (pnlRes.ok) { const d = await pnlRes.json(); setPnlRows(Array.isArray(d) ? d : []); }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1455,6 +1463,133 @@ export default function AnalyticsTab() {
                 >{t.dashboard.analytics.next}</button>
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* ── Monthly PnL (from PnL tab) ─────────────────────────── */}
+      {pnlRows.length > 0 && (() => {
+        const locale = PNL_LOC[lang] || 'en-US';
+        const totalGross = pnlRows.reduce((s, r) => s + r.gross_pnl, 0);
+        const totalFee   = pnlRows.reduce((s, r) => s + r.performance_fee, 0);
+        const totalNet   = pnlRows.reduce((s, r) => s + r.net_pnl, 0);
+        const maxAbs     = Math.max(...pnlRows.map(r => Math.abs(r.gross_pnl)), 1);
+        const multiYear  = new Set(pnlRows.map(r => r.year)).size > 1;
+        const reversed   = [...pnlRows].reverse();
+
+        // cumulative net PnL line
+        const sorted  = [...pnlRows].sort((a, b) => (a.year * 12 + a.month) - (b.year * 12 + b.month));
+        let cum = 0;
+        const cumPts  = sorted.map(r => { cum += r.net_pnl; return parseFloat(cum.toFixed(2)); });
+        const minV    = Math.min(...cumPts, 0);
+        const maxV    = Math.max(...cumPts, 0);
+        const range   = (maxV - minV) || 1;
+        const cumH    = 64, cumN = cumPts.length;
+        const cumXs   = cumPts.map((_, i) => (i / Math.max(cumN - 1, 1)) * 100);
+        const cumYs   = cumPts.map(v => cumH - ((v - minV) / range) * cumH);
+        const linePth = cumXs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${cumYs[i].toFixed(1)}`).join(' ');
+        const areaPth = `${linePth} L${cumXs[cumXs.length-1].toFixed(1)},${cumH} L0,${cumH} Z`;
+        const cumPos  = cumPts[cumPts.length - 1] >= 0;
+        const cumCol  = cumPos ? 'var(--accent-green)' : 'var(--accent-red)';
+
+        const pnlTableCols = [
+          { key: 'month',  label: t.dashboard.hMonth, render: r => `${shortMonth(r.month - 1, locale)} ${r.year}` },
+          { key: 'gross',  label: t.dashboard.pnl.hGrossPnl, align: 'right', render: r => `${r.gross_pnl >= 0 ? '+' : ''}${r.gross_pnl.toFixed(2)}` },
+          { key: 'fee',    label: t.dashboard.pnl.hFee,      align: 'right', muted: true, render: r => r.performance_fee.toFixed(2) },
+          { key: 'net',    label: t.dashboard.pnl.hNetPnl,   align: 'right', render: r => `${r.net_pnl >= 0 ? '+' : ''}${r.net_pnl.toFixed(2)}` },
+          { key: 'paid',   label: t.dashboard.pnl.hPaid,     align: 'right', muted: true, render: r => r.fee_paid ? '✓' : '—' },
+        ];
+
+        return (
+          <div style={{ marginBottom: 32, marginTop: 32 }}>
+            <SectionLabel title={t.dashboard.pnl.monthlyGrossPnl} right={`${pnlRows.length} ${t.dashboard.analytics.tradesLbl.replace('trades','mo').trim()}`} />
+
+            {/* Stat cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--border-subtle)', marginBottom: 1 }}>
+              {[
+                { label: t.dashboard.pnl.totalGross, val: totalGross, col: true },
+                { label: t.dashboard.pnl.totalFee,   val: totalFee,   col: false },
+                { label: t.dashboard.pnl.totalNet,   val: totalNet,   col: true },
+              ].map(({ label, val, col }) => (
+                <div key={label} style={{ padding: '18px 20px', background: 'var(--bg-base)' }}>
+                  <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>{label}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', color: col ? (val >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : 'var(--text-primary)' }}>
+                    {val >= 0 ? '+' : ''}{val.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Monthly bar chart */}
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '12px 16px 8px', marginBottom: 1, position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80 }}>
+                {reversed.map((r, i) => {
+                  const h = Math.abs(r.gross_pnl) / maxAbs * 64;
+                  const pos = r.gross_pnl >= 0;
+                  const isH = hovBar === i;
+                  return (
+                    <div key={`${r.year}-${r.month}`}
+                      style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'default' }}
+                      onMouseEnter={() => setHovBar(i)} onMouseLeave={() => setHovBar(null)}>
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 66 }}>
+                        <div style={{ marginTop: 'auto', width: '100%', height: Math.max(h, 2),
+                          background: pos ? (isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)') : (isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.65)'),
+                          transition: 'background 100ms' }} />
+                      </div>
+                      <div style={{ fontFamily: MONO, fontSize: 8, color: isH ? 'var(--text-secondary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {shortMonth(r.month - 1, locale)}{multiYear ? ` '${String(r.year).slice(2)}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {hovBar != null && reversed[hovBar] && (
+                <div style={{
+                  position: 'absolute', top: 8,
+                  left: `${(hovBar / reversed.length + 0.5 / reversed.length) * 100}%`,
+                  transform: 'translateX(-50%)',
+                  background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
+                  padding: '7px 12px', fontFamily: MONO, fontSize: 11,
+                  pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
+                }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 9, marginBottom: 3 }}>
+                    {shortMonth(reversed[hovBar].month - 1, locale)} {reversed[hovBar].year}
+                  </div>
+                  <div style={{ color: reversed[hovBar].gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontWeight: 700, fontSize: 13 }}>
+                    {reversed[hovBar].gross_pnl >= 0 ? '+' : ''}{reversed[hovBar].gross_pnl.toFixed(2)} {t.dashboard.pnl.gross}
+                  </div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 9, marginTop: 1 }}>
+                    {t.dashboard.pnl.net} {reversed[hovBar].net_pnl >= 0 ? '+' : ''}{reversed[hovBar].net_pnl.toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cumulative net PnL line */}
+            {cumN >= 2 && (
+              <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderTop: 'none', padding: '10px 16px 8px', marginBottom: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{t.dashboard.pnl.cumNetPnl}</div>
+                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: cumCol }}>
+                    {cumPos ? '+' : ''}{cumPts[cumPts.length - 1].toFixed(2)} USDT
+                  </div>
+                </div>
+                <svg viewBox={`0 0 100 ${cumH}`} preserveAspectRatio="none" style={{ width: '100%', height: cumH, display: 'block' }}>
+                  <path d={areaPth} fill={cumPos ? 'rgba(14,203,129,0.08)' : 'rgba(246,70,93,0.08)'} />
+                  <path d={linePth} fill="none" stroke={cumCol} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+                  <circle cx={cumXs[cumXs.length-1].toFixed(1)} cy={cumYs[cumYs.length-1].toFixed(1)} r="2" fill={cumCol} vectorEffect="non-scaling-stroke" />
+                </svg>
+              </div>
+            )}
+
+            {/* Monthly table */}
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderTop: 'none' }}>
+              <DataTable
+                cols={pnlTableCols}
+                rows={pnlRows}
+                getRowColor={(k, r) => k === 'gross' ? (r.gross_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : k === 'net' ? (r.net_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') : null}
+              />
+            </div>
           </div>
         );
       })()}
