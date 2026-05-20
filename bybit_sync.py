@@ -197,8 +197,11 @@ def sync_user_trades(user_id: int) -> int:
                 open_by_coin[coin] = [t for t in candidates if t.id != matched.id]
             else:
                 # Completely new trade — insert as standalone "bybit" record
+                # Bybit closed_pnl "side" = closing order direction:
+                #   "Buy"  = bought to CLOSE a SHORT → position was SHORT
+                #   "Sell" = sold  to CLOSE a LONG  → position was LONG
                 raw_side = it.get("side", "")
-                side = "LONG" if raw_side == "Buy" else "SHORT"
+                side = "SHORT" if raw_side == "Buy" else "LONG"
                 db.add(UserTrade(
                     user_id     = user_id,
                     source      = "bybit",
