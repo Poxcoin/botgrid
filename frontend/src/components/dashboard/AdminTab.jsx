@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { authFetch } from '@/lib/api';
 import { format } from 'date-fns';
 
@@ -211,8 +211,15 @@ function InvoicesPanel() {
 
 // ── UsersPanel ────────────────────────────────────────────────────────────────
 
+const PLANS = ['trial', 'free', 'basic', 'pro', 'performance'];
+
 function UsersPanel() {
-  const [data, setData] = useState(null);
+  const [data,       setData]       = useState(null);
+  const [search,     setSearch]     = useState('');
+  const [planFilter, setPlanFilter] = useState('ALL');
+  const [onlyKeys,   setOnlyKeys]   = useState(false);
+  const [sortCol,    setSortCol]    = useState('created_at');
+  const [sortAsc,    setSortAsc]    = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -231,38 +238,96 @@ function UsersPanel() {
     performance: 'bg-green-100 text-green-700',
   };
 
+  const toggleSort = (col) => {
+    if (sortCol === col) setSortAsc(a => !a);
+    else { setSortCol(col); setSortAsc(false); }
+  };
+
+  const users = useMemo(() => {
+    if (!data?.users) return [];
+    const lc = search.toLowerCase();
+    let list = data.users.filter(u => {
+      if (lc && !u.email.toLowerCase().includes(lc)) return false;
+      if (planFilter !== 'ALL' && u.plan !== planFilter) return false;
+      if (onlyKeys && !u.has_api_keys) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      let av, bv;
+      if (sortCol === 'email')       { return sortAsc ? a.email.localeCompare(b.email) : b.email.localeCompare(a.email); }
+      if (sortCol === 'trades_total') { av = a.trades_total ?? 0; bv = b.trades_total ?? 0; }
+      else if (sortCol === 'pending_fee') { av = a.pending_fee ?? 0; bv = b.pending_fee ?? 0; }
+      else { av = a.created_at ?? ''; bv = b.created_at ?? ''; return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av); }
+      return sortAsc ? av - bv : bv - av;
+    });
+    return list;
+  }, [data, search, planFilter, onlyKeys, sortCol, sortAsc]);
+
+  const SortTh = ({ label, col, right }) => (
+    <th
+      onClick={() => toggleSort(col)}
+      className={`${right ? 'text-right' : 'text-left'} px-5 h-10 cursor-pointer select-none hover:text-white/70`}
+      style={{ whiteSpace: 'nowrap' }}
+    >
+      {label}{sortCol === col ? (sortAsc ? ' ↑' : ' ↓') : ' ·'}
+    </th>
+  );
+
   return (
     <div className="border border-kado-black">
       <div className="px-5 h-12 border-b border-kado-black flex items-center justify-between">
         <h3 className="font-black tracking-tight text-lg">Users</h3>
         <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-kado-gray">
-          {data ? `${data.total} total` : '...'}
+          {data ? (users.length !== data.total ? `${users.length} / ${data.total}` : `${data.total} total`) : '...'}
         </span>
       </div>
+
+      {/* Filter bar */}
+      <div className="px-5 py-3 border-b border-kado-black/15 flex items-center gap-3 flex-wrap bg-kado-black/[0.02]">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search email…"
+          className="font-mono text-[11px] border border-kado-black/20 bg-white px-3 py-1.5 outline-none w-44"
+        />
+        <select
+          value={planFilter}
+          onChange={e => setPlanFilter(e.target.value)}
+          className="font-mono text-[11px] border border-kado-black/20 bg-white px-3 py-1.5 outline-none cursor-pointer"
+        >
+          <option value="ALL">All plans</option>
+          {PLANS.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <label className="flex items-center gap-2 font-mono text-[11px] text-kado-gray cursor-pointer select-none">
+          <input type="checkbox" checked={onlyKeys} onChange={e => setOnlyKeys(e.target.checked)} />
+          API keys only
+        </label>
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-[13px]">
           <thead>
             <tr className="bg-kado-black text-white font-mono text-[10px] tracking-[0.2em] uppercase">
-              <th className="text-left px-5 h-10">Email</th>
+              <SortTh label="Email"        col="email" />
               <th className="text-left px-5 h-10">Plan</th>
-              <th className="text-left px-5 h-10">Verified</th>
-              <th className="text-left px-5 h-10">API Key</th>
-              <th className="text-right px-5 h-10">Trades</th>
+              <th className="text-left px-5 h-10">Ver</th>
+              <th className="text-left px-5 h-10">Keys</th>
+              <SortTh label="Trades" col="trades_total" right />
               <th className="text-right px-5 h-10">Open</th>
               <th className="text-left px-5 h-10">Latest PnL</th>
-              <th className="text-right px-5 h-10">Pending Fee</th>
-              <th className="text-left px-5 h-10">Registered</th>
+              <SortTh label="Pending Fee" col="pending_fee" right />
+              <SortTh label="Registered"  col="created_at" />
               <th className="text-left px-5 h-10">Last Login</th>
             </tr>
           </thead>
           <tbody>
             {data === null ? (
               <tr><td colSpan={10} className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">Loading...</td></tr>
-            ) : data.users.length === 0 ? (
-              <tr><td colSpan={10} className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">No users yet</td></tr>
-            ) : data.users.map(u => (
+            ) : users.length === 0 ? (
+              <tr><td colSpan={10} className="px-5 py-8 text-center font-mono text-[11px] text-kado-gray tracking-widest">No matching users</td></tr>
+            ) : users.map(u => (
               <tr key={u.id} className={`border-t border-kado-black/15 hover:bg-kado-black/[0.02] ${!u.is_active ? 'opacity-40' : ''}`}>
-                <td className="px-5 py-3 font-mono text-[12px] max-w-[180px] truncate">
+                <td className="px-5 py-3 font-mono text-[12px] max-w-[200px] truncate">
                   {u.email}
                   {!u.is_active && <span className="ml-2 text-[10px] text-red-500 font-bold">BANNED</span>}
                 </td>
@@ -272,14 +337,10 @@ function UsersPanel() {
                   </span>
                 </td>
                 <td className="px-5 py-3 font-mono text-[12px]">
-                  {u.email_verified
-                    ? <span className="text-green-700">✓</span>
-                    : <span className="text-kado-gray">—</span>}
+                  {u.email_verified ? <span className="text-green-700">✓</span> : <span className="text-kado-gray">—</span>}
                 </td>
                 <td className="px-5 py-3 font-mono text-[12px]">
-                  {u.has_api_keys
-                    ? <span className="text-green-700">✓</span>
-                    : <span className="text-kado-gray">—</span>}
+                  {u.has_api_keys ? <span className="text-green-700">✓</span> : <span className="text-kado-gray">—</span>}
                 </td>
                 <td className="px-5 py-3 font-mono tabular-nums text-right">{u.trades_total}</td>
                 <td className="px-5 py-3 font-mono tabular-nums text-right">
