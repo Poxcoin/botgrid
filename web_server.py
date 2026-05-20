@@ -866,12 +866,17 @@ async def get_mt5_keys(credentials: HTTPAuthorizationCredentials = Depends(secur
     return {"configured": True, "login": masked_login, "server": row.server}
 
 
+class Mt5KeyRequest(BaseModel):
+    login:    Annotated[str, Field(min_length=1, max_length=20, pattern=r'^\d+$')]
+    password: Annotated[str, Field(min_length=1, max_length=128)]
+    server:   Annotated[str, Field(min_length=3, max_length=100, pattern=r'^[A-Za-z0-9.\-]+(:\d{1,5})?$')]
+
 @app.post("/api/users/mt5-keys")
-async def save_mt5_keys(body: dict, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
+async def save_mt5_keys(body: Mt5KeyRequest, credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     user = _get_user_from_token(credentials.credentials, db)
-    login    = str(body.get("login", "")).strip()
-    password = str(body.get("password", "")).strip()
-    server   = str(body.get("server", "")).strip()
+    login    = body.login.strip()
+    password = body.password.strip()
+    server   = body.server.strip()
     if not login or not password or not server:
         raise HTTPException(status_code=400, detail="All fields required")
     row = db.query(UserMt5Key).filter_by(user_id=user.id).first()
