@@ -1003,44 +1003,9 @@ export default function AnalyticsTab() {
     && !daily?.length
     && !by_coin?.length;
 
-  if (noData && !hasKey) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
-          {t.dashboard.analytics.noKeyTitle}
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', marginBottom: 28, lineHeight: 1.6 }}>
-          {t.dashboard.analytics.noKeyDesc}
-        </div>
-        <button
-          onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
-          style={{
-            background: 'var(--text-primary)', color: 'var(--bg-base)',
-            border: 'none', padding: '10px 24px',
-            fontFamily: MONO, fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            cursor: 'pointer',
-          }}
-        >
-          {t.dashboard.analytics.noKeyBtn}
-        </button>
-      </div>
-    );
-  }
-
-  if (noData && hasKey) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', textAlign: 'center' }}>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 16 }}>
-          {t.dashboard.analytics.noTradesTitle}
-        </div>
-        <div style={{ fontFamily: MONO, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          {t.dashboard.analytics.noTradesDesc}
-        </div>
-      </div>
-    );
-  }
-
+  // Empty/sparse states: instead of replacing the whole page with a centered
+  // CTA, keep the hero rendered (showing — placeholders) and surface the CTA
+  // inside the unified INFO banner below the hero.
   const { totalPnl, winRate, avgTrade, streak, streakDir, profitFactor, maxDrawdown, avgDuration, bestDay, worstDay, dailyPnl } = periodStats;
   const mergedBySource = periodStats.bySource;
 
@@ -1092,8 +1057,11 @@ export default function AnalyticsTab() {
     ? t.dashboard.analytics?.sparseHint ?? `Поки що ${allTrades.length} закритих торгів. Деякі графіки з'являться, коли набереться більше історії (5+ трейдів).`
     : null;
   const emptyHint = allTrades.length === 0
-    ? t.dashboard.analytics?.emptyHint ?? 'Поки що немає закритих торгів. Підключіть API-ключ Bybit на вкладці API Keys і дайте ботам час — статистика з\'явиться автоматично.'
+    ? (hasKey
+        ? (t.dashboard.analytics?.noTradesDesc ?? 'API-ключ підключено. Аналітика з\'явиться, коли бот виконає угоди на вашому рахунку.')
+        : (t.dashboard.analytics?.noKeyDesc ?? 'Підключіть API-ключ Bybit щоб побачити вашу аналітику — баланс, PnL, історію торгів і деталі по монетах.'))
     : null;
+  const showAddKeyCta = allTrades.length === 0 && !hasKey;
 
   const heroIsPos = totalPnl >= 0;
 
@@ -1188,12 +1156,29 @@ export default function AnalyticsTab() {
           border: '1px solid var(--border-subtle)',
           borderLeft: `2px solid ${emptyHint ? 'var(--accent-amber)' : 'var(--text-muted)'}`,
           marginTop: 1, marginBottom: 24,
-          display: 'flex', alignItems: 'flex-start', gap: 12,
+          display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
         }}>
           <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: emptyHint ? 'var(--accent-amber)' : 'var(--text-muted)', flexShrink: 0, paddingTop: 2 }}>INFO</span>
-          <span style={{ fontFamily: FONT, fontSize: 12.5, color: 'var(--text-secondary, var(--text-muted))', lineHeight: 1.6 }}>
+          <span style={{ fontFamily: FONT, fontSize: 12.5, color: 'var(--text-secondary, var(--text-muted))', lineHeight: 1.6, flex: 1, minWidth: 240 }}>
             {emptyHint || sparseHint}
           </span>
+          {showAddKeyCta && (
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('switch-tab', { detail: 'api-keys' }))}
+              style={{
+                background: 'var(--text-primary)', color: 'var(--bg-base)',
+                border: 'none', padding: '8px 18px',
+                fontFamily: MONO, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.1em', textTransform: 'uppercase',
+                cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'opacity 150ms',
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              {t.dashboard.analytics?.noKeyBtn ?? 'ADD API KEY →'}
+            </button>
+          )}
         </div>
       )}
 
