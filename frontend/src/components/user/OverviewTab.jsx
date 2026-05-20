@@ -371,17 +371,21 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
   }
 
   function applyData(bars) {
-    barsRef.current = bars;
-    if (!candleRef.current) return;
-    const candle = bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
-    const vol    = bars.map(b => ({ time: b.time, value: b.value, color: b.close >= b.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' }));
-    if (showLRef.current && areaRef.current) {
-      areaRef.current.setData(candle.map(b => ({ time: b.time, value: b.close })));
-    } else {
-      candleRef.current.setData(candle);
-    }
-    volRef.current?.setData(vol);
-    refreshInds(bars);
+    if (!bars.length || !candleRef.current) return;
+    const sorted = [...bars].sort((a, b) => a.time - b.time);
+    barsRef.current = sorted;
+    const candle = sorted.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close }));
+    const vol    = sorted.map(b => ({ time: b.time, value: b.value, color: b.close >= b.open ? 'rgba(0,212,170,0.4)' : 'rgba(255,77,109,0.4)' }));
+    try {
+      if (showLRef.current && areaRef.current) {
+        areaRef.current.setData(sorted.map(b => ({ time: b.time, value: b.close })));
+      } else {
+        candleRef.current.applyOptions({ visible: true });
+        candleRef.current.setData(candle);
+      }
+      volRef.current?.setData(vol);
+      refreshInds(sorted);
+    } catch {}
   }
 
   function connectWS(c, tfV) {
@@ -467,7 +471,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
             applyData(deduped);
           }
           loadingRef.current = false;
-        });
+        }).catch(() => { loadingRef.current = false; });
       }
     });
 
