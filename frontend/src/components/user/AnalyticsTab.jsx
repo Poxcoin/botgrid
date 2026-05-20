@@ -512,7 +512,10 @@ function HourOfDayChart({ trades }) {
   );
 }
 
+const CURVE_LOC = { en:'en-US',es:'es-ES',uk:'uk-UA',ru:'ru-RU',de:'de-DE',zh:'zh-CN' };
+
 function EquityCurve({ trades }) {
+  const { lang } = useLang();
   const wrapRef = useRef(null);
   const [w, setW] = useState(0);
   const [hover, setHover] = useState(null);
@@ -530,6 +533,7 @@ function EquityCurve({ trades }) {
   }, []);
 
   const data = useMemo(() => {
+    const loc = CURVE_LOC[lang] || 'en-US';
     const sorted = [...trades]
       .filter(t => t.pnl != null)
       .sort((a, b) => parseInt(a.closed_at) - parseInt(b.closed_at));
@@ -537,9 +541,9 @@ function EquityCurve({ trades }) {
     return sorted.map(t => {
       cum += parseFloat(t.pnl ?? 0);
       const ms = parseInt(t.closed_at);
-      return { t: ms ? new Date(ms).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) : '', v: parseFloat(cum.toFixed(2)) };
+      return { t: ms ? new Date(ms).toLocaleDateString(loc, { day: '2-digit', month: '2-digit' }) : '', v: parseFloat(cum.toFixed(2)) };
     });
-  }, [trades]);
+  }, [trades, lang]);
 
   if (data.length < 2) return null;
 
