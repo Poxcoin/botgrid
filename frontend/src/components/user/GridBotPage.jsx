@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { authFetch } from '@/lib/api';
 import { useTheme } from '@/lib/ThemeContext';
+import { useLang } from '@/lib/LangContext';
 
 const COINS = [
   { key: 'BTC', label: 'BTC/USDT' },
@@ -112,6 +113,8 @@ function TickerRow({ coin, setCoin, tf, setTf, ticker }) {
 // ── AccountRow ────────────────────────────────────────────────
 
 function StatsPanel({ balance, trades, positions }) {
+  const { t } = useLang();
+  const td = t.dashboard;
   const closed    = useMemo(() => (trades || []).filter(t => t.closed_at || t.status === 'closed'), [trades]);
   const realized  = useMemo(() => closed.reduce((s, t) => s + parseFloat(t.pnl_usdt || 0), 0), [closed]);
   const wins      = useMemo(() => closed.filter(t => parseFloat(t.pnl_usdt || 0) > 0).length, [closed]);
@@ -122,10 +125,10 @@ function StatsPanel({ balance, trades, positions }) {
   const pos  = v => v > 0;
 
   const cards = [
-    { label: 'Balance',    value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—',      sub: balance?.equity ? `equity $${(+balance.equity).toFixed(2)}` : null, good: null },
-    { label: 'Unrealized', value: positions?.length ? `${sign(totalUnreal)} USDT` : '—',   sub: positions?.length ? `${positions.length} open positions` : 'no open positions', good: positions?.length ? pos(totalUnreal) : null },
-    { label: 'Realized',   value: `${sign(realized)} USDT`,                                sub: `${closed.length} closed trades`, good: closed.length > 0 ? pos(realized) : null },
-    { label: 'Win Rate',   value: `${wr}%`,                                                sub: `${wins}W / ${closed.length - wins}L`, good: closed.length > 0 ? wr >= 50 : null },
+    { label: td.bot.balance,            value: balance ? `$${(+balance.wallet).toFixed(2)}` : '—',     sub: balance?.equity ? `${td.bot.equity} $${(+balance.equity).toFixed(2)}` : null, good: null },
+    { label: td.analytics.bUnrealized,  value: positions?.length ? `${sign(totalUnreal)} USDT` : '—',  sub: positions?.length ? `${positions.length} ${td.overview.openPositions.toLowerCase()}` : td.overview.noOpenPos, good: positions?.length ? pos(totalUnreal) : null },
+    { label: td.overview.realized,      value: `${sign(realized)} USDT`,                               sub: `${closed.length} ${td.overview.closedTrades}`, good: closed.length > 0 ? pos(realized) : null },
+    { label: td.analytics.winRate,      value: `${wr}%`,                                               sub: `${wins}W / ${closed.length - wins}L`, good: closed.length > 0 ? wr >= 50 : null },
   ];
 
   return (
@@ -145,6 +148,7 @@ function StatsPanel({ balance, trades, positions }) {
 // ── OrderBook ─────────────────────────────────────────────────
 
 function OrderBook({ coin }) {
+  const { t } = useLang();
   const [book, setBook] = useState({ b: [], a: [] });
 
   useEffect(() => {
@@ -188,7 +192,7 @@ function OrderBook({ coin }) {
   return (
     <div style={{ width: 170, flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-subtle)', background: 'var(--bg-base)', overflow: 'hidden' }}>
       <div style={{ padding: '0 10px', height: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-        <span style={{ fontFamily: SANS, fontSize: 10, color: 'var(--text-muted)' }}>Order Book</span>
+        <span style={{ fontFamily: SANS, fontSize: 10, color: 'var(--text-muted)' }}>{t.dashboard.grid.orderBook}</span>
         {spread && <span style={{ fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)' }}>Δ {spread}</span>}
       </div>
       <div style={{ padding: '2px 0' }}>
@@ -508,10 +512,12 @@ function KlineChart({ coin, tf }) {
 
 // ── BottomPanel ────────────────────────────────────────────────
 
-const BP_TABS = ['Positions', 'History', 'PnL'];
-
 function BottomPanel({ coin, trades, positions, onClose }) {
-  const [tab, setTab] = useState('Positions');
+  const { t } = useLang();
+  const td = t.dashboard;
+  const tg = td.grid;
+  const BP_TABS = [td.panel.positions, tg.history, 'PnL'];
+  const [tab, setTab] = useState(td.panel.positions);
 
   const openPos    = useMemo(() => (positions || []).filter(p => normSym(p.symbol) === coin), [positions, coin]);
   const coinTrades = useMemo(() => (trades || []).filter(t => normSym(t.symbol) === coin), [trades, coin]);
@@ -548,10 +554,10 @@ function BottomPanel({ coin, trades, positions, onClose }) {
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
             {t}
-            {t === 'Positions' && openPos.length > 0 && (
+            {t === td.panel.positions && openPos.length > 0 && (
               <span style={{ background: 'var(--accent-green)', color: '#000', padding: '1px 5px', borderRadius: 3, fontSize: 9, fontWeight: 700 }}>{openPos.length}</span>
             )}
-            {t === 'History' && closed.length > 0 && (
+            {t === tg.history && closed.length > 0 && (
               <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--text-muted)' }}>{closed.length}</span>
             )}
           </button>
@@ -560,11 +566,11 @@ function BottomPanel({ coin, trades, positions, onClose }) {
 
       <div style={{ flex: 1, overflow: 'auto', background: 'var(--bg-base)', scrollbarWidth: 'thin', scrollbarColor: 'var(--border-default) transparent' }}>
 
-        {tab === 'Positions' && (
+        {tab === td.panel.positions && (
           openPos.length === 0
-            ? <div style={{ padding: '20px 16px', fontFamily: SANS, fontSize: 12, color: 'var(--text-muted)' }}>No open positions · {coin}/USDT</div>
+            ? <div style={{ padding: '20px 16px', fontFamily: SANS, fontSize: 12, color: 'var(--text-muted)' }}>{tg.noOpenPositions} · {coin}/USDT</div>
             : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><Th ch="Symbol"/><Th ch="Side"/><Th ch="Size"/><Th ch="Entry"/><Th ch="Mark"/><Th ch="Liq"/><Th ch="ROE"/><Th ch="Unrealized PnL" right/><Th ch=""/></tr></thead>
+                <thead><tr><Th ch={td.hSymbol}/><Th ch={td.hSide}/><Th ch={td.hSize}/><Th ch={td.hEntry}/><Th ch={td.hMark}/><Th ch={td.hLiq}/><Th ch={td.hRoe}/><Th ch={td.hUnrealPnl} right/><Th ch=""/></tr></thead>
                 <tbody>
                   {openPos.map((p, i) => (
                     <tr key={i}>
@@ -585,7 +591,7 @@ function BottomPanel({ coin, trades, positions, onClose }) {
                           }}
                           onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-red)'; e.currentTarget.style.color = '#000'; }}
                           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--accent-red)'; }}>
-                            Close
+                            {td.panel.close}
                           </button>
                         )}
                       </td>
@@ -595,11 +601,11 @@ function BottomPanel({ coin, trades, positions, onClose }) {
               </table>
         )}
 
-        {tab === 'History' && (
+        {tab === tg.history && (
           closed.length === 0
-            ? <div style={{ padding: '20px 16px', fontFamily: SANS, fontSize: 12, color: 'var(--text-muted)' }}>No closed trades · {coin}/USDT</div>
+            ? <div style={{ padding: '20px 16px', fontFamily: SANS, fontSize: 12, color: 'var(--text-muted)' }}>{tg.noClosedTrades} · {coin}/USDT</div>
             : <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><Th ch="Side"/><Th ch="Entry"/><Th ch="Exit"/><Th ch="Size"/><Th ch="Opened"/><Th ch="Closed"/><Th ch="PnL" right/></tr></thead>
+                <thead><tr><Th ch={td.hSide}/><Th ch={td.hEntry}/><Th ch={td.hExit}/><Th ch={td.hSize}/><Th ch={tg.hOpened}/><Th ch={tg.hClosed}/><Th ch={td.hPnL} right/></tr></thead>
                 <tbody>
                   {closed.slice(0, 200).map((t, i) => {
                     const pnl = parseFloat(t.pnl_usdt || 0);
@@ -622,13 +628,13 @@ function BottomPanel({ coin, trades, positions, onClose }) {
         {tab === 'PnL' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
             {[
-              { l: 'Total PnL',     v: `${fmtSign(pnlTotal, 2)} USDT`, c: pclr(pnlTotal) },
-              { l: 'Total Trades',  v: closed.length },
-              { l: 'Win Rate',      v: wr != null ? `${wr.toFixed(1)}%` : '—', c: wr != null && wr >= 50 ? 'var(--accent-green)' : undefined },
-              { l: 'Wins / Losses', v: `${wins.length} / ${losses.length}` },
-              { l: 'Avg Win',       v: avgW != null ? `${fmtSign(avgW, 2)} USDT` : '—', c: 'var(--accent-green)' },
-              { l: 'Avg Loss',      v: avgL != null ? `${fmtSign(avgL, 2)} USDT` : '—', c: 'var(--accent-red)' },
-              { l: 'Risk / Reward', v: rr != null ? rr.toFixed(2) : '—' },
+              { l: td.analytics.totalPnl,    v: `${fmtSign(pnlTotal, 2)} USDT`, c: pclr(pnlTotal) },
+              { l: td.analytics.totalTrades, v: closed.length },
+              { l: td.analytics.winRate,     v: wr != null ? `${wr.toFixed(1)}%` : '—', c: wr != null && wr >= 50 ? 'var(--accent-green)' : undefined },
+              { l: tg.winsLosses,            v: `${wins.length} / ${losses.length}` },
+              { l: tg.avgWin,                v: avgW != null ? `${fmtSign(avgW, 2)} USDT` : '—', c: 'var(--accent-green)' },
+              { l: tg.avgLoss,               v: avgL != null ? `${fmtSign(avgL, 2)} USDT` : '—', c: 'var(--accent-red)' },
+              { l: tg.riskReward,            v: rr != null ? rr.toFixed(2) : '—' },
             ].map((row, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontFamily: SANS, fontSize: 11, color: 'var(--text-muted)' }}>{row.l}</span>
@@ -646,6 +652,8 @@ function BottomPanel({ coin, trades, positions, onClose }) {
 // ── Root ───────────────────────────────────────────────────────
 
 export default function GridBotPage() {
+  const { t } = useLang();
+  const tp = t.dashboard.panel;
   const [coin,      setCoin]      = useState('BTC');
   const [tf,        setTf]        = useState('60');
   const [trades,    setTrades]    = useState([]);
@@ -654,7 +662,7 @@ export default function GridBotPage() {
   const [ticker,    setTicker]    = useState(null);
 
   const handleClose = async (symbol) => {
-    if (!confirm(`Close ${symbol} position?`)) return;
+    if (!confirm(`${tp.closePositionQ}: ${symbol}?`)) return;
     try {
       const r = await authFetch('/api/users/close-position', {
         method: 'POST',
@@ -663,7 +671,7 @@ export default function GridBotPage() {
       });
       if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.status); }
     } catch (e) {
-      alert(`Failed to close ${symbol}: ${e.message}`);
+      alert(`${tp.closeFailed} ${symbol}: ${e.message}`);
     }
   };
 
