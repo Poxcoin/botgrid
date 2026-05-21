@@ -19,7 +19,6 @@ import { useLang }      from '@/lib/LangContext';
 const BYBIT_BOTS = [
   { id: 'signal',    label: 'Signal'         },
   { id: 'sweep',     label: 'Liq Sweep'      },
-  { id: 'fr',        label: 'Funding Rate'   },
   { id: 'grid',      label: 'Grid'           },
   { id: 'cascade',   label: 'Cascade'        },
   { id: 'orderflow', label: 'Orderflow'      },

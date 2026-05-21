@@ -30,13 +30,11 @@ from modules.oi_monitor import start_oi_monitor, get_oi_context
 from modules.token_unlocks import start_unlock_monitor, get_unlock_risk
 from modules.deribit_options import start_deribit_monitor, options_queue, get_options_sentiment
 from modules.macro_calendar import is_trade_blocked
-from modules.funding_strategy import start_funding_strategy, funding_queue
 from config.settings import (
     BYBIT_API_KEY, IS_DEMO_TRADING, TG_CHAT_ID,
     ALT_LEVERAGE, ALT_TP, ALT_SL, ALT_SIZE, MIN_ALTCOIN_VOLUME_USD,
-    LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE,
     LEVERAGE, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE,
-    SIGNAL_BOT_TRADING, TELEGRAM_CHANNEL_ID, FR_TRADING,
+    SIGNAL_BOT_TRADING, TELEGRAM_CHANNEL_ID,
 )
 import ccxt
 
@@ -77,7 +75,7 @@ def _post_to_channel(signal: dict, source: str) -> None:
         d_emoji  = "🟢" if action in ("BUY", "LONG") else "🔴"
         d_label  = "LONG" if action in ("BUY", "LONG") else "SHORT"
 
-        if source in ("news", "listing", "dex", "fr_listing"):
+        if source in ("news", "dex"):
             headline = (title[:180] + "…" if len(title) > 180 else title).upper()
             snippet  = (desc[:280] + "…" if len(desc) > 280 else desc) if desc else ""
             conf_str = f" · {conf}%" if conf else ""
@@ -154,15 +152,9 @@ def _saas_dispatch(signal: dict, source: str, leverage: int,
         try:
             from modules.market_state import set_state, MarketCondition
             _is_long = _action in ("LONG", "BUY")
-            if source == "listing":
-                _ms   = MarketCondition.PUMP if _is_long else MarketCondition.BEAR
-                _conf = 0.85
-            elif source == "liq_cascade":
+            if source == "liq_cascade":
                 _ms   = MarketCondition.BULL if _is_long else MarketCondition.BEAR
                 _conf = min(abs(_score) / 10, 0.9) if _score else 0.65
-            elif source == "fr":
-                _ms   = MarketCondition.BULL if _is_long else MarketCondition.BEAR
-                _conf = 0.60
             else:
                 # news / dex / whale — score-based
                 if _is_long:
@@ -619,8 +611,7 @@ def run_signal_engine():
     start_oi_monitor()
     start_unlock_monitor()
     start_deribit_monitor()
-    if FR_TRADING:
-        start_funding_strategy()
+    # FR signal strategy retired 2026-05-21 — see project-strategy-roadmap memory.
     start_analyzer(exchange_factory=_init_exchange, send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_session_monitor(send_tg=send_telegram_message, chat_id=TG_CHAT_ID)
     start_rss_archiver()
@@ -980,13 +971,11 @@ def run_signal_engine():
                                     continue
 
                                 # execute_trade removed 2026-05-21 — owner double-position bug.
-                                # All trading goes through _saas_dispatch (owner = user_id=1 in that list).
+                                # Listings strategy retired 2026-05-21 — see project-strategy-roadmap memory.
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
                                 elif signal.get("is_listing"):
-                                    _saas_dispatch(signal, "listing",
-                                        LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE)
-                                    _post_to_channel(signal, "listing")
+                                    print(f"⏭ Listing signal for {coin} — skipped (strategy retired, see roadmap)")
                                 elif coin.upper() not in _btc_eth:
                                     mkt = signal.get("_market", {})
                                     vol = mkt.get("quote_volume_24h", 0) if mkt else 0
@@ -1073,44 +1062,7 @@ def run_signal_engine():
                 _post_to_channel(liq_sig, "liq_cascade")
             # ──────────────────────────────────────────────────────────────────
 
-            # ─── Funding Rate signals ─────────────────────────────────────────
-            while not funding_queue.empty():
-                try:
-                    fr_sig = funding_queue.get_nowait()
-                except Exception:
-                    break
-
-                coin   = fr_sig.get("coin", "")
-                now_ts = datetime.now(timezone.utc).timestamp()
-
-                if now_ts - _coin_cooldown.get(coin, 0) < COIN_COOLDOWN_SEC:
-                    remaining = int((COIN_COOLDOWN_SEC - (now_ts - _coin_cooldown.get(coin, 0))) / 60)
-                    print(f"[FR] ⏳ Cooldown {coin}: ще {remaining} хв")
-                    continue
-
-                _macro_blocked, _macro_reason = is_trade_blocked()
-                if _macro_blocked:
-                    print(f"{_macro_reason} — FR {coin} пропускаємо")
-                    continue
-
-                _coin_cooldown[coin] = now_ts
-                save_cooldown(_coin_cooldown)
-
-                signal_id = save_signal(fr_sig, executed=False)
-                tp  = fr_sig.get("tp_pct", 0.4)
-                sl  = fr_sig.get("sl_pct", 1.5)
-                sz  = round(TRADE_PERCENT_SIZE * fr_sig.get("size_multiplier", 1.0), 1)
-                comp = fr_sig.get("components", {})
-
-                print(f"\n[FR] 💰 {fr_sig['action']} {coin} | "
-                      f"FR={comp.get('funding_rate', 0):+.4f}% | "
-                      f"funding через {comp.get('mins_to_funding', '?')}хв | "
-                      f"TP={tp}% SL={sl}%")
-
-                # execute_trade removed 2026-05-21 — owner double-position bug
-                _saas_dispatch(fr_sig, "fr", LEVERAGE, tp, sl, sz)
-                _post_to_channel(fr_sig, "fr")
-            # ──────────────────────────────────────────────────────────────────
+            # Funding Rate signals retired 2026-05-21 — see project-strategy-roadmap memory.
 
             # Пишем live intel для дашборда
             _write_live_intel(tg_enabled)
