@@ -136,14 +136,13 @@ def _poll_binance() -> list[dict]:
 
 
 def _poll_okx() -> list[dict]:
-    """OKX New Listings announcements."""
+    """OKX New Listings announcements via v2/support/home/web (priapi deprecated 2026-05)."""
     now = time.time()
     if now < _backoff["okx"]:
         return []
     try:
         resp = _SESSION.get(
-            "https://www.okx.com/priapi/v1/operate/article",
-            params={"t": 0, "category": "New Listings", "page": 1, "pageSize": 10},
+            "https://www.okx.com/v2/support/home/web",
             timeout=4,
         )
         if resp.status_code != 200:
@@ -152,26 +151,31 @@ def _poll_okx() -> list[dict]:
             body_okx = resp.json()
         except Exception:
             raise ValueError("invalid JSON in OKX response")
-        data = body_okx.get("data", {}) if isinstance(body_okx, dict) else {}
-        articles = data.get("articles", []) if isinstance(data, dict) else []
+        notices = (
+            body_okx.get("data", {}).get("notices", [])
+            if isinstance(body_okx, dict) else []
+        )
         _fail_count["okx"] = 0
         new_items = []
-        for article in articles:
-            if not isinstance(article, dict):
+        for notice in notices:
+            if not isinstance(notice, dict):
                 continue
-            item_id = f"okx_{article.get('id', '')}"
+            slug = notice.get("slug", "")
+            if not slug:
+                continue
+            item_id = f"okx_{slug}"
             with _seen_lock:
                 if item_id in _seen_ids:
                     continue
                 _seen_ids.add(item_id)
-            title = article.get("title", "").strip()
+            title = (notice.get("title") or notice.get("text") or "").strip()
             if not title:
                 continue
             item = _make_item(
                 title=title,
                 item_id=item_id,
                 source="OKX Announcements",
-                ts_ms=article.get("publishTime", int(time.time() * 1000)),
+                ts_ms=notice.get("publishDate", int(time.time() * 1000)),
             )
             new_items.append(item)
             print(f"[ANN] 🔔 OKX: {title}")
