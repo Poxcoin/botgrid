@@ -822,13 +822,11 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <span style={{
-              fontSize: 64, fontWeight: 900, letterSpacing: '0.2em',
-              background: 'linear-gradient(135deg, rgba(14,203,129,0.6) 0%, rgba(100,200,150,0.4) 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-              filter: 'drop-shadow(0 4px 12px rgba(14,203,129,0.2))',
-              fontFamily: FM, textTransform: 'uppercase',
+              fontSize: 72, fontWeight: 900, letterSpacing: '0.3em',
+              color: '#e8e8e8',
+              textShadow: '0 4px 20px rgba(232,232,232,0.3), 0 0 40px rgba(232,232,232,0.15)',
+              fontFamily: "'Georgia', 'Garamond', 'Palatino', serif",
+              textTransform: 'uppercase',
             }}>
               KADO
             </span>
