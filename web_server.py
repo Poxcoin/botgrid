@@ -1604,10 +1604,7 @@ async def get_bot_heartbeat(
 _BOT_LABELS = {
     "news":        "Signal Bot",
     "signal":      "Signal Bot",
-    "fr":          "Funding Rate",
-    "fr_extreme":  "FR Extreme",
     "grid":        "Grid Bot",
-    "listing":     "CEX Sniper",
     "whale":       "Whale Tracker",
     "liq_cascade": "Liq Cascade",
     "cascade":     "Cascade Bot",
@@ -1617,7 +1614,6 @@ _BOT_LABELS = {
     "orderblock":  "Order Block",
     "sniper":      "DEX Sniper",
     "bybit":       "Bybit Import",
-    "altcoin":     "Altcoin Bot",
     "macro":       "Macro Forex",
     "dex":         "DEX Bot",
 }
@@ -1629,8 +1625,8 @@ async def get_plan_features(
 ):
     """Return the list of bot IDs this user has access to — all bots, no plan gate."""
     _get_user_from_token(credentials.credentials, db)
-    all_bots = ["news", "fr", "fr_extreme", "grid", "listing", "whale",
-                "cascade", "orderflow", "sweep", "ob", "sniper", "altcoin"]
+    all_bots = ["news", "grid", "whale",
+                "cascade", "orderflow", "sweep", "ob", "sniper"]
     return {"bots": sorted(all_bots)}
 
 

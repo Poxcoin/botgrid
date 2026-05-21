@@ -60,10 +60,6 @@ MIN_ALTCOIN_VOLUME_USD = 5_000_000  # Мінімальний 24h об'єм що�
 # Вмикати тільки після накопичення 100+ угод з WR > 35%
 SIGNAL_BOT_TRADING = os.getenv("SIGNAL_BOT_TRADING", "False").lower() == "true"
 
-# FR Trading — незалежний від SIGNAL_BOT_TRADING
-# Варіант А: чиста funding collection (вхід за 20хв, вихід через 3хв після funding)
-FR_TRADING = os.getenv("FR_TRADING", "False").lower() == "true"
-
 # ─── Cascade bot — незалежне управління ──────────────────────────────────────
 # CASCADE_TRADING: вмикає реальне виконання угод каскадним ботом.
 # Незалежний від SIGNAL_BOT_TRADING — можна вмикати/вимикати окремо.
@@ -81,11 +77,7 @@ CASCADE_IS_DEMO      = os.getenv("CASCADE_IS_DEMO", "False").lower() == "true"
 CASCADE_DEMO_API_KEY = os.getenv("CASCADE_DEMO_API_KEY", "")
 CASCADE_DEMO_SECRET  = os.getenv("CASCADE_DEMO_SECRET", "")
 
-# Параметри для нових лістингів (listing fast-path)
-LISTING_LEVERAGE = 5        # Перші години після лістингу = великий памп
-LISTING_TP = 20.0
-LISTING_SL = 7.0            # 7% / 5x = 1.4% реального руху ціни — нормальний шум
-LISTING_SIZE = 2.0          # Малий розмір бо ризик підвищений
+# Listing fast-path strategy retired 2026-05-21 — see project-strategy-roadmap memory
 
 # ==========================================
 # DEX Sniper (BSC/PancakeSwap)
@@ -146,5 +138,4 @@ SWEEP_TRADING = os.getenv("SWEEP_TRADING", "True").lower() == "true"
 # ── Order Block (SMC) Bot (BTC/ETH/SOL) ──────────────────────────────────────
 OB_TRADING = os.getenv("OB_TRADING", "True").lower() == "true"
 
-# ── Funding Rate Extreme Reversal Bot ─────────────────────────────────────────
-FR_EXTREME_TRADING = os.getenv("FR_EXTREME_TRADING", "True").lower() == "true"
+# FR Extreme Reversal Bot retired 2026-05-21 — see project-strategy-roadmap memory
