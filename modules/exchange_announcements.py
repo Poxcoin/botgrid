@@ -82,21 +82,26 @@ def _poll_binance() -> list[dict]:
     now = time.time()
     if now < _backoff["binance"]:
         return []
+    err_detail = ""
     try:
         resp = _SESSION.get(
             "https://www.binance.com/bapi/composite/v1/public/cms/article/list/query",
-            params={"type": 1, "pageNo": 1, "pageSize": 10},
-            timeout=4,
+            params={"type": 1, "catalogId": 48, "pageNo": 1, "pageSize": 10},
+            headers={"Accept": "application/json", "Referer": "https://www.binance.com/en/support/announcement"},
+            timeout=10,
         )
         if resp.status_code != 200:
-            raise ValueError(f"HTTP {resp.status_code}")
+            raise ValueError(f"HTTP {resp.status_code} body={resp.text[:120]!r}")
         try:
             body = resp.json()
         except Exception:
-            raise ValueError("invalid JSON in Binance response")
-        # Guard: data may be None or not a dict if Binance returns an error envelope
-        data = body.get("data") if isinstance(body, dict) else None
-        catalogs = data.get("catalogs", []) if isinstance(data, dict) else []
+            raise ValueError(f"non-JSON body[:120]={resp.text[:120]!r}")
+        if not isinstance(body, dict):
+            raise ValueError(f"body not dict: {type(body).__name__}")
+        if body.get("code") != "000000":
+            raise ValueError(f"api code={body.get('code')} msg={body.get('message')!r}")
+        data = body.get("data") or {}
+        catalogs = data.get("catalogs") or []
         _fail_count["binance"] = 0
         new_items = []
         for catalog in catalogs:
@@ -127,11 +132,12 @@ def _poll_binance() -> list[dict]:
                 print(f"[ANN] 🔔 Binance: {title}")
         return new_items
     except Exception as e:
+        err_detail = str(e)[:140]
         _fail_count["binance"] += 1
         wait = min(60 * _fail_count["binance"], 600)  # backoff up to 10 min
         _backoff["binance"] = now + wait
         if _fail_count["binance"] <= 2:
-            print(f"[ANN] Binance помилка: {type(e).__name__} (backoff {wait}s)")
+            print(f"[ANN] Binance помилка: {type(e).__name__}: {err_detail} (backoff {wait}s)")
         return []
 
 
