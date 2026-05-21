@@ -563,7 +563,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     const lBg  = isDark ? '#1a1a1a' : '#f0f0f0';
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: 'transparent' }, textColor: tClr, fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
+      layout: { background: { color: lBg }, textColor: tClr, fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
       grid:    { vertLines: { color: gClr }, horzLines: { color: gClr } },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg }, horzLine: { color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg } },
       rightPriceScale: { borderColor: bClr },
@@ -814,7 +814,18 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
 
       {/* Chart area */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <div ref={elRef} style={{ flex: 1, minWidth: 0, background: 'var(--bg-base)' }} />
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', background: 'var(--bg-base)' }}>
+          <div ref={elRef} style={{ width: '100%', height: '100%' }} />
+          <div style={{
+            position: 'absolute', inset: 0, pointerEvents: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 120, fontWeight: 900, letterSpacing: '0.15em',
+            color: 'rgba(255,255,255,0.03)',
+            fontFamily: FM, textTransform: 'uppercase',
+          }}>
+            KADO
+          </div>
+        </div>
         {!isMobile && <OrderBook coin={coin} />}
       </div>
     </div>
