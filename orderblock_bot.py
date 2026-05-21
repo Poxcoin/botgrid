@@ -37,7 +37,8 @@ SYMBOLS = [
 LEVERAGE    = 5
 TP_RATIO    = 3.0      # TP = SL_distance × TP_RATIO (3:1 → break-even at 25% WR)
 SL_BUFFER   = 0.002    # 0.2% beyond OB edge for SL
-SIZE_PCT    = 20.0     # 20% per trade
+SIZE_PCT    = 40.0     # 20→40% (2026-05-21): backtest combined ETH/SOL/BTC at SIZE=40%
+                       # + MIN_BODY 0.003 → +8.73%/mo expected. Highest-edge bot.
 MAX_POS     = 2
 COOLDOWN    = 12 * 3600
 SCAN_SLEEP  = 15 * 60
@@ -48,7 +49,10 @@ CANDLES         = 60       # total candles to fetch
 OB_LOOKBACK     = 50       # candles to scan for OBs
 BOS_MIN_PCT     = 0.025    # min move to confirm BOS: 2.5% (was 1.5% — too many weak signals)
 BOS_WINDOW      = 5        # candles after candidate to look for BOS
-MIN_OB_BODY_PCT = 0.002    # 0.3→0.2% (2026-05-21): wider OB net; bot had 0 trades in 2d at 0.3%
+MIN_OB_BODY_PCT = 0.003    # 0.2→0.3% (2026-05-21 backtest):
+                            # at 0.002 → 24 trades, WR 41.7%, +2.48%/mo
+                            # at 0.003 → 19 trades, WR 42.1%, +4.37%/mo (fewer but higher quality)
+                            # Earlier "wider net" guess was wrong — sweep proves 0.3% is best.
 
 
 # ── Market-data exchange (no auth needed for OHLCV) ──────────────────────────
