@@ -21,17 +21,60 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=20)
 
 # In-memory per-user-symbol lock: prevents stacking if same symbol dispatched twice
 # before DB write completes. Key: (user_id, symbol)
+import os
 import time
 import threading
 _opening_lock = threading.Lock()
 _opening_now: set[tuple] = set()
 
+_FR_CLOSE_FILE = "fr_pending_closes.json"
+_fr_close_lock = threading.Lock()
+
+
+def _load_fr_closes() -> list[dict]:
+    try:
+        with open(_FR_CLOSE_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _save_fr_close(entry: dict) -> None:
+    with _fr_close_lock:
+        closes = _load_fr_closes()
+        closes.append(entry)
+        with open(_FR_CLOSE_FILE, "w") as f:
+            json.dump(closes, f)
+
+
+def _remove_fr_close(key: str) -> None:
+    with _fr_close_lock:
+        closes = [c for c in _load_fr_closes() if c.get("key") != key]
+        with open(_FR_CLOSE_FILE, "w") as f:
+            json.dump(closes, f)
+
 
 def _schedule_fr_close(user: dict, symbol: str, side: str, qty: float,
                         delay_min: float) -> None:
-    """Daemon thread: sleeps delay_min then issues a reduce-only market close for a FR position."""
+    """Daemon thread: sleeps until close_at then issues reduce-only market close.
+    Persists to fr_pending_closes.json so restarts can re-schedule missed closes."""
+    close_at = time.time() + delay_min * 60
+    key = f"{user['user_id']}:{symbol}:{int(close_at)}"
+    entry = {
+        "key":     key,
+        "user_id": user["user_id"],
+        "symbol":  symbol,
+        "side":    side,
+        "qty":     qty,
+        "close_at": close_at,
+        "is_demo": user["is_demo"],
+    }
+    _save_fr_close(entry)
+
     def _run():
-        time.sleep(delay_min * 60)
+        remaining = close_at - time.time()
+        if remaining > 0:
+            time.sleep(remaining)
         try:
             ex = _build_exchange(user["api_key"], user["secret"], user["is_demo"])
             order_side = "sell" if side == "LONG" else "buy"
@@ -44,8 +87,75 @@ def _schedule_fr_close(user: dict, symbol: str, side: str, qty: float,
                   f"after {delay_min:.0f}min")
         except Exception as _e:
             print(f"[DISPATCHER] ⚠️ FR scheduled close error {symbol}: {_e}")
+        finally:
+            _remove_fr_close(key)
 
     threading.Thread(target=_run, daemon=True, name=f"fr-close-{symbol}").start()
+
+
+def resume_fr_closes() -> None:
+    """Call on startup to re-schedule any FR closes that survived a restart.
+    Loads fr_pending_closes.json and fires threads for entries not yet past close_at."""
+    closes = _load_fr_closes()
+    if not closes:
+        return
+    now = time.time()
+    db = SessionLocal()
+    try:
+        users = db.query(User).filter(User.is_active == True).all()
+        user_map: dict[int, User] = {u.user_id if hasattr(u, "user_id") else u.id: u for u in users}
+    finally:
+        db.close()
+
+    for entry in closes:
+        uid      = entry.get("user_id")
+        symbol   = entry.get("symbol")
+        side     = entry.get("side")
+        qty      = entry.get("qty")
+        close_at = entry.get("close_at", 0)
+        key      = entry.get("key", "")
+        is_demo  = entry.get("is_demo", False)
+
+        if close_at < now - 3600:
+            _remove_fr_close(key)
+            continue
+
+        u_row = user_map.get(uid)
+        if not u_row:
+            _remove_fr_close(key)
+            continue
+        key_row = next((k for k in u_row.api_keys if k.exchange == "bybit"), None)
+        if not key_row:
+            _remove_fr_close(key)
+            continue
+
+        api_key = decrypt_field(key_row.api_key_enc)
+        secret  = decrypt_field(key_row.secret_enc)
+        if not api_key or not secret:
+            _remove_fr_close(key)
+            continue
+
+        user_dict = {"user_id": uid, "api_key": api_key, "secret": secret, "is_demo": is_demo}
+        delay_min = max(0.0, (close_at - now) / 60.0)
+        print(f"[DISPATCHER] ⏱ Resume FR close {side} {symbol} in {delay_min:.1f}min (user={uid})")
+
+        def _run(u=user_dict, sym=symbol, s=side, q=qty, ca=close_at, k=key):
+            remaining = ca - time.time()
+            if remaining > 0:
+                time.sleep(remaining)
+            try:
+                ex = _build_exchange(u["api_key"], u["secret"], u["is_demo"])
+                order_side = "sell" if s == "LONG" else "buy"
+                ex.create_order(sym, "market", order_side, q, params={
+                    "category": "linear", "positionIdx": 0, "reduceOnly": True,
+                })
+                print(f"[DISPATCHER] ⏱ FR resume close {s} {sym} qty={q}")
+            except Exception as _e:
+                print(f"[DISPATCHER] ⚠️ FR resume close error {sym}: {_e}")
+            finally:
+                _remove_fr_close(k)
+
+        threading.Thread(target=_run, daemon=True, name=f"fr-resume-{symbol}").start()
 
 def _get_active_users(source: str) -> list[dict]:
     """Return all active users with API keys — no plan gate."""

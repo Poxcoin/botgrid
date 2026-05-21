@@ -24,7 +24,7 @@ from modules.post_trade_analyzer import (
     start_analyzer, get_score_threshold_boost, is_coin_paused
 )
 from modules.session_monitor import start_session_monitor, get_session_bias
-from modules.saas_dispatcher import dispatch as saas_dispatch
+from modules.saas_dispatcher import dispatch as saas_dispatch, resume_fr_closes
 from modules.orderflow_engine import fetch_oi_delta
 from modules.oi_monitor import start_oi_monitor, get_oi_context
 from modules.token_unlocks import start_unlock_monitor, get_unlock_risk
@@ -610,6 +610,7 @@ def run_signal_engine():
     tg_enabled = start_telegram_monitor()
     start_liquidation_monitor()
     start_onchain_monitor()
+    resume_fr_closes()
     start_announcements_monitor()
     start_commander()
     start_dex_scanner()
