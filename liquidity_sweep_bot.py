@@ -20,9 +20,9 @@ from modules import daily_guard, position_monitor
 from grid_bot import _calc_hurst
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, SWEEP_TRADING
 
-_HURST_FILTER = 0.90  # H > 0.90 = parabolic trend, skip sweep entries
-                      # Backtest 90d ETH: at H=0.90 → 19 trades, WR 57.9%, +3.53%/mo @ SIZE=40
-                      # Without filter: +1.41%/mo. Hurst adds +2.1%/mo edge.
+_HURST_FILTER = 0.85  # 0.90→0.85 (2026-05-21 eve): mirror orderflow tightening.
+                      # 0.90 too lenient — live SOL sweep -$107 today; ETH trades hit SL on noise.
+                      # 0.85 stricter regime gate. Forward-test before SL_BUFFER widening.
 
 SYMBOLS = [
     "ETH/USDT:USDT",
