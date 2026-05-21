@@ -31,9 +31,11 @@ SYMBOLS = [
     # XRP/LINK removed: no backtest data, untested alpha
 ]
 
-LEVERAGE    = 10
-SIZE_PCT    = 40.0   # 25→40% (2026-05-21): backtest with Hurst 0.90 filter shows ETH-only
-                     # +3.53%/mo at this size (vs +1.41% no filter @ 25%). 2.5x edge.
+LEVERAGE    = 5      # 10→5x (Council 2026-05-21): live 0/2 WR with both SL hits.
+                     # Critic insight: SL_BUFFER 0.3% sits INSIDE typical ETH sweep extension (0.5-1.2%).
+                     # Bot is being stop-run BY the same sweeps it tries to fade.
+                     # Reverting to 5x until SL_BUFFER widened + backtest re-validated.
+SIZE_PCT    = 40.0   # backtest validated at this size
 COOLDOWN    = 8 * 3600    # seconds
 SCAN_SLEEP  = 15 * 60     # seconds (was 30min — too slow, sweeps recover quickly)
 
