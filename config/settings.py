@@ -44,14 +44,14 @@ IS_DEMO_TRADING = os.getenv("IS_DEMO_TRADING", "False").lower() == "true"
 TRADE_PERCENT_SIZE = 12     # 5→12% (2026-05-21): Signal bot has proven edge (R:R 18:1, +$253 live).
                             # Concentrating equity here per B+hedge allocation strategy.
                             # Daily guard -3% cap protects against bad streaks.
-LEVERAGE = 2                # Плечо BTC/ETH (тепер тільки для Funding Rate/Grid, не news)
+LEVERAGE = 4                # Плечо BTC/ETH (тепер тільки для Funding Rate/Grid, не news)
 
 TAKE_PROFIT_PERCENT = 5.0   # TP для BTC/ETH (Funding Rate стратегія)
 STOP_LOSS_PERCENT = 2.0     # SL для BTC/ETH
 
 # Параметри для альткоінів — ТІЛЬКИ вони торгуються через news signal bot
 # Статистика: alt-only 20 угод, 50% WR, +$7.65 (проти BTC/ETH/SOL 117 угод, 16% WR, -$86.70)
-ALT_LEVERAGE = 2            # 3x→2x: зменшуємо ризик, alt-coin рухи без overshoot
+ALT_LEVERAGE = 4            # 3x→2x: зменшуємо ризик, alt-coin рухи без overshoot
 ALT_TP = 5.0                # 12%→5%: TP 12% WR 14% < break-even 20%; 5% досяжніший
 ALT_SL = 3.0                # 4%→3%: менше збитків при невірних сигналах
 ALT_SIZE = 4.0              # 3%→4%: збільшуємо розмір оскільки кількість угод падає

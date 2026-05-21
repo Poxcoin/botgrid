@@ -54,7 +54,7 @@ WATCHLIST = ["SOL"]  # 2026-05-21: backtest 90d ETH+0.10% / SOL+0.65% / DOGE-1.6
 
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
-LEVERAGE  = 5
+LEVERAGE  = 10
 SIZE_PCT  = 40.0  # 15→40% (2026-05-21): SOL-only backtest scales linearly with SIZE.
                   # At 40% → +1.30%/mo expected (vs +0.49% at 15%). Cascade triggers rare,
                   # so larger size compensates for low frequency.

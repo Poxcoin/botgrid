@@ -59,10 +59,10 @@ SYMBOLS = [
     "ARB/USDT:USDT",
 ]
 
-LEVERAGE   = 5
+LEVERAGE   = 10
 TP_PCT     = 2.0
 SL_PCT     = 1.0
-SIZE_PCT   = 40.0    # 25→40% (2026-05-21): Hurst 0.90 filter validated +3.90%/mo at this SIZE
+SIZE_PCT   = 30.0    # 25→40% (2026-05-21): Hurst 0.90 filter validated +3.90%/mo at this SIZE
                      # (vs +2.92% at SIZE=30%). Same 10-trade sample, just bigger position.
 MAX_POS    = 2
 COOLDOWN   = 2 * 3600

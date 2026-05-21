@@ -34,7 +34,7 @@ SYMBOLS = [
     "SOL/USDT:USDT",
 ]
 
-LEVERAGE    = 5
+LEVERAGE    = 10
 TP_RATIO    = 3.0      # TP = SL_distance × TP_RATIO (3:1 → break-even at 25% WR)
 SL_BUFFER   = 0.002    # 0.2% beyond OB edge for SL
 SIZE_PCT    = 40.0     # 20→40% (2026-05-21): backtest combined ETH/SOL/BTC at SIZE=40%

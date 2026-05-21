@@ -31,7 +31,7 @@ SYMBOLS = [
     # XRP/LINK removed: no backtest data, untested alpha
 ]
 
-LEVERAGE    = 5
+LEVERAGE    = 10
 SIZE_PCT    = 40.0   # 25→40% (2026-05-21): backtest with Hurst 0.90 filter shows ETH-only
                      # +3.53%/mo at this size (vs +1.41% no filter @ 25%). 2.5x edge.
 COOLDOWN    = 8 * 3600    # seconds
