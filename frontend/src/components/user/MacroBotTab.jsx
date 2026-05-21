@@ -3,6 +3,7 @@ import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { useTheme } from '@/lib/ThemeContext';
 import { useLang } from '@/lib/LangContext';
 import { useIsMobile } from '@/lib/useIsMobile';
+import { buildTradeMarkers } from '@/lib/chartMarkers';
 
 const FM = 'var(--font-mono)';
 const FF = 'var(--font-sans)';
@@ -121,13 +122,35 @@ function ForexChart({ symbols }) {
   const showLRef   = useRef(false);
   const timerRef   = useRef(null);
   const barsRef    = useRef([]);
+  const tradesRef  = useRef([]);
   const activeIndsRef = useRef({});
+
+  const [trades, setTrades] = useState([]);
 
   const dark = theme !== 'light';
   const sym  = symbols[symIdx]?.api;
 
   /* keep activeIndsRef in sync */
   useEffect(() => { activeIndsRef.current = activeInds; }, [activeInds]);
+  useEffect(() => { tradesRef.current = trades; }, [trades]);
+
+  /* fetch macro trades (closed + open) */
+  useEffect(() => {
+    let alive = true;
+    const load = () => apiGet('/api/macro/trades?limit=200').then(arr => {
+      if (alive && Array.isArray(arr)) setTrades(arr);
+    });
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  function applyMarkers(bars) {
+    const cs = candleRef.current;
+    if (!cs) return;
+    const symApi = symbols[symIdx]?.api;
+    try { cs.setMarkers(buildTradeMarkers(tradesRef.current, bars, symApi, 'macro')); } catch {}
+  }
 
   /* init chart once — identical options to OverviewTab */
   useEffect(() => {
@@ -264,6 +287,7 @@ function ForexChart({ symbols }) {
           if (showLRef.current && areaRef.current)
             areaRef.current.setData(sorted.map(b => ({ time: b.time, value: +b.close })));
           reapplyInds(sorted);
+          applyMarkers(sorted);
           chartRef.current?.timeScale().fitContent();
         });
 
@@ -271,6 +295,9 @@ function ForexChart({ symbols }) {
     timerRef.current = setInterval(load, 3 * 60_000);
     return () => clearInterval(timerRef.current);
   }, [sym, tf]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* re-apply markers when trades or symbol change */
+  useEffect(() => { applyMarkers(barsRef.current); }, [trades, symIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* candle/line area toggle — identical to OverviewTab */
   useEffect(() => {

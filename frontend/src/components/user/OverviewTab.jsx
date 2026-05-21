@@ -4,6 +4,7 @@ import { useLiveStream } from '@/lib/useLiveStream';
 import { useIsMobile } from '@/lib/useIsMobile';
 import { useTheme } from '@/lib/ThemeContext';
 import { useLang } from '@/lib/LangContext';
+import { buildTradeMarkers } from '@/lib/chartMarkers';
 
 /* ── design ─────────────────────────────────────────────────────── */
 const FF = 'var(--font-sans)';
@@ -453,41 +454,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
   function applyMarkers(bars) {
     const cs = candleRef.current;
     if (!cs) return;
-    const trs = tradesRef.current;
-    if (!bars.length || !trs.length) { try { cs.setMarkers([]); } catch {} return; }
-    const firstT = bars[0].time;
-    const lastT  = bars[bars.length - 1].time;
-    const markers = [];
-    for (const tr of trs) {
-      if (tr.opened_at) {
-        const ts = Math.trunc(new Date(tr.opened_at).getTime() / 1000);
-        if (ts >= firstT && ts <= lastT) {
-          markers.push({
-            time: ts,
-            position: tr.side === 'LONG' ? 'belowBar' : 'aboveBar',
-            color: tr.side === 'LONG' ? '#0ecb81' : '#f6465d',
-            shape: tr.side === 'LONG' ? 'arrowUp' : 'arrowDown',
-            text: '', size: 1,
-          });
-        }
-      }
-      if (tr.closed_at) {
-        const ts = Math.trunc(new Date(tr.closed_at).getTime() / 1000);
-        const p  = parseFloat(tr.pnl ?? 0);
-        if (ts >= firstT && ts <= lastT) {
-          markers.push({
-            time: ts,
-            position: tr.side === 'LONG' ? 'aboveBar' : 'belowBar',
-            color: p >= 0 ? '#0ecb81' : '#f6465d',
-            shape: 'circle',
-            text: `${p >= 0 ? '+' : ''}${p.toFixed(1)}`,
-            size: 1,
-          });
-        }
-      }
-    }
-    markers.sort((a, b) => a.time - b.time);
-    try { cs.setMarkers(markers); } catch {}
+    try { cs.setMarkers(buildTradeMarkers(tradesRef.current, bars, coin, 'crypto')); } catch {}
   }
 
   function applyData(bars) {
