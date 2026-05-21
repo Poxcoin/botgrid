@@ -97,13 +97,15 @@ def _check_avwap_short(ctx: dict) -> bool:
 
 
 def _check_cvd_div_long(ctx: dict) -> bool:
-    """Price at new low but CVD not confirming → accumulation → LONG."""
-    return ctx["cvd_bullish_div"]
+    """Price at new low + REAL CVD shows accumulation → LONG.
+    Gated by cvd_source=='real' — proxy CVD divergence is disabled
+    (35.9% WR in 90d backtest, net -42%)."""
+    return ctx["cvd_bullish_div"] and ctx.get("cvd_source") == "real"
 
 
 def _check_cvd_div_short(ctx: dict) -> bool:
-    """Price at new high but CVD not confirming → distribution → SHORT."""
-    return ctx["cvd_bearish_div"]
+    """Price at new high + REAL CVD shows distribution → SHORT."""
+    return ctx["cvd_bearish_div"] and ctx.get("cvd_source") == "real"
 
 
 def _detect_signal(ctx: dict) -> tuple[str | None, str | None]:
@@ -118,7 +120,12 @@ def _detect_signal(ctx: dict) -> tuple[str | None, str | None]:
     if _check_avwap_short(ctx):
         return "SHORT", "AVWAP"
 
-    # CVD Divergence disabled — 35.9% WR in 90d backtest, net -42% (OHLCV approx too noisy)
+    # CVD Divergence — re-enabled 2026-05-21 but ONLY when real-time WS CVD is warm.
+    # Proxy variant (OHLCV close>=open) stays disabled: 35.9% WR in 90d backtest, -42% net.
+    if _check_cvd_div_long(ctx):
+        return "LONG", "DIV"
+    if _check_cvd_div_short(ctx):
+        return "SHORT", "DIV"
 
     # OF Classic (momentum + flow signal)
     if _check_of_long(ctx):

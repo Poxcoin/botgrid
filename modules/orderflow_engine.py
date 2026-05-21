@@ -4,12 +4,22 @@ orderflow_engine.py — Market microstructure data: VWAP, OI delta, CVD,
 
 Used by signal bot (OI filter), grid bot (VWAP direction), and orderflow bot.
 All functions return 0.0 / empty dict on any error — never raise.
+
+CVD source priority:
+  1. modules.cvd_realtime (Bybit WS publicTrade accumulator, ~20k trades)
+  2. REST fetch_trades fallback (last 500 trades)
+The WS source has 40x more depth and ~0 latency vs REST polling.
 """
 import time
 import threading
 import ccxt
 
 from config.settings import IS_DEMO_TRADING
+
+try:
+    from modules import cvd_realtime as _cvd_rt
+except Exception:
+    _cvd_rt = None
 
 _lock = threading.Lock()
 _pub: ccxt.Exchange | None = None
@@ -95,11 +105,18 @@ def fetch_oi_delta(symbol: str) -> float:
 # ─── Cumulative Volume Delta ───────────────────────────────────────────────────
 
 def calc_cvd(symbol: str, limit: int = 500) -> tuple[float, float]:
-    """Net buy/sell aggression from recent trades.
+    """Net buy/sell aggression. Prefers real-time WS accumulator (20k trades),
+    falls back to REST snapshot (500 trades) when WS isn't ready.
     Returns (cvd_usdt, total_notional_usdt).
     cvd_ratio_pct = (cvd / total) * 100 → directional bias:
       > 60% = strong buying, < 40% = strong selling, ~50% = balanced
     """
+    if _cvd_rt is not None and _cvd_rt.is_ready(symbol):
+        sym = symbol.replace("/USDT:USDT", "USDT").replace("/", "")
+        cvd, total = _cvd_rt._get_totals(sym)
+        if total > 0:
+            return cvd, total
+
     def _fetch():
         ex = _get_pub()
         trades = ex.fetch_trades(symbol, limit=limit, params={"category": "linear"})
@@ -216,15 +233,17 @@ def calc_cvd_divergence(symbol: str, lookback: int = 20) -> dict:
     """
     Detect price/CVD divergence on 15m candles.
 
-    Approximate CVD per bar: bullish candle → +volume, bearish → −volume.
-    (Real CVD requires tick data; this captures the dominant direction.)
+    CVD source priority:
+      1. Real-time WS accumulator (cvd_realtime) — actual trade sides per tick
+      2. OHLCV bar proxy fallback — bullish bar → +volume, bearish → -volume
+         (proxy is noisy: 35.9% WR in 90d backtest → fallback only)
 
-    bearish_div: price at/near 20-bar high  + CVD cumulative ratio < 47%
+    bearish_div: price at/near 20-bar high + CVD cumulative ratio < 47%
                  → distribution (longs added but CVD not confirming) → SHORT
-    bullish_div: price at/near 20-bar low   + CVD cumulative ratio > 53%
+    bullish_div: price at/near 20-bar low  + CVD cumulative ratio > 53%
                  → accumulation (shorts added but CVD not confirming) → LONG
 
-    Returns: {bearish_div: bool, bullish_div: bool, cvd_ratio: float}
+    Returns: {bearish_div, bullish_div, cvd_ratio, cvd_source}
     """
     def _fetch():
         ex = _get_pub()
@@ -232,46 +251,52 @@ def calc_cvd_divergence(symbol: str, lookback: int = 20) -> dict:
             symbol, "15m", limit=lookback + 5, params={"category": "linear"}
         )
         if not ohlcv or len(ohlcv) < lookback:
-            return {"bearish_div": False, "bullish_div": False, "cvd_ratio": 50.0}
+            return {"bearish_div": False, "bullish_div": False, "cvd_ratio": 50.0, "cvd_source": "none"}
 
         candles = ohlcv[-lookback:]
         highs = [c[2] for c in candles]
         lows  = [c[3] for c in candles]
-
         cur_high  = highs[-1]
         cur_low   = lows[-1]
         prev_high = max(highs[:-1])
         prev_low  = min(lows[:-1])
 
-        # Cumulative CVD: treat each bar as fully bullish/bearish based on close vs open
-        running = 0.0
-        cvd_series = []
-        for c in candles:
-            bar_cvd = c[5] if c[4] >= c[1] else -c[5]  # vol if close>=open else -vol
-            running += bar_cvd
-            cvd_series.append(running)
+        cvd_ratio = 50.0
+        source = "proxy"
 
-        cvd_min = min(cvd_series)
-        cvd_max = max(cvd_series)
-        cvd_range = cvd_max - cvd_min
-        cvd_ratio = (
-            (cvd_series[-1] - cvd_min) / cvd_range * 100.0
-            if cvd_range > 0 else 50.0
-        )
+        # Prefer real CVD bucket series when WS is warm
+        if _cvd_rt is not None and _cvd_rt.is_ready(symbol):
+            try:
+                rt = _cvd_rt.get_real_cvd_divergence(symbol, lookback=2000)
+                cvd_ratio = float(rt.get("cvd_ratio", 50.0))
+                source = "real"
+            except Exception:
+                pass
 
-        # Bearish div: price at/near prior high, CVD in lower half of range
+        if source == "proxy":
+            # Fallback: cumulative CVD from OHLCV bars (close>=open → +vol)
+            running = 0.0
+            cvd_series = []
+            for c in candles:
+                bar_cvd = c[5] if c[4] >= c[1] else -c[5]
+                running += bar_cvd
+                cvd_series.append(running)
+            cvd_min, cvd_max = min(cvd_series), max(cvd_series)
+            rng = cvd_max - cvd_min
+            cvd_ratio = ((cvd_series[-1] - cvd_min) / rng * 100.0) if rng > 0 else 50.0
+
         bearish_div = (cur_high >= prev_high * 0.998) and (cvd_ratio < 47.0)
-        # Bullish div: price at/near prior low, CVD in upper half of range
-        bullish_div = (cur_low <= prev_low * 1.002) and (cvd_ratio > 53.0)
+        bullish_div = (cur_low  <= prev_low  * 1.002) and (cvd_ratio > 53.0)
 
         return {
             "bearish_div": bearish_div,
             "bullish_div": bullish_div,
             "cvd_ratio":   round(cvd_ratio, 1),
+            "cvd_source":  source,
         }
 
     result = _cached(f"cvd_div:{symbol}", _CVD_DIV_TTL, _fetch)
-    return result or {"bearish_div": False, "bullish_div": False, "cvd_ratio": 50.0}
+    return result or {"bearish_div": False, "bullish_div": False, "cvd_ratio": 50.0, "cvd_source": "none"}
 
 
 # ─── All-in-one context ────────────────────────────────────────────────────────
@@ -337,4 +362,5 @@ def get_orderflow_context(symbol: str) -> dict:
         "cvd_bearish_div": cvd_div["bearish_div"],
         "cvd_bullish_div": cvd_div["bullish_div"],
         "cvd_div_ratio":   cvd_div["cvd_ratio"],
+        "cvd_source":      cvd_div.get("cvd_source", "proxy"),
     }
