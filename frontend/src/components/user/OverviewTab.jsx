@@ -823,11 +823,11 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
             }
           `}</style>
           <div style={{
-            position: 'absolute', top: 20, left: 20, pointerEvents: 'none',
+            position: 'absolute', top: 10, left: 20, pointerEvents: 'none',
             zIndex: 10,
           }}>
             <span style={{
-              fontSize: 36, fontWeight: 900, letterSpacing: '0.2em',
+              fontSize: 28, fontWeight: 900, letterSpacing: '0.2em',
               color: '#e8e8e8',
               fontFamily: "'Georgia', 'Garamond', 'Palatino', serif",
               textTransform: 'uppercase',
