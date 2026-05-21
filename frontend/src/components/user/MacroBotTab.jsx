@@ -373,16 +373,16 @@ function ForexChart({ symbols }) {
         <div style={{ flex: 1, minWidth: 0, position: 'relative', background: 'var(--bg-base)' }}>
           <div ref={elRef} style={{ width: '100%', height: '100%' }} />
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none',
-            padding: '40px 20px', background: 'linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'absolute', top: 20, left: 20, pointerEvents: 'none',
+            zIndex: 10,
           }}>
             <span style={{
-              fontSize: 72, fontWeight: 900, letterSpacing: '0.3em',
+              fontSize: 48, fontWeight: 900, letterSpacing: '0.2em',
               color: '#e8e8e8',
-              textShadow: '0 4px 20px rgba(232,232,232,0.3), 0 0 40px rgba(232,232,232,0.15)',
+              textShadow: '0 2px 12px rgba(232,232,232,0.4), 0 0 30px rgba(232,232,232,0.2)',
               fontFamily: "'Georgia', 'Garamond', 'Palatino', serif",
               textTransform: 'uppercase',
+              display: 'block',
             }}>
               KADO
             </span>
