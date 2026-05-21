@@ -21,7 +21,7 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, SWEEP_TRADING
 
 SYMBOLS = [
     "ETH/USDT:USDT",
-    "SOL/USDT:USDT",
+    # SOL removed 2026-05-21: backtest 48.6% WR -9.19%/90d; cost kinder -$107.64 on one bad SL
     # BTC removed: backtest 38.3% WR -7.99% (downtrend kills LONGs)
     # XRP/LINK removed: no backtest data, untested alpha
 ]

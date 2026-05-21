@@ -50,7 +50,7 @@ from config.settings import (
 
 # ─── Конфіг ───────────────────────────────────────────────────────────────────
 
-WATCHLIST = ["ETH", "SOL", "DOGE", "LINK"]
+WATCHLIST = ["SOL"]  # 2026-05-21: backtest 90d ETH+0.10% / SOL+0.65% / DOGE-1.64% / LINK-1.90% per mo. Only SOL is profitable.
 
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
