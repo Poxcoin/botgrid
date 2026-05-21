@@ -145,29 +145,71 @@ export function DayOfWeekChart({ trades }) {
   const maxAbs = Math.max(...data.map(d => Math.abs(d.pnl)), 0.01);
   if (!trades.length) return null;
 
+  const W = 720, H = 180;
+  const PAD_L = 44, PAD_R = 12, PAD_T = 12, PAD_B = 26;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+  const step = chartW / 7;
+  const barW = step * 0.62;
+  const yZero = PAD_T + chartH / 2;
+  const yTicks = [-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs];
+
   return (
-    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '16px 16px 8px', position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
-        {data.map((d, i) => {
-          const barH = Math.abs(d.pnl) / maxAbs * 64;
-          const pos = d.pnl >= 0;
-          const isH = hover === i;
+    <div style={{ background: 'linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 100%)', border: '1px solid var(--border-subtle)', padding: 16, position: 'relative', borderRadius: 4 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block', fontFamily: MONO }} preserveAspectRatio="xMidYMid meet" onMouseLeave={() => setHover(null)}>
+        <defs>
+          <linearGradient id="dowPos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#0ecb81" stopOpacity="1" />
+            <stop offset="100%" stopColor="#0ecb81" stopOpacity="0.6" />
+          </linearGradient>
+          <linearGradient id="dowNeg" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%"   stopColor="#f6465d" stopOpacity="1" />
+            <stop offset="100%" stopColor="#f6465d" stopOpacity="0.6" />
+          </linearGradient>
+          <filter id="dowGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        {yTicks.map((v, i) => {
+          const y = PAD_T + chartH / 2 - (v / maxAbs) * (chartH / 2);
+          const isZero = v === 0;
           return (
-            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'default' }}
-              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 68 }}>
-                {pos
-                  ? <div style={{ marginTop: 'auto', width: '100%', height: barH || 2, background: isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)', transition: 'background 100ms' }} />
-                  : <div style={{ marginTop: 'auto', width: '100%', height: barH || 2, background: isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.65)', transition: 'background 100ms' }} />
-                }
-              </div>
-              <div style={{ fontFamily: MONO, fontSize: 9, color: hover === i ? 'var(--text-secondary)' : 'var(--text-muted)', letterSpacing: '0.06em' }}>
-                {shortDay(d.day, locale)}
-              </div>
-            </div>
+            <g key={i}>
+              <line x1={PAD_L} x2={W - PAD_R} y1={y} y2={y}
+                stroke={isZero ? 'var(--border-default)' : 'var(--border-subtle)'}
+                strokeWidth={isZero ? 1 : 0.5}
+                strokeDasharray={isZero ? '0' : '2 5'}
+                opacity={isZero ? 0.8 : 0.5} />
+              <text x={PAD_L - 8} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)" letterSpacing="0.04em">
+                {isZero ? '0' : (v > 0 ? '+' : '') + v.toFixed(0)}
+              </text>
+            </g>
           );
         })}
-      </div>
+        {data.map((d, i) => {
+          const x = PAD_L + i * step + (step - barW) / 2;
+          const norm = d.pnl / maxAbs;
+          const barH = Math.abs(norm) * (chartH / 2);
+          const pos = d.pnl >= 0;
+          const y = pos ? yZero - barH : yZero;
+          const isH = hover === i;
+          return (
+            <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: 'pointer' }}>
+              <rect x={x - 2} y={PAD_T} width={barW + 4} height={chartH} fill="transparent" />
+              <rect x={x} y={y} width={barW} height={Math.max(barH, 1)}
+                fill={pos ? 'url(#dowPos)' : 'url(#dowNeg)'}
+                opacity={isH ? 1 : 0.88}
+                filter={isH ? 'url(#dowGlow)' : undefined}
+                rx={1.5}
+                style={{ transition: 'opacity 120ms' }} />
+              <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize={10} fill={isH ? 'var(--text-primary)' : 'var(--text-muted)'} letterSpacing="0.06em" fontWeight={isH ? 700 : 400}>
+                {shortDay(d.day, locale)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
       {hover != null && (
         <div style={{
           position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
@@ -207,55 +249,103 @@ export function HourOfDayChart({ trades }) {
   const maxAbs = Math.max(...data.map(d => Math.abs(d.pnl)), 0.01);
   if (!trades.length) return null;
 
-  const SESSION_COLORS = {
-    asia:   'rgba(96,165,250,0.18)',
-    europe: 'rgba(167,139,250,0.14)',
-    us:     'rgba(251,191,36,0.13)',
-  };
+  const W = 720, H = 200;
+  const PAD_L = 44, PAD_R = 12, PAD_T = 26, PAD_B = 32;
+  const chartW = W - PAD_L - PAD_R;
+  const chartH = H - PAD_T - PAD_B;
+  const step = chartW / 24;
+  const barW = step * 0.7;
+  const yZero = PAD_T + chartH / 2;
+  const yTicks = [-maxAbs, -maxAbs / 2, 0, maxAbs / 2, maxAbs];
+  const SESSIONS = [
+    { key: 'asia',   start: 0,  end: 8,  label: 'ASIA',   color: 'rgba(96,165,250,1)',  bg: 'rgba(96,165,250,0.10)' },
+    { key: 'europe', start: 8,  end: 16, label: 'EUROPE', color: 'rgba(167,139,250,1)', bg: 'rgba(167,139,250,0.10)' },
+    { key: 'us',     start: 16, end: 24, label: 'US',     color: 'rgba(251,191,36,1)',  bg: 'rgba(251,191,36,0.10)' },
+  ];
 
   return (
-    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', padding: '16px 12px 8px', position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 90, position: 'relative' }}>
-        {['asia', 'europe', 'us'].map((s, si) => {
-          const start = si * 8;
+    <div style={{ background: 'linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-base) 100%)', border: '1px solid var(--border-subtle)', padding: 16, position: 'relative', borderRadius: 4 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block', fontFamily: MONO }} preserveAspectRatio="xMidYMid meet" onMouseLeave={() => setHover(null)}>
+        <defs>
+          <linearGradient id="hodPos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#0ecb81" stopOpacity="1" />
+            <stop offset="100%" stopColor="#0ecb81" stopOpacity="0.6" />
+          </linearGradient>
+          <linearGradient id="hodNeg" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%"   stopColor="#f6465d" stopOpacity="1" />
+            <stop offset="100%" stopColor="#f6465d" stopOpacity="0.6" />
+          </linearGradient>
+          <filter id="hodGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        {SESSIONS.map((s) => {
+          const sx = PAD_L + s.start * step;
+          const sw = (s.end - s.start) * step;
+          const labelX = sx + sw / 2;
           return (
-            <div key={s} style={{
-              position: 'absolute', bottom: 20, top: 0,
-              left: `${(start / 24) * 100}%`, width: `${(8 / 24) * 100}%`,
-              background: SESSION_COLORS[s], pointerEvents: 'none',
-            }} />
+            <g key={s.key}>
+              <rect x={sx} y={PAD_T} width={sw} height={chartH} fill={s.bg} />
+              <line x1={sx} x2={sx} y1={PAD_T} y2={PAD_T + chartH} stroke={s.color} strokeOpacity="0.35" strokeWidth="1" strokeDasharray="2 3" />
+              <rect x={sx + sw / 2 - 32} y={6} width={64} height={14} fill={s.color} fillOpacity="0.18" rx={2} />
+              <text x={labelX} y={16} textAnchor="middle" fontSize={9} fill={s.color} letterSpacing="0.14em" fontWeight={700}>
+                {s.label}
+              </text>
+            </g>
           );
         })}
+        <line x1={PAD_L + 24 * step} x2={PAD_L + 24 * step} y1={PAD_T} y2={PAD_T + chartH} stroke="rgba(251,191,36,1)" strokeOpacity="0.35" strokeWidth="1" strokeDasharray="2 3" />
+
+        {yTicks.map((v, i) => {
+          const y = PAD_T + chartH / 2 - (v / maxAbs) * (chartH / 2);
+          const isZero = v === 0;
+          return (
+            <g key={i}>
+              <line x1={PAD_L} x2={W - PAD_R} y1={y} y2={y}
+                stroke={isZero ? 'var(--border-default)' : 'var(--border-subtle)'}
+                strokeWidth={isZero ? 1 : 0.5}
+                strokeDasharray={isZero ? '0' : '2 5'}
+                opacity={isZero ? 0.85 : 0.45} />
+              <text x={PAD_L - 8} y={y + 3} textAnchor="end" fontSize={9} fill="var(--text-muted)" letterSpacing="0.04em">
+                {isZero ? '0' : (v > 0 ? '+' : '') + v.toFixed(0)}
+              </text>
+            </g>
+          );
+        })}
+
         {data.map((d, i) => {
-          const barH = Math.abs(d.pnl) / maxAbs * 64;
+          const x = PAD_L + i * step + (step - barW) / 2;
+          const norm = d.pnl / maxAbs;
+          const barH = Math.abs(norm) * (chartH / 2);
           const pos = d.pnl >= 0;
+          const y = pos ? yZero - barH : yZero;
           const isH = hover === i;
           return (
-            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'default', position: 'relative', zIndex: 1 }}
-              onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', height: 70 }}>
-                {pos
-                  ? <div style={{ marginTop: 'auto', width: '100%', height: barH || 1.5, background: isH ? 'var(--accent-green)' : 'rgba(14,203,129,0.65)', transition: 'background 100ms' }} />
-                  : <div style={{ marginTop: 'auto', width: '100%', height: barH || 1.5, background: isH ? 'var(--accent-red)' : 'rgba(246,70,93,0.65)', transition: 'background 100ms' }} />
-                }
-              </div>
-              {i % 4 === 0 && (
-                <div style={{ fontFamily: MONO, fontSize: 8, color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{i}h</div>
+            <g key={i} onMouseEnter={() => setHover(i)} style={{ cursor: 'pointer' }}>
+              <rect x={x - 1} y={PAD_T} width={barW + 2} height={chartH} fill="transparent" />
+              {d.trades > 0 && (
+                <rect x={x} y={y} width={barW} height={Math.max(barH, 1.5)}
+                  fill={pos ? 'url(#hodPos)' : 'url(#hodNeg)'}
+                  opacity={isH ? 1 : 0.9}
+                  filter={isH ? 'url(#hodGlow)' : undefined}
+                  rx={1}
+                  style={{ transition: 'opacity 120ms' }} />
               )}
-            </div>
+              {i % 4 === 0 && (
+                <text x={x + barW / 2} y={H - 10} textAnchor="middle" fontSize={9} fill={isH ? 'var(--text-primary)' : 'var(--text-muted)'} letterSpacing="0.04em">
+                  {i}h
+                </text>
+              )}
+            </g>
           );
         })}
-      </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 10, fontFamily: MONO, fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-        <span style={{ background: SESSION_COLORS.asia,   padding: '1px 6px' }}>Asia 00–08 UTC</span>
-        <span style={{ background: SESSION_COLORS.europe, padding: '1px 6px' }}>Europe 08–16 UTC</span>
-        <span style={{ background: SESSION_COLORS.us,     padding: '1px 6px' }}>US 16–24 UTC</span>
-      </div>
+      </svg>
       {hover != null && (
         <div style={{
-          position: 'absolute', top: 8,
-          left: Math.min(Math.max(`${(hover / 24) * 100}%`, '4px'), 'calc(100% - 130px)'),
-          transform: hover < 12 ? 'none' : 'translateX(-100%)',
+          position: 'absolute', top: 30,
+          left: `${((PAD_L + hover * step + step / 2) / W) * 100}%`,
+          transform: 'translateX(-50%)',
           background: 'var(--bg-elevated)', border: '1px solid var(--border-default)',
           padding: '7px 12px', fontFamily: MONO, fontSize: 11, pointerEvents: 'none', whiteSpace: 'nowrap', zIndex: 10,
         }}>
