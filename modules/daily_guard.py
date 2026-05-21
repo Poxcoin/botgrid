@@ -177,3 +177,87 @@ def get_status(current_balance: float) -> dict:
         "loss_pct": round(loss_pct, 2),
         "start_balance": start,
     }
+
+
+# ─── Per-user daily guard (multi-tenant) ──────────────────────────────────────
+# Old check() above tracks one global balance — represents the owner. For
+# multi-user dispatcher, we need per-user balance/limit. State file format:
+#   {"date": "2026-05-21", "global": {...}, "users": {"1": {start: 9000, stopped: false}, "2": ...}}
+
+_PER_USER_FILE = "daily_guard_users.json"
+
+
+def _load_users() -> dict:
+    if os.path.exists(_PER_USER_FILE):
+        try:
+            with open(_PER_USER_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_users(state: dict) -> None:
+    try:
+        dir_ = os.path.dirname(os.path.abspath(_PER_USER_FILE)) or "."
+        with tempfile.NamedTemporaryFile("w", dir=dir_, delete=False, suffix=".tmp") as tmp:
+            json.dump(state, tmp, indent=2)
+            tmp_path = tmp.name
+        os.replace(tmp_path, _PER_USER_FILE)
+    except Exception:
+        pass
+
+
+def check_user(user_id: int, current_balance: float) -> bool:
+    """Per-user variant of check(). Returns True if user can still trade today.
+
+    Each user has independent start_balance and stopped flag. Reset at UTC 00:00.
+    Daily loss limit (same MAX_DAILY_LOSS_PCT) applied per-user.
+    """
+    if current_balance <= 0:
+        return True
+
+    state = _load_users()
+    today = _today()
+    if state.get("date") != today:
+        state = {"date": today, "users": {}}
+
+    uid = str(user_id)
+    u = state["users"].get(uid)
+    if u is None:
+        u = {"start_balance": round(current_balance, 4), "stopped": False}
+        state["users"][uid] = u
+        _save_users(state)
+        return True
+
+    if u.get("stopped"):
+        return False
+
+    start = u.get("start_balance", current_balance)
+    if start <= 0:
+        return True
+
+    loss_pct = (start - current_balance) / start * 100
+    if loss_pct >= MAX_DAILY_LOSS_PCT:
+        u["stopped"] = True
+        u["stopped_at"] = datetime.now(timezone.utc).isoformat()
+        u["loss_pct_at_stop"] = round(loss_pct, 2)
+        state["users"][uid] = u
+        _save_users(state)
+        print(
+            f"[daily_guard] user={user_id} HIT DAILY LIMIT — lost {loss_pct:.1f}% "
+            f"(limit {MAX_DAILY_LOSS_PCT}%). Trading stopped until UTC 00:00."
+        )
+        return False
+
+    return True
+
+
+def reset_user(user_id: int) -> None:
+    """Force-reset a single user's daily guard (admin override)."""
+    state = _load_users()
+    uid = str(user_id)
+    if uid in state.get("users", {}):
+        del state["users"][uid]
+        _save_users(state)
+        print(f"[daily_guard] user={user_id} reset")

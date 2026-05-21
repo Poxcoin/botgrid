@@ -160,6 +160,10 @@ class User(Base):
     ref_code       = Column(String, unique=True, nullable=True, index=True)   # e.g. "KADO-X9KM2R"
     referred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
+    # Per-user risk scaling: dispatcher multiplies bot SIZE_PCT by this value.
+    # 1.0 = bot default. 0.5 = half (for users with larger balances to reduce notional).
+    risk_multiplier = Column(Float, default=1.0)
+
     # Relationships
     api_keys     = relationship("UserApiKey",      back_populates="user", cascade="all, delete-orphan")
     trades       = relationship("UserTrade",        back_populates="user", cascade="all, delete-orphan")

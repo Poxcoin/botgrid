@@ -176,10 +176,11 @@ def _get_active_users(source: str) -> list[dict]:
             result.append({
                 "user_id":         u.user_id if hasattr(u, "user_id") else u.id,
                 "tg_chat_id":      u.tg_chat_id,
-                "is_demo":      key_row.is_demo,
+                "is_demo":         key_row.is_demo,
                 "api_key":         api_key,
                 "secret":          secret,
                 "trade_size_pct":  None,  # risk-based auto sizing
+                "risk_multiplier": float(getattr(u, "risk_multiplier", 1.0) or 1.0),
             })
         return result
     finally:
@@ -312,6 +313,16 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
 
         # Balance → position size (risk-based: 1% of balance per trade)
         balance = _get_free_usdt(ex)
+
+        # Per-user daily DD check — independent from owner-only daily_guard.check()
+        try:
+            from modules.daily_guard import check_user as _dg_check_user
+            if not _dg_check_user(uid, balance):
+                print(f"[DISPATCHER] SKIP user={uid} — daily DD limit reached")
+                return False
+        except Exception as _dg_e:
+            print(f"[DISPATCHER] daily_guard check_user error (non-blocking): {_dg_e}")
+
         user_custom = user.get("trade_size_pct")
         if user_custom:
             size_pct = float(user_custom)
@@ -325,6 +336,11 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             if sig_score is not None:
                 scale = min((abs(sig_score) / 10.0) ** 2, 1.0)
                 size_pct = max(size_pct * scale, size_pct * 0.25)  # floor at 25% base
+
+        # Per-user risk multiplier (DB User.risk_multiplier). Default 1.0.
+        # Kinder has 0.5 to compensate for larger absolute balance → lower notional risk.
+        risk_mult = float(user.get("risk_multiplier", 1.0) or 1.0)
+        size_pct = size_pct * risk_mult
         size_usd = balance * (size_pct / 100) * leverage
 
         # Market price
