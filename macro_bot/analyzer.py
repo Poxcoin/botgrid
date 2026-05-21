@@ -15,14 +15,14 @@ from config import TG_BOT_TOKEN, TG_CHAT_ID
 
 def fmt_stats(stats: dict, days: int = 30) -> str:
     if stats.get("trades", 0) == 0:
-        return f"📊 <b>Macro Bot — останні {days} днів</b>\n\nУгод ще немає."
+        return f" <b>Macro Bot — останні {days} днів</b>\n\nУгод ще немає."
 
     wr = stats["win_rate"]
-    wr_emoji = "🟢" if wr >= 55 else "🟡" if wr >= 45 else "🔴"
-    pnl_emoji = "✅" if stats["net_pnl"] > 0 else "❌"
+    wr_emoji = "🟢" if wr >= 55 else "🟡" if wr >= 45 else ""
+    pnl_emoji = "" if stats["net_pnl"] > 0 else ""
 
     lines = [
-        f"📊 <b>Macro Bot — останні {days} днів</b>",
+        f" <b>Macro Bot — останні {days} днів</b>",
         "",
         f"Угод: <b>{stats['trades']}</b>  ({stats['wins']}W / {stats['losses']}L)",
         f"Win Rate: {wr_emoji} <b>{wr}%</b>",
@@ -38,11 +38,11 @@ def fmt_stats(stats: dict, days: int = 30) -> str:
 
     if stats.get("recent_trades"):
         lines.append("")
-        lines.append("📋 <b>Останні угоди:</b>")
+        lines.append(" <b>Останні угоди:</b>")
         for t in stats["recent_trades"][:5]:
-            sign = "📈" if t["direction"] == "LONG" else "📉"
+            sign = "" if t["direction"] == "LONG" else ""
             p = t["profit"]
-            emoji = "✅" if p > 0 else "❌"
+            emoji = "" if p > 0 else ""
             lines.append(
                 f"{emoji}{sign} {t['event'][:15]} | {p:+.2f}$ ({t['pips']:+.1f}p)"
             )

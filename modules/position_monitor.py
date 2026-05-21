@@ -141,14 +141,14 @@ def _monitor_loop(
                                 )
                                 untrack(symbol)
                                 msg = (
-                                    f"🛑 <b>Hard loss cap triggered</b>\n"
+                                    f" <b>Hard loss cap triggered</b>\n"
                                     f"<b>Монета:</b> <code>{symbol}</code>\n"
                                     f"<b>Збиток:</b> ${upnl:.2f} (ліміт -${MAX_TRADE_LOSS_USDT})\n"
                                     f"<b>Направлення:</b> {tracked[symbol].get('action','?')}\n"
                                     f"<b>Вхід:</b> {tracked[symbol].get('entry','?')}$"
                                 )
                                 send_tg(msg, chat_id)
-                                print(f"[monitor] 🛑 {symbol} закрита: збиток ${upnl:.2f} > ліміт ${MAX_TRADE_LOSS_USDT}")
+                                print(f"[monitor]  {symbol} закрита: збиток ${upnl:.2f} > ліміт ${MAX_TRADE_LOSS_USDT}")
                         except Exception as e_lc:
                             err = str(e_lc)
                             if "110017" in err or "position is zero" in err.lower():
@@ -162,7 +162,7 @@ def _monitor_loop(
             if not stale:
                 continue
 
-            print(f"[monitor] ⚠️ Найдено {len(stale)} зависших позиций — пытаюсь закрыть")
+            print(f"[monitor]  Найдено {len(stale)} зависших позиций — пытаюсь закрыть")
             exchange = exchange_factory()
 
             for symbol, info in stale.items():
@@ -174,7 +174,7 @@ def _monitor_loop(
                     if not active:
                         # TP/SL уже сработали — просто убираем из трекера
                         untrack(symbol)
-                        print(f"[monitor] ✅ {symbol} — позиция уже закрыта (TP/SL), убираем из трекера")
+                        print(f"[monitor]  {symbol} — позиция уже закрыта (TP/SL), убираем из трекера")
                         continue
 
                     pos      = active[0]
@@ -186,7 +186,7 @@ def _monitor_loop(
                         params={"category": "linear", "reduceOnly": True},
                     )
                     untrack(symbol)
-                    print(f"[monitor] 🔴 {symbol} принудительно закрыта ({age_h:.1f}ч)")
+                    print(f"[monitor]  {symbol} принудительно закрыта ({age_h:.1f}ч)")
                     send_tg(
                         f"⏱ <b>Позиция закрыта по таймауту</b>\n"
                         f"<b>Монета:</b> <code>{symbol}</code>\n"
@@ -201,12 +201,12 @@ def _monitor_loop(
                     err = str(e)
                     if "110017" in err or "position is zero" in err.lower():
                         untrack(symbol)
-                        print(f"[monitor] ⚠️ {symbol} — позиция нулевая на бирже, убираем из трекера")
+                        print(f"[monitor]  {symbol} — позиция нулевая на бирже, убираем из трекера")
                     else:
-                        print(f"[monitor] ❌ Ошибка закрытия {symbol}: {e}")
+                        print(f"[monitor]  Ошибка закрытия {symbol}: {e}")
 
         except Exception as e:
-            print(f"[monitor] ❌ Ошибка цикла: {e}")
+            print(f"[monitor]  Ошибка цикла: {e}")
 
 
 def start_monitor(

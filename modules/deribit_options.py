@@ -113,7 +113,7 @@ def _process_large_trades(currency: str, trades: list[dict]) -> None:
             "timestamp":        datetime.now(timezone.utc).isoformat(),
         }
         options_queue.put(signal)
-        print(f"[Deribit] 🎯 Large {side_str} ${notional_m:.1f}M on {coin} → {direction}")
+        print(f"[Deribit]  Large {side_str} ${notional_m:.1f}M on {coin} → {direction}")
 
 
 def _update_sentiment(currency: str, pc_ratio: float, put_vol: float, call_vol: float) -> None:

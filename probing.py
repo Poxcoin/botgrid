@@ -17,22 +17,22 @@ def probe():
         ex.set_sandbox_mode(True)
         # Пробуем получить время сервера (это не требует подписи)
         server_time = ex.fetch_time()
-        print(f"✅ Связь с Testnet есть! Время: {server_time}")
+        print(f" Связь с Testnet есть! Время: {server_time}")
         # Пробуем баланс (это требует подписи)
         bal = ex.fetch_balance({'accountType': 'unified'})
-        print(f"✅ ПОДПИСЬ ПРИНЯТА! Баланс: {bal.get('USDT', {}).get('total', 0)} USDT")
+        print(f" ПОДПИСЬ ПРИНЯТА! Баланс: {bal.get('USDT', {}).get('total', 0)} USDT")
     except Exception as e:
-        print(f"❌ ТЕСТ 1 ПРОВАЛЕН: {e}")
+        print(f" ТЕСТ 1 ПРОВАЛЕН: {e}")
 
     print('\n--- ТЕСТ 2: DEMO/MAINNET (sandbox=False) ---')
     try:
         ex = ccxt.bybit(keys)
         server_time = ex.fetch_time()
-        print(f"✅ Связь с Mainnet есть! Время: {server_time}")
+        print(f" Связь с Mainnet есть! Время: {server_time}")
         bal = ex.fetch_balance({'accountType': 'unified'})
-        print(f"✅ ПОДПИСЬ ПРИНЯТА! Баланс: {bal.get('USDT', {}).get('total', 0)} USDT")
+        print(f" ПОДПИСЬ ПРИНЯТА! Баланс: {bal.get('USDT', {}).get('total', 0)} USDT")
     except Exception as e:
-        print(f"❌ ТЕСТ 2 ПРОВАЛЕН: {e}")
+        print(f" ТЕСТ 2 ПРОВАЛЕН: {e}")
 
 if __name__ == "__main__":
     probe()

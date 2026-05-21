@@ -130,7 +130,7 @@ def _get_owner_key() -> tuple[str, str, bool] | None:
         finally:
             db.close()
     except Exception as e:
-        print(f"[CASCADE] ⚠ не вдалося прочитати ключ з БД: {e}")
+        print(f"[CASCADE]  не вдалося прочитати ключ з БД: {e}")
         return None
 
 
@@ -175,7 +175,7 @@ def _init_cascade_exchange() -> ccxt.Exchange:
         exchange.has["fetchCurrencies"] = False
         exchange.load_markets()
         mode = "demo" if is_demo else "live"
-        print(f"[CASCADE] 🔑 ключ з БД (user={OWNER_USER_ID}, {mode})")
+        print(f"[CASCADE]  ключ з БД (user={OWNER_USER_ID}, {mode})")
         return exchange
 
     # Старий demo fallback через env vars
@@ -291,10 +291,10 @@ def _check_cascade_signal(coin: str) -> None:
     size_mult = 1.0
 
     if action == "LONG" and fr >= FR_BLOCK_THRESHOLD:
-        print(f"[CASCADE] ⛔ {coin} LONG заблоковано — FR={fr:+.4f}% (лонги вже платять, небезпечно)")
+        print(f"[CASCADE]  {coin} LONG заблоковано — FR={fr:+.4f}% (лонги вже платять, небезпечно)")
         return
     if action == "SHORT" and fr <= -FR_BLOCK_THRESHOLD:
-        print(f"[CASCADE] ⛔ {coin} SHORT заблоковано — FR={fr:+.4f}% (шорти вже платять, squeeze ризик)")
+        print(f"[CASCADE]  {coin} SHORT заблоковано — FR={fr:+.4f}% (шорти вже платять, squeeze ризик)")
         return
     if action == "LONG" and fr <= -FR_CONFIRM_THRESHOLD:
         size_mult = FR_SIZE_BONUS
@@ -303,7 +303,7 @@ def _check_cascade_signal(coin: str) -> None:
 
     _cooldowns[coin] = now
 
-    emoji = "🚀" if action == "LONG" else "🔴"
+    emoji = "" if action == "LONG" else ""
     fr_note = f" FR={fr:+.4f}%" + (f" size×{size_mult}" if size_mult > 1 else "")
     print(f"[CASCADE] {emoji} {coin}: ${cascade_usd/1e6:.2f}M за 1хв → {action} |{fr_note}")
 
@@ -318,7 +318,7 @@ def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float)
     doubled owner's actual Bybit position (config-keys path + DB-keys path). Removed 2026-05-21.
     """
     if not CASCADE_TRADING:
-        print(f"[CASCADE] 📊 {coin} {action} — торгівля вимкнена (CASCADE_TRADING=False)")
+        print(f"[CASCADE]  {coin} {action} — торгівля вимкнена (CASCADE_TRADING=False)")
         return
 
     try:
@@ -345,15 +345,15 @@ def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float)
             pass
 
         send_telegram_message(
-            f"{'🚀' if action == 'LONG' else '🔴'} <b>CASCADE {action}</b> {coin}\n"
+            f"{'' if action == 'LONG' else ''} <b>CASCADE {action}</b> {coin}\n"
             f"Каскад: ${cascade_usd/1e6:.2f}M ліквідацій за 1 хв (×{size_mult:.1f})\n"
             f"TP={TP_PCT}% SL={SL_PCT}% lev={LEVERAGE}x — dispatched to all users",
             TG_CHAT_ID,
         )
-        print(f"[CASCADE] ✅ dispatched {action} {coin} (cascade ${cascade_usd/1e6:.2f}M, mult={size_mult:.1f})")
+        print(f"[CASCADE]  dispatched {action} {coin} (cascade ${cascade_usd/1e6:.2f}M, mult={size_mult:.1f})")
 
     except Exception as e:
-        print(f"[CASCADE] ❌ dispatch error {coin} {action}: {e}")
+        print(f"[CASCADE]  dispatch error {coin} {action}: {e}")
         _cooldowns.pop(coin, None)  # скидаємо cooldown щоб retry спрацював
 
 
@@ -375,7 +375,7 @@ def _monitor_positions() -> None:
             _daily_stopped = False
             try:
                 _daily_start_bal = get_free_usdt(_exchange)
-                print(f"[CASCADE] 📅 Новий день | Баланс: ${_daily_start_bal:.2f}")
+                print(f"[CASCADE]  Новий день | Баланс: ${_daily_start_bal:.2f}")
             except Exception:
                 pass
 
@@ -395,7 +395,7 @@ def _monitor_positions() -> None:
                 ex_pos   = _exchange.fetch_positions([symbol], params={"category": "linear"})
                 open_qty = sum(abs(float(p.get("contracts") or 0)) for p in ex_pos)
             except Exception as e:
-                print(f"[CASCADE] ⚠️ Position check {coin}: {e}")
+                print(f"[CASCADE]  Position check {coin}: {e}")
                 continue
 
             if open_qty == 0:
@@ -407,7 +407,7 @@ def _monitor_positions() -> None:
             # Time stop: 20 хвилин — закриваємо вручну
             age_min = (now.timestamp() - pos["opened_at"]) / 60
             if age_min >= TIME_STOP_MIN:
-                print(f"[CASCADE] ⏱️ {coin} time stop ({age_min:.0f} хв)")
+                print(f"[CASCADE] ⏱ {coin} time stop ({age_min:.0f} хв)")
                 _close_market(coin, pos)
 
 
@@ -452,7 +452,7 @@ def _close_market(coin: str, pos: dict) -> None:
 
         _on_closed(coin, pos, exit_price=exit_price, realized_pnl=pnl, reason="time_stop")
     except Exception as e:
-        print(f"[CASCADE] ❌ Close market error {coin}: {e}")
+        print(f"[CASCADE]  Close market error {coin}: {e}")
 
 
 def _on_closed(coin: str, pos: dict, exit_price: float, realized_pnl: float, reason: str) -> None:
@@ -480,8 +480,8 @@ def _on_closed(coin: str, pos: dict, exit_price: float, realized_pnl: float, rea
     except Exception:
         pass
 
-    icon       = "✅" if realized_pnl >= 0 else "❌"
-    reason_str = {"tp_sl": "TP/SL Bybit", "time_stop": "⏱️ Time Stop 20хв"}.get(reason, reason)
+    icon       = "" if realized_pnl >= 0 else ""
+    reason_str = {"tp_sl": "TP/SL Bybit", "time_stop": "⏱ Time Stop 20хв"}.get(reason, reason)
 
     print(f"[CASCADE] {icon} {pos['action']} {coin} → {reason_str} | PnL=${realized_pnl:+.2f} | день=${_daily_pnl:+.2f}")
 
@@ -497,9 +497,9 @@ def _on_closed(coin: str, pos: dict, exit_price: float, realized_pnl: float, rea
     # Денний стоп
     if _daily_start_bal > 0 and _daily_pnl < -(_daily_start_bal * DAILY_LOSS_LIMIT):
         _daily_stopped = True
-        print(f"[CASCADE] 🛑 Денний стоп: ${_daily_pnl:.2f} | ліміт ${_daily_start_bal * DAILY_LOSS_LIMIT:.2f}")
+        print(f"[CASCADE]  Денний стоп: ${_daily_pnl:.2f} | ліміт ${_daily_start_bal * DAILY_LOSS_LIMIT:.2f}")
         send_telegram_message(
-            f"🛑 <b>CASCADE — денний стоп</b>\n"
+            f" <b>CASCADE — денний стоп</b>\n"
             f"Збиток: <b>${_daily_pnl:.2f}</b> (ліміт {DAILY_LOSS_LIMIT*100:.0f}% = ${_daily_start_bal * DAILY_LOSS_LIMIT:.2f})\n"
             f"Відновлення: UTC опівніч",
             TG_CHAT_ID,
@@ -526,7 +526,7 @@ def _ws_thread() -> None:
             t = LIQ_THRESHOLD[c]
             return f"{c} ${t/1e6:.1f}M" if t >= 1_000_000 else f"{c} ${t/1000:.0f}K"
         coins_str = " | ".join(_fmt(c) for c in WATCHLIST)
-        print(f"[CASCADE/WS] ✅ Підключено — {coins_str} / 1хв")
+        print(f"[CASCADE/WS]  Підключено — {coins_str} / 1хв")
 
     while _running:
         try:
@@ -550,7 +550,7 @@ def run_cascade_bot() -> None:
     global _running, _exchange, _daily_date, _daily_start_bal
 
     if CASCADE_LIVE_MODE:
-        mode_tag = "[LIVE 🔴]"
+        mode_tag = "[LIVE ]"
     elif CASCADE_IS_DEMO:
         mode_tag = "[DEMO]"
     else:
@@ -573,7 +573,7 @@ def run_cascade_bot() -> None:
     try:
         _exchange = _init_cascade_exchange()
     except Exception as e:
-        print(f"[CASCADE] ❌ Bybit init failed: {e}")
+        print(f"[CASCADE]  Bybit init failed: {e}")
         return
 
     _daily_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -583,7 +583,7 @@ def run_cascade_bot() -> None:
         _daily_start_bal = 0.0
 
     send_telegram_message(
-        f"🚀 <b>Cascade Bot запущено {mode_tag}</b>\n"
+        f" <b>Cascade Bot запущено {mode_tag}</b>\n"
         f"Монети: {', '.join(WATCHLIST)}\n"
         f"TP: {TP_PCT}% | SL: {SL_PCT}% | {LEVERAGE}x | {SIZE_PCT}% балансу\n"
         f"Max позицій: {MAX_POSITIONS} | Cooldown: {COOLDOWN_SEC//60}хв | Time stop: {TIME_STOP_MIN}хв\n"

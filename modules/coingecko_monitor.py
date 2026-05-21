@@ -71,7 +71,7 @@ def _fetch_coins_list() -> list[dict]:
 
 
 def _trending_loop():
-    print("[CG] 📈 CoinGecko Trending monitor запущено (кожні 2 хв)")
+    print("[CG]  CoinGecko Trending monitor запущено (кожні 2 хв)")
     while True:
         try:
             now = time.time()
@@ -111,7 +111,7 @@ def _trending_loop():
                     "cg_rank":      rank,
                 }
                 cg_queue.put_nowait(item)
-                print(f"[CG] 📈 Trending: {symbol} (rank #{rank})")
+                print(f"[CG]  Trending: {symbol} (rank #{rank})")
 
         except Exception as e:
             print(f"[CG] trending loop error: {e}")
@@ -121,13 +121,13 @@ def _trending_loop():
 
 def _new_listings_loop():
     global _known_coins
-    print("[CG] 🆕 CoinGecko New Listings monitor запущено (кожні 5 хв)")
+    print("[CG]  CoinGecko New Listings monitor запущено (кожні 5 хв)")
 
     # Перший запит — заповнюємо baseline (не генеруємо сигнали)
     initial = _fetch_coins_list()
     if initial:
         _known_coins = {c["id"] for c in initial}
-        print(f"[CG] 🆕 Baseline: {len(_known_coins)} монет на CoinGecko")
+        print(f"[CG]  Baseline: {len(_known_coins)} монет на CoinGecko")
 
     while True:
         time.sleep(POLL_NEW)
@@ -166,7 +166,7 @@ def _new_listings_loop():
                         "is_cg_new":    True,
                     }
                     cg_queue.put_nowait(item)
-                    print(f"[CG] 🆕 New coin: {symbol} ({name})")
+                    print(f"[CG]  New coin: {symbol} ({name})")
 
                 _known_coins = current_ids
 

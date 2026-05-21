@@ -22,7 +22,7 @@ async def send_telegram(token: str, chat_id: str, text: str) -> None:
 
 def fmt_signal(event, actual, forecast, direction, units, deviation,
                instrument: str = "EURUSD") -> str:
-    sign = "📈" if direction == "LONG" else "📉"
+    sign = "" if direction == "LONG" else ""
     side = "BUY" if direction == "LONG" else "SELL"
     return (
         f"{sign} <b>MACRO TRADE</b>\n"
@@ -34,7 +34,7 @@ def fmt_signal(event, actual, forecast, direction, units, deviation,
 
 
 def fmt_close(event, pnl, reason) -> str:
-    emoji = "✅" if pnl > 0 else "❌"
+    emoji = "" if pnl > 0 else ""
     return (
         f"{emoji} <b>CLOSED</b> — {event}\n"
         f"PnL: <b>{pnl:+.2f} USD</b>\n"

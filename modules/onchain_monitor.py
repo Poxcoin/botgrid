@@ -153,7 +153,7 @@ def _update_macro_state(direction: str, eth_value: float, exchange: str) -> None
         _macro_state["score"]      = round(signed, 2)
         _macro_state["expires_at"] = expires
         _macro_state["reason"]     = reason
-    print(f"[ONCHAIN] 📡 Macro state: {signed:+.1f} ({reason[:60]})")
+    print(f"[ONCHAIN]  Macro state: {signed:+.1f} ({reason[:60]})")
 
 
 def _process_tx(tx: dict):
@@ -173,12 +173,12 @@ def _process_tx(tx: dict):
             if to_addr in _EXCHANGE_SET and value_eth >= _MIN_ETH:
                 _flow_data["ETH"].append((now, "TO_EXCHANGE", value_eth, to_addr))
                 exchange_name = _EXCHANGE_WALLETS[to_addr]
-                print(f"[ONCHAIN] 🐋 → {exchange_name}: {value_eth:.0f} ETH (продажа?)")
+                print(f"[ONCHAIN]  → {exchange_name}: {value_eth:.0f} ETH (продажа?)")
                 _update_macro_state("BEARISH", value_eth, exchange_name)
             elif from_addr in _EXCHANGE_SET and value_eth >= _MIN_ETH:
                 _flow_data["ETH"].append((now, "FROM_EXCHANGE", value_eth, from_addr))
                 exchange_name = _EXCHANGE_WALLETS[from_addr]
-                print(f"[ONCHAIN] 🐋 ← {exchange_name}: {value_eth:.0f} ETH (накопление?)")
+                print(f"[ONCHAIN]  ← {exchange_name}: {value_eth:.0f} ETH (накопление?)")
                 _update_macro_state("BULLISH", value_eth, exchange_name)
 
     except Exception:
@@ -188,13 +188,13 @@ def _process_tx(tx: dict):
 def _ws_thread():
     global _running
     if not ALCHEMY_API_KEY:
-        print("[ONCHAIN] ⚠️ ALCHEMY_API_KEY не задан — on-chain мониторинг отключён")
+        print("[ONCHAIN]  ALCHEMY_API_KEY не задан — on-chain мониторинг отключён")
         return
 
     try:
         import websocket
     except ImportError:
-        print("[ONCHAIN] ❌ websocket-client не установлен")
+        print("[ONCHAIN]  websocket-client не установлен")
         return
 
     ws_url = f"wss://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_API_KEY}"
@@ -221,7 +221,7 @@ def _ws_thread():
                 "hashesOnly": True,
             }]
         }))
-        print("[ONCHAIN] ✅ Ethereum on-chain мониторинг запущен (Alchemy WebSocket)")
+        print("[ONCHAIN]  Ethereum on-chain мониторинг запущен (Alchemy WebSocket)")
 
     def on_message(ws, msg):
         try:
@@ -280,7 +280,7 @@ def start_onchain_monitor() -> bool:
     """Запускает on-chain мониторинг в фоновом daemon-потоке."""
     global _running
     if not ALCHEMY_API_KEY:
-        print("[ONCHAIN] ⚠️ ALCHEMY_API_KEY не задан — мониторинг отключён")
+        print("[ONCHAIN]  ALCHEMY_API_KEY не задан — мониторинг отключён")
         return False
 
     _running = True

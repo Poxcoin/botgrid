@@ -44,7 +44,7 @@ def _exchange_call(fn, *args, **kwargs):
         except Exception as e:
             is_retryable = any(code in str(e) for code in _RETRYABLE_ERRORS)
             if is_retryable and attempt < _MAX_RETRIES:
-                print(f"⚠️ Bybit транзитная ошибка ({e}) — повтор {attempt + 1}/{_MAX_RETRIES}...")
+                print(f" Bybit транзитная ошибка ({e}) — повтор {attempt + 1}/{_MAX_RETRIES}...")
                 time.sleep(_RETRY_DELAY_SEC)
             else:
                 raise
@@ -116,7 +116,7 @@ def get_free_usdt(exchange: ccxt.Exchange) -> float:
 
         return 0.0
     except Exception as e:
-        print(f"❌ Ошибка получения баланса: {e}")
+        print(f" Ошибка получения баланса: {e}")
         return 0.0
 
 
@@ -199,7 +199,7 @@ def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
         return False
 
     except Exception as api_err:
-        print(f"[has_open_position] ⚠️ Живий API-запит не вдався для {symbol}: {api_err}")
+        print(f"[has_open_position]  Живий API-запит не вдався для {symbol}: {api_err}")
         # Fallback 1: перевіряємо локальний tracker
         try:
             from modules.position_monitor import _load_tracked
@@ -213,7 +213,7 @@ def has_open_position(exchange: ccxt.Exchange, symbol: str) -> bool:
         except Exception as tracker_err:
             # Fallback 2: дозволяємо вхід — дубль менш шкідливий ніж заблокований сигнал
             print(
-                f"[has_open_position] ⚠️ Tracker також недоступний ({tracker_err}) "
+                f"[has_open_position]  Tracker також недоступний ({tracker_err}) "
                 f"— дозволяємо вхід для {symbol}"
             )
             return False
@@ -224,7 +224,7 @@ def close_all_positions(signal: Dict[str, Any] = None) -> None:
     Экстренное закрытие ВСЕХ открытых позиций.
     Вызывается при сигнале SELL_ALL (глобальная паника).
     """
-    print("\n🚨 ЭКСТРЕННОЕ ЗАКРЫТИЕ ВСЕХ ПОЗИЦИЙ...")
+    print("\n ЭКСТРЕННОЕ ЗАКРЫТИЕ ВСЕХ ПОЗИЦИЙ...")
     exchange = _init_exchange()
 
     try:
@@ -232,7 +232,7 @@ def close_all_positions(signal: Dict[str, Any] = None) -> None:
         active = [p for p in positions if abs(float(p.get('contracts') or 0)) > 0]
 
         if not active:
-            print("   ℹ️ Открытых позиций нет.")
+            print("   ℹ Открытых позиций нет.")
             return
 
         for pos in active:
@@ -240,23 +240,23 @@ def close_all_positions(signal: Dict[str, Any] = None) -> None:
             contracts = abs(float(pos['contracts']))
             side = 'sell' if pos['side'] == 'long' else 'buy'
 
-            print(f"   🔴 Закрываю {pos['side'].upper()} {coin_symbol} ({contracts} контрактов)...")
+            print(f"    Закрываю {pos['side'].upper()} {coin_symbol} ({contracts} контрактов)...")
             try:
                 exchange.create_order(
                     coin_symbol, 'market', side, contracts,
                     params={'category': 'linear', 'reduceOnly': True}
                 )
-                print(f"   ✅ {coin_symbol} закрыта!")
+                print(f"    {coin_symbol} закрыта!")
             except Exception as e:
-                print(f"   ❌ Ошибка при закрытии {coin_symbol}: {e}")
+                print(f"    Ошибка при закрытии {coin_symbol}: {e}")
 
-        msg = "🚨 <b>ПАНИКА! Все позиции закрыты!</b>"
+        msg = " <b>ПАНИКА! Все позиции закрыты!</b>"
         if signal:
             msg += f"\n<b>Причина:</b> {signal.get('news_title', 'Макро-кризис')}"
         send_telegram_message(msg, TG_CHAT_ID)
 
     except Exception as e:
-        print(f"❌ Ошибка SELL_ALL: {e}")
+        print(f" Ошибка SELL_ALL: {e}")
 
 
 def execute_trade(
@@ -288,26 +288,26 @@ def execute_trade(
     _lev = leverage_override if leverage_override is not None else LEVERAGE
     _sz  = size_pct        if size_pct        is not None else TRADE_PERCENT_SIZE
 
-    print(f"\n⚡ ИСПОЛНЯЕМ СДЕЛКУ: {action} {coin} (Оценка: {score})")
+    print(f"\n ИСПОЛНЯЕМ СДЕЛКУ: {action} {coin} (Оценка: {score})")
 
     # ─── Проверка 1: size_multiplier — слабый сигнал не торгуем ─────────────
     size_mult_check = signal.get("size_multiplier", 1.0)
     if size_mult_check < MIN_SIZE_MULTIPLIER:
-        print(f"⚠️ ПРОПУСК: size_multiplier={size_mult_check} < {MIN_SIZE_MULTIPLIER} — сигнал слишком слабый")
+        print(f" ПРОПУСК: size_multiplier={size_mult_check} < {MIN_SIZE_MULTIPLIER} — сигнал слишком слабый")
         return
 
     # ─── Проверка 2: лимит параллельных позиций ──────────────────────────────
     open_count = position_monitor.get_tracked_count()
     if open_count >= MAX_CONCURRENT_POSITIONS:
-        print(f"⚠️ ПРОПУСК: {open_count} открытых позиций — достигнут лимит {MAX_CONCURRENT_POSITIONS}")
+        print(f" ПРОПУСК: {open_count} открытых позиций — достигнут лимит {MAX_CONCURRENT_POSITIONS}")
         return
 
     # DRY_RUN — симулируем сделку без отправки на биржу
     if DRY_RUN:
-        print(f"🧪 DRY_RUN режим — сделка симулирована, на биржу не отправлена")
+        print(f" DRY_RUN режим — сделка симулирована, на биржу не отправлена")
         signal["simulated"] = True
         msg = (
-            f"🧪 <b>DRY RUN — СИГНАЛ СИМУЛИРОВАН</b>\n"
+            f" <b>DRY RUN — СИГНАЛ СИМУЛИРОВАН</b>\n"
             f"<b>Монета:</b> #{coin}\n"
             f"<b>Тип:</b> {action}\n"
             f"<b>Оценка:</b> {score}"
@@ -323,28 +323,28 @@ def execute_trade(
     if _wallet_check > 0 and not daily_guard.check(_wallet_check):
         dg = daily_guard.get_status(_wallet_check)
         msg = (
-            f"🛑 <b>Торговля остановлена — дневной лимит убытков</b>\n"
+            f" <b>Торговля остановлена — дневной лимит убытков</b>\n"
             f"Потеряно {dg['loss_pct']:.1f}% за сегодня (лимит {daily_guard.MAX_DAILY_LOSS_PCT}%)\n"
             f"Возобновится в UTC 00:00"
         )
-        print(f"⚠️ ПРОПУСК: дневной лимит убытков исчерпан ({dg['loss_pct']:.1f}%)")
+        print(f" ПРОПУСК: дневной лимит убытков исчерпан ({dg['loss_pct']:.1f}%)")
         send_telegram_message(msg, TG_CHAT_ID)
         return
 
     try:
         # -------------------------------------------------
-        # 0️⃣ Resolve and validate market symbol
+        # 0⃣ Resolve and validate market symbol
         # -------------------------------------------------
         symbol = resolve_market_symbol(exchange, coin)
         if not symbol:
-            print(f"⚠️ ПРОПУСК: Монета {coin} не найдена на бирже (USDT маркет).")
+            print(f" ПРОПУСК: Монета {coin} не найдена на бирже (USDT маркет).")
             return
 
         # -------------------------------------------------
-        # 0.5️⃣ Проверяем — нет ли уже открытой позиции по этой монете
+        # 0.5⃣ Проверяем — нет ли уже открытой позиции по этой монете
         # -------------------------------------------------
         if has_open_position(exchange, symbol):
-            print(f"⚠️ ПРОПУСК: Позиция по {coin} уже открыта. Дубль заблокирован.")
+            print(f" ПРОПУСК: Позиция по {coin} уже открыта. Дубль заблокирован.")
             return
 
         # Current market price
@@ -352,19 +352,19 @@ def execute_trade(
         current_price = ticker["last"]
 
         # -------------------------------------------------
-        # 1️⃣ Set leverage
+        # 1⃣ Set leverage
         # -------------------------------------------------
         try:
             _exchange_call(exchange.set_leverage, _lev, symbol, params={'category': 'linear'})
         except Exception as e:
-            print(f"⚠️ Плечо: {e}")
+            print(f" Плечо: {e}")
 
         # -------------------------------------------------
-        # 2️⃣ Calculate position size
+        # 2⃣ Calculate position size
         # -------------------------------------------------
         free_usdt = get_free_usdt(exchange)
         if free_usdt <= 0:
-            print("❌ Нет средств на балансе!")
+            print(" Нет средств на балансе!")
             return
 
         # Use size multiplier from signal if available
@@ -384,7 +384,7 @@ def execute_trade(
         use_partial_tp = not IS_DEMO_TRADING and half_amount >= _min_qty and half_amount > 0
 
         # -------------------------------------------------
-        # 3️⃣ Compute TP and SL prices
+        # 3⃣ Compute TP and SL prices
         # -------------------------------------------------
         if action.upper() == "LONG":
             side = "buy"
@@ -400,7 +400,7 @@ def execute_trade(
         sl_price = float(exchange.price_to_precision(symbol, sl_price))
 
         # -------------------------------------------------
-        # 4️⃣ Place market order (без TP/SL — Demo не підтримує inline)
+        # 4⃣ Place market order (без TP/SL — Demo не підтримує inline)
         # -------------------------------------------------
         if use_maker and not IS_DEMO_TRADING:
             # Try PostOnly limit at current price — saves ~0.035% taker fee
@@ -418,20 +418,20 @@ def execute_trade(
                     o = exchange.fetch_order(maker_ord["id"], symbol, params={"category": "linear"})
                     if float(o.get("filled") or 0) >= amount * 0.99:
                         order = o
-                        print(f"✅ Maker fill @ {o.get('average', limit_price)} (saved taker fee)")
+                        print(f" Maker fill @ {o.get('average', limit_price)} (saved taker fee)")
                         break
                 if order is None:
                     try:
                         exchange.cancel_order(maker_ord["id"], symbol, params={"category": "linear"})
                     except Exception:
                         pass
-                    print(f"⚠️ Maker not filled in 3s — falling back to market")
+                    print(f" Maker not filled in 3s — falling back to market")
                     order = _exchange_call(
                         exchange.create_order, symbol, "market", side, amount,
                         params={"category": "linear", "positionIdx": 0},
                     )
             except Exception as _me:
-                print(f"⚠️ Maker order failed ({_me}) — using market")
+                print(f" Maker order failed ({_me}) — using market")
                 order = _exchange_call(
                     exchange.create_order, symbol, "market", side, amount,
                     params={"category": "linear", "positionIdx": 0},
@@ -450,10 +450,10 @@ def execute_trade(
             )
 
         real_order_id = order.get('id', 'unknown')
-        print(f"✅ ОРДЕР ИСПОЛНЕН! ID: {real_order_id}")
+        print(f" ОРДЕР ИСПОЛНЕН! ID: {real_order_id}")
 
         # -------------------------------------------------
-        # 4.5️⃣ Set TP/SL separately (сумісно з Demo та Live)
+        # 4.5⃣ Set TP/SL separately (сумісно з Demo та Live)
         # -------------------------------------------------
         # Перераховуємо TP/SL від реальної ціни виконання (не стейл ticker)
         fill_price = float(order.get('average') or order.get('price') or current_price)
@@ -496,7 +496,7 @@ def execute_trade(
         _tp_sl_set = False
         try:
             exchange.private_post_v5_position_trading_stop(_tp_params)
-            print(f"✅ TP/SL встановлено: TP={_tp_label} SL={sl_price} (fill={fill_price})")
+            print(f" TP/SL встановлено: TP={_tp_label} SL={sl_price} (fill={fill_price})")
             _tp_sl_set = True
         except Exception as e:
             _err = str(e)
@@ -514,7 +514,7 @@ def execute_trade(
                 }
                 try:
                     exchange.private_post_v5_position_trading_stop(_plain_params)
-                    print(f"✅ TP/SL встановлено (без partial): TP={tp_price} SL={sl_price}")
+                    print(f" TP/SL встановлено (без partial): TP={tp_price} SL={sl_price}")
                     _tp_sl_set = True
                 except Exception as e2:
                     if "30208" in str(e2) or "30206" in str(e2):
@@ -528,43 +528,43 @@ def execute_trade(
                                 "stopLoss": str(sl_price),
                                 "slTriggerBy": "MarkPrice",
                             })
-                            print(f"⚠️ TP скіпнуто (30208 — ціна поза межею), SL={sl_price} встановлено")
+                            print(f" TP скіпнуто (30208 — ціна поза межею), SL={sl_price} встановлено")
                             _tp_sl_set = True
                         except Exception as e3:
-                            print(f"❌ TP/SL не вдалося навіть SL-only: {e3}")
+                            print(f" TP/SL не вдалося навіть SL-only: {e3}")
                     else:
-                        print(f"⚠️ TP/SL retry failed: {e2}")
+                        print(f" TP/SL retry failed: {e2}")
             else:
-                print(f"⚠️ TP/SL не вдалося встановити: {e}")
+                print(f" TP/SL не вдалося встановити: {e}")
 
         # Якщо SL не вдалося встановити — закриваємо позицію ринковим ордером.
         # Краще зафіксувати невеликий слiпаж при відкритті, ніж тримати без захисту.
         if not _tp_sl_set:
-            print(f"🚨 SL не встановлено для {coin} — аварійне закриття позиції")
+            print(f" SL не встановлено для {coin} — аварійне закриття позиції")
             try:
                 close_side = "sell" if action.upper() == "LONG" else "buy"
                 exchange.create_order(
                     symbol, "market", close_side, amount,
                     params={"category": "linear", "reduceOnly": True},
                 )
-                print(f"✅ {coin} аварійно закрито (SL fail → immediate close)")
+                print(f" {coin} аварійно закрито (SL fail → immediate close)")
                 send_telegram_message(
-                    f"⚠️ <b>{coin} {action} — аварійне закриття</b>\n"
+                    f" <b>{coin} {action} — аварійне закриття</b>\n"
                     f"SL не вдалося встановити. Позиція закрита щоб уникнути великого збитку.",
                     TG_CHAT_ID
                 )
                 return
             except Exception as close_err:
-                print(f"❌ Аварійне закриття {coin} провалилось: {close_err}")
+                print(f" Аварійне закриття {coin} провалилось: {close_err}")
                 send_telegram_message(
-                    f"🚨 <b>КРИТИЧНО: {coin} без SL!</b>\n"
+                    f" <b>КРИТИЧНО: {coin} без SL!</b>\n"
                     f"TP/SL не встановлено і аварійне закриття провалилось.\n"
                     f"Закрий позицію вручну на Bybit.",
                     TG_CHAT_ID
                 )
 
         # -------------------------------------------------
-        # 4.6️⃣ Trailing stop (нативный Bybit)
+        # 4.6⃣ Trailing stop (нативный Bybit)
         # Активируется после +1% движения в нашу сторону.
         # До активации позицию защищает обычный SL выше.
         # Demo не поддерживает trailingStop — пропускаем.
@@ -591,12 +591,12 @@ def execute_trade(
                     "trailingStop": str(trail_dist),
                     "activePrice": str(active_price),
                 })
-                print(f"✅ Trailing stop: {trail_pct}% дистанция, активируется при {active_price}")
+                print(f" Trailing stop: {trail_pct}% дистанция, активируется при {active_price}")
             except Exception as e:
-                print(f"⚠️ Trailing stop не установлен: {e}")
+                print(f" Trailing stop не установлен: {e}")
 
         # -------------------------------------------------
-        # 4.5️⃣ Track position for position monitor
+        # 4.5⃣ Track position for position monitor
         # -------------------------------------------------
         position_monitor.track_open(symbol=symbol, action=action, entry_price=fill_price,
                                     close_after_min=close_after_min)
@@ -619,13 +619,13 @@ def execute_trade(
             }
             save_trade_context(symbol, _ctx)
         except Exception as _e:
-            print(f"[analyzer] ⚠️ save_trade_context error: {_e}")
+            print(f"[analyzer]  save_trade_context error: {_e}")
 
         # -------------------------------------------------
-        # 5️⃣ Send Telegram notification
+        # 5⃣ Send Telegram notification
         # -------------------------------------------------
         confidence = signal.get("confidence", "?")
-        tag = signal.get("bot_tag", "🚀")
+        tag = signal.get("bot_tag", "")
         _btc_eth_coins_msg = {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
         _trail_pct_msg = 2.5 if coin.upper() in _btc_eth_coins_msg else 3.0
         _trail_active_msg = fill_price * (1.01 if action.upper() == "LONG" else 0.99)
@@ -655,9 +655,9 @@ def execute_trade(
         send_telegram_message(msg, TG_CHAT_ID)
 
     except Exception as e:
-        print(f"❌ ОШИБКА СДЕЛКИ: {e}")
+        print(f" ОШИБКА СДЕЛКИ: {e}")
         error_msg = (
-            f"🚨 <b>ОШИБКА!</b>\n"
+            f" <b>ОШИБКА!</b>\n"
             f"Монета: {coin}\n"
             f"Ошибка: {e}"
         )

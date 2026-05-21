@@ -17,13 +17,13 @@ DB_PATH = "saas_database.sqlite"
 OWNER_USER_ID = 1
 
 BOT_EMOJIS = {
-    "sweep":       "🌊",
-    "fr_extreme":  "💥",
-    "orderblock":  "📦",
-    "orderflow":   "📊",
-    "cascade":     "⚡",
-    "altcoin":     "🪙",
-    "signal":      "📡",
+    "sweep":       "",
+    "fr_extreme":  "",
+    "orderblock":  "",
+    "orderflow":   "",
+    "cascade":     "",
+    "altcoin":     "",
+    "signal":      "",
 }
 
 
@@ -82,21 +82,21 @@ def run_report():
     sign = lambda x: f"+${x:.2f}" if x >= 0 else f"-${abs(x):.2f}"
 
     lines = [
-        f"<b>📈 Щоденний звіт — {now.strftime('%d.%m.%Y %H:%M')} UTC</b>",
+        f"<b> Щоденний звіт — {now.strftime('%d.%m.%Y %H:%M')} UTC</b>",
         "",
     ]
 
     if balance is not None:
-        lines.append(f"💰 <b>Баланс:</b> <code>${balance:,.2f}</code>")
+        lines.append(f" <b>Баланс:</b> <code>${balance:,.2f}</code>")
 
     lines += [
-        f"📂 <b>Відкриті позиції:</b> {open_count}",
+        f" <b>Відкриті позиції:</b> {open_count}",
         "",
         f"<b>Сьогодні ({len(day_trades)} угод):</b> <code>{sign(day_total)}</code>",
     ]
 
     for bot, s in sorted(day_by_bot.items(), key=lambda x: -x[1]["pnl"]):
-        em = BOT_EMOJIS.get(bot, "🤖")
+        em = BOT_EMOJIS.get(bot, "")
         wr = s["wins"] / (s["wins"] + s["losses"]) * 100 if (s["wins"] + s["losses"]) > 0 else 0
         lines.append(
             f"  {em} {bot}: <code>{sign(s['pnl'])}</code>  "
@@ -109,7 +109,7 @@ def run_report():
     ]
 
     for bot, s in sorted(week_by_bot.items(), key=lambda x: -x[1]["pnl"]):
-        em = BOT_EMOJIS.get(bot, "🤖")
+        em = BOT_EMOJIS.get(bot, "")
         wr = s["wins"] / (s["wins"] + s["losses"]) * 100 if (s["wins"] + s["losses"]) > 0 else 0
         lines.append(
             f"  {em} {bot}: <code>{sign(s['pnl'])}</code>  "

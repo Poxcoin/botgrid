@@ -72,7 +72,7 @@ def _post_to_channel(signal: dict, source: str) -> None:
             return
         _channel_cooldown[coin] = now_ts
 
-        d_emoji  = "🟢" if action in ("BUY", "LONG") else "🔴"
+        d_emoji  = "🟢" if action in ("BUY", "LONG") else ""
         d_label  = "LONG" if action in ("BUY", "LONG") else "SHORT"
 
         if source in ("news", "dex"):
@@ -81,16 +81,16 @@ def _post_to_channel(signal: dict, source: str) -> None:
             conf_str = f" · {conf}%" if conf else ""
             is_real_link = link and not link.startswith(("cg://", "liq://", "dex://", "sw://"))
 
-            text  = f"📰 <b>{headline}</b>\n\n"
+            text  = f" <b>{headline}</b>\n\n"
             if snippet:
                 text += f"{snippet}\n\n"
             text += "━━━━━━━━━━━━━━━\n"
             text += f"{d_emoji} <b>{coin}</b> · {d_label}{conf_str}\n"
             if src_name:
-                text += f"📡 {src_name}\n"
+                text += f" {src_name}\n"
             if is_real_link:
-                text += f"\n🔗 <a href=\"{link}\">Full article ↗</a>\n"
-            text += f"\n📲 @KADO_c_BOT"
+                text += f"\n <a href=\"{link}\">Full article ↗</a>\n"
+            text += f"\n @KADO_c_BOT"
 
             send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, image_url)
 
@@ -99,11 +99,11 @@ def _post_to_channel(signal: dict, source: str) -> None:
             side_text = "shorts liquidated" if action in ("BUY", "LONG") else "longs liquidated"
             momentum  = "bullish continuation" if action in ("BUY", "LONG") else "bearish continuation"
             text = (
-                f"💥 <b>LIQUIDATION CASCADE</b>\n\n"
+                f" <b>LIQUIDATION CASCADE</b>\n\n"
                 f"<b>${cascade_m:.0f}M</b> in <b>{coin}</b> {side_text} — {momentum}\n\n"
                 f"━━━━━━━━━━━━━━━\n"
                 f"{d_emoji} <b>{coin}</b> · {d_label} · <b>${cascade_m:.0f}M</b> cascade\n\n"
-                f"📲 @KADO_c_BOT"
+                f" @KADO_c_BOT"
             )
             send_telegram_message(text, TELEGRAM_CHANNEL_ID)
 
@@ -116,23 +116,23 @@ def _post_to_channel(signal: dict, source: str) -> None:
             else:
                 detail = f"longs paying {abs(fr):.4f}% → market overheated, short-side edge"
             text = (
-                f"💰 <b>FUNDING RATE OPPORTUNITY</b>\n\n"
+                f" <b>FUNDING RATE OPPORTUNITY</b>\n\n"
                 f"<b>{coin}</b> · FR <b>{fr:+.4f}%</b>\n"
                 f"{detail}\n"
                 f"Funding settlement in <b>{mins} min</b>\n\n"
                 f"━━━━━━━━━━━━━━━\n"
                 f"{d_emoji} <b>{coin}</b> · {d_label}\n\n"
-                f"📲 @KADO_c_BOT"
+                f" @KADO_c_BOT"
             )
             send_telegram_message(text, TELEGRAM_CHANNEL_ID)
 
         else:
             headline = (title[:120] if title else f"{coin} market signal").upper()
             text = (
-                f"📊 <b>{headline}</b>\n\n"
+                f" <b>{headline}</b>\n\n"
                 f"{d_emoji} <b>{coin}</b> · {d_label}\n"
-                f"📡 {src_name or source.upper()}\n\n"
-                f"📲 @KADO_c_BOT"
+                f" {src_name or source.upper()}\n\n"
+                f" @KADO_c_BOT"
             )
             send_telegram_message(text, TELEGRAM_CHANNEL_ID)
 
@@ -285,15 +285,15 @@ def _tg_pnl_summary() -> str:
         today_wins = sum(1 for r in today_closed if (r["pnl_usdt"] or 0) > 0)
         today_wr = today_wins / max(len(today_closed), 1) * 100
 
-        icon = "📈" if total_pnl >= 0 else "📉"
-        today_icon = "📈" if today_pnl >= 0 else "📉"
+        icon = "" if total_pnl >= 0 else ""
+        today_icon = "" if today_pnl >= 0 else ""
 
         lines = [
             f"{icon} <b>PnL Статистика</b>\n",
             f"{today_icon} Сьогодні: <b>{today_pnl:+.2f}$</b> | WR {today_wr:.0f}% ({len(today_closed)} угод)",
-            f"📅 7 днів: <b>{week_pnl:+.2f}$</b>",
-            f"📊 Всього: <b>{total_pnl:+.2f}$</b> | WR {wr:.0f}% ({total} угод)",
-            f"🔄 Відкрито: {open_count}",
+            f" 7 днів: <b>{week_pnl:+.2f}$</b>",
+            f" Всього: <b>{total_pnl:+.2f}$</b> | WR {wr:.0f}% ({total} угод)",
+            f" Відкрито: {open_count}",
         ]
 
         if coin_stats:
@@ -301,12 +301,12 @@ def _tg_pnl_summary() -> str:
             for r in coin_stats:
                 wr_c = (r["wins"] / max(r["total"], 1)) * 100
                 pnl_c = r["pnl"] or 0
-                ci = "✅" if pnl_c >= 0 else "❌"
+                ci = "" if pnl_c >= 0 else ""
                 lines.append(f"{ci} {r['coin']}: {pnl_c:+.1f}$ | {wr_c:.0f}% ({r['total']})")
 
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка БД: {e}"
+        return f" Помилка БД: {e}"
 
 
 def _tg_trades(n: int = 7) -> str:
@@ -322,15 +322,15 @@ def _tg_trades(n: int = 7) -> str:
         con.close()
         if not rows:
             return "Немає закритих угод."
-        lines = ["📋 <b>Останні угоди</b>\n"]
+        lines = [" <b>Останні угоди</b>\n"]
         for r in rows:
             pnl = r["pnl_usdt"] or 0
-            icon = "✅" if pnl > 0 else "❌"
+            icon = "" if pnl > 0 else ""
             date = (r["timestamp_open"] or "")[:10]
             lines.append(f"{icon} {r['coin']} {r['action']} | <b>{pnl:+.2f}$</b> | {date}")
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка: {e}"
+        return f" Помилка: {e}"
 
 
 def _tg_signals() -> str:
@@ -346,15 +346,15 @@ def _tg_signals() -> str:
         total = con.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
         executed = con.execute("SELECT COUNT(*) FROM signals WHERE executed=1").fetchone()[0]
         con.close()
-        lines = [f"🧠 <b>Сигнали</b> (всього {total}, виконано {executed})\n"]
+        lines = [f" <b>Сигнали</b> (всього {total}, виконано {executed})\n"]
         for s in rows:
             score = s["total_score"] or 0
-            icon = "📈" if score > 0 else "📉"
+            icon = "" if score > 0 else ""
             date = (s["timestamp"] or "")[:16]
             lines.append(f"{icon} {s['coin']} {s['action']} score={score:+.1f} conf={s['confidence']}% | {date}")
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка: {e}"
+        return f" Помилка: {e}"
 
 
 def _tg_open_positions() -> str:
@@ -369,9 +369,9 @@ def _tg_open_positions() -> str:
         ).fetchall()
         con.close()
         if not rows:
-            return "✅ Немає відкритих позицій."
+            return " Немає відкритих позицій."
         now = datetime.now(timezone.utc)
-        lines = [f"🔄 <b>Відкриті позиції ({len(rows)})</b>\n"]
+        lines = [f" <b>Відкриті позиції ({len(rows)})</b>\n"]
         for r in rows:
             age = ""
             try:
@@ -380,10 +380,10 @@ def _tg_open_positions() -> str:
                 age = f"{mins}хв"
             except Exception:
                 pass
-            lines.append(f"🔄 {r['coin']} {r['action']} | вхід {r['entry_price']} | {age}")
+            lines.append(f" {r['coin']} {r['action']} | вхід {r['entry_price']} | {age}")
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка: {e}"
+        return f" Помилка: {e}"
 
 
 def handle_telegram_commands(processed_updates):
@@ -419,30 +419,30 @@ def handle_telegram_commands(processed_updates):
                         if resp.status_code == 200:
                             data = resp.json()
                             send_telegram_message(
-                                f"✅ <b>Аккаунт привязан!</b>\n\n"
-                                f"👤 {data.get('username', '')}\n"
-                                f"📧 {data.get('email', '')}\n\n"
+                                f" <b>Аккаунт привязан!</b>\n\n"
+                                f" {data.get('username', '')}\n"
+                                f" {data.get('email', '')}\n\n"
                                 f"Теперь ты будешь получать уведомления от своего бота здесь.",
                                 chat_id
                             )
                         else:
                             send_telegram_message(
-                                "❌ Ссылка недействительна или истекла.\n\nПолучи новую ссылку в личном кабинете на kadoclub.net",
+                                " Ссылка недействительна или истекла.\n\nПолучи новую ссылку в личном кабинете на kadoclub.net",
                                 chat_id
                             )
                     except Exception as e:
-                        send_telegram_message("❌ Ошибка сервера. Попробуй позже.", chat_id)
+                        send_telegram_message(" Ошибка сервера. Попробуй позже.", chat_id)
             continue
 
         if text == "/status":
             svcs = ["crypto-web", "crypto-sniper", "crypto-grid", "crypto-bot"]
             import subprocess
-            lines = ["🖥 <b>Статус сервісів</b>\n"]
+            lines = [" <b>Статус сервісів</b>\n"]
             for s in svcs:
                 r = subprocess.run(["systemctl", "is-active", s], capture_output=True, text=True)
                 st = r.stdout.strip()
-                lines.append(f"{'✅' if st == 'active' else '❌'} {s}: {st}")
-            lines.append(f"\n🕐 {datetime.now().strftime('%H:%M:%S UTC')}")
+                lines.append(f"{'' if st == 'active' else ''} {s}: {st}")
+            lines.append(f"\n {datetime.now().strftime('%H:%M:%S UTC')}")
             send_telegram_message("\n".join(lines), chat_id)
 
         elif text == "/balance":
@@ -452,7 +452,7 @@ def handle_telegram_commands(processed_updates):
                 ex.urls["api"] = ex.urls["demotrading"]
             ex.options["adjustForTimeDifference"] = True
             balance = get_free_usdt(ex)
-            send_telegram_message(f"💰 <b>Баланс Bybit:</b> {balance} USDT", chat_id)
+            send_telegram_message(f" <b>Баланс Bybit:</b> {balance} USDT", chat_id)
 
         elif text == "/pnl":
             send_telegram_message(_tg_pnl_summary(), chat_id)
@@ -470,7 +470,7 @@ def handle_telegram_commands(processed_updates):
 
         elif text in ("/start", "/help") or (text.startswith("/start") and len(text.split()) == 1):
             send_telegram_message(
-                "👋 <b>KADO Trading Bot</b>\n\n"
+                " <b>KADO Trading Bot</b>\n\n"
                 "/status — сервісы\n"
                 "/balance — баланс Bybit\n"
                 "/pnl — прибыль/убыток\n"
@@ -565,7 +565,7 @@ def run_signal_engine():
     Бесконечный цикл Движка (Сердца).
     Работает 24/7: ищет новости -> считает математику -> сохраняет сигналы.
     """
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] 🚀 SIGNAL ENGINE ЗАПУЩЕН! Поиск альткоинов...\n")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}]  SIGNAL ENGINE ЗАПУЩЕН! Поиск альткоинов...\n")
 
     # ─── Инициализация guard-модулей ──────────────────────────────────────────
     try:
@@ -583,12 +583,12 @@ def run_signal_engine():
         _withdraw_perm = _perms.get("Wallet", [])
         if "AccountTransfer" in _withdraw_perm or "SubMemberTransferOut" in _withdraw_perm:
             send_telegram_message(
-                "⚠️ <b>Bybit API Security Warning!</b>\n"
+                " <b>Bybit API Security Warning!</b>\n"
                 "Поточний API ключ має права на вивід/переказ коштів.\n"
                 "Рекомендується: створити окремий ключ БЕЗ Wallet permissions.",
                 TG_CHAT_ID
             )
-            print("[SECURITY] ⚠️  API key has Wallet/transfer permissions — рекомендується обмежити!")
+            print("[SECURITY]   API key has Wallet/transfer permissions — рекомендується обмежити!")
     except Exception:
         pass  # API info недоступна — не блокуємо запуск
 
@@ -617,9 +617,9 @@ def run_signal_engine():
     start_rss_archiver()
 
     sources = "Binance/Bybit Announcements + Telegram"
-    sig_mode = "📊 збір статистики (торгівля вимкнена)" if not SIGNAL_BOT_TRADING else "⚡ активна торгівля"
+    sig_mode = " збір статистики (торгівля вимкнена)" if not SIGNAL_BOT_TRADING else " активна торгівля"
     send_telegram_message(
-        f"🚀 <b>BotGrid запущен</b>\n"
+        f" <b>BotGrid запущен</b>\n"
         f"Джерела: {sources}\n"
         f"Signal бот: {sig_mode}\n"
         f"Grid бот: SOL / ETH / BTC активний",
@@ -719,15 +719,15 @@ def run_signal_engine():
             _has_input  = ann_count or tg_count or dex_count or smart_count or cg_count or opt_count
             _now_scan   = time.time()
             if _has_input:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування" +
-                      (f" | 🔔 {ann_count} анонсів" if ann_count else "") +
+                print(f"[{datetime.now().strftime('%H:%M:%S')}]  Сканування" +
+                      (f" |  {ann_count} анонсів" if ann_count else "") +
                       (f" | TG: {tg_count}" if tg_count else "") +
                       (f" | DEX: {dex_count}" if dex_count else "") +
-                      (f" | 🐳 Smart: {smart_count}" if smart_count else "") +
-                      (f" | 📈 CG: {cg_count}" if cg_count else "") + "...")
+                      (f" |  Smart: {smart_count}" if smart_count else "") +
+                      (f" |  CG: {cg_count}" if cg_count else "") + "...")
                 last_scan_log_time = _now_scan
             elif _now_scan - last_scan_log_time >= 60:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 📡 Сканування...")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}]  Сканування...")
                 last_scan_log_time = _now_scan
 
             # Пріоритет: Анонси > Options Flow > Smart Wallets > TG > DEX > CoinGecko
@@ -749,7 +749,7 @@ def run_signal_engine():
                 if news_item.get("is_listing"):
                     continue  # лістинги обробляє crypto-alt (уникаємо double-trade)
                 elif news_item.get("is_whale_alert"):
-                    print(f"   🐋 Whale Alert: {news_item['title'][:60]}...")
+                    print(f"    Whale Alert: {news_item['title'][:60]}...")
                     signal = generate_whale_signal(news_item)
                 elif news_item.get("is_smart_wallet"):
                     # Smart wallet ETH accumulation → scan ETH-ecosystem alts, bypass AI
@@ -770,7 +770,7 @@ def run_signal_engine():
                         _signal_duplicates[dedup_key] = min(dup_count, 5)  # cap at 5× max boost
                         if dup_count >= 2:
                             signal["total_score"] = signal["total_score"] * (1 + min(dup_count, 5) * 0.3)
-                            print(f"   🔥 Дубль x{dup_count}: {dedup_key[0]} {dedup_key[1]} — score підсилено до {signal['total_score']:.1f}")
+                            print(f"    Дубль x{dup_count}: {dedup_key[0]} {dedup_key[1]} — score підсилено до {signal['total_score']:.1f}")
                         else:
                             print(f"   ⏭ Дубль сигнала {dedup_key[1]} {dedup_key[0]} — пропускаємо")
                             continue
@@ -789,7 +789,7 @@ def run_signal_engine():
 
                     if signal['action'] in ["LONG", "SHORT", "SELL_ALL"]:
                         print("\n==================================")
-                        print(f"🚨 АХТУНГ! НАЙДЕН РЕАЛЬНЫЙ ТРЕЙД!")
+                        print(f" АХТУНГ! НАЙДЕН РЕАЛЬНЫЙ ТРЕЙД!")
                         print(json.dumps(signal, indent=2, ensure_ascii=False))
                         print("==================================\n")
                         
@@ -808,7 +808,7 @@ def run_signal_engine():
                                 existing_action = tracked[symbol_key].get("action", "")
                                 if existing_action and existing_action != signal["action"]:
                                     # Протилежний сигнал — закриваємо існуючу позицію
-                                    print(f"[SIGNAL] 🔄 Протилежний сигнал для {coin}: закриваємо {existing_action}, готуємо {signal['action']}")
+                                    print(f"[SIGNAL]  Протилежний сигнал для {coin}: закриваємо {existing_action}, готуємо {signal['action']}")
                                     try:
                                         ex = _init_exchange()
                                         sym = f"{coin.upper()}/USDT:USDT"
@@ -821,10 +821,10 @@ def run_signal_engine():
                                             ex.create_order(sym, "market", close_side, contracts,
                                                 params={"category": "linear", "reduceOnly": True})
                                             untrack(sym)
-                                            print(f"[SIGNAL] ✅ {coin} закрито, входимо в {signal['action']}")
+                                            print(f"[SIGNAL]  {coin} закрито, входимо в {signal['action']}")
                                             _coin_cooldown[coin] = 0  # скидаємо cooldown щоб одразу відкрити нову
                                     except Exception as e:
-                                        print(f"[SIGNAL] ❌ Помилка закриття {coin}: {e}")
+                                        print(f"[SIGNAL]  Помилка закриття {coin}: {e}")
 
                             last_ts = _coin_cooldown.get(coin, 0)
                             if now_ts - last_ts < COIN_COOLDOWN_SEC:
@@ -840,7 +840,7 @@ def run_signal_engine():
                                         # Грубая оценка: N открытых позиций * средний размер 5%
                                         _estimated_exposure_pct = open_count * 5.0
                                         if _estimated_exposure_pct >= MAX_EXPOSURE_PCT:
-                                            print(f"⚠️ ЭКСПОЗИЦИЯ: ~{_estimated_exposure_pct:.0f}% баланса в {open_count} позициях — лимит {MAX_EXPOSURE_PCT}%, пропускаем")
+                                            print(f" ЭКСПОЗИЦИЯ: ~{_estimated_exposure_pct:.0f}% баланса в {open_count} позициях — лимит {MAX_EXPOSURE_PCT}%, пропускаем")
                                             continue
                                     except Exception:
                                         pass
@@ -865,10 +865,10 @@ def run_signal_engine():
                                 _btc_2h = get_btc_2h_change()
                                 _is_alt = coin.upper() not in _btc_eth
                                 if _is_alt and signal["action"] == "LONG" and _btc_2h < -2.5:
-                                    print(f"🚫 BTC correlation filter: BTC {_btc_2h:.1f}% за 2h — LONG {coin} заблокирован")
+                                    print(f" BTC correlation filter: BTC {_btc_2h:.1f}% за 2h — LONG {coin} заблокирован")
                                     continue
                                 if _is_alt and signal["action"] == "SHORT" and _btc_2h > 2.5:
-                                    print(f"🚫 BTC correlation filter: BTC +{_btc_2h:.1f}% за 2h — SHORT {coin} заблокирован")
+                                    print(f" BTC correlation filter: BTC +{_btc_2h:.1f}% за 2h — SHORT {coin} заблокирован")
                                     continue
 
                                 # Adaptive post-trade filter
@@ -880,7 +880,7 @@ def run_signal_engine():
                                 if _score_boost > 0:
                                     _base_min = 13.0 if coin.upper() in _btc_eth_local else 11.0
                                     if abs(signal["total_score"]) < _base_min + _score_boost:
-                                        print(f"⚙️ {coin}: адаптивний поріг {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не пройшов")
+                                        print(f" {coin}: адаптивний поріг {_base_min + _score_boost:.1f} — скор {signal['total_score']:.1f} не пройшов")
                                         continue
 
                                 # Session bias modifier
@@ -888,16 +888,16 @@ def run_signal_engine():
                                 if _bias["value"] != "neutral" and time.time() - _bias["updated_at"] < 14400:
                                     if _bias["value"] == "bearish" and signal.get("action") == "LONG":
                                         signal["total_score"] -= 1.0
-                                        print(f"🌐 {coin}: session bearish ({_bias['session']}) → score {signal['total_score']:.1f}")
+                                        print(f" {coin}: session bearish ({_bias['session']}) → score {signal['total_score']:.1f}")
                                     elif _bias["value"] == "bullish" and signal.get("action") == "LONG":
                                         signal["total_score"] = min(signal["total_score"] + 0.5, 15.0)
-                                        print(f"🌐 {coin}: session bullish ({_bias['session']}) → score {signal['total_score']:.1f}")
+                                        print(f" {coin}: session bullish ({_bias['session']}) → score {signal['total_score']:.1f}")
 
                                 # Safety: explicit min-score guard
                                 _is_sm_guard = str(signal.get("source", "")).startswith("Smart Wallet")
                                 _min_safe = 6.0 if _is_sm_guard else (9.0 if coin.upper() in _btc_eth_local else 7.5)
                                 if abs(signal['total_score']) < _min_safe:
-                                    print(f"⛔ {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
+                                    print(f" {coin}: score {signal['total_score']:.1f} < min {_min_safe} — safety filter пропускаємо")
                                     continue
 
                                 # OI context (Binance 1h) + delta filter
@@ -906,25 +906,25 @@ def run_signal_engine():
                                     if _oi_ctx:
                                         if _oi_ctx.get("signal") == "coil" and signal["action"] == "LONG":
                                             signal["total_score"] = min(signal["total_score"] + 1.0, 15.0)
-                                            print(f"📈 {coin}: OI coil (+{_oi_ctx['oi_1h_pct']:.1f}%/1h, ціна flat) → score {signal['total_score']:.1f}")
+                                            print(f" {coin}: OI coil (+{_oi_ctx['oi_1h_pct']:.1f}%/1h, ціна flat) → score {signal['total_score']:.1f}")
                                         elif _oi_ctx.get("signal") == "unwind":
                                             signal["total_score"] -= 2.0
-                                            print(f"📉 {coin}: OI unwind ({_oi_ctx['oi_1h_pct']:.1f}%/1h) → score {signal['total_score']:.1f}")
+                                            print(f" {coin}: OI unwind ({_oi_ctx['oi_1h_pct']:.1f}%/1h) → score {signal['total_score']:.1f}")
                                         _basis = _oi_ctx.get("basis_pct", 0)
                                         if _basis > 0.3 and signal["action"] == "LONG":
                                             signal["total_score"] -= 0.5
-                                            print(f"⚠️ {coin}: basis {_basis:+.2f}% (перегрів лонгів) → score {signal['total_score']:.1f}")
+                                            print(f" {coin}: basis {_basis:+.2f}% (перегрів лонгів) → score {signal['total_score']:.1f}")
                                     _oi_sym = f"{coin.upper()}/USDT:USDT"
                                     _oi_delta = fetch_oi_delta(_oi_sym)
                                     if _oi_delta < -0.3:
                                         signal["total_score"] -= 1.5
-                                        print(f"📉 {coin}: OI delta {_oi_delta:+.3f}% (позиції закриваються) → score {signal['total_score']:.1f}")
+                                        print(f" {coin}: OI delta {_oi_delta:+.3f}% (позиції закриваються) → score {signal['total_score']:.1f}")
                                         if abs(signal["total_score"]) < _min_safe:
-                                            print(f"⛔ {coin}: після OI filter score {signal['total_score']:.1f} < min {_min_safe} — пропускаємо")
+                                            print(f" {coin}: після OI filter score {signal['total_score']:.1f} < min {_min_safe} — пропускаємо")
                                             continue
                                     elif _oi_delta > 0.3:
                                         signal["total_score"] = min(signal["total_score"] + 0.5, 15.0)
-                                        print(f"📈 {coin}: OI delta {_oi_delta:+.3f}% (нові позиції) → score {signal['total_score']:.1f}")
+                                        print(f" {coin}: OI delta {_oi_delta:+.3f}% (нові позиції) → score {signal['total_score']:.1f}")
                                 except Exception:
                                     pass  # OI недоступний — продовжуємо без фільтру
 
@@ -937,7 +937,7 @@ def run_signal_engine():
                                     "BITCOIN", "ETHEREUM", "SOLANA", "BINANCE COIN",
                                 }
                                 if coin.upper() in _TRADE_BLACKLIST:
-                                    print(f"⛔ {coin}: заблоковано (grid/FR покривають, news не вспіває)")
+                                    print(f" {coin}: заблоковано (grid/FR покривають, news не вспіває)")
                                     continue
 
                                 # Денний ліміт угод на монету
@@ -948,7 +948,7 @@ def run_signal_engine():
                                 _is_btc_eth_daily = coin.upper() in {"BTC", "ETH", "BITCOIN", "ETHEREUM"}
                                 _max_daily = MAX_DAILY_TRADES_BTC_ETH if _is_btc_eth_daily else MAX_DAILY_TRADES_ALT
                                 if _dc["count"] >= _max_daily:
-                                    print(f"📅 {coin}: денний ліміт {_max_daily} угод вичерпано — пропускаємо")
+                                    print(f" {coin}: денний ліміт {_max_daily} угод вичерпано — пропускаємо")
                                     continue
 
                                 # Всі фільтри пройдено — тільки тепер ставимо cooldown і рахуємо
@@ -964,7 +964,7 @@ def run_signal_engine():
                                     _bal_now = 0.0
                                 if not daily_guard.check(current_balance=_bal_now):
                                     send_telegram_message(
-                                        "🛑 <b>Circuit breaker!</b> Денний ліміт збитків досягнуто. "
+                                        " <b>Circuit breaker!</b> Денний ліміт збитків досягнуто. "
                                         "Торгівля зупинена до UTC 00:00.",
                                         TG_CHAT_ID
                                     )
@@ -973,25 +973,25 @@ def run_signal_engine():
                                 # execute_trade removed 2026-05-21 — owner double-position bug.
                                 # Listings strategy retired 2026-05-21 — see project-strategy-roadmap memory.
                                 if not SIGNAL_BOT_TRADING:
-                                    print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
+                                    print(f" [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
                                 elif signal.get("is_listing"):
                                     print(f"⏭ Listing signal for {coin} — skipped (strategy retired, see roadmap)")
                                 elif coin.upper() not in _btc_eth:
                                     mkt = signal.get("_market", {})
                                     vol = mkt.get("quote_volume_24h", 0) if mkt else 0
                                     if vol > 0 and vol < MIN_ALTCOIN_VOLUME_USD:
-                                        print(f"⚠️ {coin} об'єм ${vol/1e6:.1f}M < $5M — пропускаємо")
+                                        print(f" {coin} об'єм ${vol/1e6:.1f}M < $5M — пропускаємо")
                                     else:
                                         dyn_lev = _dynamic_leverage(signal, is_btc_eth=False)
                                         _src = "dex" if news_item.get("is_dex_spike") else "news"
-                                        print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
+                                        print(f" Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
                                         _saas_dispatch(signal, _src,
                                             dyn_lev, ALT_TP, ALT_SL, ALT_SIZE)
                                         _post_to_channel(signal, _src)
                                 else:
                                     dyn_lev = _dynamic_leverage(signal, is_btc_eth=True)
                                     _src = "dex" if news_item.get("is_dex_spike") else "news"
-                                    print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
+                                    print(f" Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
                                     _saas_dispatch(signal, _src,
                                         dyn_lev, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
                                     _post_to_channel(signal, _src)
@@ -1023,15 +1023,15 @@ def run_signal_engine():
                 # BTC кореляційний фільтр (жорсткіший: ±3%)
                 _btc_2h_liq = get_btc_2h_change()
                 if liq_sig["action"] == "LONG" and _btc_2h_liq < -3.0:
-                    print(f"[LIQ] 🚫 BTC {_btc_2h_liq:.1f}% за 2h — LONG {coin} заблокований")
+                    print(f"[LIQ]  BTC {_btc_2h_liq:.1f}% за 2h — LONG {coin} заблокований")
                     continue
                 if liq_sig["action"] == "SHORT" and _btc_2h_liq > 3.0:
-                    print(f"[LIQ] 🚫 BTC +{_btc_2h_liq:.1f}% за 2h — SHORT {coin} заблокований")
+                    print(f"[LIQ]  BTC +{_btc_2h_liq:.1f}% за 2h — SHORT {coin} заблокований")
                     continue
 
                 # Ліміт відкритих позицій
                 if position_monitor.get_tracked_count() * 5.0 >= MAX_EXPOSURE_PCT:
-                    print(f"[LIQ] ⚠️ Ліміт експозиції — пропускаємо {coin}")
+                    print(f"[LIQ]  Ліміт експозиції — пропускаємо {coin}")
                     continue
 
                 # Денний ліміт
@@ -1040,7 +1040,7 @@ def run_signal_engine():
                 if _dc_liq["date"] != _today:
                     _dc_liq = {"count": 0, "date": _today}
                 if _dc_liq["count"] >= MAX_DAILY_TRADES_ALT:
-                    print(f"[LIQ] 📅 {coin}: денний ліміт вичерпано")
+                    print(f"[LIQ]  {coin}: денний ліміт вичерпано")
                     continue
 
                 _coin_cooldown[coin] = now_ts
@@ -1049,11 +1049,11 @@ def run_signal_engine():
                 save_cooldown(_coin_cooldown)
 
                 signal_id = save_signal(liq_sig, executed=False)
-                print(f"\n[LIQ] ⚡ CASCADE TRADE: {coin} {liq_sig['action']} "
+                print(f"\n[LIQ]  CASCADE TRADE: {coin} {liq_sig['action']} "
                       f"cascade=${liq_sig['cascade_usd']/1e6:.2f}M score={liq_sig['total_score']:.1f}")
 
                 if not SIGNAL_BOT_TRADING:
-                    print(f"📊 [LIQ] {coin} {liq_sig['action']} — статистика (торгівля вимкнена)")
+                    print(f" [LIQ] {coin} {liq_sig['action']} — статистика (торгівля вимкнена)")
                     continue
 
                 # execute_trade removed 2026-05-21 — owner double-position bug
@@ -1076,13 +1076,13 @@ def run_signal_engine():
             save_ledger(signal_ledger)
             break
         except Exception as e:
-            print(f"❌ Ошибка: {e}")
+            print(f" Ошибка: {e}")
             # Отправляем в TG не чаще 1 раза в 5 минут (антиспам)
             now = time.time()
             if now - last_error_tg_time > 300:
                 last_error_tg_time = now
                 send_telegram_message(
-                    f"❌ <b>BotGrid — критическая ошибка</b>\n<code>{str(e)[:300]}</code>",
+                    f" <b>BotGrid — критическая ошибка</b>\n<code>{str(e)[:300]}</code>",
                     TG_CHAT_ID
                 )
             time.sleep(10)

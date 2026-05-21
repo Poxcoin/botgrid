@@ -105,12 +105,12 @@ def simulate_trade(coin: str, action: str, signal_ts_ms: int,
     symbol = f"{coin}/USDT"
     try:
         if symbol not in _binance.markets:
-            print(f"    ⚠ {coin}: нет пары на Binance")
+            print(f"     {coin}: нет пары на Binance")
             return None
 
         ohlcv = _binance.fetch_ohlcv(symbol, "15m", since=signal_ts_ms, limit=302)
         if len(ohlcv) < 2:
-            print(f"    ⚠ {coin}: нет OHLCV данных за этот период")
+            print(f"     {coin}: нет OHLCV данных за этот период")
             return None
 
         tp_pct, sl_pct, size_pct, leverage = _coin_params(coin, abs(score))
@@ -450,7 +450,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
         if action == "LONG" and coin not in BTC_MAJORS:
             btc_chg = _btc_2h_change(article["timestamp_ms"])
             if btc_chg < BTC_DUMP_THRESH:
-                print(f"  🚫 BTC_FILTER {coin:<5} BTC={btc_chg:+.1f}%  «{article['title'][:45]}»")
+                print(f"   BTC_FILTER {coin:<5} BTC={btc_chg:+.1f}%  «{article['title'][:45]}»")
                 n_btc_filtered += 1
                 continue
 
@@ -479,7 +479,7 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
                 d["losses"] += 1
             d["pnl"] += trade["pnl"]
 
-        icon  = "✅" if trade["result"] == "WIN" else "❌"
+        icon  = "" if trade["result"] == "WIN" else ""
         ptag  = "½TP" if trade["partial_tp"] else "   "
         pnl_s = f"+${trade['pnl']:.2f}" if trade["pnl"] >= 0 else f"-${abs(trade['pnl']):.2f}"
         lev_s = f"{trade['leverage']}x"
@@ -550,8 +550,8 @@ def run_replay(days: int, min_score: float, use_newsapi: bool,
                 ps = f"+${s['pnl']:.2f}" if s["pnl"] >= 0 else f"-${abs(s['pnl']):.2f}"
                 print(f"    {m}  {t2:2d} trades  WR={wr2:.0f}%  PnL={ps}")
 
-        verdict = "✅ СТРАТЕГІЯ ПРИБУТКОВА" if profit > 0 and wr > bew \
-                  else "⚠️  Потребує доопрацювання"
+        verdict = " СТРАТЕГІЯ ПРИБУТКОВА" if profit > 0 and wr > bew \
+                  else "  Потребує доопрацювання"
         print(f"\n  {verdict}")
     else:
         print(f"\n  Сделок нет — score не достиг {min_score} ни разу.")

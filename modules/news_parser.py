@@ -353,6 +353,6 @@ if __name__ == "__main__":
     news = get_aggregated_news()
     print(f"Время: {time.time() - start:.2f}s | Статей: {len(news)}\n")
     for n in news[:20]:
-        tag = "🚨" if n["is_panic"] else "✅"
-        img = "🖼" if n.get("image_url") else "  "
+        tag = "" if n["is_panic"] else ""
+        img = "" if n.get("image_url") else "  "
         print(f"{tag}{img} [{n['source_url'].split('/')[2][:20]:20}] {n['title'][:80]}")

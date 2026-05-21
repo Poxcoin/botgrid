@@ -111,7 +111,7 @@ def _on_message(ws, message):
 
         usd_est = value * 2000  # груба оцінка, ETH ~$2000
         print(
-            f"[SMART] 🐳 {wallet_label} ({tx_from[:8]}...) "
+            f"[SMART]  {wallet_label} ({tx_from[:8]}...) "
             f"{direction}: {value:.1f} ETH (~${usd_est/1e3:.0f}k)"
         )
 
@@ -176,7 +176,7 @@ def _on_open(ws):
         ],
     })
     ws.send(sub)
-    print(f"[SMART] ✅ Підписка на {len(SMART_WALLETS)} smart money адрес (hashesOnly)")
+    print(f"[SMART]  Підписка на {len(SMART_WALLETS)} smart money адрес (hashesOnly)")
 
 
 def _ws_loop():
@@ -202,9 +202,9 @@ def _ws_loop():
 
 def start_smart_wallet_tracker() -> threading.Thread:
     if not ALCHEMY_API_KEY:
-        print("[SMART] ⚠️ ALCHEMY_API_KEY не задано — smart wallet tracker вимкнено")
+        print("[SMART]  ALCHEMY_API_KEY не задано — smart wallet tracker вимкнено")
         return None
     t = threading.Thread(target=_ws_loop, daemon=True, name="smart-wallet-tracker")
     t.start()
-    print(f"[SMART] 🔍 Smart Wallet Tracker запущено | {len(SMART_WALLETS)} адрес")
+    print(f"[SMART]  Smart Wallet Tracker запущено | {len(SMART_WALLETS)} адрес")
     return t

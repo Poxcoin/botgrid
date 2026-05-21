@@ -621,10 +621,10 @@ def _monitor_position(w3, account, token_address: str):
                 duration_min = int((time.time() - bought_at) / 60)
                 bnb_received = result["bnb_received"] if result else 0.0
                 pnl_bnb = bnb_received - info.get("amount_in_bnb", SNIPER_BUY_AMOUNT_BNB)
-                icon = "📈" if pnl_bnb >= 0 else "📉"
+                icon = "" if pnl_bnb >= 0 else ""
 
                 msg = (
-                    f"{'🔴' if pnl_bnb < 0 else '🟢'} <b>SNIPER SELL:</b> <code>{token_address}</code>\n"
+                    f"{'' if pnl_bnb < 0 else '🟢'} <b>SNIPER SELL:</b> <code>{token_address}</code>\n"
                     f"{icon} PnL: {pnl_bnb:+.4f} BNB ({pnl_pct:+.1f}%)\n"
                     f"⏱ Тривалість: {duration_min} хв\n"
                     f"Причина: {reason}"
@@ -695,7 +695,7 @@ def _handle_new_pair(w3, account, event):
     if not buy_result:
         logger.warning("BUY FAILED for %s", token_address)
         send_telegram_message(
-            f"❌ <b>SNIPER BUY FAILED:</b> <code>{token_address}</code>",
+            f" <b>SNIPER BUY FAILED:</b> <code>{token_address}</code>",
             TG_CHAT_ID,
         )
         return
@@ -713,12 +713,12 @@ def _handle_new_pair(w3, account, event):
 
     lp_info = f" | LP locked {safety.get('lp_locked_pct', 0):.0f}%" if safety.get('lp_locked_pct') else ""
     msg = (
-        f"🎯 <b>SNIPER BUY:</b> <code>{token_address}</code>\n"
-        f"💰 Витрачено: {buy_result['amount_in']:.4f} BNB\n"
-        f"📊 Ліквідність: {float(liquidity_bnb):.1f} BNB{lp_info}\n"
-        f"✅ Safety: {safety['reason']} "
+        f" <b>SNIPER BUY:</b> <code>{token_address}</code>\n"
+        f" Витрачено: {buy_result['amount_in']:.4f} BNB\n"
+        f" Ліквідність: {float(liquidity_bnb):.1f} BNB{lp_info}\n"
+        f" Safety: {safety['reason']} "
         f"(buy {safety['buy_tax']:.1f}% / sell {safety['sell_tax']:.1f}%)\n"
-        f"🕵️ Deployer: {deployer['reason']}\n"
+        f" Deployer: {deployer['reason']}\n"
         f"Pair: <code>{pair}</code>"
     )
     send_telegram_message(msg, TG_CHAT_ID)
@@ -809,7 +809,7 @@ def run_sniper():
                 )
 
             send_telegram_message(
-                f"🎯 <b>DEX Sniper запущено</b>\n"
+                f" <b>DEX Sniper запущено</b>\n"
                 f"Wallet: <code>{account.address}</code>\n"
                 f"Balance: {float(bnb_balance):.4f} BNB\n"
                 f"Buy: {SNIPER_BUY_AMOUNT_BNB} BNB | TP: +{SNIPER_TAKE_PROFIT_PCT:.0f}% | "
@@ -868,14 +868,14 @@ def run_sniper():
 
         except KeyboardInterrupt:
             logger.info("DEX Sniper зупинено користувачем.")
-            send_telegram_message("🛑 <b>DEX Sniper зупинено</b>", TG_CHAT_ID)
+            send_telegram_message(" <b>DEX Sniper зупинено</b>", TG_CHAT_ID)
             break
 
         except Exception as exc:
             logger.error("DEX Sniper помилка з'єднання: %s", exc)
             ts = datetime.now().strftime("%H:%M:%S")
             send_telegram_message(
-                f"❌ <b>DEX Sniper — помилка з'єднання</b>\n"
+                f" <b>DEX Sniper — помилка з'єднання</b>\n"
                 f"<code>{str(exc)[:300]}</code>\n"
                 f"Повтор через 30 сек...",
                 TG_CHAT_ID,

@@ -56,7 +56,7 @@ def _fetch_closed(exchange, symbol: str, since_ms: int) -> list:
         try:
             resp = exchange.private_get_v5_position_closed_pnl(params)
         except Exception as e:
-            print(f"  ⚠️  Bybit fetch {symbol}: {e}")
+            print(f"    Bybit fetch {symbol}: {e}")
             break
         result  = resp.get("result", {})
         entries = result.get("list", [])
@@ -76,7 +76,7 @@ def main():
     ).fetchall()
 
     if not broken:
-        print("✅ No broken trades found.")
+        print(" No broken trades found.")
         return
 
     print(f"Found {len(broken)} LOSS trades with pnl=0. Fetching Bybit data...\n")
@@ -168,10 +168,10 @@ def main():
                 (pnl, pnl_pct, result, exit_price, duration, trade["id"])
             )
             con.commit()
-            print(f"  ✅ #{trade['id']} {coin} {trade['action']} → pnl={pnl:+.4f} ({result})")
+            print(f"   #{trade['id']} {coin} {trade['action']} → pnl={pnl:+.4f} ({result})")
             fixed += 1
 
-    print(f"\n✅ Done. Fixed {fixed}/{len(broken)} trades.")
+    print(f"\n Done. Fixed {fixed}/{len(broken)} trades.")
     con.close()
 
 

@@ -401,7 +401,7 @@ def section(title: str):
 
 def bot_header(name: str, file: str, service: str, strategy: str, trading_on: bool, demo: bool):
     status_str = ok("▶ ACTIVE") + dim(f" ({'DEMO' if demo else 'LIVE'})")
-    trade_str  = ok("✅ ON") if trading_on else bad("❌ OFF")
+    trade_str  = ok(" ON") if trading_on else bad(" OFF")
     print(f"  File:     {dim(file)}  [{dim(service)}]")
     print(f"  Strategy: {dim(strategy)}")
     print(f"  Status:   {status_str}  |  Trading: {trade_str}")
@@ -459,8 +459,8 @@ def report(as_json: bool = False):
     print(clr("═" * 60, "cyan"))
 
     # ─── MARKET CONTEXT ─────────────────────────────────────────────────────
-    section("📊 MARKET CONTEXT")
-    pairs = [("BTC", "₿"), ("ETH", "Ξ"), ("SOL", "◎"), ("XRP", "✕"), ("XAUUSD", "🥇 XAU")]
+    section(" MARKET CONTEXT")
+    pairs = [("BTC", "₿"), ("ETH", "Ξ"), ("SOL", "◎"), ("XRP", ""), ("XAUUSD", " XAU")]
     for sym, icon in pairs:
         t = tickers.get(sym, {})
         if not t:
@@ -527,7 +527,7 @@ def report(as_json: bool = False):
         for r in s["recent"]:
             ts  = r["timestamp"][:16]
             act = ok(r["action"]) if r["action"] in ("LONG","SHORT") else dim(r["action"])
-            ex  = ok("✓exec") if r["executed"] else dim("held")
+            ex  = ok("exec") if r["executed"] else dim("held")
             imp = r.get("groq_impact") or "—"
             src = (r.get("news_source") or "")[:30]
             print(f"    {dim(ts)}  {r['coin']:<6}  {act:<6}  conf={r['confidence']}%  {imp:<7}  {ex}  {dim(src)}")
@@ -535,7 +535,7 @@ def report(as_json: bool = False):
     if log_status["last_scan"]:
         print(f"\n  Last scan: {dim(log_status['last_scan'][-60:])}")
     if log_status["alchemy"] == "LIMIT_EXCEEDED":
-        print(f"  {bad('⚠ Alchemy WebSocket: monthly limit exceeded — on-chain signals offline')}")
+        print(f"  {bad(' Alchemy WebSocket: monthly limit exceeded — on-chain signals offline')}")
 
     # ─── 2. GRID BOT ────────────────────────────────────────────────────────
     section("2.  GRID BOT  (grid_bot.py / crypto-grid.service)")
@@ -630,11 +630,11 @@ def report(as_json: bool = False):
         print(f"  Trades:    {dim('0 — no trades recorded yet')}")
 
     if macro_status["blocker"]:
-        print(f"\n  {bad('⚠ BLOCKER: ' + macro_status['blocker'])}")
+        print(f"\n  {bad(' BLOCKER: ' + macro_status['blocker'])}")
         print(f"  {dim('Fix: register IC Markets demo account, connect via VNC (port 5901)')}")
 
     mt5_ok = macro_status["mt5_ok"]
-    print(f"  MT5 EA:    {'🟢 responding (ping OK)' if mt5_ok else dim('⚪ no recent ping in log')}")
+    print(f"  MT5 EA:    {'🟢 responding (ping OK)' if mt5_ok else dim(' no recent ping in log')}")
 
     # Timer info
     print(f"  Schedule:  {dim('▶ Sun 22:05 UTC  |  ■ Fri 22:00 UTC  (timers active)')}")
@@ -667,7 +667,7 @@ def report(as_json: bool = False):
     print(f"\n  {'Bot':<14} {'Trade':>6} {'On':>5} {'WR':>8}  {'PnL':>12}")
     print(f"  {sep('─', 52)}")
     for name, on, total, wins, pnl in rows:
-        on_s  = ok("✅") if on else bad("❌")
+        on_s  = ok("") if on else bad("")
         wr_s  = wr_str(wins, total) if total else dim("—")
         pnl_s = pnl_clr(pnl) if total else dim("—")
         print(f"  {name:<14} {total:>6}  {on_s}   {wr_s:>8}  {pnl_s:>12}")

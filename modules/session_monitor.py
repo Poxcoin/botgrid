@@ -28,7 +28,7 @@ from datetime import datetime, timezone, timedelta
 SESSIONS = [
     {
         "name":    "asia",
-        "label":   "🌏 Азія",
+        "label":   " Азія",
         "utc_h":   0,
         "utc_m":   0,
         "kyiv":    "03:00",
@@ -41,7 +41,7 @@ SESSIONS = [
     },
     {
         "name":    "london",
-        "label":   "🇬🇧 Лондон",
+        "label":   " Лондон",
         "utc_h":   8,
         "utc_m":   0,
         "kyiv":    "11:00",
@@ -55,7 +55,7 @@ SESSIONS = [
     },
     {
         "name":    "ny",
-        "label":   "🇺🇸 NYSE/NASDAQ",
+        "label":   " NYSE/NASDAQ",
         "utc_h":   13,
         "utc_m":   30,
         "kyiv":    "16:30",
@@ -250,11 +250,11 @@ def _detect_patterns_asia(changes: dict, btc_chg: float | None) -> list[str]:
     if btc_chg is not None:
         if btc_chg > 3.0:
             patterns.append(
-                "⚠️ BTC +{:.1f}% за ніч — перекупленість на відкритті Азії, можлива корекція".format(btc_chg)
+                " BTC +{:.1f}% за ніч — перекупленість на відкритті Азії, можлива корекція".format(btc_chg)
             )
         elif btc_chg < -3.0:
             patterns.append(
-                "📉 BTC {:.1f}% за ніч — перепроданість, стежити за відскоком у Лондоні".format(btc_chg)
+                " BTC {:.1f}% за ніч — перепроданість, стежити за відскоком у Лондоні".format(btc_chg)
             )
 
     # DXY divergence with Asian equities
@@ -266,11 +266,11 @@ def _detect_patterns_asia(changes: dict, btc_chg: float | None) -> list[str]:
         avg_equity = sum(equity_changes) / len(equity_changes)
         if avg_equity > 0.3 and dxy_chg > 0.3:
             patterns.append(
-                "🔀 Незвичний ризик-он: акції та USD ростуть одночасно — можливий розворот"
+                " Незвичний ризик-он: акції та USD ростуть одночасно — можливий розворот"
             )
         elif avg_equity < -0.3 and dxy_chg < -0.3:
             patterns.append(
-                "💡 Ризик-оф з слабким USD — крипта може тримати краще за традиційні ринки"
+                " Ризик-оф з слабким USD — крипта може тримати краще за традиційні ринки"
             )
 
     return patterns
@@ -290,7 +290,7 @@ def _detect_patterns_london(changes: dict) -> list[str]:
         avg_london = sum(london_equity) / len(london_equity)
         if asia_bias == "bearish" and avg_london > -0.3:
             patterns.append(
-                "🔄 London відкрився проти азійського руху → можливий відскок (London Kill Zone reversal)"
+                " London відкрився проти азійського руху → можливий відскок (London Kill Zone reversal)"
             )
 
     # DXY divergence with London equities
@@ -302,11 +302,11 @@ def _detect_patterns_london(changes: dict) -> list[str]:
         avg_eq = sum(equity_vals) / len(equity_vals)
         if avg_eq > 0.3 and dxy_chg > 0.3:
             patterns.append(
-                "🔀 Незвичний ризик-он (Лондон): акції та USD ростуть — стежити за розворотом"
+                " Незвичний ризик-он (Лондон): акції та USD ростуть — стежити за розворотом"
             )
         elif avg_eq < -0.3 and dxy_chg < -0.3:
             patterns.append(
-                "💡 Ризик-оф з слабким USD (Лондон) — крипта може тримати краще"
+                " Ризик-оф з слабким USD (Лондон) — крипта може тримати краще"
             )
 
     return patterns
@@ -320,17 +320,17 @@ def _detect_patterns_ny(changes: dict, vix_level: float | None,
     if vix_level is not None:
         if vix_level < 15:
             patterns.append(
-                f"😌 VIX {vix_level:.1f} — комплейсенсі, сильний ризик-он, бик-модифікатор активний"
+                f" VIX {vix_level:.1f} — комплейсенсі, сильний ризик-он, бик-модифікатор активний"
             )
         elif vix_level <= 20:
-            patterns.append(f"📊 VIX {vix_level:.1f} — нормальний рівень волатильності")
+            patterns.append(f" VIX {vix_level:.1f} — нормальний рівень волатильності")
         elif vix_level <= 25:
             patterns.append(
-                f"⚠️ VIX {vix_level:.1f} — підвищений страх, знижено скор сесії"
+                f" VIX {vix_level:.1f} — підвищений страх, знижено скор сесії"
             )
         else:
             patterns.append(
-                f"🚨 VIX {vix_level:.1f} — висока волатильність! Ризик-оф режим, уникати лонгів"
+                f" VIX {vix_level:.1f} — висока волатильність! Ризик-оф режим, уникати лонгів"
             )
 
     # NY Opening Range: S&P gap + VIX direction
@@ -338,11 +338,11 @@ def _detect_patterns_ny(changes: dict, vix_level: float | None,
         gap = sp500_ohlc["gap_pct"]
         if gap > 0.5 and vix_chg < 0:
             patterns.append(
-                f"🚀 S&P гепнув +{gap:.2f}% та VIX падає → сильний бичачий день (Opening Range)"
+                f" S&P гепнув +{gap:.2f}% та VIX падає → сильний бичачий день (Opening Range)"
             )
         elif gap < -0.5 and vix_chg > 0:
             patterns.append(
-                f"🔻 S&P гепнув {gap:.2f}% та VIX росте → висока ймовірність продовження спаду"
+                f" S&P гепнув {gap:.2f}% та VIX росте → висока ймовірність продовження спаду"
             )
 
     # DXY divergence at NY
@@ -354,11 +354,11 @@ def _detect_patterns_ny(changes: dict, vix_level: float | None,
         avg_eq = sum(eq_vals) / len(eq_vals)
         if avg_eq > 0.3 and dxy_chg > 0.3:
             patterns.append(
-                "🔀 Незвичний ризик-он: S&P та USD ростуть одночасно — стежити за розворотом"
+                " Незвичний ризик-он: S&P та USD ростуть одночасно — стежити за розворотом"
             )
         elif avg_eq < -0.3 and dxy_chg < -0.3:
             patterns.append(
-                "💡 Ризик-оф з слабким USD — крипта може тримати краще за акції"
+                " Ризик-оф з слабким USD — крипта може тримати краще за акції"
             )
 
     # Multi-session confluence check (only after recording ny bias is done — checked later)
@@ -369,7 +369,7 @@ def _detect_patterns_ny(changes: dict, vix_level: float | None,
     # If asia and london both bearish, warn pre-emptively
     if asia_bias == "bearish" and london_bias == "bearish":
         patterns.append(
-            "⚠️ Азія та Лондон обидва медвежачі — якщо NY підтвердить: Triple bearish"
+            " Азія та Лондон обидва медвежачі — якщо NY підтвердить: Triple bearish"
         )
 
     return patterns
@@ -382,7 +382,7 @@ def _check_triple_confluence(ny_bias: str) -> str | None:
     asia_bias   = _daily_biases.get("asia")
     london_bias = _daily_biases.get("london")
     if asia_bias == "bearish" and london_bias == "bearish" and ny_bias == "bearish":
-        return "🚨 Triple bearish — сильний ризик-оф! Уникати лонгів протягом усього дня"
+        return " Triple bearish — сильний ризик-оф! Уникати лонгів протягом усього дня"
     if asia_bias == "bullish" and london_bias == "bullish" and ny_bias == "bullish":
         return "🟢 Triple bullish — повний ризик-он! Сприятливий фон для лонгів"
     return None
@@ -390,7 +390,7 @@ def _check_triple_confluence(ny_bias: str) -> str | None:
 
 # ─── TG message builder ───────────────────────────────────────────────────────
 
-_BIAS_EMOJI = {"bullish": "✅", "bearish": "🔴", "neutral": "⚪"}
+_BIAS_EMOJI = {"bullish": "", "bearish": "", "neutral": ""}
 _BIAS_LABEL = {
     "bullish": "Bullish — ризик-он, сприятливо для лонгів",
     "bearish": "Bearish — ризик-оф, тиск на крипту",
@@ -410,14 +410,14 @@ def _build_message(session: dict, changes: dict, btc_chg: float | None,
         chg = changes.get(sym)
         if chg is None:
             continue
-        arrow = "📈" if chg > 0 else ("📉" if chg < 0 else "➡️")
+        arrow = "" if chg > 0 else ("" if chg < 0 else "")
         sign  = "+" if chg > 0 else ""
         if sym == "^VIX":
-            arrow = "📊"
+            arrow = ""
         lines.append(f"{arrow} <b>{label}</b>: {sign}{chg:.2f}%")
 
     if btc_chg is not None:
-        arrow = "📈" if btc_chg > 0 else ("📉" if btc_chg < 0 else "➡️")
+        arrow = "" if btc_chg > 0 else ("" if btc_chg < 0 else "")
         sign  = "+" if btc_chg > 0 else ""
         lines.append(f"{arrow} <b>BTC 24h</b>: {sign}{btc_chg:.2f}%")
 
@@ -430,11 +430,11 @@ def _build_message(session: dict, changes: dict, btc_chg: float | None,
         lines.append("→ Обережно з новими лонгами")
 
     if patterns:
-        lines.append("\n🔍 <b>Патерни:</b>")
+        lines.append("\n <b>Патерни:</b>")
         for p in patterns:
             lines.append(f"  {p}")
 
-    lines.append("\n🤖 <b>KADO</b> · kadoclub.net")
+    lines.append("\n <b>KADO</b> · kadoclub.net")
     return "\n".join(lines)
 
 

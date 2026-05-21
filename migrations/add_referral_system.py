@@ -14,7 +14,7 @@ def run():
     ]:
         try:
             cur.execute(col_sql)
-            print(f"✓ {col_sql}")
+            print(f" {col_sql}")
         except sqlite3.OperationalError as e:
             print(f"  skip (already exists): {e}")
 
@@ -30,7 +30,7 @@ def run():
             created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    print("✓ referral_earnings table ready")
+    print(" referral_earnings table ready")
 
     chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
     users = cur.execute("SELECT id FROM users WHERE ref_code IS NULL").fetchall()

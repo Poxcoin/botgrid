@@ -29,9 +29,9 @@ if not os.getenv("FIELD_ENCRYPTION_KEY"):
     with open(env_path, "a") as f:
         f.write(f"\nFIELD_ENCRYPTION_KEY={new_key}\n")
     os.environ["FIELD_ENCRYPTION_KEY"] = new_key
-    print(f"✅ Generated FIELD_ENCRYPTION_KEY → .env")
+    print(f" Generated FIELD_ENCRYPTION_KEY → .env")
 else:
-    print("✅ FIELD_ENCRYPTION_KEY already set")
+    print(" FIELD_ENCRYPTION_KEY already set")
 
 # ── Step 2: collect owner credentials ─────────────────────────────────────────
 api_key = os.getenv("BYBIT_API_KEY", "")
@@ -39,7 +39,7 @@ secret  = os.getenv("BYBIT_SECRET", "")
 is_demo = os.getenv("IS_DEMO_TRADING", "false").lower() == "true"
 
 if not api_key or not secret:
-    print("❌ BYBIT_API_KEY or BYBIT_SECRET missing in .env — aborting")
+    print(" BYBIT_API_KEY or BYBIT_SECRET missing in .env — aborting")
     sys.exit(1)
 
 owner_email    = "glorimanunited@gmail.com"
@@ -59,7 +59,7 @@ db = SessionLocal()
 try:
     existing = db.query(User).filter(User.email == owner_email).first()
     if existing:
-        print(f"ℹ️  User {owner_email} already exists (id={existing.id}) — skipping")
+        print(f"ℹ  User {owner_email} already exists (id={existing.id}) — skipping")
         sys.exit(0)
 
     user = User(
@@ -93,13 +93,13 @@ try:
     db.add(api_row)
     db.commit()
 
-    print(f"✅ Owner created: id={user.id} email={owner_email} plan=pro testnet={is_demo}")
+    print(f" Owner created: id={user.id} email={owner_email} plan=pro testnet={is_demo}")
     print(f"   Login password = {owner_password!r}")
     print("   Change it immediately via the web dashboard!")
 
 except Exception as e:
     db.rollback()
-    print(f"❌ Error: {e}")
+    print(f" Error: {e}")
     raise
 finally:
     db.close()

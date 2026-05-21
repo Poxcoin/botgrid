@@ -120,12 +120,12 @@ def _balance_text():
         total = bal.get("USDT", {}).get("total", 0)
         mode  = "Demo" if IS_DEMO_TRADING else "Live"
         return (
-            f"💰 <b>Баланс Bybit</b>  <i>{mode}</i>\n\n"
+            f" <b>Баланс Bybit</b>  <i>{mode}</i>\n\n"
             f"Вільно:  <b>{free:.2f} USDT</b>\n"
             f"Всього:  <b>{total:.2f} USDT</b>"
         )
     except Exception as e:
-        return f"❌ Баланс недоступний: {e}"
+        return f" Баланс недоступний: {e}"
 
 
 def _pnl_text():
@@ -137,47 +137,47 @@ def _pnl_text():
         g = r["grid"]
         f = r["funding"]
 
-        t_icon = "📈" if a["today"] >= 0 else "📉"
-        w_icon = "📈" if a["week"]  >= 0 else "📉"
-        a_icon = "📈" if a["total"] >= 0 else "📉"
+        t_icon = "" if a["today"] >= 0 else ""
+        w_icon = "" if a["week"]  >= 0 else ""
+        a_icon = "" if a["total"] >= 0 else ""
 
         lines = [
-            f"📊 <b>PnL — Всі боти</b>\n",
+            f" <b>PnL — Всі боти</b>\n",
             f"{t_icon} Сьогодні:  <b>{a['today']:+.2f}$</b>",
             f"{w_icon} Тиждень:   <b>{a['week']:+.2f}$</b>",
             f"{a_icon} Всього:    <b>{a['total']:+.2f}$</b>   ({a['trades']} угод  WR {a['wr']}%)\n",
         ]
 
         if s["trades"]:
-            s_icon = "📈" if s["total"] >= 0 else "📉"
+            s_icon = "" if s["total"] >= 0 else ""
             lines.append(
-                f"🚀 <b>Signal</b>  {s['trades']} угод  WR {s['wr']}%\n"
+                f" <b>Signal</b>  {s['trades']} угод  WR {s['wr']}%\n"
                 f"   Сьогодні {s['today']:+.2f}$  ·  7д {s['week']:+.2f}$  ·  {s_icon}{s['total']:+.2f}$"
             )
         if g["trades"]:
-            g_icon = "📈" if g["total"] >= 0 else "📉"
+            g_icon = "" if g["total"] >= 0 else ""
             lines.append(
-                f"🔷 <b>Grid</b>    {g['trades']} угод  WR {g['wr']}%\n"
+                f" <b>Grid</b>    {g['trades']} угод  WR {g['wr']}%\n"
                 f"   Сьогодні {g['today']:+.2f}$  ·  7д {g['week']:+.2f}$  ·  {g_icon}{g['total']:+.2f}$"
             )
         if f["trades"]:
-            f_icon = "📈" if f["total"] >= 0 else "📉"
+            f_icon = "" if f["total"] >= 0 else ""
             lines.append(
-                f"📊 <b>Funding</b> {f['trades']} угод  WR {f['wr']}%\n"
+                f" <b>Funding</b> {f['trades']} угод  WR {f['wr']}%\n"
                 f"   Всього {f_icon}{f['total']:+.2f}$"
             )
 
         if r["top_coins"]:
             tops = "  ".join(f"{c} {v:+.0f}$" for c, v in r["top_coins"][:3])
-            lines.append(f"\n🏆 <b>Топ:</b> {tops}")
+            lines.append(f"\n <b>Топ:</b> {tops}")
         if r["worst_coins"]:
             bads = "  ".join(f"{c} {v:+.0f}$" for c, v in r["worst_coins"])
             if any(v < 0 for _, v in r["worst_coins"]):
-                lines.append(f"⚠️ <b>Збитки:</b> {bads}")
+                lines.append(f" <b>Збитки:</b> {bads}")
 
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка PnL: {e}"
+        return f" Помилка PnL: {e}"
 
 
 def _trades_text(n=20):
@@ -187,18 +187,18 @@ def _trades_text(n=20):
         if not rows:
             return "Закритих угод немає."
 
-        source_icon = {"signal": "🚀", "grid": "🔷", "funding": "📊"}
-        lines = [f"📋 <b>Останні угоди (всі боти)</b>\n"]
+        source_icon = {"signal": "", "grid": "", "funding": ""}
+        lines = [f" <b>Останні угоди (всі боти)</b>\n"]
         for r in rows:
             pnl  = float(r["pnl_usdt"] or 0)
-            icon = "✅" if pnl > 0 else "❌"
-            src  = source_icon.get(r["bot_source"], "🤖")
+            icon = "" if pnl > 0 else ""
+            src  = source_icon.get(r["bot_source"], "")
             date = (r["timestamp_close"] or "")[:10]
             dur  = f" {r['duration_min']}хв" if r["duration_min"] else ""
             lines.append(f"{icon}{src} {r['coin']} {r['action']}  <b>{pnl:+.2f}$</b>  {date}{dur}")
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка: {e}"
+        return f" Помилка: {e}"
 
 
 def _signals_text():
@@ -212,15 +212,15 @@ def _signals_text():
             "WHERE executed=1 ORDER BY rowid DESC LIMIT 5"
         ).fetchall()
         con.close()
-        lines = [f"🧠 <b>Сигнали</b>   всього {total} · виконано {executed}\n"]
+        lines = [f" <b>Сигнали</b>   всього {total} · виконано {executed}\n"]
         for s in rows:
             sc   = s["total_score"] or 0
-            icon = "📈" if sc > 0 else "📉"
+            icon = "" if sc > 0 else ""
             date = (s["timestamp"] or "")[:16]
             lines.append(f"{icon} {s['coin']} {s['action']}  score {sc:+.1f}  conf {s['confidence']}%\n   {date}")
         return "\n".join(lines)
     except Exception as e:
-        return f"❌ Помилка: {e}"
+        return f" Помилка: {e}"
 
 
 def _open_text():
@@ -250,13 +250,13 @@ def _open_text():
 
 def _status_text():
     svcs  = ["crypto-web", "crypto-sniper", "crypto-grid", "crypto-bot"]
-    lines = ["🖥 <b>Статус сервісів</b>\n"]
+    lines = [" <b>Статус сервісів</b>\n"]
     for s in svcs:
         r  = subprocess.run(["systemctl", "is-active", s], capture_output=True, text=True)
         st = r.stdout.strip()
-        icon = "🟢" if st == "active" else "🔴"
+        icon = "🟢" if st == "active" else ""
         lines.append(f"{icon} {s}")
-    lines.append(f"\n🕐 {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC")
+    lines.append(f"\n {datetime.now().strftime('%Y-%m-%d %H:%M')} UTC")
     return "\n".join(lines)
 
 

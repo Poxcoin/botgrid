@@ -61,7 +61,7 @@ def fetch_ohlcv(symbol: str, interval: str = "1d", limit: int = 1000) -> list:
             end_time = int(rows[-1][0]) - 1
             time.sleep(0.15)
         except Exception as e:
-            print(f"  ⚠️  kline error {symbol}: {e}")
+            print(f"    kline error {symbol}: {e}")
             break
 
     # rows: [ts_ms_str, open, high, low, close, volume, turnover]
@@ -79,7 +79,7 @@ def load_or_fetch_pairs() -> dict:
             cached = json.load(f)
         if all(sym in cached for sym in SYMBOLS):
             ages = {sym: len(cached[sym]) for sym in SYMBOLS}
-            print(f"  ✓ Cache hit ({CACHE_FILE}): {ages}")
+            print(f"   Cache hit ({CACHE_FILE}): {ages}")
             return cached
 
     print("  ↓ Downloading OHLCV data…")
@@ -92,7 +92,7 @@ def load_or_fetch_pairs() -> dict:
 
     with open(CACHE_FILE, "w") as f:
         json.dump(all_data, f)
-    print(f"  ✓ Saved to {CACHE_FILE}\n")
+    print(f"   Saved to {CACHE_FILE}\n")
     return all_data
 
 
@@ -333,7 +333,7 @@ def sweep(common_ts, btc_prices, eth_prices, capital):
         print()
 
     best = max(all_rows, key=lambda r: r["sharpe"])
-    print(f"  ★ Best Sharpe: W={best['window']} Z={best['entry_z']:.1f}  "
+    print(f"   Best Sharpe: W={best['window']} Z={best['entry_z']:.1f}  "
           f"Sharpe={best['sharpe']:.2f}  monthly={best['monthly_avg_pct']:+.2f}%  "
           f"WR={best['win_rate']:.1f}%  MaxDD={best['max_drawdown_pct']:.1f}%")
 

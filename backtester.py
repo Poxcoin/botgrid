@@ -164,7 +164,7 @@ RSI_SHORT_MIN    = 28  # не шортим если RSI < 28 (уже в полу
 RSI_LONG_MAX     = 72  # не лонгуем если RSI > 72 (уже в потолке)
 
 def backtest_symbol(ex: ccxt.Exchange, symbol: str) -> dict:
-    print(f"\n  📊 {symbol} — скачиваю данные...", end="", flush=True)
+    print(f"\n   {symbol} — скачиваю данные...", end="", flush=True)
     ohlcv = fetch_ohlcv(ex, symbol, DAYS)
     print(f" {len(ohlcv)} свечей")
 
@@ -332,15 +332,15 @@ def print_report(results: list[dict]) -> None:
         print(f"  Отсеяно кулдауном:     {total_filt_cd}  ({round(total_filt_cd/total_signals*100,1) if total_signals else 0}%)")
         print(f"  Реальных сделок:       {total_trades}  ({round(total_trades/60,1)}/день)  — pass rate: {pass_rate}%")
 
-        verdict = f"✅ СТРАТЕГИЯ ПРИБЫЛЬНА  EV +{ev_per_trade:.2f}% | Breakeven {breakeven_wr:.0f}% | Можно на Testnet!" \
+        verdict = f" СТРАТЕГИЯ ПРИБЫЛЬНА  EV +{ev_per_trade:.2f}% | Breakeven {breakeven_wr:.0f}% | Можно на Testnet!" \
                   if total_profit > 0 and avg_wr > breakeven_wr \
-                  else "⚠️  Стратегия требует доработки."
+                  else "  Стратегия требует доработки."
         print(f"\n  {verdict}")
     print("=" * 70)
 
 
 if __name__ == "__main__":
-    print("🔁 Запуск бэктеста...")
+    print(" Запуск бэктеста...")
     print(f"   Монеты: {SYMBOLS}")
     print(f"   Период: {DAYS} дней  |  TP={TAKE_PROFIT_PERCENT}%  SL={STOP_LOSS_PERCENT}%  x{LEVERAGE}  Size={TRADE_PERCENT_SIZE}%")
 

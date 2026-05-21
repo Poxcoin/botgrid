@@ -17,7 +17,7 @@ try:
 except Exception:
     log = "(log unavailable)"
 
-text = f"🔴 <b>{service} crashed</b>\n<pre>{log[-800:]}</pre>"
+text = f" <b>{service} crashed</b>\n<pre>{log[-800:]}</pre>"
 
 try:
     r = requests.post(

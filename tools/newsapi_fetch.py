@@ -40,7 +40,7 @@ SOURCE_WEIGHT = 0.80  # NewsAPI новости — средний вес
 
 def fetch_page(query: str, from_date: str, to_date: str, page: int = 1) -> list:
     if not NEWSAPI_KEY:
-        print("❌ NEWSAPI_KEY не задан в .env")
+        print(" NEWSAPI_KEY не задан в .env")
         return []
     try:
         r = httpx.get(
@@ -69,7 +69,7 @@ def fetch_page(query: str, from_date: str, to_date: str, page: int = 1) -> list:
 
 def run(days: int = 30) -> None:
     if not NEWSAPI_KEY:
-        print("❌ Добавь NEWSAPI_KEY=... в файл .env и запусти снова")
+        print(" Добавь NEWSAPI_KEY=... в файл .env и запусти снова")
         sys.exit(1)
 
     now = datetime.now(timezone.utc)
@@ -99,7 +99,7 @@ def run(days: int = 30) -> None:
         print(f"    Добавлено: {saved} / {len(articles)}")
         time.sleep(1)  # rate limit
 
-    print(f"\n✅ Готово! Добавлено {total_saved} новых новостей.")
+    print(f"\n Готово! Добавлено {total_saved} новых новостей.")
     print(f"Архив теперь: {count()} новостей в news.db")
 
 

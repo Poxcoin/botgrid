@@ -30,7 +30,7 @@ WEBAPP_URL = "https://kadoclub.net/webapp"
 
 def _webapp_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="📊 Open App", web_app=WebAppInfo(url=WEBAPP_URL))
+        InlineKeyboardButton(text=" Open App", web_app=WebAppInfo(url=WEBAPP_URL))
     ]])
 
 
@@ -98,7 +98,7 @@ async def cmd_start_with_token(message: Message, command: CommandObject):
             parse_mode="HTML",
             reply_markup=_webapp_kb(),
         )
-        await message.answer("Меню готове 👇", reply_markup=_menu_keyboard())
+        await message.answer("Меню готове ", reply_markup=_menu_keyboard())
     finally:
         db.close()
 
@@ -118,7 +118,7 @@ async def cmd_start_plain(message: Message):
                 parse_mode="HTML",
                 reply_markup=_webapp_kb(),
             )
-            await message.answer("Меню 👇", reply_markup=_menu_keyboard())
+            await message.answer("Меню ", reply_markup=_menu_keyboard())
         else:
             await message.answer(texts.START_NOT_LINKED, parse_mode="HTML")
     finally:
@@ -132,7 +132,7 @@ async def cmd_menu(message: Message):
     await message.answer(texts.MENU, parse_mode="HTML", reply_markup=_menu_keyboard())
 
 
-# ── Account: /account command + 👤 Акаунт button ─────────────────────────────
+# ── Account: /account command +  Акаунт button ─────────────────────────────
 async def _send_account(message: Message):
     user, db = _linked_user(str(message.chat.id))
     try:
@@ -145,8 +145,8 @@ async def _send_account(message: Message):
             trial_line = f" (до {_fmt_dt(user.trial_ends_at)})"
 
         has_keys = db.query(UserApiKey).filter_by(user_id=user.id, exchange="bybit").count() > 0
-        api_status = "✓ підключені" if has_keys else "— не підключені"
-        status = "✓ активний" if user.is_active else "✗ заблокований"
+        api_status = " підключені" if has_keys else "— не підключені"
+        status = " активний" if user.is_active else " заблокований"
 
         await message.answer(
             texts.ACCOUNT_INFO.format(
@@ -171,7 +171,7 @@ async def cmd_account(message: Message):
     await _send_account(message)
 
 
-# ── Balance: /balance command + 💰 Баланс button ─────────────────────────────
+# ── Balance: /balance command +  Баланс button ─────────────────────────────
 async def _send_balance(message: Message):
     user, db = _linked_user(str(message.chat.id))
     try:
@@ -217,7 +217,7 @@ async def cmd_balance(message: Message):
     await _send_balance(message)
 
 
-# ── Positions: /positions command + 📊 Позиції button ────────────────────────
+# ── Positions: /positions command +  Позиції button ────────────────────────
 # Live from Bybit (so manually-opened positions show up too). Falls back to the
 # UserTrade view only when the user has no API keys connected.
 async def _send_positions(message: Message):
@@ -247,7 +247,7 @@ async def _send_positions(message: Message):
 
             lines = []
             for p in positions:
-                icon = "🟢" if p["side"] == "LONG" else "🔴"
+                icon = "🟢" if p["side"] == "LONG" else ""
                 lev  = f"x{p['leverage']}" if p["leverage"] else ""
                 ep   = f"@ {p['entry_price']:g}" if p["entry_price"] else ""
                 pnl  = p["unrealized_pnl"]
@@ -278,7 +278,7 @@ async def _send_positions(message: Message):
         lines = []
         for t in trades:
             coin = (t.symbol or "").split("/")[0].replace("USDT", "") or "?"
-            icon = "🟢" if t.side == "LONG" else "🔴"
+            icon = "🟢" if t.side == "LONG" else ""
             lev  = f"x{t.leverage}" if t.leverage else ""
             ep   = f"@ {float(t.entry_price):.4f}" if t.entry_price else ""
             lines.append(f"{icon} <b>{coin}</b> {t.side} {lev} {ep}  [{t.source}]")
@@ -310,7 +310,7 @@ async def cmd_status(message: Message):
         if not key_row:
             await message.answer(
                 "<b>KADO Status</b>\n\n"
-                "⚠️ Bybit API keys not connected.\n"
+                " Bybit API keys not connected.\n"
                 "Go to Settings → API Keys to link your account.",
                 parse_mode="HTML",
                 reply_markup=_webapp_kb(),
@@ -337,7 +337,7 @@ async def cmd_status(message: Message):
         if positions:
             lines = []
             for p in positions[:5]:
-                icon = "🟢" if p["side"] == "LONG" else "🔴"
+                icon = "🟢" if p["side"] == "LONG" else ""
                 pnl  = p["unrealized_pnl"]
                 sign = "+" if pnl >= 0 else ""
                 lines.append(f"{icon} {p['symbol']} {sign}{pnl:.2f}")
@@ -349,9 +349,9 @@ async def cmd_status(message: Message):
 
         text = (
             f"<b>KADO Status{net_tag}</b>\n\n"
-            f"💵 Balance: <b>{b['wallet']:.2f} USDT</b>\n"
-            f"📊 uPnL: <b>{upnl_s} USDT</b>\n"
-            f"📂 Open positions: <b>{pos_cnt}</b>\n"
+            f" Balance: <b>{b['wallet']:.2f} USDT</b>\n"
+            f" uPnL: <b>{upnl_s} USDT</b>\n"
+            f" Open positions: <b>{pos_cnt}</b>\n"
         )
         if open_lines:
             text += f"\n{open_lines}\n"
