@@ -264,39 +264,23 @@ def run_fr_extreme_engine() -> None:
                     pass
 
                 if FR_EXTREME_TRADING:
+                    # execute_trade removed 2026-05-21 — owner double-position bug
+                    trade_size = round(SIZE_PCT * size_mult, 2)
                     try:
-                        trade_size = round(SIZE_PCT * size_mult, 2)
-                        trade_sig = {
-                            "coin":            coin,
-                            "action":          direction,
-                            "total_score":     1,
-                            "size_multiplier": size_mult,
-                        }
-                        execute_trade(
-                            trade_sig,
-                            leverage_override=LEVERAGE,
-                            tp_pct=TP_PCT,
-                            sl_pct=SL_PCT,
-                            size_pct=trade_size,
-                            bot_source="fr_extreme",
-                        )
-                        try:
-                            from modules.saas_dispatcher import dispatch as _saas_dispatch
-                            _saas_dispatch({
-                                "source":   "fr_extreme",
-                                "symbol":   symbol,
-                                "side":     direction,
-                                "leverage": LEVERAGE,
-                                "tp_pct":   TP_PCT,
-                                "sl_pct":   SL_PCT,
-                                "size_pct": trade_size,
-                            })
-                        except Exception as _de:
-                            print(f"[FRE] saas_dispatch error: {_de}")
+                        from modules.saas_dispatcher import dispatch as _saas_dispatch
+                        _saas_dispatch({
+                            "source":   "fr_extreme",
+                            "symbol":   symbol,
+                            "side":     direction,
+                            "leverage": LEVERAGE,
+                            "tp_pct":   TP_PCT,
+                            "sl_pct":   SL_PCT,
+                            "size_pct": trade_size,
+                        })
                         _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
-                        print(f"[FRE] ❌ execute_trade error {symbol}: {e}")
+                        print(f"[FRE] ❌ dispatch error {symbol}: {e}")
                 else:
                     print(f"[FRE] DRY-RUN — no order placed")
                     send_telegram_message(f"[FRE] DRY-RUN\n{tg_body}", TG_CHAT_ID)

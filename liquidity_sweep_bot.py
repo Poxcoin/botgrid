@@ -342,39 +342,23 @@ def run_sweep_engine() -> None:
                     pass
 
                 if SWEEP_TRADING:
+                    # execute_trade removed 2026-05-21 — owner double-position bug.
+                    # Dispatch handles owner as user_id=1, all other users get isolated calls.
                     try:
-                        coin = symbol.replace("/USDT:USDT", "")
-                        sig = {
-                            "coin":             coin,
-                            "action":           direction,
-                            "total_score":      1,
-                            "size_multiplier":  1.0,
-                        }
-                        execute_trade(
-                            sig,
-                            leverage_override=LEVERAGE,
-                            tp_pct=tp_pct,
-                            sl_pct=sl_pct,
-                            size_pct=SIZE_PCT,
-                            bot_source="sweep",
-                        )
-                        try:
-                            from modules.saas_dispatcher import dispatch as _saas_dispatch
-                            _saas_dispatch({
-                                "source":   "sweep",
-                                "symbol":   symbol,
-                                "side":     direction,
-                                "leverage": LEVERAGE,
-                                "tp_pct":   tp_pct,
-                                "sl_pct":   sl_pct,
-                                "size_pct": SIZE_PCT,
-                            })
-                        except Exception as _de:
-                            print(f"[SW] saas_dispatch error: {_de}")
+                        from modules.saas_dispatcher import dispatch as _saas_dispatch
+                        _saas_dispatch({
+                            "source":   "sweep",
+                            "symbol":   symbol,
+                            "side":     direction,
+                            "leverage": LEVERAGE,
+                            "tp_pct":   tp_pct,
+                            "sl_pct":   sl_pct,
+                            "size_pct": SIZE_PCT,
+                        })
                         _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
-                        print(f"[SW] ❌ execute_trade error {symbol}: {e}")
+                        print(f"[SW] ❌ dispatch error {symbol}: {e}")
                 else:
                     print(f"[SW] DRY-RUN — trading disabled, no order placed")
                     send_telegram_message(

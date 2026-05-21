@@ -374,6 +374,32 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         _score_tag = f" score={signal.get('score'):.1f}→{size_pct:.1f}%" if signal.get("score") is not None else ""
         print(f"[DISPATCHER] ✅ user={uid} {side} {symbol} qty={qty} fill={fill:.4f}{_score_tag}")
 
+        # Integrity check: verify Bybit position size matches what we dispatched.
+        # Drift >5% means a duplicate trade was opened elsewhere (e.g. legacy execute_trade()
+        # path) or that the dispatcher itself ran twice for this signal.
+        try:
+            sym_id = symbol.replace("/", "").replace(":USDT", "")
+            pos_resp = ex.private_get_v5_position_list(params={"category": "linear", "symbol": sym_id})
+            items = (pos_resp.get("result") or {}).get("list") or []
+            bybit_qty = float(items[0].get("size") or 0) if items else 0.0
+            if bybit_qty > 0 and abs(bybit_qty - qty) > max(qty * 0.05, 0.001):
+                drift_pct = (bybit_qty / qty - 1) * 100 if qty > 0 else 0
+                alert = (
+                    f"[DISPATCHER] 🚨 INTEGRITY DRIFT user={uid} {symbol}: "
+                    f"dispatched qty={qty} but Bybit position={bybit_qty} ({drift_pct:+.0f}%) — "
+                    f"likely a duplicate open path (execute_trade legacy?) "
+                    f"or dispatch ran twice"
+                )
+                print(alert)
+                try:
+                    from modules.tg_notifier import send_telegram_message
+                    from config.settings import TG_CHAT_ID
+                    send_telegram_message(f"🚨 <b>SYNC DRIFT</b>\n{alert[:400]}", TG_CHAT_ID)
+                except Exception:
+                    pass
+        except Exception as _ic:
+            print(f"[DISPATCHER] integrity check failed (non-blocking): {_ic}")
+
         try:
             from modules.tg_notifier import notify_user_trade
             notify_user_trade(uid, "open", {

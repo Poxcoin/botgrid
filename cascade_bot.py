@@ -310,129 +310,47 @@ def _check_cascade_signal(coin: str) -> None:
 # ─── Виконання угоди ──────────────────────────────────────────────────────────
 
 def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float) -> None:
+    """All trading goes through saas_dispatcher — owner is just user_id=1 in that list.
+    Previously this also placed a direct order via the global owner exchange, which
+    doubled owner's actual Bybit position (config-keys path + DB-keys path). Removed 2026-05-21.
+    """
     if not CASCADE_TRADING:
         print(f"[CASCADE] 📊 {coin} {action} — торгівля вимкнена (CASCADE_TRADING=False)")
         return
 
     try:
-        symbol    = f"{coin}/USDT:USDT"
-        free_usdt = get_free_usdt(_exchange)
-        size_usd  = max(round(free_usdt * SIZE_PCT / 100.0 * size_mult, 2), 10.0)
-
-        # Leverage
-        try:
-            _exchange.set_leverage(LEVERAGE, symbol, params={"category": "linear"})
-        except Exception:
-            pass
-
-        # Кількість контрактів
-        market   = _exchange.market(symbol)
-        min_qty  = float(market.get("limits", {}).get("amount", {}).get("min", 0.001))
-        ticker   = _exchange.fetch_ticker(symbol)
-        price    = float(ticker["last"])
-        qty      = max(round((size_usd * LEVERAGE) / price, 3), min_qty)
-
-        # TP/SL ціни
-        if action == "LONG":
-            tp_price = round(price * (1 + TP_PCT / 100), 4)
-            sl_price = round(price * (1 - SL_PCT / 100), 4)
-            side     = "buy"
-        else:
-            tp_price = round(price * (1 - TP_PCT / 100), 4)
-            sl_price = round(price * (1 + SL_PCT / 100), 4)
-            side     = "sell"
-
-        # Ринковий ордер із вбудованим TP/SL
-        order = _exchange.create_order(
-            symbol, "market", side, qty,
-            params={
-                "category":    "linear",
-                "takeProfit":  str(tp_price),
-                "stopLoss":    str(sl_price),
-                "tpTriggerBy": "MarkPrice",
-                "slTriggerBy": "MarkPrice",
-            },
-        )
-
-        info       = order.get("info", {})
-        fill_price = float(
-            order.get("average") or
-            info.get("avgPrice") or
-            info.get("lastPriceOnCreated") or
-            price
-        )
-
-        # Recalculate TP/SL from actual fill price, then set via trading_stop.
-        # Inline params in create_order are unreliable on Demo accounts.
-        if action == "LONG":
-            tp_price = float(_exchange.price_to_precision(symbol, fill_price * (1 + TP_PCT / 100)))
-            sl_price = float(_exchange.price_to_precision(symbol, fill_price * (1 - SL_PCT / 100)))
-        else:
-            tp_price = float(_exchange.price_to_precision(symbol, fill_price * (1 - TP_PCT / 100)))
-            sl_price = float(_exchange.price_to_precision(symbol, fill_price * (1 + SL_PCT / 100)))
-        try:
-            _exchange.private_post_v5_position_trading_stop({
-                "category":    "linear",
-                "symbol":      _exchange.market_id(symbol),
-                "positionIdx": 0,
-                "takeProfit":  str(tp_price),
-                "stopLoss":    str(sl_price),
-                "tpTriggerBy": "MarkPrice",
-                "slTriggerBy": "MarkPrice",
-            })
-        except Exception as _tpsl_e:
-            print(f"[CASCADE] ⚠️ trading_stop failed for {coin}: {_tpsl_e}")
-
+        symbol = f"{coin}/USDT:USDT"
+        from modules.saas_dispatcher import dispatch as _saas_dispatch
+        _saas_dispatch({
+            "source":   "cascade",
+            "symbol":   symbol,
+            "side":     action,
+            "leverage": LEVERAGE,
+            "tp_pct":   TP_PCT,
+            "sl_pct":   SL_PCT,
+            "size_pct": round(SIZE_PCT * size_mult, 2),
+        })
+        # local cascade position-tracker bypass: dispatcher manages SQLite + TP/SL per user
         ts_open = datetime.now(timezone.utc).isoformat()
         try:
-            db_id = save_trade(None, coin, action, fill_price, ts_open, bot_source="cascade")
+            db_id = save_trade(None, coin, action, 0.0, ts_open, bot_source="cascade")
         except Exception:
             db_id = None
         try:
-            save_cascade_trade_all_users(coin, action, fill_price, qty)
+            save_cascade_trade_all_users(coin, action, 0.0, 0.0)
         except Exception:
             pass
-        try:
-            from modules.saas_dispatcher import dispatch as _saas_dispatch
-            _saas_dispatch({
-                "source":   "cascade",
-                "symbol":   symbol,
-                "side":     action,
-                "leverage": LEVERAGE,
-                "tp_pct":   TP_PCT,
-                "sl_pct":   SL_PCT,
-                "size_pct": round(SIZE_PCT * size_mult, 2),
-            })
-        except Exception as _de:
-            print(f"[CASCADE] saas_dispatch error: {_de}")
-
-        with _pos_lock:
-            _positions[coin] = {
-                "symbol":      symbol,
-                "action":      action,
-                "qty":         qty,
-                "fill_price":  fill_price,
-                "tp_price":    tp_price,
-                "sl_price":    sl_price,
-                "opened_at":   datetime.now(timezone.utc).timestamp(),
-                "db_id":       db_id,
-                "cascade_usd": cascade_usd,
-                "size_mult":   size_mult,
-            }
 
         send_telegram_message(
             f"{'🚀' if action == 'LONG' else '🔴'} <b>CASCADE {action}</b> {coin}\n"
-            f"Вхід: ${fill_price:.4f} | Qty: {qty}\n"
-            f"TP: ${tp_price:.4f} (+{TP_PCT}%) | SL: ${sl_price:.4f} (-{SL_PCT}%)\n"
-            f"Каскад: ${cascade_usd/1e6:.2f}M ліквідацій за 1 хв\n"
-            f"Плече: {LEVERAGE}x | Розмір: ${size_usd:.0f} (×{size_mult:.1f})\n"
-            f"Баланс: ${free_usdt:.2f} USDT",
+            f"Каскад: ${cascade_usd/1e6:.2f}M ліквідацій за 1 хв (×{size_mult:.1f})\n"
+            f"TP={TP_PCT}% SL={SL_PCT}% lev={LEVERAGE}x — dispatched to all users",
             TG_CHAT_ID,
         )
-        print(f"[CASCADE] ✅ {action} {coin} @ ${fill_price:.4f} qty={qty} TP=${tp_price:.4f} SL=${sl_price:.4f}")
+        print(f"[CASCADE] ✅ dispatched {action} {coin} (cascade ${cascade_usd/1e6:.2f}M, mult={size_mult:.1f})")
 
     except Exception as e:
-        print(f"[CASCADE] ❌ Execute error {coin} {action}: {e}")
+        print(f"[CASCADE] ❌ dispatch error {coin} {action}: {e}")
         _cooldowns.pop(coin, None)  # скидаємо cooldown щоб retry спрацював
 
 

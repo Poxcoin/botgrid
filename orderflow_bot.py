@@ -323,39 +323,24 @@ def run_orderflow_engine() -> None:
                     pass
 
                 if ORDERFLOW_TRADING:
+                    # All trading goes through dispatcher — handles owner + all subscribers.
+                    # Earlier we ALSO called execute_trade() which used config keys = owner's,
+                    # doubling owner positions on Bybit (sync drift 2-17×). Removed 2026-05-21.
                     try:
-                        coin = symbol.replace("/USDT:USDT", "")
-                        sig = {
-                            "coin":            coin,
-                            "action":          direction,
-                            "total_score":     1,
-                            "size_multiplier": 1.0,
-                        }
-                        execute_trade(
-                            sig,
-                            leverage_override=LEVERAGE,
-                            tp_pct=TP_PCT,
-                            sl_pct=SL_PCT,
-                            size_pct=SIZE_PCT,
-                            bot_source="orderflow",
-                        )
-                        try:
-                            from modules.saas_dispatcher import dispatch as _saas_dispatch
-                            _saas_dispatch({
-                                "source":   "orderflow",
-                                "symbol":   symbol,
-                                "side":     direction,
-                                "leverage": LEVERAGE,
-                                "tp_pct":   TP_PCT,
-                                "sl_pct":   SL_PCT,
-                                "size_pct": SIZE_PCT,
-                            })
-                        except Exception as _de:
-                            print(f"[OF] saas_dispatch error: {_de}")
+                        from modules.saas_dispatcher import dispatch as _saas_dispatch
+                        _saas_dispatch({
+                            "source":   "orderflow",
+                            "symbol":   symbol,
+                            "side":     direction,
+                            "leverage": LEVERAGE,
+                            "tp_pct":   TP_PCT,
+                            "sl_pct":   SL_PCT,
+                            "size_pct": SIZE_PCT,
+                        })
                         _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
-                        print(f"[OF] ❌ execute_trade error {symbol}: {e}")
+                        print(f"[OF] ❌ dispatch error {symbol}: {e}")
                 else:
                     print(f"[OF] DRY-RUN — trading disabled, no order placed")
                     send_telegram_message(f"[OF] DRY-RUN\n{tg_body}", TG_CHAT_ID)

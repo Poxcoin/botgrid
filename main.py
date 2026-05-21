@@ -979,14 +979,11 @@ def run_signal_engine():
                                     )
                                     continue
 
+                                # execute_trade removed 2026-05-21 — owner double-position bug.
+                                # All trading goes through _saas_dispatch (owner = user_id=1 in that list).
                                 if not SIGNAL_BOT_TRADING:
                                     print(f"📊 [SIGNAL] {coin} {signal['action']} score={signal['total_score']:.1f} — збір статистики (торгівля вимкнена)")
                                 elif signal.get("is_listing"):
-                                    execute_trade(signal,
-                                        leverage_override=LISTING_LEVERAGE,
-                                        tp_pct=LISTING_TP, sl_pct=LISTING_SL,
-                                        size_pct=LISTING_SIZE, signal_id=signal_id,
-                                        bot_source="listing")
                                     _saas_dispatch(signal, "listing",
                                         LISTING_LEVERAGE, LISTING_TP, LISTING_SL, LISTING_SIZE)
                                     _post_to_channel(signal, "listing")
@@ -999,11 +996,6 @@ def run_signal_engine():
                                         dyn_lev = _dynamic_leverage(signal, is_btc_eth=False)
                                         _src = "dex" if news_item.get("is_dex_spike") else "news"
                                         print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
-                                        execute_trade(signal,
-                                            leverage_override=dyn_lev,
-                                            tp_pct=ALT_TP, sl_pct=ALT_SL,
-                                            size_pct=ALT_SIZE, signal_id=signal_id,
-                                            bot_source=_src)
                                         _saas_dispatch(signal, _src,
                                             dyn_lev, ALT_TP, ALT_SL, ALT_SIZE)
                                         _post_to_channel(signal, _src)
@@ -1011,10 +1003,6 @@ def run_signal_engine():
                                     dyn_lev = _dynamic_leverage(signal, is_btc_eth=True)
                                     _src = "dex" if news_item.get("is_dex_spike") else "news"
                                     print(f"📐 Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
-                                    execute_trade(signal,
-                                        leverage_override=dyn_lev,
-                                        signal_id=signal_id,
-                                        bot_source=_src)
                                     _saas_dispatch(signal, _src,
                                         dyn_lev, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
                                     _post_to_channel(signal, _src)
@@ -1079,12 +1067,7 @@ def run_signal_engine():
                     print(f"📊 [LIQ] {coin} {liq_sig['action']} — статистика (торгівля вимкнена)")
                     continue
 
-                execute_trade(liq_sig,
-                    leverage_override=ALT_LEVERAGE,
-                    tp_pct=6.0, sl_pct=2.5,
-                    size_pct=round(ALT_SIZE * 0.8, 1),
-                    signal_id=signal_id,
-                    bot_source="liq_cascade")
+                # execute_trade removed 2026-05-21 — owner double-position bug
                 _saas_dispatch(liq_sig, "liq_cascade",
                     ALT_LEVERAGE, 6.0, 2.5, round(ALT_SIZE * 0.8, 1))
                 _post_to_channel(liq_sig, "liq_cascade")
@@ -1124,11 +1107,7 @@ def run_signal_engine():
                       f"funding через {comp.get('mins_to_funding', '?')}хв | "
                       f"TP={tp}% SL={sl}%")
 
-                execute_trade(fr_sig,
-                    leverage_override=LEVERAGE,
-                    tp_pct=tp, sl_pct=sl,
-                    size_pct=sz, signal_id=signal_id,
-                    bot_source="fr")
+                # execute_trade removed 2026-05-21 — owner double-position bug
                 _saas_dispatch(fr_sig, "fr", LEVERAGE, tp, sl, sz)
                 _post_to_channel(fr_sig, "fr")
             # ──────────────────────────────────────────────────────────────────
