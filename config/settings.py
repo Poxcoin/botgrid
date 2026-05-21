@@ -41,7 +41,9 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 # ТОРГОВЫЕ НАСТРОЙКИ (РИСК-МЕНЕДЖМЕНТ)
 # ==========================================
 IS_DEMO_TRADING = os.getenv("IS_DEMO_TRADING", "False").lower() == "true"
-TRADE_PERCENT_SIZE = 5      # Мы заходим на 5% от свободного баланса USDT
+TRADE_PERCENT_SIZE = 12     # 5→12% (2026-05-21): Signal bot has proven edge (R:R 18:1, +$253 live).
+                            # Concentrating equity here per B+hedge allocation strategy.
+                            # Daily guard -3% cap protects against bad streaks.
 LEVERAGE = 2                # Плечо BTC/ETH (тепер тільки для Funding Rate/Grid, не news)
 
 TAKE_PROFIT_PERCENT = 5.0   # TP для BTC/ETH (Funding Rate стратегія)
