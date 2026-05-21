@@ -39,39 +39,28 @@ FEE_COST = TAKER_FEE * 2 * LEVERAGE
 # ─── Historical funding rate fetchers ─────────────────────────────────────────
 
 def _binance_history(symbol_short: str, limit: int = 1000) -> list[dict]:
-    """Binance fundingRate history. Returns [{fundingTime ms, fundingRate}]."""
-    items = []
-    end_time = int(time.time() * 1000)
-    while True:
+    """Binance fundingRate history. Single call up to 1000 records (~333 days @ 3/day)."""
+    cutoff = int(time.time() * 1000) - DAYS * 86400 * 1000
+    try:
         r = requests.get(
             "https://fapi.binance.com/fapi/v1/fundingRate",
-            params={"symbol": symbol_short, "endTime": end_time, "limit": 1000},
-            timeout=10,
+            params={"symbol": symbol_short, "limit": 1000},
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0"},
         )
         if r.status_code != 200:
-            break
+            print(f"  [WARN] Binance {symbol_short} HTTP {r.status_code}: {r.text[:100]}")
+            return []
         chunk = r.json()
-        if not chunk:
-            break
-        items = chunk + items  # prepend (older comes back at chunk start)
-        oldest_ts = chunk[0]["fundingTime"]
-        if oldest_ts < int(time.time() * 1000) - DAYS * 86400 * 1000:
-            break
-        end_time = oldest_ts - 1
-        time.sleep(0.2)
-        if len(items) >= limit:
-            break
-    # Dedup + sort
-    seen = set()
-    out = []
-    for it in sorted(items, key=lambda x: x["fundingTime"]):
-        ts = int(it["fundingTime"])
-        if ts in seen:
-            continue
-        seen.add(ts)
-        out.append({"ts": ts, "fr_pct": float(it["fundingRate"]) * 100})
-    cutoff = int(time.time() * 1000) - DAYS * 86400 * 1000
-    return [x for x in out if x["ts"] >= cutoff]
+        if not isinstance(chunk, list) or not chunk:
+            return []
+        out = [{"ts": int(x["fundingTime"]), "fr_pct": float(x["fundingRate"]) * 100}
+               for x in chunk if int(x["fundingTime"]) >= cutoff]
+        out.sort(key=lambda x: x["ts"])
+        return out
+    except Exception as e:
+        print(f"  [WARN] Binance fetch error {symbol_short}: {e}")
+        return []
 
 
 def _bybit_history(symbol_short: str) -> list[dict]:
