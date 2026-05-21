@@ -35,7 +35,10 @@ def _get_oh_pub():
         _oh_pub.has["fetchCurrencies"] = False
     return _oh_pub
 
-_HURST_FILTER = 0.58  # H > 0.58 = trending → skip mean-reversion entries (same as grid)
+_HURST_FILTER = 0.90  # 0.58→0.90 (2026-05-21): backtest sweep on 90d ETH/BTC/SOL showed
+                      # 0.58 blocks 100% of signals (Hurst on 60×4h is consistently 0.8-0.95).
+                      # 0.90 filters only parabolic moves. Yields 10 trades / 60% WR / +1.95%/mo
+                      # vs no-filter baseline 26 trades / 50% WR / +1.21%/mo.
 
 def _hurst_for(symbol: str) -> float:
     """Fetch 4h closes, compute Hurst. Returns 0.5 (neutral) on error."""
