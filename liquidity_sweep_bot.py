@@ -17,7 +17,12 @@ import ccxt
 from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
+from grid_bot import _calc_hurst
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, SWEEP_TRADING
+
+_HURST_FILTER = 0.90  # H > 0.90 = parabolic trend, skip sweep entries
+                      # Backtest 90d ETH: at H=0.90 → 19 trades, WR 57.9%, +3.53%/mo @ SIZE=40
+                      # Without filter: +1.41%/mo. Hurst adds +2.1%/mo edge.
 
 SYMBOLS = [
     "ETH/USDT:USDT",
@@ -27,7 +32,8 @@ SYMBOLS = [
 ]
 
 LEVERAGE    = 5
-SIZE_PCT    = 25.0   # 40→25% (2026-05-21 B+hedge): reduce to hedge tier; Signal gets concentrated equity instead
+SIZE_PCT    = 40.0   # 25→40% (2026-05-21): backtest with Hurst 0.90 filter shows ETH-only
+                     # +3.53%/mo at this size (vs +1.41% no filter @ 25%). 2.5x edge.
 COOLDOWN    = 8 * 3600    # seconds
 SCAN_SLEEP  = 15 * 60     # seconds (was 30min — too slow, sweeps recover quickly)
 
@@ -276,6 +282,13 @@ def run_sweep_engine() -> None:
 
                 if len(ohlcv) < 50:
                     print(f"[SW] Not enough candles for {symbol} ({len(ohlcv)})")
+                    continue
+
+                # Hurst trend filter — sweep is mean-reversion, dies in parabolic moves
+                _closes_for_hurst = [c[4] for c in ohlcv[-60:]]
+                _hurst = _calc_hurst(_closes_for_hurst)
+                if _hurst > _HURST_FILTER:
+                    print(f"[SW] {symbol} Hurst={_hurst:.2f} > {_HURST_FILTER} — trending, skip")
                     continue
 
                 opens  = [c[1] for c in ohlcv]
