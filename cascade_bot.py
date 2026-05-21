@@ -52,14 +52,14 @@ from config.settings import (
 
 WATCHLIST = ["SOL"]  # 2026-05-21: backtest 90d ETH+0.10% / SOL+0.65% / DOGE-1.64% / LINK-1.90% per mo. Only SOL is profitable.
 
-TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
-SL_PCT    = 0.6   # %
-LEVERAGE  = 10
-SIZE_PCT  = 40.0  # 15→40% (2026-05-21): SOL-only backtest scales linearly with SIZE.
-                  # At 40% → +1.30%/mo expected (vs +0.49% at 15%). Cascade triggers rare,
-                  # so larger size compensates for low frequency.
+TP_PCT    = 2.0
+SL_PCT    = 0.6
+LEVERAGE  = 5     # 10→5x (Council 2026-05-21): n=71 WR 33.8% ± 5.6pp, true could be 28-39%.
+                  # SL 0.6% × 10x = 6% margin/trade in SOL noise range. WITH-cascade direction
+                  # is debated (Critic: buying exhaustion bottoms). Conservative until n=200+.
+SIZE_PCT  = 40.0  # backtest scales linearly with SIZE
 
-MAX_POSITIONS      = 2        # max 2 позиції одночасно — обмежено з 4 для контролю ризику
+MAX_POSITIONS      = 1        # 2→1: cascade momentum trades shouldn't stack; capture one event cleanly
 COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу
 TIME_STOP_MIN      = 15       # каскадний momentum згасає за 10-15 хв
 DAILY_LOSS_LIMIT   = 0.03     # зупинити день якщо PnL < -3% від балансу
