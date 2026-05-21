@@ -38,7 +38,8 @@ load_dotenv()
 POOL         = "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"
 SWAP_TOPIC   = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
 BLOCKS_PER_DAY  = 7_200          # ~12s avg block time
-CHUNK_BLOCKS    = 2_000          # safe limit for eth_getLogs per request
+CHUNK_BLOCKS    = 10             # Alchemy free tier hard limit on eth_getLogs range
+RPC_DELAY       = 0.05           # seconds between RPC calls (~20 cps)
 
 _ex = ccxt.bybit({
     "options": {"defaultType": "swap"},
@@ -66,13 +67,10 @@ def _get_block_timestamp(block_hex: str, api_key: str) -> int:
     return int(res["result"]["timestamp"], 16)
 
 
-_block_ts_cache: dict[str, int] = {}
-
-def _block_ts_cached(block_hex: str, api_key: str) -> int:
-    if block_hex not in _block_ts_cache:
-        _block_ts_cache[block_hex] = _get_block_timestamp(block_hex, api_key)
-        time.sleep(0.1)
-    return _block_ts_cache[block_hex]
+def _interp_ts(block_num: int, anchor_block: int, anchor_ts: int) -> int:
+    """Approximate timestamp via linear interpolation (12s avg block time).
+    Drift over a 7-day window is ~minutes — fine for 1h/4h price-after-event checks."""
+    return anchor_ts - (anchor_block - block_num) * 12
 
 
 def _decode_int256(hex32: str) -> int:
@@ -86,15 +84,19 @@ def _decode_int256(hex32: str) -> int:
 
 def fetch_large_swaps(min_usd: float, days: int, api_key: str) -> list[dict]:
     current_block = _get_block_number(api_key)
+    anchor_ts     = _get_block_timestamp(hex(current_block), api_key)
     start_block   = current_block - days * BLOCKS_PER_DAY
     print(f"[WHALE-BT] Fetching Uniswap V3 swaps >${min_usd/1e3:.0f}K "
           f"| blocks {start_block}–{current_block} (~{days}d)")
 
-    min_usdc_raw = int(min_usd * 1e6)  # USDC has 6 decimals
+    min_usdc_raw = int(min_usd * 1e6)
     all_swaps = []
-
     chunks = list(range(start_block, current_block, CHUNK_BLOCKS))
-    print(f"[WHALE-BT] {len(chunks)} block chunks to scan...")
+    print(f"[WHALE-BT] {len(chunks)} block chunks ({CHUNK_BLOCKS} blocks each) — "
+          f"~{len(chunks) * RPC_DELAY:.0f}s of RPC time")
+
+    progress_step = max(50, len(chunks) // 20)
+    err_count = 0
 
     for i, from_blk in enumerate(chunks):
         to_blk = min(from_blk + CHUNK_BLOCKS - 1, current_block)
@@ -107,12 +109,16 @@ def fetch_large_swaps(min_usd: float, days: int, api_key: str) -> list[dict]:
             }], api_key)
             logs = res.get("result", [])
             if not isinstance(logs, list):
-                print(f"  chunk {i+1}/{len(chunks)}: RPC error — {res.get('error', 'unknown')}")
-                time.sleep(1)
+                err_count += 1
+                if err_count <= 3:
+                    print(f"  chunk {i+1}/{len(chunks)}: RPC error — {res.get('error', 'unknown')}")
+                time.sleep(0.5)
                 continue
         except Exception as e:
-            print(f"  chunk {i+1}/{len(chunks)}: request error — {e}")
-            time.sleep(2)
+            err_count += 1
+            if err_count <= 3:
+                print(f"  chunk {i+1}/{len(chunks)}: request error — {e}")
+            time.sleep(0.5)
             continue
 
         for log in logs:
@@ -125,8 +131,8 @@ def fetch_large_swaps(min_usd: float, days: int, api_key: str) -> list[dict]:
             if usdc_notional < min_usdc_raw:
                 continue
 
-            block_hex = log["blockNumber"]
-            ts = _block_ts_cached(block_hex, api_key)
+            block_num = int(log["blockNumber"], 16)
+            ts = _interp_ts(block_num, current_block, anchor_ts)
             all_swaps.append({
                 "timestamp": ts,
                 "amount0":   amount0,
@@ -134,12 +140,14 @@ def fetch_large_swaps(min_usd: float, days: int, api_key: str) -> list[dict]:
                 "amountUSD": usdc_notional / 1e6,
             })
 
-        if (i + 1) % 10 == 0:
-            print(f"  chunk {i+1}/{len(chunks)}: {len(all_swaps)} large swaps so far")
-        time.sleep(0.15)
+        if (i + 1) % progress_step == 0 or i == len(chunks) - 1:
+            print(f"  chunk {i+1}/{len(chunks)}: {len(all_swaps)} large swaps so far "
+                  f"(errors={err_count})")
+        time.sleep(RPC_DELAY)
 
     all_swaps.sort(key=lambda x: x["timestamp"])
-    print(f"[WHALE-BT] Got {len(all_swaps)} large swaps (>{min_usd/1e3:.0f}K USDC)")
+    print(f"[WHALE-BT] Got {len(all_swaps)} large swaps (>{min_usd/1e3:.0f}K USDC) "
+          f"| {err_count} RPC errors")
     return all_swaps
 
 
@@ -297,8 +305,8 @@ def print_report(stats: dict, min_usd: float, days: int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DEX whale swap backtest")
-    parser.add_argument("--days",    type=int,   default=7,       help="Days to look back (default 7)")
-    parser.add_argument("--min-usd", type=float, default=500_000, help="Min swap USD (default 500000)")
+    parser.add_argument("--days",    type=int,   default=3,       help="Days to look back (default 3 — Alchemy free tier ≈ 5 min per day)")
+    parser.add_argument("--min-usd", type=float, default=250_000, help="Min swap USD (default 250000 — relaxed because 0.05%% pool has many medium swaps)")
     parser.add_argument("--verbose", action="store_true",         help="Print each trade")
     args = parser.parse_args()
 
