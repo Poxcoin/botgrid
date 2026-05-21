@@ -55,7 +55,7 @@ WATCHLIST = ["SOL"]  # 2026-05-21: backtest 90d ETH+0.10% / SOL+0.65% / DOGE-1.6
 TP_PCT    = 2.0   # % — було 1.5, підвищено для demo $15k challenge
 SL_PCT    = 0.6   # %
 LEVERAGE  = 5
-SIZE_PCT  = 15.0  # % від вільного балансу — reduced from 20% per risk audit
+SIZE_PCT  = 25.0  # 15→25% (2026-05-21): SOL-only watchlist, backtest at 60% gave +1.95%/mo
 
 MAX_POSITIONS      = 2        # max 2 позиції одночасно — обмежено з 4 для контролю ризику
 COOLDOWN_SEC       = 15 * 60  # 15 хв cooldown на монету після сигналу
@@ -67,12 +67,15 @@ BYBIT_TAKER_FEE = 0.00055
 
 # Пороги ліквідацій — 1-хвилинне вікно
 LIQ_THRESHOLD = {
-    "BTC":   800_000,  # було 1.5M → знижено для demo $15k challenge
-    "ETH":   300_000,  # було 700K
-    "SOL":    80_000,  # було 175K
-    "XRP":    50_000,  # було 100K
-    "DOGE":   50_000,  # було 100K
-    "LINK":   40_000,  # було 75K
+    # 2026-05-21: SOL-only watchlist after DOGE/LINK retire; threshold lowered
+    # 80K→50K because market is calm and 0 cascades fired in 6h+ at 80K
+    "SOL":    50_000,
+    # other coins kept for historical-script compatibility, watchlist filters them
+    "BTC":   800_000,
+    "ETH":   300_000,
+    "XRP":    50_000,
+    "DOGE":   50_000,
+    "LINK":   40_000,
 }
 LIQ_WINDOW_SEC = 60   # 1 хвилина rolling window
 LIQ_RATIO      = 1.5  # було 2.0 — знизили щоб легше тригерити
