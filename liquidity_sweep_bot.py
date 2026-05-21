@@ -27,7 +27,7 @@ SYMBOLS = [
 ]
 
 LEVERAGE    = 5
-SIZE_PCT    = 25.0   # 25% per trade — restored to backtest-calibrated value
+SIZE_PCT    = 40.0   # 25→40% (2026-05-21): backtest at 60% gave +3.38%/mo on ETH-only; pushing prod 60% increases DD too much, 40% is safe middle
 COOLDOWN    = 8 * 3600    # seconds
 SCAN_SLEEP  = 15 * 60     # seconds (was 30min — too slow, sweeps recover quickly)
 

@@ -46,7 +46,7 @@ CANDLES         = 60       # total candles to fetch
 OB_LOOKBACK     = 50       # candles to scan for OBs
 BOS_MIN_PCT     = 0.025    # min move to confirm BOS: 2.5% (was 1.5% — too many weak signals)
 BOS_WINDOW      = 5        # candles after candidate to look for BOS
-MIN_OB_BODY_PCT = 0.003    # OB candle must have ≥0.3% body (filter doji and weak candles)
+MIN_OB_BODY_PCT = 0.002    # 0.3→0.2% (2026-05-21): wider OB net; bot had 0 trades in 2d at 0.3%
 
 
 # ── Market-data exchange (no auth needed for OHLCV) ──────────────────────────
