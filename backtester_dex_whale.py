@@ -2,28 +2,43 @@
 backtester_dex_whale.py — Backtest: do large Uniswap V3 swaps correlate with Bybit ETH price?
 
 Method:
-  1. Query Uniswap V3 ETH/USDC pool swaps via The Graph (free API, no key needed)
-  2. Filter: USD notional > $500K (whale-level)
+  1. Fetch Uniswap V3 ETH/USDC Swap events via Alchemy eth_getLogs
+  2. Filter: USDC notional > $500K (whale-level)
   3. Decode direction: amount1<0 = bought ETH (bullish), amount1>0 = sold ETH (bearish)
   4. Fetch Bybit ETH/USDT OHLCV at swap time
   5. Check price 1h and 4h after swap — did it move in the expected direction?
   6. Report: WR, avg move, signal frequency
 
 Pool:  0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640 (USDC/WETH 0.05% — highest volume)
+       token0 = USDC (6 decimals), token1 = WETH (18 decimals)
+
+Swap event:
+  topic0 = keccak256("Swap(address,address,int256,int256,uint160,uint128,int24)")
+         = 0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67
+  data layout (non-indexed, each 32 bytes):
+    [0:32]   amount0  — int256 (USDC, 6 dec)  negative = USDC leaving pool
+    [32:64]  amount1  — int256 (WETH, 18 dec) negative = WETH leaving pool = user BOUGHT ETH
+
 Usage: python backtester_dex_whale.py [--days 7] [--min-usd 500000] [--verbose]
 """
 import argparse
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
 
 import ccxt
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-GRAPH_URL  = "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3"
-ETH_USDC_POOL = "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"
+POOL         = "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"
+SWAP_TOPIC   = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67"
+BLOCKS_PER_DAY  = 7_200          # ~12s avg block time
+CHUNK_BLOCKS    = 2_000          # safe limit for eth_getLogs per request
 
 _ex = ccxt.bybit({
     "options": {"defaultType": "swap"},
@@ -33,81 +48,104 @@ _ex = ccxt.bybit({
 _ex.has["fetchCurrencies"] = False
 
 
-# ── Uniswap data via The Graph ─────────────────────────────────────────────────
+# ── Alchemy RPC helpers ───────────────────────────────────────────────────────
 
-def fetch_large_swaps(min_usd: float, days: int) -> list[dict]:
-    """Fetch large ETH/USDC swaps from The Graph for the last N days."""
-    since_ts = int((datetime.now(timezone.utc) - timedelta(days=days)).timestamp())
-    print(f"[WHALE-BT] Fetching Uniswap V3 swaps >${min_usd/1e3:.0f}K since {datetime.fromtimestamp(since_ts).strftime('%Y-%m-%d')}...")
+def _rpc(method: str, params: list, api_key: str) -> dict:
+    url = f"https://eth-mainnet.g.alchemy.com/v2/{api_key}"
+    resp = requests.post(url, json={"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, timeout=15)
+    return resp.json()
 
-    query = """
-    query($pool: String!, $minUSD: String!, $since: Int!, $skip: Int!) {
-      swaps(
-        first: 1000
-        skip: $skip
-        where: {
-          pool: $pool
-          amountUSD_gt: $minUSD
-          timestamp_gt: $since
-        }
-        orderBy: timestamp
-        orderDirection: asc
-      ) {
-        timestamp
-        amount0
-        amount1
-        amountUSD
-        origin
-      }
-    }
-    """
 
+def _get_block_number(api_key: str) -> int:
+    res = _rpc("eth_blockNumber", [], api_key)
+    return int(res["result"], 16)
+
+
+def _get_block_timestamp(block_hex: str, api_key: str) -> int:
+    res = _rpc("eth_getBlockByNumber", [block_hex, False], api_key)
+    return int(res["result"]["timestamp"], 16)
+
+
+_block_ts_cache: dict[str, int] = {}
+
+def _block_ts_cached(block_hex: str, api_key: str) -> int:
+    if block_hex not in _block_ts_cache:
+        _block_ts_cache[block_hex] = _get_block_timestamp(block_hex, api_key)
+        time.sleep(0.1)
+    return _block_ts_cache[block_hex]
+
+
+def _decode_int256(hex32: str) -> int:
+    val = int(hex32, 16)
+    if val >= (1 << 255):
+        val -= (1 << 256)
+    return val
+
+
+# ── Swap event fetching ───────────────────────────────────────────────────────
+
+def fetch_large_swaps(min_usd: float, days: int, api_key: str) -> list[dict]:
+    current_block = _get_block_number(api_key)
+    start_block   = current_block - days * BLOCKS_PER_DAY
+    print(f"[WHALE-BT] Fetching Uniswap V3 swaps >${min_usd/1e3:.0f}K "
+          f"| blocks {start_block}–{current_block} (~{days}d)")
+
+    min_usdc_raw = int(min_usd * 1e6)  # USDC has 6 decimals
     all_swaps = []
-    skip = 0
-    while True:
-        try:
-            resp = requests.post(
-                GRAPH_URL,
-                json={
-                    "query": query,
-                    "variables": {
-                        "pool":   ETH_USDC_POOL,
-                        "minUSD": str(int(min_usd)),
-                        "since":  since_ts,
-                        "skip":   skip,
-                    }
-                },
-                timeout=15,
-            )
-            data = resp.json()
-            if "errors" in data:
-                print(f"[WHALE-BT] Graph error: {data['errors']}")
-                break
-            swaps = data.get("data", {}).get("swaps", [])
-            if not swaps:
-                break
-            all_swaps.extend(swaps)
-            if len(swaps) < 1000:
-                break
-            skip += 1000
-            time.sleep(0.5)
-        except Exception as e:
-            print(f"[WHALE-BT] Graph fetch error: {e}")
-            break
 
-    print(f"[WHALE-BT] Got {len(all_swaps)} large swaps")
+    chunks = list(range(start_block, current_block, CHUNK_BLOCKS))
+    print(f"[WHALE-BT] {len(chunks)} block chunks to scan...")
+
+    for i, from_blk in enumerate(chunks):
+        to_blk = min(from_blk + CHUNK_BLOCKS - 1, current_block)
+        try:
+            res = _rpc("eth_getLogs", [{
+                "address": POOL,
+                "topics":  [SWAP_TOPIC],
+                "fromBlock": hex(from_blk),
+                "toBlock":   hex(to_blk),
+            }], api_key)
+            logs = res.get("result", [])
+            if not isinstance(logs, list):
+                print(f"  chunk {i+1}/{len(chunks)}: RPC error — {res.get('error', 'unknown')}")
+                time.sleep(1)
+                continue
+        except Exception as e:
+            print(f"  chunk {i+1}/{len(chunks)}: request error — {e}")
+            time.sleep(2)
+            continue
+
+        for log in logs:
+            data = log.get("data", "0x")[2:]
+            if len(data) < 128:
+                continue
+            amount0 = _decode_int256(data[0:64])
+            amount1 = _decode_int256(data[64:128])
+            usdc_notional = abs(amount0)
+            if usdc_notional < min_usdc_raw:
+                continue
+
+            block_hex = log["blockNumber"]
+            ts = _block_ts_cached(block_hex, api_key)
+            all_swaps.append({
+                "timestamp": ts,
+                "amount0":   amount0,
+                "amount1":   amount1,
+                "amountUSD": usdc_notional / 1e6,
+            })
+
+        if (i + 1) % 10 == 0:
+            print(f"  chunk {i+1}/{len(chunks)}: {len(all_swaps)} large swaps so far")
+        time.sleep(0.15)
+
+    all_swaps.sort(key=lambda x: x["timestamp"])
+    print(f"[WHALE-BT] Got {len(all_swaps)} large swaps (>{min_usd/1e3:.0f}K USDC)")
     return all_swaps
 
 
 def parse_direction(swap: dict) -> str:
-    """
-    Uniswap V3 USDC/WETH pool:
-      token0 = USDC, token1 = WETH
-      amount1 < 0 → WETH leaving pool → user got ETH → BUY
-      amount1 > 0 → WETH entering pool → user sold ETH → SELL
-    """
-    amount1 = float(swap.get("amount1", 0))
-    return "BUY" if amount1 < 0 else "SELL"
+    """amount1 < 0 → WETH leaving pool → user bought ETH → BUY."""
+    return "BUY" if swap["amount1"] < 0 else "SELL"
 
 
 # ── Bybit price lookup ────────────────────────────────────────────────────────
@@ -115,8 +153,6 @@ def parse_direction(swap: dict) -> str:
 _ohlcv_cache: dict = {}
 
 def _fetch_ohlcv_around(ts: int) -> list:
-    """Fetch 1h candles for ETH around timestamp ts (±6 hours). Cached."""
-    # Round to nearest 6h bucket for cache efficiency
     bucket = (ts // (6 * 3600)) * (6 * 3600)
     if bucket in _ohlcv_cache:
         return _ohlcv_cache[bucket]
@@ -136,7 +172,6 @@ def _fetch_ohlcv_around(ts: int) -> list:
 
 
 def get_price_at(ts: int) -> float | None:
-    """Get ETH close price at the 1h candle containing timestamp ts."""
     candles = _fetch_ohlcv_around(ts)
     ts_ms = ts * 1000
     for c in reversed(candles):
@@ -146,9 +181,7 @@ def get_price_at(ts: int) -> float | None:
 
 
 def get_price_after(ts: int, hours: int) -> float | None:
-    """Get ETH price approximately N hours after ts."""
     target_ts = ts + hours * 3600
-    # Expand search window if needed
     bucket = (target_ts // (6 * 3600)) * (6 * 3600)
     if bucket not in _ohlcv_cache:
         try:
@@ -171,14 +204,12 @@ def get_price_after(ts: int, hours: int) -> float | None:
 def analyze(swaps: list[dict], verbose: bool = False) -> dict:
     results_1h = {"wins": 0, "total": 0, "moves": []}
     results_4h = {"wins": 0, "total": 0, "moves": []}
-
-    buy_count  = 0
-    sell_count = 0
+    buy_count = sell_count = 0
 
     for swap in swaps:
         ts        = int(swap["timestamp"])
         direction = parse_direction(swap)
-        usd       = float(swap.get("amountUSD", 0))
+        usd       = float(swap["amountUSD"])
 
         if direction == "BUY":
             buy_count += 1
@@ -208,7 +239,7 @@ def analyze(swaps: list[dict], verbose: bool = False) -> dict:
                 print(
                     f"  {ts_str} | {direction:4s} ${usd/1e6:.1f}M | "
                     f"price={price_now:.2f} | +{hours}h={price_later:.2f} "
-                    f"({move_pct:+.2f}%) | {'✅' if win else '❌'}"
+                    f"({move_pct:+.2f}%) | {'OK' if win else '--'}"
                 )
 
     return {
@@ -239,15 +270,14 @@ def print_report(stats: dict, min_usd: float, days: int):
         print(f"  WR:       {wr:.1f}%  ({r['wins']}/{r['total']})")
         print(f"  Avg move: {avg_move:+.3f}%")
 
-        verdict = ""
         if wr >= 60:
-            verdict = "✅ Strong alpha — worth building"
+            verdict = "Strong alpha — worth building"
         elif wr >= 53:
-            verdict = "🟡 Weak edge — marginal, needs more data"
+            verdict = "Weak edge — marginal, needs more data"
         elif wr <= 45:
-            verdict = "❌ Anti-predictive — consider inverse signal"
+            verdict = "Anti-predictive — consider inverse signal"
         else:
-            verdict = "⚪ No edge — random"
+            verdict = "No edge — random"
         print(f"  Verdict:  {verdict}")
 
     print("\n" + "=" * 60)
@@ -272,6 +302,11 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action="store_true",         help="Print each trade")
     args = parser.parse_args()
 
+    api_key = os.getenv("ALCHEMY_API_KEY", "")
+    if not api_key:
+        print("ERROR: ALCHEMY_API_KEY not set in .env")
+        sys.exit(1)
+
     print(f"[WHALE-BT] Loading Bybit markets...")
     try:
         _ex.load_markets()
@@ -279,9 +314,9 @@ if __name__ == "__main__":
         print(f"Failed to load markets: {e}")
         sys.exit(1)
 
-    swaps = fetch_large_swaps(min_usd=args.min_usd, days=args.days)
+    swaps = fetch_large_swaps(min_usd=args.min_usd, days=args.days, api_key=api_key)
     if not swaps:
-        print("[WHALE-BT] No swaps found. Check The Graph API or increase --days")
+        print("[WHALE-BT] No swaps found. Check ALCHEMY_API_KEY or increase --days")
         sys.exit(1)
 
     print(f"[WHALE-BT] Analyzing {len(swaps)} swaps vs Bybit price...")
