@@ -47,8 +47,8 @@ export function buildTradeMarkers(trades, bars, symbol, kind = 'crypto') {
           position: isLong ? 'belowBar' : 'aboveBar',
           color: isLong ? C_UP : C_DN,
           shape: isLong ? 'arrowUp' : 'arrowDown',
-          text: isLong ? 'B' : 'S',
-          size: 1.5,
+          text: '',
+          size: 1,
           id: `entry-${m.id(tr) ?? ts}`,
         });
       }
@@ -63,8 +63,8 @@ export function buildTradeMarkers(trades, bars, symbol, kind = 'crypto') {
           time: ts,
           position: isLong ? 'aboveBar' : 'belowBar',
           color: p >= 0 ? C_UP : C_DN,
-          shape: 'circle',
-          text: `${p >= 0 ? '+' : ''}$${p.toFixed(1)}`,
+          shape: isLong ? 'arrowDown' : 'arrowUp',
+          text: '',
           size: 1,
           id: `exit-${m.id(tr) ?? ts}`,
         });
