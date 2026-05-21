@@ -23,7 +23,28 @@ from modules.cvd_realtime import (
     is_ready as cvd_is_ready,
     log_shadow as cvd_log_shadow,
 )
+from grid_bot import _calc_hurst
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, ORDERFLOW_TRADING
+
+import ccxt as _ccxt_oh
+_oh_pub = None
+def _get_oh_pub():
+    global _oh_pub
+    if _oh_pub is None:
+        _oh_pub = _ccxt_oh.bybit({"options":{"defaultType":"swap"},"enableRateLimit":True,"timeout":12000})
+        _oh_pub.has["fetchCurrencies"] = False
+    return _oh_pub
+
+_HURST_FILTER = 0.58  # H > 0.58 = trending → skip mean-reversion entries (same as grid)
+
+def _hurst_for(symbol: str) -> float:
+    """Fetch 4h closes, compute Hurst. Returns 0.5 (neutral) on error."""
+    try:
+        ohlcv = _get_oh_pub().fetch_ohlcv(symbol, "4h", limit=80, params={"category":"linear"})
+        closes = [c[4] for c in ohlcv]
+        return _calc_hurst(closes[-60:])
+    except Exception:
+        return 0.5
 
 SYMBOLS = [
     "BTC/USDT:USDT",
@@ -264,6 +285,14 @@ def run_orderflow_engine() -> None:
 
                 if symbol in _open_symbols:
                     print(f"[OF] {symbol} already open — skip")
+                    continue
+
+                # Hurst trend filter — orderflow signals are mean-reversion;
+                # in strong trends (H>0.58) bot SHORTs the rally → SL spam.
+                # 2026-05-21 added after orderflow bled $48 in 22 trades during ETH/BTC uptrend.
+                _hurst = _hurst_for(symbol)
+                if _hurst > _HURST_FILTER:
+                    print(f"[OF] {symbol} Hurst={_hurst:.2f} > {_HURST_FILTER} — trending, skip")
                     continue
 
                 try:
