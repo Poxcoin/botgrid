@@ -563,7 +563,7 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
     const lBg  = isDark ? '#1a1a1a' : '#f0f0f0';
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: lBg }, textColor: tClr, fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
+      layout: { background: { color: '#000000' }, textColor: tClr, fontFamily: 'JetBrains Mono, Courier New, monospace', fontSize: 10 },
       grid:    { vertLines: { color: gClr }, horzLines: { color: gClr } },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg }, horzLine: { color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', labelBackgroundColor: lBg } },
       rightPriceScale: { borderColor: bClr },
@@ -817,13 +817,21 @@ function Chart({ coin, entryPrice, stopLoss = 0, takeProfit = 0, isMobile = fals
         <div style={{ flex: 1, minWidth: 0, position: 'relative', background: 'var(--bg-base)' }}>
           <div ref={elRef} style={{ width: '100%', height: '100%' }} />
           <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
+            position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none',
+            padding: '40px 20px', background: 'linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 120, fontWeight: 900, letterSpacing: '0.15em',
-            color: 'rgba(255,255,255,0.03)',
-            fontFamily: FM, textTransform: 'uppercase',
           }}>
-            KADO
+            <span style={{
+              fontSize: 64, fontWeight: 900, letterSpacing: '0.2em',
+              background: 'linear-gradient(135deg, rgba(14,203,129,0.6) 0%, rgba(100,200,150,0.4) 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              filter: 'drop-shadow(0 4px 12px rgba(14,203,129,0.2))',
+              fontFamily: FM, textTransform: 'uppercase',
+            }}>
+              KADO
+            </span>
           </div>
         </div>
         {!isMobile && <OrderBook coin={coin} />}
