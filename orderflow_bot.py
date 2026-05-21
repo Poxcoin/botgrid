@@ -59,12 +59,13 @@ SYMBOLS = [
     "ARB/USDT:USDT",
 ]
 
-LEVERAGE   = 10
+LEVERAGE   = 5       # 10→5x (Council 2026-05-21): live WR 36% × 2:1 R:R + fees = -EV.
+                     # Need n≥50 post-Hurst trades before re-bumping. Reverted today's bump.
 TP_PCT     = 2.0
 SL_PCT     = 1.0
-SIZE_PCT   = 30.0    # 25→40% (2026-05-21): Hurst 0.90 filter validated +3.90%/mo at this SIZE
-                     # (vs +2.92% at SIZE=30%). Same 10-trade sample, just bigger position.
-MAX_POS    = 2
+SIZE_PCT   = 30.0
+MAX_POS    = 1       # 2→1: cap concurrent exposure until forward-test validates Hurst 0.90 filter
+                     # (n=10 backtest 95% CI on WR is 27-86% — sample too small to risk multi-pos)
 COOLDOWN   = 2 * 3600
 SCAN_SLEEP = 180
 
