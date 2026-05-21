@@ -26,6 +26,212 @@ function fmtDT(iso) {
   try { return iso.slice(0, 16).replace('T', ' '); } catch { return '—'; }
 }
 
+// ── LiveBybitSection ───────────────────────────────────────────────────────
+
+function pnlStyle(v) {
+  if (v == null) return { color: 'var(--text-muted)' };
+  if (v > 0) return { color: '#16a34a' };
+  if (v < 0) return { color: '#dc2626' };
+  return { color: 'var(--text-muted)' };
+}
+
+function LiveBybitSection() {
+  const [data, setData]       = useState(null);
+  const [err,  setErr]        = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState({}); // user_id -> bool
+
+  const load = useCallback(async (force = false) => {
+    setLoading(true);
+    try {
+      const r = await authFetch(`/api/owner/live-bybit${force ? '?force=1' : ''}`);
+      if (!r.ok) { setErr(`HTTP ${r.status}`); setData(null); }
+      else { setData(await r.json()); setErr(null); }
+    } catch (e) {
+      setErr(String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(() => load(false), 30000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const users = data?.users ?? [];
+  const totals = users.reduce((acc, u) => ({
+    wallet:    acc.wallet    + (u.wallet_usdt    ?? 0),
+    realized:  acc.realized  + (u.today_realized ?? 0),
+    fees:      acc.fees      + (u.today_fees     ?? 0),
+    net:       acc.net       + (u.today_net      ?? 0),
+    unreal:    acc.unreal    + (u.unrealized     ?? 0),
+    positions: acc.positions + (u.positions?.length ?? 0),
+  }), { wallet: 0, realized: 0, fees: 0, net: 0, unreal: 0, positions: 0 });
+
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <h3 style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 13, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+          Live · Bybit Today (UTC)
+        </h3>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {data && (
+            <span style={{ fontFamily: 'monospace', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              {data.cached ? `cached ${data.age_sec}s ago` : 'fresh'}
+            </span>
+          )}
+          <button
+            onClick={() => load(true)}
+            disabled={loading}
+            style={{ fontFamily: 'monospace', fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', border: '1px solid var(--border-default)', background: 'none', cursor: loading ? 'wait' : 'pointer', padding: '4px 10px', color: 'var(--text-primary)', opacity: loading ? 0.6 : 1 }}>
+            {loading ? 'Loading…' : 'Force'}
+          </button>
+        </div>
+      </div>
+
+      {err && (
+        <div style={{ padding: 12, marginBottom: 12, border: '1px solid #dc2626', background: 'rgba(220,38,38,0.06)', fontFamily: 'monospace', fontSize: 11, color: '#dc2626' }}>
+          {err}
+        </div>
+      )}
+
+      {/* aggregate strip */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)',
+        border: '1px solid var(--border-default)', marginBottom: 10,
+      }}>
+        {[
+          { label: 'Wallet Σ',     val: `$${totals.wallet.toFixed(2)}`,    style: {} },
+          { label: 'Realized',     val: fmtUSD(totals.realized),           style: pnlStyle(totals.realized) },
+          { label: 'Fees',         val: `-$${totals.fees.toFixed(2)}`,     style: { color: '#dc2626' } },
+          { label: 'Net Today',    val: fmtUSD(totals.net),                style: pnlStyle(totals.net) },
+          { label: 'Unrealized',   val: fmtUSD(totals.unreal),             style: pnlStyle(totals.unreal) },
+          { label: 'Open Pos',     val: totals.positions,                  style: {} },
+        ].map((c, i) => (
+          <div key={i} style={{
+            padding: '12px 14px',
+            borderRight: i < 5 ? '1px solid var(--border-subtle)' : 'none',
+          }}>
+            <div style={{ fontFamily: 'monospace', fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 17, ...c.style }}>{c.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* per-user breakdown */}
+      <div style={{ border: '1px solid var(--border-default)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-elevated)' }}>
+              {['User', 'Mode', 'Wallet', 'Realized', 'Fees', 'Net', 'Unrealized', 'Open', ''].map((h, i) => (
+                <th key={h + i} style={{
+                  textAlign: i >= 2 && i <= 7 ? 'right' : 'left',
+                  padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace',
+                  fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+                  color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)',
+                }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {!data ? (
+              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>Loading live data…</td></tr>
+            ) : users.length === 0 ? (
+              <tr><td colSpan={9} style={{ padding: 24, textAlign: 'center', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>No users with Bybit keys</td></tr>
+            ) : users.map(u => {
+              const isOpen = !!expanded[u.user_id];
+              return (
+                <React.Fragment key={u.user_id}>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 12 }}>{u.email}</td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 10, letterSpacing: '0.15em', color: u.is_demo ? '#d97706' : '#16a34a' }}>
+                      {u.is_demo ? 'DEMO' : 'LIVE'}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right' }}>
+                      {u.error ? <span style={{ color: '#dc2626' }} title={u.error}>err</span> : (u.wallet_usdt != null ? `$${u.wallet_usdt.toFixed(2)}` : '—')}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right', ...pnlStyle(u.today_realized) }}>
+                      {u.today_realized != null ? fmtUSD(u.today_realized) : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right', color: '#dc2626' }}>
+                      {u.today_fees != null ? `-$${u.today_fees.toFixed(2)}` : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right', fontWeight: 700, ...pnlStyle(u.today_net) }}>
+                      {u.today_net != null ? fmtUSD(u.today_net) : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right', ...pnlStyle(u.unrealized) }}>
+                      {u.unrealized != null ? fmtUSD(u.unrealized) : '—'}
+                    </td>
+                    <td style={{ padding: '10px 12px', fontFamily: 'monospace', textAlign: 'right', color: (u.positions?.length ?? 0) > 0 ? '#2563eb' : 'var(--text-muted)' }}>
+                      {u.positions?.length ?? 0}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      {((u.positions?.length ?? 0) + (u.closed_today?.length ?? 0)) > 0 && (
+                        <button
+                          onClick={() => setExpanded(s => ({ ...s, [u.user_id]: !s[u.user_id] }))}
+                          style={{ fontFamily: 'monospace', fontSize: 10, border: '1px solid var(--border-default)', background: 'none', cursor: 'pointer', padding: '2px 8px', color: 'var(--text-muted)' }}>
+                          {isOpen ? '−' : '+'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td colSpan={9} style={{ padding: 0, background: 'var(--bg-elevated)' }}>
+                        <div style={{ padding: '10px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                          {/* open positions */}
+                          <div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Open positions ({u.positions?.length ?? 0})</div>
+                            {(u.positions ?? []).map((p, i) => (
+                              <div key={i} style={{ fontFamily: 'monospace', fontSize: 11, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>
+                                  <span style={{ fontWeight: 700 }}>{p.symbol}</span>{' '}
+                                  <span style={{ color: p.side === 'long' ? '#16a34a' : '#dc2626' }}>{p.side?.toUpperCase()}</span>{' '}
+                                  <span style={{ color: 'var(--text-muted)' }}>{p.qty}</span>
+                                </span>
+                                <span style={pnlStyle(p.unrealized)}>{fmtUSD(p.unrealized)}</span>
+                              </div>
+                            ))}
+                            {(!u.positions || u.positions.length === 0) && (
+                              <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>—</div>
+                            )}
+                          </div>
+                          {/* closed today */}
+                          <div>
+                            <div style={{ fontFamily: 'monospace', fontSize: 9, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Closed today ({u.closed_today?.length ?? 0})</div>
+                            {(u.closed_today ?? []).map((t, i) => (
+                              <div key={i} style={{ fontFamily: 'monospace', fontSize: 11, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between' }}>
+                                <span>
+                                  <span style={{ fontWeight: 700 }}>{t.symbol}</span>{' '}
+                                  <span style={{ color: t.side === 'Buy' ? '#16a34a' : '#dc2626' }}>{t.side?.toUpperCase()}</span>{' '}
+                                  <span style={{ color: 'var(--text-muted)' }}>{t.qty}</span>
+                                </span>
+                                <span>
+                                  <span style={pnlStyle(t.pnl)}>{fmtUSD(t.pnl)}</span>
+                                  <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>(fee {t.fee})</span>
+                                </span>
+                              </div>
+                            ))}
+                            {(!u.closed_today || u.closed_today.length === 0) && (
+                              <div style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)' }}>—</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ── PlatformSummary ────────────────────────────────────────────────────────
 
 function PlatformSummary({ users }) {
@@ -270,6 +476,8 @@ export default function OwnerTab() {
           </button>
         </div>
       </div>
+
+      <LiveBybitSection />
 
       <PlatformSummary users={data?.users} />
 

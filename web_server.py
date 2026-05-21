@@ -2534,6 +2534,151 @@ async def owner_users_pnl(
     return {"users": result}
 
 
+_live_bybit_cache: dict = {"ts": 0, "data": None}
+_LIVE_CACHE_TTL = 30   # seconds — Bybit gets hit at most once per 30s no matter how many owner refreshes
+
+
+def _fetch_live_bybit_for_user(uid: int, email: str, api_key: str, secret: str, is_demo: bool) -> dict:
+    """Fetch wallet + today realized + today fees + unrealized for ONE user.
+    3 Bybit REST calls. Run inside thread pool, never on the main event loop.
+    """
+    import ccxt, datetime as _dt
+    out = {
+        "user_id":         uid,
+        "email":           email,
+        "is_demo":         is_demo,
+        "wallet_usdt":     None,
+        "today_realized":  None,
+        "today_fees":      None,
+        "today_net":       None,
+        "unrealized":      None,
+        "positions":       [],
+        "closed_today":    [],
+        "error":           None,
+    }
+    try:
+        ex = ccxt.bybit({
+            "apiKey": api_key, "secret": secret, "enableRateLimit": True,
+            "options": {"defaultType": "linear", "adjustForTimeDifference": True, "recvWindow": 10000},
+            "timeout": 12000,
+        })
+        ex.has["fetchCurrencies"] = False
+        if is_demo:
+            ex.urls["api"] = ex.urls["demotrading"]
+
+        bal = ex.fetch_balance(params={"accountType": "UNIFIED"})
+        out["wallet_usdt"] = round(float((bal.get("USDT") or {}).get("total") or 0.0), 2)
+
+        positions = ex.fetch_positions(params={"category": "linear"})
+        unreal = 0.0
+        for p in positions:
+            qty = float(p.get("contracts") or 0)
+            if qty <= 0:
+                continue
+            upl = float(p.get("unrealizedPnl") or 0)
+            unreal += upl
+            out["positions"].append({
+                "symbol":      (p.get("symbol") or "").replace("/USDT:USDT", ""),
+                "side":        p.get("side"),
+                "qty":         qty,
+                "entry_price": float(p.get("entryPrice") or 0),
+                "mark_price":  float(p.get("markPrice") or 0),
+                "unrealized":  round(upl, 2),
+            })
+        out["unrealized"] = round(unreal, 2)
+
+        today_start_ms = int(
+            _dt.datetime.combine(_dt.date.today(), _dt.time(0, 0))
+            .replace(tzinfo=_dt.timezone.utc).timestamp() * 1000
+        )
+        closed_res = ex.privateGetV5PositionClosedPnl({
+            "category": "linear", "startTime": today_start_ms, "limit": 100,
+        })
+        closed_list = (closed_res.get("result") or {}).get("list", []) or []
+        realized = 0.0
+        fees = 0.0
+        for t in closed_list:
+            pnl = float(t.get("closedPnl") or 0)
+            fee = float(t.get("openFee") or 0) + float(t.get("closeFee") or 0)
+            realized += pnl
+            fees += fee
+            out["closed_today"].append({
+                "symbol":   (t.get("symbol") or "").replace("USDT", ""),
+                "side":     t.get("side"),
+                "qty":      float(t.get("qty") or 0),
+                "entry":    float(t.get("avgEntryPrice") or 0),
+                "exit":     float(t.get("avgExitPrice") or 0),
+                "pnl":      round(pnl, 2),
+                "fee":      round(fee, 3),
+                "closed_at": int(t.get("updatedTime") or 0),
+            })
+        out["today_realized"] = round(realized, 2)
+        out["today_fees"]     = round(fees, 3)
+        out["today_net"]      = round(realized - fees, 2)
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {str(e)[:120]}"
+    return out
+
+
+@app.get("/api/owner/live-bybit")
+async def owner_live_bybit(
+    force: bool = Query(False, description="Bypass 30s cache"),
+    token: str = Depends(require_any_auth),
+    db: Session = Depends(get_db),
+):
+    """Owner: live Bybit per-user wallet + today realized (incl fees) + unrealized.
+    Cached 30s in process memory to avoid hammering Bybit on every dashboard tick.
+    """
+    import time as _time
+    from concurrent.futures import ThreadPoolExecutor
+
+    _require_owner(token, db)
+
+    if not force and _live_bybit_cache["data"] and (_time.time() - _live_bybit_cache["ts"] < _LIVE_CACHE_TTL):
+        return {
+            "cached":     True,
+            "age_sec":    int(_time.time() - _live_bybit_cache["ts"]),
+            "users":      _live_bybit_cache["data"],
+        }
+
+    keys = (
+        db.query(UserApiKey, User)
+        .join(User, User.id == UserApiKey.user_id)
+        .filter(UserApiKey.exchange == "bybit")
+        .all()
+    )
+
+    tasks = []
+    for key_row, user in keys:
+        try:
+            api_key = decrypt_field(key_row.api_key_enc)
+            secret  = decrypt_field(key_row.secret_enc)
+        except Exception:
+            continue
+        if not api_key or not secret:
+            continue
+        tasks.append((user.id, user.email, api_key, secret, bool(key_row.is_demo)))
+
+    results: list[dict] = []
+    if tasks:
+        loop = asyncio.get_running_loop()
+        with ThreadPoolExecutor(max_workers=min(8, len(tasks))) as pool:
+            futures = [
+                loop.run_in_executor(pool, _fetch_live_bybit_for_user, uid, email, ak, sk, demo)
+                for (uid, email, ak, sk, demo) in tasks
+            ]
+            for f in futures:
+                try:
+                    results.append(await f)
+                except Exception as e:
+                    results.append({"error": f"{type(e).__name__}: {e}"})
+
+    results.sort(key=lambda r: r.get("user_id") or 0)
+    _live_bybit_cache["ts"]   = _time.time()
+    _live_bybit_cache["data"] = results
+    return {"cached": False, "age_sec": 0, "users": results}
+
+
 @app.get("/api/owner/user-trades/{uid}")
 async def owner_user_trades(
     uid: int,
