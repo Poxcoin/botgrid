@@ -7,7 +7,7 @@ print("=== SERVICES ===")
 for svc in ["crypto-web", "crypto-sniper", "crypto-grid", "crypto-bot"]:
     r = subprocess.run(["systemctl", "is-active", svc], capture_output=True, text=True)
     status = r.stdout.strip()
-    print(f"  {'✅' if status == 'active' else '❌'} {svc}: {status}")
+    print(f"  {'' if status == 'active' else ''} {svc}: {status}")
 
 print()
 
@@ -40,13 +40,13 @@ for t in open_t:
             age = f"{mins}min open"
         except Exception:
             pass
-    print(f"  🔄 {t['coin']:<6} {t['action']:<5} | entry={t['entry_price']} | {age}")
+    print(f"   {t['coin']:<6} {t['action']:<5} | entry={t['entry_price']} | {age}")
 
 print()
 print("  --- CLOSED trades (last 10) ---")
 for t in list(closed)[:10]:
     pnl = t["pnl_usdt"] or 0
-    icon = "✅" if pnl > 0 else "❌"
+    icon = "" if pnl > 0 else ""
     dur = f"{t['duration_minutes']}min" if t["duration_minutes"] else "?"
     print(f"  {icon} {t['coin']:<6} {t['action']:<5} | {pnl:+.2f}$ | {dur} | {(t['timestamp_open'] or '')[:16]}")
 

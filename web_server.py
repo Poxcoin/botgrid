@@ -124,7 +124,7 @@ def _pnl_alert_check():
                     drop = baseline - upnl
                     if drop >= _PNL_ALERT_THRESHOLD:
                         _tg_alert(
-                            f"⚠️ <b>PnL Alert</b>\n"
+                            f" <b>PnL Alert</b>\n"
                             f"Unrealized PnL dropped <b>${drop:.0f}</b> in the last hour\n"
                             f"Was: <b>${baseline:+.0f}</b> → Now: <b>${upnl:+.0f}</b>\n"
                             f"Positions: {len(positions)}"
@@ -142,7 +142,7 @@ def _unrealized_loss_check():
 
     Fires at most once per position per _UNREAL_LOSS_COOLDOWN seconds to avoid spam.
     Alert format matches Council spec:
-      ⚠️ Unrealized loss alert: {symbol} position is at -{loss}$ unrealized
+       Unrealized loss alert: {symbol} position is at -{loss}$ unrealized
     """
     from database import SessionLocal
     db = SessionLocal()
@@ -167,7 +167,7 @@ def _unrealized_loss_check():
                     _unreal_loss_last_alert[alert_key] = now_ts
                     loss = abs(upnl)
                     _tg_alert(
-                        f"⚠️ Unrealized loss alert: {symbol} position is at -${loss:.2f} unrealized"
+                        f" Unrealized loss alert: {symbol} position is at -${loss:.2f} unrealized"
                     )
             except Exception as e:
                 print(f"[UNREAL_LOSS] user {kr.user_id}: {e}")

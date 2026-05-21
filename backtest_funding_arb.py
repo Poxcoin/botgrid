@@ -54,7 +54,7 @@ def fetch_funding_history(symbol: str, limit: int = 200) -> list:
             end_time = int(rows[-1]["fundingRateTimestamp"]) - 1
             time.sleep(0.15)
         except Exception as e:
-            print(f"  ⚠️  fetch error {symbol}: {e}")
+            print(f"    fetch error {symbol}: {e}")
             break
 
     parsed = [
@@ -72,7 +72,7 @@ def load_or_fetch_all() -> dict:
         # Validate all symbols present
         if all(sym in cached for sym in SYMBOLS):
             ages = {sym: len(cached[sym]) for sym in SYMBOLS}
-            print(f"  ✓ Cache hit ({CACHE_FILE}): {ages}")
+            print(f"   Cache hit ({CACHE_FILE}): {ages}")
             return cached
 
     print("  ↓ Downloading funding history (this takes ~1 min)…")
@@ -85,7 +85,7 @@ def load_or_fetch_all() -> dict:
 
     with open(CACHE_FILE, "w") as f:
         json.dump(all_data, f)
-    print(f"  ✓ Saved to {CACHE_FILE}\n")
+    print(f"   Saved to {CACHE_FILE}\n")
     return all_data
 
 
@@ -240,7 +240,7 @@ def sweep(all_funding: dict, capital: float):
 
     # Best row
     best = max(sweep_results, key=lambda r: r["monthly"])
-    print(f"\n  ★ Best: entry={best['entry_pct']:.3f}%  monthly={best['monthly']:+.3f}%  "
+    print(f"\n   Best: entry={best['entry_pct']:.3f}%  monthly={best['monthly']:+.3f}%  "
           f"return={best['total_ret']:+.2f}%  funding=${best['funding']:,.0f}  fees=${best['fees']:,.0f}")
 
     return sweep_results, best

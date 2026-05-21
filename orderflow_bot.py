@@ -246,7 +246,7 @@ def run_orderflow_engine() -> None:
                 balance  = get_free_usdt(exchange)
                 wallet   = get_wallet_usdt(exchange)
             except Exception as e:
-                print(f"[OF] ❌ Balance fetch failed: {e}")
+                print(f"[OF]  Balance fetch failed: {e}")
                 time.sleep(SCAN_SLEEP)
                 continue
 
@@ -298,7 +298,7 @@ def run_orderflow_engine() -> None:
                 try:
                     ctx = get_orderflow_context(symbol)
                 except Exception as e:
-                    print(f"[OF] ❌ Context fetch failed for {symbol}: {e}")
+                    print(f"[OF]  Context fetch failed for {symbol}: {e}")
                     continue
 
                 try:
@@ -369,7 +369,7 @@ def run_orderflow_engine() -> None:
                         _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
-                        print(f"[OF] ❌ dispatch error {symbol}: {e}")
+                        print(f"[OF]  dispatch error {symbol}: {e}")
                 else:
                     print(f"[OF] DRY-RUN — trading disabled, no order placed")
                     send_telegram_message(f"[OF] DRY-RUN\n{tg_body}", TG_CHAT_ID)
@@ -380,12 +380,12 @@ def run_orderflow_engine() -> None:
             print("\n[OF] Orderflow бот зупинено.")
             break
         except Exception as e:
-            print(f"[OF] ❌ {e}")
+            print(f"[OF]  {e}")
             now_ts = time.time()
             if now_ts - last_error_tg > 300:
                 last_error_tg = now_ts
                 send_telegram_message(
-                    f"❌ <b>[OF] Orderflow Bot — помилка</b>\n<code>{str(e)[:300]}</code>",
+                    f" <b>[OF] Orderflow Bot — помилка</b>\n<code>{str(e)[:300]}</code>",
                     TG_CHAT_ID,
                 )
             time.sleep(10)

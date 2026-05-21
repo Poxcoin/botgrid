@@ -41,7 +41,7 @@ def calculate_pnl(symbol, action, entry_price, timestamp_ms):
     Эмулятор проверки профита на исторических графиках в будущем.
     Скачивает свечи за 24 часа ПОСЛЕ новости и ищет касания SL и TP.
     """
-    print(f"   ⏱️ Эмуляция виртуальной сделки {action} по цене {entry_price}$...")
+    print(f"   ⏱ Эмуляция виртуальной сделки {action} по цене {entry_price}$...")
     
     # Расчет TP и SL
     if action == 'LONG':
@@ -90,7 +90,7 @@ def calculate_pnl(symbol, action, entry_price, timestamp_ms):
 
 def run_backtest():
     print("==============================================")
-    print("🚀 ВАШ ИСТОРИЧЕСКИЙ БЭКТЕСТ ЗАПУЩЕН")
+    print(" ВАШ ИСТОРИЧЕСКИЙ БЭКТЕСТ ЗАПУЩЕН")
     print("==============================================\n")
     
     total_trades = 0
@@ -98,8 +98,8 @@ def run_backtest():
     total_pnl = 0.0
     
     for event in HISTORICAL_EVENTS:
-        print(f"\n📰 Событие: {event['title']}")
-        print(f"📅 Дата: {event['date_str']}")
+        print(f"\n Событие: {event['title']}")
+        print(f" Дата: {event['date_str']}")
         
         # Переводим дату в миллисекунды (Timestamp)
         dt = datetime.datetime.strptime(event['date_str'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
@@ -108,7 +108,7 @@ def run_backtest():
         # Инжектируем время в новость, чтобы decision_maker искал китов именно в тот день
         event['timestamp_ms'] = timestamp_ms
         
-        print("🤖 Анализ Клода и Проверка Биржи...")
+        print(" Анализ Клода и Проверка Биржи...")
         signal = generate_signal(event)
         
         if signal and signal['action'] in ["LONG", "SHORT"]:
@@ -118,7 +118,7 @@ def run_backtest():
             action = signal['action']
             score = signal['total_score']
             
-            print(f"   🔥 СИГНАЛ БОТА: {action} {coin} (Оценка: {score} баллов)")
+            print(f"    СИГНАЛ БОТА: {action} {coin} (Оценка: {score} баллов)")
             
             # Чтобы узнать цену входа, скачаем одну историческую свечку на тот момент
             ohlcv = exchange.fetch_ohlcv(symbol, '1m', params={'endTime': timestamp_ms}, limit=1)
@@ -131,20 +131,20 @@ def run_backtest():
             
             if pnl > 0:
                 winning_trades += 1
-                color = "✅"
+                color = ""
             else:
-                color = "❌"
+                color = ""
                 
             print(f"   {color} ИТОГ СДЕЛКИ: {result['status']} | Прибыль: {pnl}%")
             
         else:
-            print("   💤 Итог: Сигнал отклонен (Алгоритм спас нас от плохой/слабой сделки).")
+            print("    Итог: Сигнал отклонен (Алгоритм спас нас от плохой/слабой сделки).")
             
         # Пауза, чтобы не дудосить API Binance
         time.sleep(1)
         
     print("\n==============================================")
-    print("📊 ИТОГОВЫЙ ОТЧЕТ БЭКТЕСТА")
+    print(" ИТОГОВЫЙ ОТЧЕТ БЭКТЕСТА")
     print(f"Количество сделок: {total_trades}")
     if total_trades > 0:
         winrate = (winning_trades / total_trades) * 100

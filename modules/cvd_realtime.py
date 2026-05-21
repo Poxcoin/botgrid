@@ -246,7 +246,7 @@ def _run_ws():
 
     def on_open(ws):
         ws.send(sub_msg)
-        print(f"[CVD-RT] ✅ WebSocket connected: {', '.join(_SYMBOLS_BYBIT)}")
+        print(f"[CVD-RT]  WebSocket connected: {', '.join(_SYMBOLS_BYBIT)}")
 
     def on_error(ws, err):
         print(f"[CVD-RT] WS error: {type(err).__name__}")

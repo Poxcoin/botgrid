@@ -233,7 +233,7 @@ def run_sweep_engine() -> None:
                 balance  = get_free_usdt(exchange)
                 wallet   = get_wallet_usdt(exchange)
             except Exception as e:
-                print(f"[SW] ❌ Balance fetch failed: {e}")
+                print(f"[SW]  Balance fetch failed: {e}")
                 time.sleep(SCAN_SLEEP)
                 continue
 
@@ -271,7 +271,7 @@ def run_sweep_engine() -> None:
                 try:
                     ohlcv = market_ex.fetch_ohlcv(symbol, timeframe="4h", limit=60)
                 except Exception as e:
-                    print(f"[SW] ❌ OHLCV fetch failed for {symbol}: {e}")
+                    print(f"[SW]  OHLCV fetch failed for {symbol}: {e}")
                     continue
 
                 if len(ohlcv) < 50:
@@ -358,7 +358,7 @@ def run_sweep_engine() -> None:
                         _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
-                        print(f"[SW] ❌ dispatch error {symbol}: {e}")
+                        print(f"[SW]  dispatch error {symbol}: {e}")
                 else:
                     print(f"[SW] DRY-RUN — trading disabled, no order placed")
                     send_telegram_message(
@@ -372,12 +372,12 @@ def run_sweep_engine() -> None:
             print("\n[SW] Sweep бот зупинено.")
             break
         except Exception as e:
-            print(f"[SW] ❌ {e}")
+            print(f"[SW]  {e}")
             now_ts = time.time()
             if now_ts - last_error_tg > 300:
                 last_error_tg = now_ts
                 send_telegram_message(
-                    f"❌ <b>[SW] Liquidity Sweep Bot — помилка</b>\n<code>{str(e)[:300]}</code>",
+                    f" <b>[SW] Liquidity Sweep Bot — помилка</b>\n<code>{str(e)[:300]}</code>",
                     TG_CHAT_ID,
                 )
             time.sleep(10)

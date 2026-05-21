@@ -114,4 +114,4 @@ db.close()
 print(f"   created {created} subscription rows")
 
 conn.close()
-print("\n✅ Migration complete. Now run: python scripts/seed_owner.py")
+print("\n Migration complete. Now run: python scripts/seed_owner.py")

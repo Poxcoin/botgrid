@@ -107,7 +107,7 @@ def _check_cascade(coin: str) -> None:
         "published_dt":   datetime.fromtimestamp(now, tz=timezone.utc).isoformat(),
         "is_liq_cascade": True,
     })
-    emoji = "🚀" if action == "LONG" else "🔴"
+    emoji = "" if action == "LONG" else ""
     print(f"[LIQ] {emoji} CASCADE SIGNAL {coin}: ${cascade_usd/1e6:.2f}M → {action} (score={score})")
 
 
@@ -248,7 +248,7 @@ def _ws_thread():
     try:
         import websocket
     except ImportError:
-        print("[LIQ] ❌ websocket-client не установлен: pip install websocket-client")
+        print("[LIQ]  websocket-client не установлен: pip install websocket-client")
         return
 
     url = "wss://fstream.binance.com/ws/!forceOrder@arr"
@@ -266,7 +266,7 @@ def _ws_thread():
             _connect()
 
     def on_open(ws):
-        print("[LIQ] ✅ Binance ликвидации подключены (реалтайм, без API ключа)")
+        print("[LIQ]  Binance ликвидации подключены (реалтайм, без API ключа)")
 
     def _connect():
         ws = websocket.WebSocketApp(
@@ -287,7 +287,7 @@ def start_liquidation_monitor() -> bool:
     try:
         import websocket  # noqa
     except ImportError:
-        print("[LIQ] ⚠️ websocket-client не установлен — мониторинг ликвидаций отключён")
+        print("[LIQ]  websocket-client не установлен — мониторинг ликвидаций отключён")
         return False
 
     _running = True

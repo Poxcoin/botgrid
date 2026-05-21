@@ -17,11 +17,11 @@ def test_api():
 
     try:
         balance = exchange.fetch_balance()
-        print("✅ Connection Successful!")
+        print(" Connection Successful!")
         print(f"Total USDT: {balance.get('USDT', {}).get('total', 'N/A')}")
         print(f"Free USDT: {balance.get('USDT', {}).get('free', 'N/A')}")
     except Exception as e:
-        print(f"❌ Connection Failed: {e}")
+        print(f" Connection Failed: {e}")
 
 if __name__ == "__main__":
     test_api()

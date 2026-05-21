@@ -86,7 +86,7 @@ def init(current_balance: float) -> None:
             "stopped": False,
         }
         _save(_state)
-        print(f"[daily_guard] 📅 Новый день ({today}). Start balance: ${current_balance:.2f}  Лимит: -{MAX_DAILY_LOSS_PCT}%")
+        print(f"[daily_guard]  Новый день ({today}). Start balance: ${current_balance:.2f}  Лимит: -{MAX_DAILY_LOSS_PCT}%")
     else:
         # Защита от устаревшего баланса (смена testnet→demo или ручное пополнение)
         # Если текущий баланс отличается от сохранённого более чем в 3 раза — сброс
@@ -100,9 +100,9 @@ def init(current_balance: float) -> None:
                     "stopped": False,
                 }
                 _save(_state)
-                print(f"[daily_guard] ⚠️ Баланс изменился кардинально (${saved_start:.2f} → ${current_balance:.2f}) — сброс стартового баланса")
+                print(f"[daily_guard]  Баланс изменился кардинально (${saved_start:.2f} → ${current_balance:.2f}) — сброс стартового баланса")
                 return
-        status = "🛑 СТОП" if _state.get("stopped") else "✅ ОК"
+        status = " СТОП" if _state.get("stopped") else " ОК"
         print(f"[daily_guard] Сегодня ({today}). Start: ${_state.get('start_balance', 0):.2f}  Статус: {status}")
 
 
@@ -149,15 +149,15 @@ def check(current_balance: float) -> bool:
         _state["stopped"] = True
         _save(_state)
         print(
-            f"[daily_guard] 🛑 ДНЕВНОЙ ЛИМИТ! Потеряно {loss_pct:.1f}% "
+            f"[daily_guard]  ДНЕВНОЙ ЛИМИТ! Потеряно {loss_pct:.1f}% "
             f"(лимит {MAX_DAILY_LOSS_PCT}%). Торговля остановлена до UTC 00:00."
         )
         if first_trigger and _cancel_cb is not None:
             try:
-                print("[daily_guard] 🚨 Відміняємо всі ордери та позиції...")
+                print("[daily_guard]  Відміняємо всі ордери та позиції...")
                 _cancel_cb()
             except Exception as e:
-                print(f"[daily_guard] ⚠️ Помилка при відміні ордерів: {e}")
+                print(f"[daily_guard]  Помилка при відміні ордерів: {e}")
         return False
 
     return True

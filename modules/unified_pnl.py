@@ -185,7 +185,7 @@ def sync_from_bybit(exchange) -> int:
         time.sleep(_sleep)
 
     if new_count:
-        print(f"[unified_pnl] ✅ Синк завершено — {new_count} нових угод")
+        print(f"[unified_pnl]  Синк завершено — {new_count} нових угод")
     return new_count
 
 
@@ -259,7 +259,7 @@ def start_sync(exchange_factory, interval: int = SYNC_INTERVAL) -> threading.Thr
     init_all_trades_table()
 
     def _loop():
-        print(f"[unified_pnl] 🔄 Старт синку (інтервал {interval // 60} хв, {len(_ALL_COINS)} монет)")
+        print(f"[unified_pnl]  Старт синку (інтервал {interval // 60} хв, {len(_ALL_COINS)} монет)")
         # Перший синк одразу при старті
         try:
             ex = exchange_factory()
@@ -361,7 +361,7 @@ def sync_cascade_from_bybit(exchange) -> int:
         time.sleep(_sleep)
 
     if new_count:
-        print(f"[cascade_pnl] ✅ {new_count} нових угод cascade синкронізовано")
+        print(f"[cascade_pnl]  {new_count} нових угод cascade синкронізовано")
     return new_count
 
 
@@ -370,7 +370,7 @@ def start_cascade_sync(exchange_factory, interval: int = SYNC_INTERVAL) -> threa
     init_all_trades_table()
 
     def _loop():
-        print(f"[cascade_pnl] 🔄 Cascade sync запущено (інтервал {interval // 60} хв)")
+        print(f"[cascade_pnl]  Cascade sync запущено (інтервал {interval // 60} хв)")
         try:
             ex = exchange_factory()
             sync_cascade_from_bybit(ex)

@@ -18,10 +18,10 @@ async def main():
     async with TelegramClient(StringSession(), int(API_ID), API_HASH) as client:
         session_str = client.session.save()
         print("\n" + "=" * 60)
-        print("✅ Сессия создана! Добавь в .env:")
+        print(" Сессия создана! Добавь в .env:")
         print(f"\nTELEGRAM_SESSION={session_str}\n")
         print("=" * 60)
-        print("⚠️  Никому не передавай эту строку — она даёт доступ к аккаунту!")
+        print("  Никому не передавай эту строку — она даёт доступ к аккаунту!")
 
 
 asyncio.run(main())

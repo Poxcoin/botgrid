@@ -117,7 +117,7 @@ def _check_user(user: dict) -> int:
         grid_sl_limit = -(balance * GRID_AGG_SL_PCT) if balance > 0 else -9999.0
 
         if grid_to_close and grid_unrealized < grid_sl_limit:
-            print(f"[CLOSER] 🔴 GRID AGG SL user={user_id}: "
+            print(f"[CLOSER]  GRID AGG SL user={user_id}: "
                   f"unrealized={grid_unrealized:.2f} < {grid_sl_limit:.2f} "
                   f"({GRID_AGG_SL_PCT*100:.0f}% of ${balance:.0f})")
             for sym, qty, side in grid_to_close:
@@ -126,14 +126,14 @@ def _check_user(user: dict) -> int:
                     ex.create_order(sym, "market", order_side, qty, params={
                         "category": "linear", "positionIdx": 0, "reduceOnly": True,
                     })
-                    print(f"[CLOSER] 🔴 GRID AGG SL closed {sym} qty={qty}")
+                    print(f"[CLOSER]  GRID AGG SL closed {sym} qty={qty}")
                 except Exception as _e:
-                    print(f"[CLOSER] ⚠️ GRID AGG SL close error {sym}: {_e}")
+                    print(f"[CLOSER]  GRID AGG SL close error {sym}: {_e}")
             try:
                 from modules.tg_notifier import send_telegram_message
                 from config.settings import TG_CHAT_ID
                 send_telegram_message(
-                    f"🔴 <b>Grid Aggregate SL</b>\n"
+                    f" <b>Grid Aggregate SL</b>\n"
                     f"User {user_id} | loss: {grid_unrealized:.2f} USDT "
                     f"({abs(grid_unrealized/balance*100):.1f}% of ${balance:.0f})\n"
                     f"Closed {len(grid_to_close)} grid position(s)",
@@ -183,7 +183,7 @@ def _check_user(user: dict) -> int:
                     print(f"[CLOSER] ⏱ FR force-close user={user_id} {trade.symbol} "
                           f"qty={pos_qty} ({age_sec/60:.0f}min open) — next poll records PnL")
                 except Exception as _fc_err:
-                    print(f"[CLOSER] ⚠️ FR force-close failed {trade.symbol}: {_fc_err}")
+                    print(f"[CLOSER]  FR force-close failed {trade.symbol}: {_fc_err}")
             continue  # PnL will be fetched on next 5-min poll when position shows closed
 
         # Symbol still open on exchange — nothing to do

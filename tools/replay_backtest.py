@@ -189,7 +189,7 @@ def run(days: int = 30, coins_filter: list[str] | None = None,
     print(f"{'='*60}\n")
 
     if archive_count() == 0:
-        print("❌ Архив пустой. Сначала запусти:")
+        print(" Архив пустой. Сначала запусти:")
         print("   python tools/newsapi_fetch.py")
         print("   или подожди пока main.py накопит новости из RSS")
         sys.exit(1)
@@ -221,7 +221,7 @@ def run(days: int = 30, coins_filter: list[str] | None = None,
         try:
             ai = analyze_sentiment(title, item.get("description", ""))
         except Exception as e:
-            print(f"  ⚠️  Claude error: {e}")
+            print(f"    Claude error: {e}")
             skipped_ai += 1
             continue
 
@@ -298,7 +298,7 @@ def run(days: int = 30, coins_filter: list[str] | None = None,
         }
         trades.append(trade)
 
-        icon = "✅" if pnl > 0 else "❌" if pnl < 0 else "➖"
+        icon = "" if pnl > 0 else "" if pnl < 0 else ""
         print(f"  → {action} {coin} | score={total_score} | {sim['result']} {icon} | PnL: ${pnl:+.2f} | Bal: ${cur_bal:,.2f}")
 
         time.sleep(0.3)  # не спамим Binance

@@ -161,7 +161,7 @@ def get_unlock_risk(coin: str) -> tuple[str, str]:
     name  = ev.get("name", "Token Unlock")
 
     if pct > 5.0 and days <= 1.0:
-        return "avoid_long", f"🔓 {name}: {pct:.1f}% supply анлок за {days:.1f}д — LONG заблоковано"
+        return "avoid_long", f" {name}: {pct:.1f}% supply анлок за {days:.1f}д — LONG заблоковано"
     if pct > 3.0 and days <= 7.0:
-        return "short_bias", f"🔓 {name}: {pct:.1f}% supply анлок за {days:.1f}д — ведмежий тиск"
+        return "short_bias", f" {name}: {pct:.1f}% supply анлок за {days:.1f}д — ведмежий тиск"
     return "ok", ""

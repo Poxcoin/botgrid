@@ -96,7 +96,7 @@ def _apply_adaptation(coin: str, score_boost: float, paused: bool, hours: float,
             "expires_at":  expires,
         }
     exp_str = datetime.fromtimestamp(expires, tz=timezone.utc).strftime("%H:%M UTC")
-    print(f"[analyzer] ⚙️ {coin}: {reason} (до {exp_str})")
+    print(f"[analyzer]  {coin}: {reason} (до {exp_str})")
 
 
 # ─── Диагностика ─────────────────────────────────────────────────────────────
@@ -175,12 +175,12 @@ def _handle_close(coin: str, action: str, ctx: dict, pnl_pct: float,
             a = _adaptations.get(coin.upper())
             if a:
                 if a.get("paused"):
-                    adaptation_line = f"\n⛔ <b>Монета приостановлена</b> на 6h"
+                    adaptation_line = f"\n <b>Монета приостановлена</b> на 6h"
                 else:
-                    adaptation_line = f"\n⚙️ <b>Адаптация:</b> порог скора +{a['score_boost']:.1f} на ~{a['reason'].split('на ')[1] if 'на ' in a['reason'] else '?'}"
+                    adaptation_line = f"\n <b>Адаптация:</b> порог скора +{a['score_boost']:.1f} на ~{a['reason'].split('на ')[1] if 'на ' in a['reason'] else '?'}"
 
         msg = (
-            f"🔬 <b>Post-trade анализ: {coin} {action}</b>\n"
+            f" <b>Post-trade анализ: {coin} {action}</b>\n"
             f"<b>PnL:</b> {pnl_pct:+.1f}% (убыток)\n"
             f"<b>Причины:</b>\n{reasons_text}"
             f"{adaptation_line}"
@@ -194,7 +194,7 @@ def _handle_close(coin: str, action: str, ctx: dict, pnl_pct: float,
         with _adapt_lock:
             if coin.upper() in _adaptations:
                 del _adaptations[coin.upper()]
-                print(f"[analyzer] ✅ {coin}: прибыльная сделка — адаптации сняты")
+                print(f"[analyzer]  {coin}: прибыльная сделка — адаптации сняты")
 
 
 # ─── Daemon-поток ─────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ def _analyzer_loop(exchange_factory, send_tg, chat_id):
     """Каждые 60 сек проверяет закрылись ли отслеживаемые позиции."""
     from modules.position_monitor import _load_tracked, untrack
 
-    print("[analyzer] 🔬 Post-trade analyzer запущен")
+    print("[analyzer]  Post-trade analyzer запущен")
     # {symbol: {"losses_6h": int, "window_start": float}}
     _loss_counters: dict = {}
 
@@ -253,13 +253,13 @@ def _analyzer_loop(exchange_factory, send_tg, chat_id):
 
                     untrack(symbol)
                     _handle_close(coin, action, ctx, pnl_pct, send_tg, chat_id)
-                    print(f"[analyzer] 📊 {coin} {action} закрыта: PnL ≈ {pnl_pct:+.1f}%")
+                    print(f"[analyzer]  {coin} {action} закрыта: PnL ≈ {pnl_pct:+.1f}%")
 
                 except Exception as e:
-                    print(f"[analyzer] ⚠️ Ошибка проверки {symbol}: {e}")
+                    print(f"[analyzer]  Ошибка проверки {symbol}: {e}")
 
         except Exception as e:
-            print(f"[analyzer] ❌ Ошибка цикла: {e}")
+            print(f"[analyzer]  Ошибка цикла: {e}")
 
 
 def start_analyzer(exchange_factory, send_tg, chat_id) -> None:

@@ -86,7 +86,7 @@ def _schedule_fr_close(user: dict, symbol: str, side: str, qty: float,
             print(f"[DISPATCHER] ⏱ FR scheduled close {side} {symbol} qty={qty} "
                   f"after {delay_min:.0f}min")
         except Exception as _e:
-            print(f"[DISPATCHER] ⚠️ FR scheduled close error {symbol}: {_e}")
+            print(f"[DISPATCHER]  FR scheduled close error {symbol}: {_e}")
         finally:
             _remove_fr_close(key)
 
@@ -151,7 +151,7 @@ def resume_fr_closes() -> None:
                 })
                 print(f"[DISPATCHER] ⏱ FR resume close {s} {sym} qty={q}")
             except Exception as _e:
-                print(f"[DISPATCHER] ⚠️ FR resume close error {sym}: {_e}")
+                print(f"[DISPATCHER]  FR resume close error {sym}: {_e}")
             finally:
                 _remove_fr_close(k)
 
@@ -241,7 +241,7 @@ def _log_trade(user_id: int, signal_id: str, source: str, symbol: str,
             return trade.id
         except Exception as _e:
             db.rollback()
-            print(f"[DISPATCHER] ⚠️ _log_trade attempt {attempt+1} failed user={user_id} {symbol}: {_e}")
+            print(f"[DISPATCHER]  _log_trade attempt {attempt+1} failed user={user_id} {symbol}: {_e}")
             if attempt < 3:
                 time.sleep(0.5 * (2 ** attempt))
         finally:
@@ -366,12 +366,12 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
                 "positionIdx": 0,
             })
         except Exception as _tpsl_err:
-            print(f"[DISPATCHER] ⚠️ TP/SL set failed {symbol}: {_tpsl_err}")
+            print(f"[DISPATCHER]  TP/SL set failed {symbol}: {_tpsl_err}")
 
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    order.get("id"), fill, qty, "open")
         _score_tag = f" score={signal.get('score'):.1f}→{size_pct:.1f}%" if signal.get("score") is not None else ""
-        print(f"[DISPATCHER] ✅ user={uid} {side} {symbol} qty={qty} fill={fill:.4f}{_score_tag}")
+        print(f"[DISPATCHER]  user={uid} {side} {symbol} qty={qty} fill={fill:.4f}{_score_tag}")
 
         # Integrity check: verify Bybit position size matches what we dispatched.
         # Drift >5% means a duplicate trade was opened elsewhere (e.g. legacy execute_trade()
@@ -384,7 +384,7 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             if bybit_qty > 0 and abs(bybit_qty - qty) > max(qty * 0.05, 0.001):
                 drift_pct = (bybit_qty / qty - 1) * 100 if qty > 0 else 0
                 alert = (
-                    f"[DISPATCHER] 🚨 INTEGRITY DRIFT user={uid} {symbol}: "
+                    f"[DISPATCHER]  INTEGRITY DRIFT user={uid} {symbol}: "
                     f"dispatched qty={qty} but Bybit position={bybit_qty} ({drift_pct:+.0f}%) — "
                     f"likely a duplicate open path (execute_trade legacy?) "
                     f"or dispatch ran twice"
@@ -393,7 +393,7 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
                 try:
                     from modules.tg_notifier import send_telegram_message
                     from config.settings import TG_CHAT_ID
-                    send_telegram_message(f"🚨 <b>SYNC DRIFT</b>\n{alert[:400]}", TG_CHAT_ID)
+                    send_telegram_message(f" <b>SYNC DRIFT</b>\n{alert[:400]}", TG_CHAT_ID)
                 except Exception:
                     pass
         except Exception as _ic:
@@ -422,7 +422,7 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         err = str(e)[:200]
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    None, None, None, "failed", err)
-        print(f"[DISPATCHER] ❌ user={uid} {symbol} — {err}")
+        print(f"[DISPATCHER]  user={uid} {symbol} — {err}")
         return False
     finally:
         with _opening_lock:

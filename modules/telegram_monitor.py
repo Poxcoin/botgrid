@@ -33,7 +33,7 @@ _EXCHANGES = {"binance", "coinbase", "kraken", "bybit", "okx", "huobi", "kucoin"
               "gemini", "bitfinex", "bitget", "gate", "mexc"}
 _STABLECOINS = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "FRAX"}
 
-# 🚨 500,000,000 XRP transferred from Binance to unknown wallet
+#  500,000,000 XRP transferred from Binance to unknown wallet
 _WHALE_RE = re.compile(
     r"[\d,\.]+\s+([A-Z]{2,10})\s+(?:transferred|moved|sent)"
     r".+?\bfrom\s+([a-zA-Z\s]+?)\s+to\s+([a-zA-Z\s]+)",
@@ -127,13 +127,13 @@ async def _run_client():
             await client.get_entity(ch)
             active_channels.append(ch)
         except Exception as e:
-            print(f"[TG] ⚠️ Канал @{ch} недоступен (не подписан?): {type(e).__name__}")
+            print(f"[TG]  Канал @{ch} недоступен (не подписан?): {type(e).__name__}")
 
     if not active_channels:
-        print("[TG] ❌ Ни один канал недоступен — подпишись на каналы в Telegram")
+        print("[TG]  Ни один канал недоступен — подпишись на каналы в Telegram")
         return
 
-    print(f"[TG] ✅ Слушаем {len(active_channels)} каналов: {', '.join(active_channels)}")
+    print(f"[TG]  Слушаем {len(active_channels)} каналов: {', '.join(active_channels)}")
 
     @client.on(events.NewMessage(chats=active_channels))
     async def _handler(event):
@@ -143,7 +143,7 @@ async def _run_client():
             if item:
                 tg_news_queue.put_nowait(item)
                 tg_news_event.set()  # будимо main loop негайно
-                print(f"[TG] 📨 @{channel}: {item['title'][:70]}")
+                print(f"[TG]  @{channel}: {item['title'][:70]}")
         except Exception as e:
             print(f"[TG] Ошибка обработки сообщения: {e}")
 
@@ -156,7 +156,7 @@ def start_telegram_monitor() -> bool:
     Возвращает True если запустился, False если нет ключей.
     """
     if not TELEGRAM_API_ID or not TELEGRAM_API_HASH or not TELEGRAM_SESSION:
-        print("[TG] ⚠️  TELEGRAM_API_ID / HASH / SESSION не заданы — мониторинг каналов отключён")
+        print("[TG]   TELEGRAM_API_ID / HASH / SESSION не заданы — мониторинг каналов отключён")
         return False
 
     def _thread():
@@ -165,7 +165,7 @@ def start_telegram_monitor() -> bool:
         try:
             loop.run_until_complete(_run_client())
         except Exception as e:
-            print(f"[TG] ❌ Поток упал: {e}")
+            print(f"[TG]  Поток упал: {e}")
 
     t = threading.Thread(target=_thread, daemon=True, name="TelegramMonitor")
     t.start()

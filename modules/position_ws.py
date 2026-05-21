@@ -179,7 +179,7 @@ async def _watch_user(user_id: int, api_key: str, secret: str, is_demo: bool):
 
                 # ── subscribe ─────────────────────────────────────────────────
                 await ws.send(json.dumps({"op": "subscribe", "args": ["position"]}))
-                print(f"[WS] ✓ user={user_id} subscribed")
+                print(f"[WS]  user={user_id} subscribed")
 
                 loop = asyncio.get_running_loop()
 

@@ -129,7 +129,7 @@ def _poll_binance() -> list[dict]:
                     ts_ms=article.get("releaseDate", int(time.time() * 1000)),
                 )
                 new_items.append(item)
-                print(f"[ANN] 🔔 Binance: {title}")
+                print(f"[ANN]  Binance: {title}")
         return new_items
     except Exception as e:
         err_detail = str(e)[:140]
@@ -184,7 +184,7 @@ def _poll_okx() -> list[dict]:
                 ts_ms=notice.get("publishDate", int(time.time() * 1000)),
             )
             new_items.append(item)
-            print(f"[ANN] 🔔 OKX: {title}")
+            print(f"[ANN]  OKX: {title}")
         return new_items
     except Exception as e:
         _fail_count["okx"] += 1
@@ -222,7 +222,7 @@ def _poll_bybit() -> list[dict]:
                 description=article.get("description", "")[:300],
             )
             new_items.append(item)
-            print(f"[ANN] 🔔 Bybit: {title}")
+            print(f"[ANN]  Bybit: {title}")
         return new_items
     except Exception as e:
         print(f"[ANN] Bybit помилка: {type(e).__name__}")
@@ -238,7 +238,7 @@ def _monitor_loop():
     _poll_bybit()
     _poll_okx()
     _save_seen()
-    print("[ANN] ✅ Exchange announcements запущено (Binance + Bybit + OKX, кожні 3 сек)")
+    print("[ANN]  Exchange announcements запущено (Binance + Bybit + OKX, кожні 3 сек)")
 
     while _running:
         time.sleep(3)

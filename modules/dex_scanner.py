@@ -86,7 +86,7 @@ def _fetch_trending() -> list[dict]:
 
 
 def _scan_loop():
-    print("[DEX] 🔍 DEX Volume Scanner запущен (GeckoTerminal, інтервал 90 сек)")
+    print("[DEX]  DEX Volume Scanner запущен (GeckoTerminal, інтервал 90 сек)")
     while True:
         try:
             now_ts  = time.time()
@@ -132,7 +132,7 @@ def _scan_loop():
                 }
                 dex_queue.put_nowait(item)
                 print(
-                    f"[DEX] 🔥 {sym} spike {p['vol_spike_ratio']}x | "
+                    f"[DEX]  {sym} spike {p['vol_spike_ratio']}x | "
                     f"${p['vol_1h']/1e3:.0f}k/h | liq ${p['liquidity']/1e3:.0f}k"
                 )
 

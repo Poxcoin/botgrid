@@ -138,7 +138,7 @@ def _get_current_price(symbol: str) -> Optional[float]:
         ticker = ex.fetch_ticker(symbol)
         return float(ticker["last"])
     except Exception as e:
-        print(f"[OB] ❌ Price fetch failed {symbol}: {e}")
+        print(f"[OB]  Price fetch failed {symbol}: {e}")
         return None
 
 
@@ -230,7 +230,7 @@ def run_orderblock_engine() -> None:
                 balance  = get_free_usdt(exchange)
                 wallet   = get_wallet_usdt(exchange)
             except Exception as e:
-                print(f"[OB] ❌ Balance fetch failed: {e}")
+                print(f"[OB]  Balance fetch failed: {e}")
                 time.sleep(SCAN_SLEEP)
                 continue
 
@@ -280,7 +280,7 @@ def run_orderblock_engine() -> None:
                         params={"category": "linear"},
                     )
                 except Exception as e:
-                    print(f"[OB] ❌ OHLCV fetch failed {symbol}: {e}")
+                    print(f"[OB]  OHLCV fetch failed {symbol}: {e}")
                     continue
 
                 if len(ohlcv) < 20:
@@ -344,7 +344,7 @@ def run_orderblock_engine() -> None:
                             _open_symbols.add(symbol)
                             send_telegram_message(tg_body, TG_CHAT_ID)
                         except Exception as e:
-                            print(f"[OB] ❌ dispatch error {symbol}: {e}")
+                            print(f"[OB]  dispatch error {symbol}: {e}")
                     else:
                         print(f"[OB] DRY-RUN — no order placed")
                         send_telegram_message(f"[OB] DRY-RUN\n{tg_body}", TG_CHAT_ID)
@@ -363,12 +363,12 @@ def run_orderblock_engine() -> None:
             print("\n[OB] Order Block бот зупинено.")
             break
         except Exception as e:
-            print(f"[OB] ❌ {e}")
+            print(f"[OB]  {e}")
             now_ts = time.time()
             if now_ts - last_error_tg > 300:
                 last_error_tg = now_ts
                 send_telegram_message(
-                    f"❌ <b>[OB] Order Block Bot — помилка</b>\n<code>{str(e)[:300]}</code>",
+                    f" <b>[OB] Order Block Bot — помилка</b>\n<code>{str(e)[:300]}</code>",
                     TG_CHAT_ID,
                 )
             time.sleep(10)

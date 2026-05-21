@@ -24,11 +24,11 @@ _SOURCE_LABELS = {
 def send_telegram_message(text, chat_id):
     """Send a message via @KADO_c_BOT to any chat_id."""
     if not USERBOT_TOKEN:
-        print("⚠️ USERBOT_TOKEN не настроен — уведомление пропущено.")
+        print(" USERBOT_TOKEN не настроен — уведомление пропущено.")
         return False
 
     if not chat_id:
-        print("⚠️ chat_id отсутствует — уведомление пропущено.")
+        print(" chat_id отсутствует — уведомление пропущено.")
         return False
 
     url = f"https://api.telegram.org/bot{USERBOT_TOKEN}/sendMessage"
@@ -42,11 +42,11 @@ def send_telegram_message(text, chat_id):
         response = requests.post(url, json=payload, timeout=10)
         if response.status_code == 200:
             return True
-        print(f"❌ Ошибка отправки в TG: {response.text}")
+        print(f" Ошибка отправки в TG: {response.text}")
         return False
     except requests.exceptions.RequestException as e:
         # Не логируем e напрямую — requests может включить URL (с токеном) в строку ошибки
-        print(f"❌ Ошибка сети при отправке в TG: {type(e).__name__}")
+        print(f" Ошибка сети при отправке в TG: {type(e).__name__}")
         return False
 
 
@@ -92,7 +92,7 @@ def notify_user_trade(user_id: int, event: str, trade_data: dict) -> None:
         symbol      = trade_data.get("symbol", "")
         coin        = symbol.split("/")[0].replace("USDT", "") or symbol
         side        = trade_data.get("side", "")
-        side_emoji  = "🟢" if side == "LONG" else "🔴"
+        side_emoji  = "🟢" if side == "LONG" else ""
 
         if event == "open":
             lev    = trade_data.get("leverage", "")
@@ -119,7 +119,7 @@ def notify_user_trade(user_id: int, event: str, trade_data: dict) -> None:
                     duration = f" | {secs // 3600}г {(secs % 3600) // 60}хв"
                 else:
                     duration = f" | {secs // 60}хв"
-            pnl_emoji = "✅" if pnl >= 0 else "❌"
+            pnl_emoji = "" if pnl >= 0 else ""
             text = (
                 f"{pnl_emoji} <b>{coin} {side}</b> закрито\n"
                 f"PnL: <b>{pnl:+.2f} USDT</b>{duration}"
@@ -153,5 +153,5 @@ def get_telegram_updates(offset: int = None):
             return response.json().get("result", [])
         return []
     except Exception as e:
-        print(f"⚠️ Ошибка получения обновлений TG: {type(e).__name__}")
+        print(f" Ошибка получения обновлений TG: {type(e).__name__}")
         return []

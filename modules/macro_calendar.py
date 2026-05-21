@@ -206,7 +206,7 @@ def is_trade_blocked() -> tuple[bool, str]:
     if macro and macro["impact"] >= 3:
         t = macro["minutes_to_event"]
         t_str = f"через {abs(t)} хв" if t > 0 else f"{abs(t)} хв тому"
-        return True, f"🚫 {macro['name']} ({t_str}) — торгівля заблокована"
+        return True, f" {macro['name']} ({t_str}) — торгівля заблокована"
     return False, ""
 
 
@@ -229,7 +229,7 @@ def get_size_modifier() -> tuple[float, str]:
     if macro:
         t = macro["minutes_to_event"]
         t_str = f"через {abs(t)} мин" if t > 0 else f"{abs(t)} мин назад"
-        reason = f"⚠️ {macro['name']} ({t_str})"
+        reason = f" {macro['name']} ({t_str})"
         if macro["impact"] == 3:
             return 0.40, reason
         else:

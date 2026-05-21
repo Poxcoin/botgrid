@@ -346,8 +346,8 @@ if __name__ == "__main__":
     for coin in test_coins:
         metrics = get_market_metrics(coin)
         if metrics:
-            whale_status = "🚨 КИТЫ ВОШЛИ" if metrics["is_whale_active"] else "тишина"
-            trend = "📈 РОСТ" if metrics["trend_24h_percent"] > 0 else "📉 ПАДЕНИЕ"
+            whale_status = " КИТЫ ВОШЛИ" if metrics["is_whale_active"] else "тишина"
+            trend = " РОСТ" if metrics["trend_24h_percent"] > 0 else " ПАДЕНИЕ"
             
             print(f"[{metrics['symbol']}] Цена: {metrics['current_price']}$")
             print(f"   Тренд: {trend} ({metrics['trend_24h_percent']}%)")

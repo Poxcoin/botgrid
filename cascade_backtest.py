@@ -62,7 +62,7 @@ def fetch_klines(symbol: str, days: int) -> list[tuple]:
                                 float(k[3]), float(k[4]), float(k[5])))
             cur = data[-1][0] + 60_000
         except Exception as e:
-            print(f"\n  ⚠️  Помилка fetch: {e}")
+            print(f"\n    Помилка fetch: {e}")
             break
         time.sleep(0.08)
 
@@ -238,11 +238,11 @@ def print_report(results: list[dict]) -> None:
     print(f"  Найкраща:  {best['ts']}  {best['action']} {best['result']}  {best['pnl_pct']:+.2f}%")
     print(f"  Найгірша:  {worst['ts']}  {worst['action']} {worst['result']}  {worst['pnl_pct']:+.2f}%")
     print(f"\n  Break-even WR (теоретичний): ~29%")
-    print(f"  {'✅ Стратегія профітна' if total_pnl > 0 else '❌ Стратегія збиткова'} "
+    print(f"  {' Стратегія профітна' if total_pnl > 0 else ' Стратегія збиткова'} "
           f"за {LOOKBACK_DAYS} днів")
     print(f"{'═'*65}")
     print()
-    print("⚠️  Примітки:")
+    print("  Примітки:")
     print("  • Proxy (OHLCV) ≠ реальні ліквідації — очікуй розбіжність із live")
     print("  • Вхід на +1 свічку консервативніший ніж live (<500ms)")
     print("  • Funding rate фільтр не враховано (зменшить кількість угод)")

@@ -169,13 +169,13 @@ def format_news_post(item: dict) -> str:
     if len(short_desc) > 280:
         short_desc = short_desc[:277] + "…"
 
-    text = f"📰 <b>{title}</b>"
+    text = f" <b>{title}</b>"
     if short_desc:
         text += f"\n\n{short_desc}"
     text += f"\n\n<i>Джерело: {source}</i>"
     if link:
-        text += f"\n🔗 <a href='{link}'>Читати повністю</a>"
-    text += "\n\n─────────────────\n🤖 <b>KADO</b> · kadoclub.net"
+        text += f"\n <a href='{link}'>Читати повністю</a>"
+    text += "\n\n─────────────────\n <b>KADO</b> · kadoclub.net"
     return text
 
 
@@ -214,13 +214,13 @@ def post_briefing():
     now_kyiv = datetime.now(timezone.utc) + timedelta(hours=3)
 
     header = (
-        f"🌅 <b>Ранковий огляд ринку</b>\n"
+        f" <b>Ранковий огляд ринку</b>\n"
         f"{now_kyiv.strftime('%d %B %Y · %H:%M')} (Kyiv)\n\n"
     )
 
     if not items:
         body = "Ринок відносно спокійний. Значних новин за останні 12 годин не зафіксовано."
-        result = send_text(header + body + "\n\n─────────────────\n🤖 <b>KADO</b> · kadoclub.net")
+        result = send_text(header + body + "\n\n─────────────────\n <b>KADO</b> · kadoclub.net")
         return
 
     lines = []
@@ -235,7 +235,7 @@ def post_briefing():
             state.setdefault("posted_links", []).append(item["link"])
 
     body = "\n".join(lines)
-    footer = "\n\n─────────────────\n🤖 <b>KADO</b> — AI trading bots · kadoclub.net"
+    footer = "\n\n─────────────────\n <b>KADO</b> — AI trading bots · kadoclub.net"
     full = header + body + footer
 
     # Use image from first item if available
@@ -274,7 +274,7 @@ def post_stats():
     if s["total_trades"] == 0:
         # No trades yet — post benchmark
         text = (
-            f"📊 <b>Звіт платформи KADO</b>\n"
+            f" <b>Звіт платформи KADO</b>\n"
             f"<i>{week}</i>\n\n"
             f"Платформа активна. Боти в режимі очікування сигналів.\n\n"
             f"<b>Поточні налаштування:</b>\n"
@@ -284,11 +284,11 @@ def post_stats():
             f"<b>Модель оплати:</b> 20% тільки від прибутку.\n"
             f"Немає прибутку — немає комісії.\n\n"
             f"─────────────────\n"
-            f"🤖 <b>KADO</b> · kadoclub.net"
+            f" <b>KADO</b> · kadoclub.net"
         )
     else:
         text = (
-            f"📊 <b>Звіт платформи KADO</b>\n"
+            f" <b>Звіт платформи KADO</b>\n"
             f"<i>{week}</i>\n\n"
             f"<b>Результати за 7 днів:</b>\n"
             f"{fmt_bot('Signal Bot', sig)}\n"
@@ -299,7 +299,7 @@ def post_stats():
             f"PnL {'+'if s['total_pnl']>=0 else ''}{s['total_pnl']:.2f} USDT\n\n"
             f"<b>Комісія:</b> 20% від прибутку · 0% якщо в мінусі\n\n"
             f"─────────────────\n"
-            f"🤖 <b>KADO</b> · kadoclub.net"
+            f" <b>KADO</b> · kadoclub.net"
         )
 
     result = send_text(text)
@@ -313,11 +313,11 @@ def post_update(title: str, body: str):
     """Manual product/feature announcement."""
     now_kyiv = datetime.now(timezone.utc) + timedelta(hours=3)
     text = (
-        f"🔔 <b>{title}</b>\n"
+        f" <b>{title}</b>\n"
         f"<i>{now_kyiv.strftime('%d.%m.%Y')}</i>\n\n"
         f"{body}\n\n"
         f"─────────────────\n"
-        f"🤖 <b>KADO</b> · kadoclub.net"
+        f" <b>KADO</b> · kadoclub.net"
     )
     result = send_text(text)
     if result.get("ok"):

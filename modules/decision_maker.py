@@ -66,7 +66,7 @@ def generate_listing_signal(news_item: dict) -> dict | None:
         return None
 
     source = news_item.get("source", "Exchange")
-    print(f"[LISTING] 🚀 {source}: {coin} — fast-path LONG сигнал")
+    print(f"[LISTING]  {source}: {coin} — fast-path LONG сигнал")
 
     return {
         "coin":           coin,
@@ -113,7 +113,7 @@ def generate_whale_signal(news_item: dict) -> dict | None:
         "news_link":         news_item.get("link", ""),
         "news_image_url":    news_item.get("image_url"),
         "source":            news_item.get("source", "Whale Alert"),
-        "bot_tag":           "🐋",
+        "bot_tag":           "",
         "is_whale_alert":    True,
     }
 
@@ -266,7 +266,7 @@ def generate_signal(news_item: dict) -> dict | None:
 
     # Монета в чорному списку (підтверджені збитки за даними analytics.db)
     if coin_upper in _COIN_BLACKLIST:
-        print(f"   ⛔ {coin} в чорному списку (confirmed loser) — пропускаємо")
+        print(f"    {coin} в чорному списку (confirmed loser) — пропускаємо")
         return None
 
     # Слабая новость — не рискуем
@@ -392,10 +392,10 @@ def generate_signal(news_item: dict) -> dict | None:
     if liq_1h_boost != 0.0:
         if (news_score > 0 and liq_1h_boost > 0) or (news_score < 0 and liq_1h_boost < 0):
             total_score += liq_1h_boost  # совпадает с сигналом — усиливаем
-            print(f"   ⚡ Liq 1h boost {coin}: {liq_1h_boost:+.1f} (совпадает с сигналом)")
+            print(f"    Liq 1h boost {coin}: {liq_1h_boost:+.1f} (совпадает с сигналом)")
         else:
             total_score += liq_1h_boost * 0.4  # противоположный — осторожно
-            print(f"   ⚠️ Liq 1h boost {coin}: {liq_1h_boost * 0.4:+.1f} (против сигнала, снижен)")
+            print(f"    Liq 1h boost {coin}: {liq_1h_boost * 0.4:+.1f} (против сигнала, снижен)")
 
     # Фактор Е: Fear & Greed Index (настроение всего крипто-рынка)
     # Логика контратрианства: покупай когда все боятся, продавай когда все жадничают.
@@ -425,10 +425,10 @@ def generate_signal(news_item: dict) -> dict | None:
     if onchain_boost != 0.0:
         if (news_score > 0 and onchain_boost > 0) or (news_score < 0 and onchain_boost < 0):
             total_score += abs(onchain_boost)
-            print(f"   🐋 On-chain macro {coin}: {onchain_boost:+.2f} (підтверджує сигнал)")
+            print(f"    On-chain macro {coin}: {onchain_boost:+.2f} (підтверджує сигнал)")
         else:
             total_score += onchain_boost * 0.5   # проти сигналу — слабший вплив
-            print(f"   🐋 On-chain macro {coin}: {onchain_boost * 0.5:+.2f} (проти сигналу)")
+            print(f"    On-chain macro {coin}: {onchain_boost * 0.5:+.2f} (проти сигналу)")
 
     # Фактор Ж: Bitcoin Dominance (альт-сезон vs BTC-сезон)
     # Когда BTC dominance высокая — капитал уходит в BTC, альты страдают.
@@ -505,7 +505,7 @@ def generate_signal(news_item: dict) -> dict | None:
     # Дані: WLD 71%WR +$90.93, ARB 100%WR +$19.68, JUP 100%WR +$19.65
     if coin_upper in _HIGH_WR_COINS:
         size_multiplier = min(2.0, size_multiplier * 1.5)
-        print(f"   ⭐ High-WR boost: {coin} → size×1.5 ({size_multiplier:.2f})")
+        print(f"    High-WR boost: {coin} → size×1.5 ({size_multiplier:.2f})")
 
     size_multiplier = round(size_multiplier, 2)
 
@@ -655,14 +655,14 @@ def generate_smart_wallet_signal(news_item: dict) -> dict | None:
                 "news_image_url":   news_item.get("image_url"),
                 "source":           news_item.get("source", ""),
                 "source_weight":    0.95,
-                "bot_tag":          "🐳",
+                "bot_tag":          "",
                 "is_smart_wallet":  True,
                 "_market":          {"quote_volume_24h": market_data.get("quote_volume_24h", 0)},
             }
 
     if best_signal:
         print(
-            f"   🐳 SmartWallet→{best_signal['coin']} score={best_score:.1f} "
+            f"    SmartWallet→{best_signal['coin']} score={best_score:.1f} "
             f"(ETH={eth_value:.0f}, wallet={wallet})"
         )
     return best_signal

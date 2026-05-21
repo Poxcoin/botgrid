@@ -40,7 +40,7 @@ def _ensure_db_healthy() -> None:
             try:
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             except sqlite3.DatabaseError as wal_err:
-                print(f"[DB] ⚠️  WAL checkpoint failed ({wal_err}) — clearing WAL files")
+                print(f"[DB]   WAL checkpoint failed ({wal_err}) — clearing WAL files")
             conn.close()
             # After a full checkpoint the WAL is flushed; -shm is just a
             # shared-memory index for the WAL and is safe to delete once WAL
@@ -55,9 +55,9 @@ def _ensure_db_healthy() -> None:
                         os.remove(p)
             return
         conn.close()
-        print(f"[DB] ⚠️  integrity_check: {result[0] if result else '?'} — відновлення з бекапу...")
+        print(f"[DB]   integrity_check: {result[0] if result else '?'} — відновлення з бекапу...")
     except sqlite3.DatabaseError as e:
-        print(f"[DB] ⚠️  DB corrupted ({e}) — відновлення з бекапу...")
+        print(f"[DB]   DB corrupted ({e}) — відновлення з бекапу...")
 
     for ext in ("-wal", "-shm"):
         p = _DB_PATH + ext
@@ -66,20 +66,20 @@ def _ensure_db_healthy() -> None:
 
     backup = _find_latest_backup()
     if not backup:
-        print("[DB] ❌ Бекапів не знайдено — стартуємо з порожньою DB")
+        print("[DB]  Бекапів не знайдено — стартуємо з порожньою DB")
         os.remove(_DB_PATH)
         return
 
-    print(f"[DB] 🔄 Відновлення з {os.path.basename(backup)} ...")
+    print(f"[DB]  Відновлення з {os.path.basename(backup)} ...")
     try:
         src = sqlite3.connect(backup, timeout=10)
         dst = sqlite3.connect(_DB_PATH, timeout=10)
         src.backup(dst)
         dst.close()
         src.close()
-        print("[DB] ✅ DB відновлено успішно")
+        print("[DB]  DB відновлено успішно")
     except Exception as e:
-        print(f"[DB] ❌ Відновлення не вдалося: {e} — видаляємо, SQLAlchemy відтворить схему")
+        print(f"[DB]  Відновлення не вдалося: {e} — видаляємо, SQLAlchemy відтворить схему")
         try:
             os.remove(_DB_PATH)
         except Exception:

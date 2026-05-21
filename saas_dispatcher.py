@@ -40,7 +40,7 @@ def _start_user(user_id: int, api_key: str, secret: str, is_demo: bool = False,
             "stop_event": stop_event,
             "started_at": datetime.now(timezone.utc),
         }
-    logger.info(f"[DISPATCHER] ▶️ Started bots for user {user_id}")
+    logger.info(f"[DISPATCHER] ▶ Started bots for user {user_id}")
 
 
 def stop_user(user_id: int) -> None:
@@ -48,7 +48,7 @@ def stop_user(user_id: int) -> None:
         inst = _instances.pop(user_id, None)
     if inst:
         inst["stop_event"].set()
-        logger.info(f"[DISPATCHER] ⏹️ Stopped bots for user {user_id}")
+        logger.info(f"[DISPATCHER] ⏹ Stopped bots for user {user_id}")
 
 
 def get_status() -> list[dict]:
@@ -87,7 +87,7 @@ def _sync() -> None:
                     tg = getattr(user, "tg_chat_id", None)
                     if tg:
                         send_telegram_message(
-                            "⚠️ <b>Grid Bot зупинено</b>\n\n"
+                            " <b>Grid Bot зупинено</b>\n\n"
                             "Ваш API ключ Bybit недійсний або термін дії закінчився "
                             "(Bybit demo-ключі діють ~7 днів).\n\n"
                             "Будь ласка, оновіть ключі в особистому кабінеті — "
@@ -95,7 +95,7 @@ def _sync() -> None:
                             tg,
                         )
                     _notified_invalid.add(user.id)
-                    logger.warning(f"[DISPATCHER] ⚠️ User {user.id} has invalid Bybit key — grid stopped, user notified")
+                    logger.warning(f"[DISPATCHER]  User {user.id} has invalid Bybit key — grid stopped, user notified")
                 continue  # don't restart until key is updated
 
             if not already_running:

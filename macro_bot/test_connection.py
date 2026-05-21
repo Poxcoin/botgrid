@@ -17,10 +17,10 @@ def main():
     print("Pinging MT5 EA...")
     ping = client.ping()
     if not ping or ping.get("status") != "pong":
-        print("❌ MT5 EA not responding. Make sure MacroBridgeEA is running in MetaTrader 5.")
+        print(" MT5 EA not responding. Make sure MacroBridgeEA is running in MetaTrader 5.")
         return
 
-    print(f"✅ Connected! Balance: ${ping['balance']:,.2f}  Equity: ${ping['equity']:,.2f}")
+    print(f" Connected! Balance: ${ping['balance']:,.2f}  Equity: ${ping['equity']:,.2f}")
 
     price = client.get_price("EURUSD")
     if price:
@@ -40,13 +40,13 @@ def main():
         comment="test",
     )
     if not result:
-        print("❌ Order failed (check Algo Trading is enabled in MT5)")
+        print(" Order failed (check Algo Trading is enabled in MT5)")
         return
 
-    print(f"✅ Order opened: ticket={result['ticket']} @ {result['price']}")
+    print(f" Order opened: ticket={result['ticket']} @ {result['price']}")
     input("Press Enter to close...")
     closed = client.close_position(int(result["ticket"]))
-    print("✅ Closed" if closed else "❌ Close failed")
+    print(" Closed" if closed else " Close failed")
 
 
 if __name__ == "__main__":
