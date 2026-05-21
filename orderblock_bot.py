@@ -34,12 +34,12 @@ SYMBOLS = [
     "SOL/USDT:USDT",
 ]
 
-LEVERAGE    = 10
+LEVERAGE    = 5        # 10→5x (Council 2026-05-21): SL 0.2% < BTC 4h ATR 1.5-2.5%, stop-hunt magnet.
+                       # n=19 backtest 95% CI 31-53% WR. Need ATR-adaptive SL before re-bumping.
 TP_RATIO    = 3.0      # TP = SL_distance × TP_RATIO (3:1 → break-even at 25% WR)
-SL_BUFFER   = 0.002    # 0.2% beyond OB edge for SL
-SIZE_PCT    = 40.0     # 20→40% (2026-05-21): backtest combined ETH/SOL/BTC at SIZE=40%
-                       # + MIN_BODY 0.003 → +8.73%/mo expected. Highest-edge bot.
-MAX_POS     = 2
+SL_BUFFER   = 0.002    # TODO: ATR-adaptive (Council #4 critique)
+SIZE_PCT    = 40.0     # backtest validated
+MAX_POS     = 1        # 2→1: BTC/ETH/SOL correlation 0.75-0.90 = 2 positions = ~1.5 effective
 COOLDOWN    = 12 * 3600
 SCAN_SLEEP  = 15 * 60
 
