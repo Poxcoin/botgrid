@@ -17,6 +17,12 @@ from modules.orderflow_engine import get_orderflow_context
 from modules.trader import execute_trade, get_free_usdt, get_wallet_usdt, _init_exchange
 from modules.tg_notifier import send_telegram_message
 from modules import daily_guard, position_monitor
+from modules.cvd_realtime import (
+    start_realtime_cvd,
+    get_real_cvd_divergence,
+    is_ready as cvd_is_ready,
+    log_shadow as cvd_log_shadow,
+)
 from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, ORDERFLOW_TRADING
 
 SYMBOLS = [
@@ -178,6 +184,11 @@ def run_orderflow_engine() -> None:
 
     daily_guard.init(current_balance=start_bal)
 
+    try:
+        start_realtime_cvd()
+    except Exception as _e:
+        print(f"[OF] CVD realtime start failed (non-fatal): {_e}")
+
     if not any(t.name == "position-monitor" for t in threading.enumerate()):
         position_monitor.start_monitor(
             exchange_factory=_init_exchange,
@@ -253,6 +264,22 @@ def run_orderflow_engine() -> None:
                 except Exception as e:
                     print(f"[OF] ❌ Context fetch failed for {symbol}: {e}")
                     continue
+
+                try:
+                    if cvd_is_ready(symbol):
+                        real_div = get_real_cvd_divergence(symbol, lookback=2000)
+                        real_ratio = real_div["cvd_ratio"]
+                        cvd_log_shadow(
+                            symbol,
+                            proxy_ratio=ctx["cvd_ratio_pct"],
+                            real_ratio=real_ratio,
+                            proxy_bearish=ctx["cvd_bearish_div"],
+                            proxy_bullish=ctx["cvd_bullish_div"],
+                            real_bearish=real_ratio < 40.0,
+                            real_bullish=real_ratio > 60.0,
+                        )
+                except Exception:
+                    pass
 
                 direction, sig_type = _detect_signal(ctx)
 
