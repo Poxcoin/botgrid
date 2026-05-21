@@ -1288,16 +1288,13 @@ function Panel({ botTrades, botPositions, openOrders = [], onClose = () => {}, o
 // Maps botId → one or more source values stored in user_trades.source
 // cascade_bot.py saves 'cascade', main.py liq pipeline saves 'liq_cascade'
 const BOT_SOURCES = {
-  signal:    ['news', 'signal', 'dex'],
+  signal:    ['news', 'signal', 'dex', 'bybit', 'liq_cascade'],
   sweep:     ['sweep'],
-  cascade:   ['liq_cascade', 'cascade'],
-  fr:        ['fr', 'fr_extreme'],
+  cascade:   ['cascade'],
   grid:      ['grid'],
-  altcoin:   ['altcoin'],
   orderflow: ['orderflow'],
   ob:        ['ob', 'orderblock'],
   macro:     ['macro'],
-  listing:   ['listing'],
   dex:       ['dex'],
   history:   ['bybit'],
 };
@@ -1305,14 +1302,11 @@ const BOT_SOURCES = {
 const ALL_BOTS_CONFIG = [
   { id: 'signal',    label: 'Signal',    source: 'news' },
   { id: 'sweep',     label: 'Sweep',     source: 'sweep' },
-  { id: 'cascade',   label: 'Cascade',   source: 'liq_cascade' },
-  { id: 'fr',        label: 'Funding',   source: 'fr_extreme' },
+  { id: 'cascade',   label: 'Cascade',   source: 'cascade' },
   { id: 'grid',      label: 'Grid',      source: 'grid' },
-  { id: 'altcoin',   label: 'Alt',       source: 'altcoin' },
   { id: 'orderflow', label: 'Orderflow', source: 'orderflow' },
   { id: 'ob',        label: 'OB',        source: 'orderblock' },
   { id: 'macro',     label: 'Macro',     source: 'macro' },
-  { id: 'listing',   label: 'Listing',   source: 'listing' },
   { id: 'dex',       label: 'DEX',       source: 'dex' },
 ];
 
@@ -1374,10 +1368,9 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
       botTrades.filter(t => !t.closed_at && t.status !== 'failed').map(t => sym(t.symbol)).filter(Boolean)
     );
     if (openCoins.size > 0) return positions.filter(p => openCoins.has(sym(p.symbol)));
-    // Static fallback only for bots that hold positions without explicit open-trade records.
-    // grid/fr are always-on — they hold perpetual positions even when all DB trades are closed.
-    // All other bots (cascade, orderflow, listing, dex, signal): no open trades = no positions.
-    if ((botId === 'grid' || botId === 'fr') && staticCoins.length > 0) {
+    // Static fallback only for grid — always-on, holds positions without open-trade records.
+    // All other bots (cascade, orderflow, signal): no open trades = no positions.
+    if (botId === 'grid' && staticCoins.length > 0) {
       const s = new Set(staticCoins);
       return positions.filter(p => s.has(sym(p.symbol)));
     }
@@ -1388,8 +1381,8 @@ export default function OverviewTab({ botId = 'signal', allowedBots = null }) {
     // grid always shows all configured pairs regardless of trade history
     if (botId === 'grid') return [...new Set([...staticCoins, ...botCoins])];
     if (botCoins.length > 0) return botCoins;
-    // dynamic bots (listing/dex): no static coins, no POP_COINS fallback — wait for real signals
-    if (botId === 'listing' || botId === 'dex') return [];
+    // dynamic bots (dex): no static coins, no POP_COINS fallback — wait for real signals
+    if (botId === 'dex') return [];
     return staticCoins.length > 0 ? staticCoins : POP_COINS;
   }, [botCoins, staticCoins.join(','), botId]);
   // grid: always show full configured set.

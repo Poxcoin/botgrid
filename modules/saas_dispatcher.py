@@ -284,9 +284,8 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             # Per-source limits: each bot has its own position budget.
             # Bots with different strategies (FR vs news) don't block each other.
             _PER_SOURCE_LIMIT = {
-                "news": 3, "listing": 2, "fr": 2, "fr_extreme": 2,
-                "sweep": 3, "orderflow": 3, "cascade": 2, "orderblock": 2,
-                "liq_cascade": 2,
+                "news": 3, "sweep": 3, "orderflow": 3, "cascade": 2,
+                "orderblock": 2, "liq_cascade": 2, "dex": 2,
             }
             source_count = _db.query(UserTrade).filter(
                 UserTrade.user_id == uid,
@@ -435,7 +434,7 @@ def dispatch(signal: dict) -> dict:
     Main entry point. Call this instead of execute_trade() in main.py.
 
     signal = {
-        "source":   "news" | "fr" | "grid" | "listing" | "whale",
+        "source":   "news" | "grid" | "sweep" | "cascade" | "orderflow" | "orderblock" | "dex" | "liq_cascade",
         "symbol":   "SOL/USDT:USDT",
         "side":     "LONG" | "SHORT",
         "leverage": 3,
