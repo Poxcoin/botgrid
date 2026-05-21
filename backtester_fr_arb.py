@@ -143,27 +143,32 @@ def _bybit_ohlcv(symbol_short: str, since_ms: int) -> list[list]:
 # ─── Cross-venue signal alignment ─────────────────────────────────────────────
 
 def find_cross_signals(symbol: str, threshold_pct: float) -> list[dict]:
-    """Returns list of timestamps where Binance + Bybit FR both extreme same direction."""
+    """Binance-driven signal. Original cross-venue idea failed because Bybit caps
+    at ±0.01% — never reaches threshold. New approach: Binance funding extreme
+    is the signal generator (it caps at ±0.30%, 30× wider than Bybit).
+    Bybit FR same direction (any positive value) = weak confirmation.
+    Execute trade on Bybit (where we have keys + liquid markets).
+    """
     short = symbol.split("/")[0] + "USDT"
     bnb = _binance_history(short)
     bb = _bybit_history(short)
-    # Index Bybit by closest 8h funding window (Binance uses same 00/08/16 UTC schedule)
     bb_map = {x["ts"] // (8 * 3600_000): x["fr_pct"] for x in bb}
     signals = []
     for x in bnb:
+        # Binance must show extreme funding
+        if abs(x["fr_pct"]) < threshold_pct:
+            continue
         bucket = x["ts"] // (8 * 3600_000)
         bb_fr = bb_map.get(bucket)
-        if bb_fr is None:
+        # Bybit confirmation: same direction (any amount)
+        if bb_fr is None or (x["fr_pct"] > 0) != (bb_fr > 0):
             continue
-        # Both above threshold + same sign
-        if abs(x["fr_pct"]) >= threshold_pct and abs(bb_fr) >= threshold_pct \
-                and (x["fr_pct"] > 0) == (bb_fr > 0):
-            signals.append({
-                "ts": x["ts"],
-                "binance_fr": x["fr_pct"],
-                "bybit_fr": bb_fr,
-                "direction": "SHORT" if x["fr_pct"] > 0 else "LONG",
-            })
+        signals.append({
+            "ts": x["ts"],
+            "binance_fr": x["fr_pct"],
+            "bybit_fr": bb_fr,
+            "direction": "SHORT" if x["fr_pct"] > 0 else "LONG",
+        })
     return signals
 
 
