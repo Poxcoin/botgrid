@@ -381,7 +381,10 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             pos_resp = ex.private_get_v5_position_list(params={"category": "linear", "symbol": sym_id})
             items = (pos_resp.get("result") or {}).get("list") or []
             bybit_qty = float(items[0].get("size") or 0) if items else 0.0
-            if bybit_qty > 0 and abs(bybit_qty - qty) > max(qty * 0.05, 0.001):
+            # 12% tolerance: Bybit lot-size rounding (ETH lot=0.01, BTC lot=0.001) can
+            # shave 5-10% off small qty (e.g. 0.149 ETH dispatched → 0.14 actual = 6%
+            # rounding, not a bug). True double-trade drift is 80-1700% — well above 12%.
+            if bybit_qty > 0 and abs(bybit_qty - qty) > max(qty * 0.12, 0.001):
                 drift_pct = (bybit_qty / qty - 1) * 100 if qty > 0 else 0
                 alert = (
                     f"[DISPATCHER]  INTEGRITY DRIFT user={uid} {symbol}: "
