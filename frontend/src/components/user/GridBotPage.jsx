@@ -505,17 +505,23 @@ function KlineChart({ coin, tf }) {
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <div style={{ flex: 1, minWidth: 0, position: 'relative', background: 'var(--bg-base)' }}>
           <div ref={elRef} style={{ width: '100%', height: '100%' }} />
+          <style>{`
+            @keyframes shimmer {
+              0%, 100% { textShadow: 0 0 10px rgba(232,232,232,0.3), 0 2px 8px rgba(232,232,232,0.2); }
+              50% { textShadow: 0 0 20px rgba(232,232,232,0.6), 0 2px 12px rgba(232,232,232,0.4); }
+            }
+          `}</style>
           <div style={{
             position: 'absolute', top: 20, left: 20, pointerEvents: 'none',
             zIndex: 10,
           }}>
             <span style={{
-              fontSize: 48, fontWeight: 900, letterSpacing: '0.2em',
+              fontSize: 36, fontWeight: 900, letterSpacing: '0.2em',
               color: '#e8e8e8',
-              textShadow: '0 2px 12px rgba(232,232,232,0.4), 0 0 30px rgba(232,232,232,0.2)',
               fontFamily: "'Georgia', 'Garamond', 'Palatino', serif",
               textTransform: 'uppercase',
               display: 'block',
+              animation: 'shimmer 2.5s ease-in-out infinite',
             }}>
               KADO
             </span>
