@@ -30,6 +30,8 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OB_TRADING
 
 SYMBOLS = [
     "BTC/USDT:USDT",
+    "ETH/USDT:USDT",
+    "SOL/USDT:USDT",
 ]
 
 LEVERAGE    = 5
