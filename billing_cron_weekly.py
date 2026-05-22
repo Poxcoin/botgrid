@@ -103,9 +103,31 @@ def run(year: int = None, week: int = None) -> list[dict]:
         iso = last_monday.isocalendar()
         year, week = iso.year, iso.week
 
+    # Council Phase 6 condition: drift safety pre-flight gate.
+    # No path (cron OR endpoint OR manual) bypasses the check.
+    from modules.billing_guard import check_billing_safe
+    safety = check_billing_safe()
+    if not safety['safe']:
+        msg = f"[BILLING-WEEKLY] ABORTED — drift unsafe: {safety['issues']}"
+        print(msg)
+        raise RuntimeError(msg)
+
     db = SessionLocal()
     results = []
     try:
+        from database import AuditLog
+        from utils.crypto import encrypt_field
+        import json as _json
+        db.add(AuditLog(
+            user_id=None,
+            action='billing_run',
+            detail_enc=encrypt_field(_json.dumps({
+                'year': year, 'week': week,
+                'safety_snapshot': safety,
+            })),
+        ))
+        db.commit()
+
         subs = db.query(Subscription).filter(
             Subscription.plan   == "performance",
             Subscription.status == "active",
