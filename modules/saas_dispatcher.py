@@ -15,6 +15,17 @@ import ccxt
 
 from database import SessionLocal, User, UserApiKey, UserTrade, MonthlyPnl, AuditLog
 from utils.crypto import decrypt_field, encrypt_field
+from config.settings import (
+    OWNER_LIVE_ENABLED, OWNER_LIVE_USER_ID, OWNER_LIVE_SOURCES,
+    BYBIT_OWNER_LIVE_API_KEY, BYBIT_OWNER_LIVE_SECRET,
+    TG_CHAT_ID,
+)
+from modules.cooldown import is_in_cooldown
+from modules.shadow_filter import shadow_score_check, shadow_tod_check
+
+# Sources that are NOT allowed on LIVE accounts (Council 2026-05-22).
+# Until 14-day shadow validation proves them, live keys may only execute Signal bot signals.
+_LIVE_RESTRICTED_SOURCES = ("sweep", "orderblock", "cascade", "liq_cascade")
 
 # Max parallel user executions per signal
 _EXECUTOR = ThreadPoolExecutor(max_workers=20)
@@ -181,7 +192,31 @@ def _get_active_users(source: str) -> list[dict]:
                 "secret":          secret,
                 "trade_size_pct":  None,  # risk-based auto sizing
                 "risk_multiplier": float(getattr(u, "risk_multiplier", 1.0) or 1.0),
+                "is_live_override": False,
             })
+
+        if (OWNER_LIVE_ENABLED
+                and source in OWNER_LIVE_SOURCES
+                and source not in _LIVE_RESTRICTED_SOURCES
+                and BYBIT_OWNER_LIVE_API_KEY
+                and BYBIT_OWNER_LIVE_SECRET
+                and OWNER_LIVE_USER_ID):
+            for entry in result:
+                if entry["user_id"] == OWNER_LIVE_USER_ID:
+                    entry["api_key"] = BYBIT_OWNER_LIVE_API_KEY
+                    entry["secret"]  = BYBIT_OWNER_LIVE_SECRET
+                    entry["is_demo"] = False
+                    entry["is_live_override"] = True
+                    print(f"[DISPATCHER] 🔴 LIVE override user={OWNER_LIVE_USER_ID} source={source}")
+
+        # Live restriction (Council 2026-05-22): until 14d shadow validation,
+        # live keys may only execute Signal-bot sources (news/dex/liq_cascade is excluded too).
+        if source in _LIVE_RESTRICTED_SOURCES:
+            blocked = [e for e in result if not e["is_demo"]]
+            if blocked:
+                print(f"[DISPATCHER] 🛡 live restriction — {len(blocked)} live user(s) blocked from {source}")
+            result = [e for e in result if e["is_demo"]]
+
         return result
     finally:
         db.close()
@@ -226,6 +261,20 @@ def _log_trade(user_id: int, signal_id: str, source: str, symbol: str,
     for attempt in range(4):
         db = SessionLocal()
         try:
+            # Idempotency check (2026-05-22 fix): prevent dupe rows when
+            # service restart re-dispatches the same signal. Same
+            # (user_id, signal_id, order_id) = same physical trade.
+            if order_id and signal_id:
+                existing = db.query(UserTrade).filter(
+                    UserTrade.user_id == user_id,
+                    UserTrade.signal_id == signal_id,
+                    UserTrade.order_id == order_id,
+                ).first()
+                if existing:
+                    print(f"[DISPATCHER]  _log_trade SKIP dupe user={user_id} {symbol} "
+                          f"sid={signal_id[:8]} (existing id={existing.id})")
+                    return existing.id
+
             trade = UserTrade(
                 user_id=user_id, signal_id=signal_id, source=source,
                 symbol=symbol, side=side, leverage=leverage,
@@ -285,7 +334,7 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             # Per-source limits: each bot has its own position budget.
             # Bots with different strategies (FR vs news) don't block each other.
             _PER_SOURCE_LIMIT = {
-                "news": 3, "sweep": 3, "orderflow": 3, "cascade": 2,
+                "news": 3, "sweep": 3, "cascade": 2,
                 "orderblock": 2, "liq_cascade": 2, "dex": 2,
             }
             source_count = _db.query(UserTrade).filter(
@@ -327,15 +376,22 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         if user_custom:
             size_pct = float(user_custom)
         else:
-            # Auto: size = 1% risk / (leverage × sl_pct), capped at 25%
-            size_pct = min(1.0 * 100 / (leverage * sl_pct), 25.0)
-            # Score-based scaling: size = base × (score/10)²
-            # Only for signals with an explicit score (news/whale/sweep bots).
-            # score=7.0 → 49%, score=8.0 → 64%, score=9.5 → 90%, score=10+ → 100%
+            # Auto base: Kelly-ish 1% account risk per trade
+            base_size_pct = 1.0 * 100 / (leverage * sl_pct)
+            # Score² sizing (Council 2026-05-21): scale = (score/10)², floor 0.25, cap 1.75
+            #   score 6  → 0.36 → floor 0.25 = 25% of base
+            #   score 8  → 0.64
+            #   score 10 → 1.00 = base
+            #   score 12 → 1.44
+            #   score 14 → 1.75 (capped)
             sig_score = signal.get("score")
             if sig_score is not None:
-                scale = min((abs(sig_score) / 10.0) ** 2, 1.0)
-                size_pct = max(size_pct * scale, size_pct * 0.25)  # floor at 25% base
+                scale = max(0.25, min((abs(sig_score) / 10.0) ** 2, 1.75))
+                size_pct = base_size_pct * scale
+            else:
+                size_pct = base_size_pct
+            # Global hard cap: never more than 25% of equity per single position
+            size_pct = min(size_pct, 25.0)
 
         # Per-user risk multiplier (DB User.risk_multiplier). Default 1.0.
         # Kinder has 0.5 to compensate for larger absolute balance → lower notional risk.
@@ -365,6 +421,15 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
             "positionIdx": 0,
         })
         fill = float(order.get("average") or price)
+
+        # Slippage telemetry (Council 2026-05-22 Alt 1) — measure variable
+        # backtester can't model.
+        try:
+            from modules.slippage_audit import log_fill
+            log_fill(uid, source, symbol, side, qty,
+                     expected_entry=price, actual_fill=fill, leverage=leverage)
+        except Exception as _se:
+            print(f"[DISPATCHER] slippage log err: {_se}")
 
         # TP/SL calculated from actual fill price, not pre-order ticker
         tp_price = round(fill * (1 + tp_pct / 100), 6) if side == "LONG" else round(fill * (1 - tp_pct / 100), 6)
@@ -453,7 +518,7 @@ def dispatch(signal: dict) -> dict:
     Main entry point. Call this instead of execute_trade() in main.py.
 
     signal = {
-        "source":   "news" | "grid" | "sweep" | "cascade" | "orderflow" | "orderblock" | "dex" | "liq_cascade",
+        "source":   "news" | "grid" | "sweep" | "cascade" | "orderblock" | "dex" | "liq_cascade" | "trend",
         "symbol":   "SOL/USDT:USDT",
         "side":     "LONG" | "SHORT",
         "leverage": 3,
@@ -464,6 +529,24 @@ def dispatch(signal: dict) -> dict:
     """
     source    = signal.get("source", "news")
     signal_id = str(uuid.uuid4())
+
+    # Consecutive-loss cooldown check (Council 2026-05-22)
+    in_cd, until_ts = is_in_cooldown(source)
+    if in_cd:
+        from datetime import datetime as _dt, timezone as _tz
+        until_str = _dt.fromtimestamp(until_ts, _tz.utc).strftime("%H:%M UTC")
+        print(f"[DISPATCHER] SKIP {source} {signal.get('symbol')} — cooldown until {until_str}")
+        return {"ok": 0, "fail": 0, "signal_id": signal_id, "skipped": "cooldown"}
+
+    # Shadow filters — log decisions, do NOT enforce (Council 2026-05-22)
+    # 14d data collection then decide whether to flip to enforced.
+    score_check = shadow_score_check(source, signal.get("score"), signal_id)
+    tod_check   = shadow_tod_check(source, signal_id)
+    if score_check["would_block"]:
+        print(f"[DISPATCHER] 👁 shadow: score {score_check['score']:.1f} < threshold {score_check['threshold']:.1f} (NOT enforced)")
+    if tod_check["would_block"]:
+        print(f"[DISPATCHER] 👁 shadow: hour {tod_check['hour_utc']} in Asia blackout (NOT enforced)")
+
     users     = _get_active_users(source)
 
     if not users:

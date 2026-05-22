@@ -98,6 +98,28 @@ def _find_swings(highs: list[float], lows: list[float], n: int = SWING_LOOKBACK)
     return swings
 
 
+# ─── ATR helper ──────────────────────────────────────────────────────────────
+
+# Council 2026-05-21: SL_BUFFER 0.3% sits INSIDE typical ETH sweep extension.
+# Floor sl_pct at ATR_K * ATR(period, 1h) so stops sit beyond expected volatility.
+_ATR_PERIOD = 14
+_ATR_K      = 1.5   # stops at minimum 1.5 ATRs from entry
+
+def _atr_pct(highs: list[float], lows: list[float], closes: list[float],
+             period: int = _ATR_PERIOD) -> float:
+    if len(closes) < period + 1:
+        return 0.0
+    trs = []
+    for i in range(1, len(closes)):
+        tr = max(highs[i] - lows[i],
+                 abs(highs[i] - closes[i - 1]),
+                 abs(lows[i]  - closes[i - 1]))
+        trs.append(tr)
+    atr = sum(trs[-period:]) / period
+    last_close = closes[-1]
+    return (atr / last_close) * 100 if last_close > 0 else 0.0
+
+
 # ─── Sweep reversal detection ────────────────────────────────────────────────
 
 def _detect_sweep(
@@ -126,6 +148,9 @@ def _detect_sweep(
     swing_highs = [(idx, price) for idx, price, kind in swings if kind == "high"]
     swing_lows  = [(idx, price) for idx, price, kind in swings if kind == "low"]
 
+    # ATR floor — Council 2026-05-21
+    atr_floor_pct = _ATR_K * _atr_pct(highs, lows, closes)
+
     for sweep_idx in range(window_start, size - 1):
         # ── SHORT: sweep above a swing high ──────────────────────────────────
         for s_idx, s_price in swing_highs:
@@ -139,7 +164,7 @@ def _detect_sweep(
                 if closes[close_idx] < s_price:
                     sweep_distance = sweep_pct
                     tp_pct = max(TP_MIN_PCT, sweep_distance * TP_MULTIPLIER)
-                    sl_pct = SL_BUFFER_PCT + sweep_pct  # 0.3% beyond the swept high
+                    sl_pct = max(SL_BUFFER_PCT + sweep_pct, atr_floor_pct)
                     return {
                         "direction":       "SHORT",
                         "swept_level":     s_price,
@@ -162,7 +187,7 @@ def _detect_sweep(
                 if closes[close_idx] > s_price:
                     sweep_distance = sweep_pct
                     tp_pct = max(TP_MIN_PCT, sweep_distance * TP_MULTIPLIER)
-                    sl_pct = SL_BUFFER_PCT + sweep_pct
+                    sl_pct = max(SL_BUFFER_PCT + sweep_pct, atr_floor_pct)
                     return {
                         "direction":       "LONG",
                         "swept_level":     s_price,
@@ -355,6 +380,17 @@ def run_sweep_engine() -> None:
                               reason=f"sweep {direction} {signal['sweep_pct']:.3f}%")
                 except Exception:
                     pass
+
+                # Paper-trade hook (Council 2026-05-22): capture every sweep signal
+                # in simulation so we accumulate WR data alongside live execution.
+                try:
+                    from modules.paper_trader import paper_open
+                    _entry = signal.get("entry_price") or 0.0
+                    if _entry > 0:
+                        paper_open("sweep", symbol, direction, LEVERAGE, _entry,
+                                   sl_pct=sl_pct, tp_pct=tp_pct, variant="normal")
+                except Exception as _pe:
+                    print(f"[SW] paper_open err: {_pe}")
 
                 if SWEEP_TRADING:
                     # execute_trade removed 2026-05-21 — owner double-position bug.

@@ -31,7 +31,8 @@ from config.settings import TG_CHAT_ID, IS_DEMO_TRADING, OB_TRADING
 SYMBOLS = [
     "BTC/USDT:USDT",
     "ETH/USDT:USDT",
-    "SOL/USDT:USDT",
+    # SOL removed 2026-05-22: backtest WR 24-33% both variants, monthly -2.9% to -3.2%
+    # ETH+BTC alone: +14.88%/mo on static SL (vs combined +89%/90d with SOL drag)
 ]
 
 LEVERAGE    = 5        # 10→5x (Council 2026-05-21): SL 0.2% < BTC 4h ATR 1.5-2.5%, stop-hunt magnet.
@@ -146,23 +147,52 @@ def _get_current_price(symbol: str) -> Optional[float]:
         return None
 
 
+# ATR floor REVERTED 2026-05-22: backtest_orderblock.py 90d showed
+# static SL 0.2% +14.88%/mo vs ATR-floor +5.83%/mo. ATR widens TP (TP_RATIO=3x),
+# making TP harder to hit. OB zone-edge SL is already structural — fine as-is.
+
+# ATR VOL SKIP-GUARD (Council 2026-05-22 — Critic concern):
+# Static 0.2% SL is fine in normal vol but gets stop-hunted on news wicks.
+# Skip new OB entries when 1m ATR > 0.4% (news spike in progress).
+_VOL_SKIP_ATR_PCT = 0.4
+_VOL_SKIP_PERIOD  = 14
+_VOL_SKIP_TF      = "1m"
+_VOL_SKIP_LIMIT   = 30  # last 30 1m candles for ATR calc
+
+
+def _fetch_1m_atr_pct(market_ex, symbol: str) -> float:
+    """Fetch 1m candles + return ATR as % of last close. 0 on failure."""
+    try:
+        bars = market_ex.fetch_ohlcv(symbol, _VOL_SKIP_TF,
+                                     limit=_VOL_SKIP_LIMIT,
+                                     params={"category": "linear"})
+        if not bars or len(bars) < _VOL_SKIP_PERIOD + 1:
+            return 0.0
+        trs = []
+        for i in range(1, len(bars)):
+            h, l, pc = bars[i][2], bars[i][3], bars[i - 1][4]
+            trs.append(max(h - l, abs(h - pc), abs(l - pc)))
+        atr = sum(trs[-_VOL_SKIP_PERIOD:]) / _VOL_SKIP_PERIOD
+        last_close = bars[-1][4]
+        return (atr / last_close) * 100 if last_close > 0 else 0.0
+    except Exception:
+        return 0.0
+
+
 def _calc_trade_params(
     ob: dict,
     direction: str,
     price: float,
+    atr_pct: float = 0.0,  # kept for signature compat with call sites; ignored
 ) -> Optional[dict]:
-    """
-    Calculate entry zone check + sl_pct / tp_pct for execute_trade.
-    Returns None if price is not in the OB zone.
-    """
+    """Calculate entry zone check + sl_pct / tp_pct. Static SL only."""
     if direction == "LONG":
-        # Entry zone: price must be inside [ob_low, ob_high]
         if not (ob["ob_low"] <= price <= ob["ob_high"]):
             return None
         sl_price = ob["ob_low"] * (1.0 - SL_BUFFER)
         sl_dist  = price - sl_price
         tp_price = price + sl_dist * TP_RATIO
-    else:  # SHORT
+    else:
         if not (ob["ob_low"] <= price <= ob["ob_high"]):
             return None
         sl_price = ob["ob_high"] * (1.0 + SL_BUFFER)
@@ -175,7 +205,6 @@ def _calc_trade_params(
     sl_pct = round(sl_dist / price * 100, 3)
     tp_pct = round(abs(tp_price - price) / price * 100, 3)
 
-    # Sanity: tp_pct must be > 0.5% to be worth taking
     if tp_pct < 0.5:
         return None
 
@@ -299,6 +328,16 @@ def run_orderblock_engine() -> None:
                 if price is None:
                     continue
 
+                # ── ATR vol skip-guard ───────────────────────────────────────
+                # Skip entries during news-driven vol spikes (1m ATR > 0.4%)
+                # Static SL 0.2% gets hunted on big wicks; better to wait calm.
+                if ob_long is not None or ob_short is not None:
+                    vol_atr = _fetch_1m_atr_pct(market_ex, symbol)
+                    if vol_atr > _VOL_SKIP_ATR_PCT:
+                        print(f"[OB] {symbol} skip — 1m ATR {vol_atr:.2f}% > "
+                              f"{_VOL_SKIP_ATR_PCT}% (vol spike, wait calm)")
+                        continue
+
                 signal_found = False
 
                 for direction, ob in (("LONG", ob_long), ("SHORT", ob_short)):
@@ -331,6 +370,16 @@ def run_orderblock_engine() -> None:
                     )
 
                     _cooldowns[symbol] = now
+
+                    # Paper-trade hook (Council 2026-05-22): capture every OB signal
+                    # in simulation so we accumulate WR data even before bot validates live.
+                    try:
+                        from modules.paper_trader import paper_open
+                        paper_open("orderblock", symbol, direction, LEVERAGE, price,
+                                   sl_pct=params["sl_pct"], tp_pct=params["tp_pct"],
+                                   variant="normal")
+                    except Exception as _pe:
+                        print(f"[OB] paper_open err: {_pe}")
 
                     if OB_TRADING:
                         # execute_trade removed 2026-05-21 — owner double-position bug

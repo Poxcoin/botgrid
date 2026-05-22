@@ -1362,73 +1362,49 @@ async def get_user_pnl(
 
 
 
+# NOTE: Bybit helpers consolidated into modules.bybit_client (2026-05-22).
+# These local wrappers keep the existing function signatures + return shapes
+# (incl. "symbol" stripped of "USDT") so callers don't need changes.
+from modules.bybit_client import (
+    build_from_key_row as _bc_build_from_key_row,
+    get_balance as _bc_get_balance,
+    get_positions as _bc_get_positions,
+)
+
+
 def _init_user_exchange(key_row):
-    try:
-        from utils.crypto import decrypt_field as _df
-        api_key = _df(key_row.api_key_enc)
-        secret  = _df(key_row.secret_enc)
-        ex = ccxt.bybit({
-            'apiKey': api_key,
-            'secret': secret,
-            'enableRateLimit': True,
-            'options': {'defaultType': 'linear', 'recvWindow': 10000},
-        })
-        ex.has['fetchCurrencies'] = False
-        if key_row.is_demo:
-            ex.urls['api'] = ex.urls['demotrading']
-        # no load_markets() — we use raw V5 calls to avoid 3-4s overhead
-        return ex
-    except Exception:
-        return None
+    return _bc_build_from_key_row(key_row)
 
 
 def _bybit_balance(ex):
-    """Raw Bybit V5 USDT balance — tries UNIFIED then CONTRACT (demo uses CONTRACT)."""
-    for acct in ("UNIFIED", "CONTRACT"):
-        try:
-            raw   = ex.private_get_v5_account_wallet_balance({"accountType": acct})
-            coins = raw.get("result", {}).get("list", [{}])[0].get("coin", [])
-            usdt  = next((c for c in coins if c.get("coin") == "USDT"), {})
-            wallet = float(usdt.get("walletBalance") or 0)
-            if wallet > 0:
-                return {
-                    "wallet":         wallet,
-                    "equity":         float(usdt.get("equity")              or wallet),
-                    "unrealized_pnl": float(usdt.get("unrealisedPnl")       or 0),
-                    "usdt_free":      float(usdt.get("availableToWithdraw") or wallet),
-                }
-        except Exception:
-            pass
-    return {"wallet": 0.0, "equity": 0.0, "unrealized_pnl": 0.0, "usdt_free": 0.0}
+    """USDT balance — wallet/equity/unrealized_pnl/usdt_free."""
+    b = _bc_get_balance(ex)
+    return {
+        "wallet":         b["wallet"],
+        "equity":         b["equity"],
+        "unrealized_pnl": b["unrealized_pnl"],
+        "usdt_free":      b["usdt_free"],
+    }
 
 
 def _bybit_positions(ex):
-    """Raw Bybit V5 open linear positions — no load_markets needed."""
-    raw   = ex.private_get_v5_position_list({"category": "linear", "settleCoin": "USDT"})
-    items = raw.get("result", {}).get("list", [])
-    result = []
-    def _price_or_none(val):
-        v = float(val) if val else 0.0
-        return v if v != 0.0 else None
-
-    open_items = [p for p in items if float(p.get("size") or 0) > 0]
-    for p in sorted(open_items, key=lambda x: float(x.get("unrealisedPnl") or 0), reverse=True):
-        upnl   = float(p.get("unrealisedPnl") or 0)
-        margin = float(p.get("positionIM") or 1)
-        result.append({
-            "symbol":         p["symbol"].replace("USDT", ""),
-            "side":           "LONG" if p.get("side") == "Buy" else "SHORT",
-            "entry_price":    float(p.get("avgPrice") or 0),
-            "qty":            float(p.get("size") or 0),
-            "unrealized_pnl": upnl,
-            "pnl_pct":        round(upnl / margin * 100, 2) if margin else 0,
-            "stop_loss":      _price_or_none(p.get("stopLoss")),
-            "take_profit":    _price_or_none(p.get("takeProfit")),
-            "liq_price":      _price_or_none(p.get("liqPrice")),
-            "mark_price":     _price_or_none(p.get("markPrice")),
-            "leverage":       int(float(p.get("leverage") or 0)),
+    """Open positions with legacy shape (symbol stripped of USDT)."""
+    out = []
+    for p in _bc_get_positions(ex):
+        out.append({
+            "symbol":         p["coin"],  # stripped — preserved for legacy callers
+            "side":           p["side"],
+            "entry_price":    p["entry_price"],
+            "qty":            p["qty"],
+            "unrealized_pnl": p["unrealized_pnl"],
+            "pnl_pct":        p["pnl_pct"],
+            "stop_loss":      p["stop_loss"],
+            "take_profit":    p["take_profit"],
+            "liq_price":      p["liq_price"],
+            "mark_price":     p["mark_price"],
+            "leverage":       p["leverage"],
         })
-    return result
+    return out
 
 
 @app.get("/api/users/balance")
@@ -1608,7 +1584,7 @@ _BOT_LABELS = {
     "whale":       "Whale Tracker",
     "liq_cascade": "Liq Cascade",
     "cascade":     "Cascade Bot",
-    "orderflow":   "Orderflow",
+    
     "sweep":       "Liq Sweep",
     "ob":          "Order Block",
     "orderblock":  "Order Block",
@@ -1626,7 +1602,7 @@ async def get_plan_features(
     """Return the list of bot IDs this user has access to — all bots, no plan gate."""
     _get_user_from_token(credentials.credentials, db)
     all_bots = ["news", "grid", "whale",
-                "cascade", "orderflow", "sweep", "ob", "sniper"]
+                "cascade", "sweep", "ob", "sniper"]
     return {"bots": sorted(all_bots)}
 
 

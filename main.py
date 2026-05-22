@@ -25,7 +25,7 @@ from modules.post_trade_analyzer import (
 )
 from modules.session_monitor import start_session_monitor, get_session_bias
 from modules.saas_dispatcher import dispatch as saas_dispatch, resume_fr_closes
-from modules.orderflow_engine import fetch_oi_delta
+from modules.oi_utils import fetch_oi_delta
 from modules.oi_monitor import start_oi_monitor, get_oi_context
 from modules.token_unlocks import start_unlock_monitor, get_unlock_risk
 from modules.deribit_options import start_deribit_monitor, options_queue, get_options_sentiment

@@ -23,44 +23,28 @@ def _normalize_coin(symbol: str) -> str:
     return coin or "?"
 
 
-def _build_exchange(key_row) -> ccxt.bybit | None:
-    from utils.crypto import decrypt_field
+# Bybit helpers consolidated into modules.bybit_client (2026-05-22)
+from modules.bybit_client import (
+    build_from_key_row as _build_exchange,
+    get_closed_pnl as _fetch_closed_pnl,
+)
+
+
+# Cooldown hook (Council 2026-05-22) — register SL events for bot-attributed losing closes.
+# Only counts trades with source ∈ bot list (not 'bybit' which = legacy/unattrib).
+_TRACKED_SOURCES = {"news", "dex", "sweep", "orderblock", "cascade", "liq_cascade", "fr", "trend"}
+
+
+def _maybe_register_sl(source: str | None, pnl: float) -> None:
+    if pnl >= 0 or not source or source not in _TRACKED_SOURCES:
+        return
     try:
-        api_key = decrypt_field(key_row.api_key_enc)
-        secret  = decrypt_field(key_row.secret_enc)
-    except Exception:
-        return None
-    ex = ccxt.bybit({
-        "apiKey": api_key,
-        "secret": secret,
-        "enableRateLimit": True,
-        "options": {"defaultType": "linear", "recvWindow": 10000},
-    })
-    ex.has["fetchCurrencies"] = False
-    if key_row.is_demo:
-        ex.urls["api"] = ex.urls["demotrading"]
-    return ex
-
-
-def _fetch_closed_pnl(ex, max_pages: int = 20) -> list:
-    all_items = []
-    cursor = ""
-    for _ in range(max_pages):
-        params = {"category": "linear", "limit": 200}
-        if cursor:
-            params["cursor"] = cursor
-        try:
-            raw = ex.private_get_v5_position_closed_pnl(params)
-        except Exception as e:
-            logger.warning(f"Bybit API error during fetch: {e}")
-            break
-        result = raw.get("result", {})
-        items  = result.get("list", [])
-        all_items.extend(items)
-        cursor = result.get("nextPageCursor", "")
-        if not cursor or not items:
-            break
-    return all_items
+        from modules.cooldown import register_sl
+        from modules.tg_notifier import send_telegram_message
+        from config.settings import TG_CHAT_ID
+        register_sl(source, send_tg=lambda msg: send_telegram_message(msg, TG_CHAT_ID))
+    except Exception as _e:
+        logger.warning(f"cooldown hook failed: {_e}")
 
 
 def sync_user_trades(user_id: int) -> int:
@@ -176,6 +160,7 @@ def sync_user_trades(user_id: int) -> int:
                     t.pnl_usdt   = pnl
                     t.status     = "closed"
                     t.closed_at  = closed_dt
+                    _maybe_register_sl(t.source, pnl)
                 break
             if already_exists:
                 existing_order_ids.add(order_id)
@@ -202,6 +187,7 @@ def sync_user_trades(user_id: int) -> int:
                 if not matched.order_id:
                     matched.order_id = order_id
                 open_by_coin[coin] = [t for t in candidates if t.id != matched.id]
+                _maybe_register_sl(matched.source, pnl)
             else:
                 # Completely new trade — insert as standalone "bybit" record
                 # Bybit closed_pnl "side" = closing order direction:

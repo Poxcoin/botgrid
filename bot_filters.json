@@ -1,0 +1,114 @@
+{
+  "_doc": "See FILTERS.md for hypothesis/evidence/removal-criteria of each entry. Council 2026-05-22: max 3 active filters per bot. Each filter has 'shadow' mode (log only, no enforcement) or 'enforced' mode.",
+  "_version": 1,
+  "_updated": "2026-05-22",
+
+  "global": {
+    "consecutive_loss_cooldown": {
+      "enforced":      true,
+      "threshold_sl":  3,
+      "window_sec":    14400,
+      "duration_sec":  21600,
+      "tracked_sources": ["news", "dex", "sweep", "orderblock", "cascade", "liq_cascade", "fr", "trend"],
+      "hypothesis":   "3 SL hits within 4h = regime mismatch, pause 6h to wait it out",
+      "evidence":     "Defensive — no historical data needed",
+      "removal_when": "If any winning bot (Signal 71% WR) hits cooldown >2/week → raise threshold to 4 or scope to losing bots only",
+      "added":        "2026-05-22"
+    },
+    "live_signal_only": {
+      "enforced":             true,
+      "live_blocked_sources": ["sweep", "orderblock", "cascade", "liq_cascade", "trend"],
+      "hypothesis":   "Live $220 can only run validated bots (Signal post-fix WR 71%); others must prove 14d shadow WR > 50% first",
+      "evidence":     "Signal n=7 post-fix WR 71%, others n=0-18 not validated",
+      "removal_when": "Each blocked source ≥30 trades post-fix on demo with WR > 50%",
+      "added":        "2026-05-22"
+    }
+  },
+
+  "news": {
+    "score_threshold": {
+      "enforced":   false,
+      "shadow":     true,
+      "min_score":  7.0,
+      "current_min": 6.0,
+      "hypothesis":  "Raising min 6→7 filters bottom-quartile signals that statistically lose",
+      "evidence":   "post-fix WR 71% on n=7 — likely already filtered well; need shadow comparison",
+      "removal_when": "If 14d shadow: filtered subset WR not ≥ unfiltered + 5pp OR PF < 1.5",
+      "added":      "2026-05-22"
+    }
+  },
+
+  "sweep": {
+    "atr_floor_sl": {
+      "enforced":  true,
+      "atr_k":     1.5,
+      "atr_period": 14,
+      "tf":        "1h",
+      "hypothesis": "SL_BUFFER 0.3% sits INSIDE typical ETH sweep extension; widen to 1.5×ATR to escape stop hunt",
+      "evidence":  "Council critic insight; pre-fix Sweep 0/6 WR with tight SL",
+      "removal_when": "If WR doesn't improve to >40% on n>=15 by 2026-06-21",
+      "added":      "2026-05-22"
+    },
+    "tod_filter_asia": {
+      "enforced": false,
+      "shadow":   true,
+      "block_hours_utc": [3, 4, 5, 6],
+      "hypothesis": "Asia low-liq amplifies stop hunts on Sweep entries",
+      "evidence":  "Insufficient n — needs shadow validation",
+      "removal_when": "If 14d shadow: trades in 03-07 UTC don't show negative expectancy on n>=10",
+      "added":      "2026-05-22"
+    },
+    "single_symbol_eth": {
+      "enforced":  true,
+      "symbols":   ["ETH/USDT:USDT"],
+      "hypothesis": "BTC/SOL/XRP/LINK previously tested with poor results; ETH-only minimizes risk while learning",
+      "evidence":  "Backtest SOL 48.6% WR -9.19%/90d; BTC 38.3% WR -7.99%; cost kinder -$107 on single bad SL",
+      "removal_when": "After Sweep ETH proves profitable (WR>50% n>=20), can re-add SOL/BTC selectively",
+      "added":      "2026-05-21"
+    }
+  },
+
+  "orderblock": {
+    "atr_floor_sl": {
+      "enforced":  true,
+      "atr_k":     1.5,
+      "atr_period": 14,
+      "tf":        "4h",
+      "hypothesis": "SL 0.2% < BTC 4h ATR 1.5-2.5% → SL inside noise = stop-hunt magnet",
+      "evidence":  "Council #4 critique; 0 trades to date but math says current SL too tight",
+      "removal_when": "If OB starts firing and WR achievable without ATR floor on n>=20",
+      "added":      "2026-05-22"
+    },
+    "tod_filter_asia": {
+      "enforced": false,
+      "shadow":   true,
+      "block_hours_utc": [3, 4, 5, 6],
+      "hypothesis": "Same as Sweep — Asia low-liq amplifies false breakouts",
+      "evidence":  "No data yet — OB has 0 trades",
+      "removal_when": "Same as Sweep TOD criteria",
+      "added":      "2026-05-22"
+    }
+  },
+
+  "signal": {
+    "score_squared_sizing": {
+      "enforced":  true,
+      "floor":     0.25,
+      "cap":       1.75,
+      "formula":   "scale = max(0.25, min((score/10)**2, 1.75))",
+      "hypothesis": "Stronger signals deserve bigger size — concentrates capital on high-conviction trades",
+      "evidence":  "Council 2026-05-21 approved; previous cap=1.0 wasted amplification range",
+      "removal_when": "If score reliability degrades (high-score signals show WR ≤ low-score)",
+      "added":      "2026-05-21"
+    },
+    "tp_sl_from_actual_fill": {
+      "enforced":  true,
+      "tp_trigger": "LastPrice",
+      "sl_trigger": "MarkPrice",
+      "hypothesis": "Inline TP/SL on pre-order ticker = wrong because of slippage; LastPrice trigger for TP catches actual moves; MarkPrice for SL prevents manipulation",
+      "evidence":  "INFLECTION POINT 2026-05-19 21:06 UTC: owner pre-fix -$251/d avg → post-fix +$73/d avg",
+      "removal_when": "NEVER — this is the most validated change in the system",
+      "added":      "2026-05-19"
+    }
+  }
+}

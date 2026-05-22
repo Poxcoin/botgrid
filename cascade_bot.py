@@ -71,7 +71,7 @@ BYBIT_TAKER_FEE = 0.00055
 LIQ_THRESHOLD = {
     # 2026-05-21: SOL-only watchlist after DOGE/LINK retire; threshold lowered
     # 80K→50K because market is calm and 0 cascades fired in 6h+ at 80K
-    "SOL":    50_000,
+    "SOL":    30_000,  # 50K->30K 2026-05-22: still 0 fires, paper trader will collect for analysis
     # other coins kept for historical-script compatibility, watchlist filters them
     "BTC":   800_000,
     "ETH":   300_000,
@@ -319,12 +319,28 @@ def _execute_trade(coin: str, action: str, cascade_usd: float, size_mult: float)
     Previously this also placed a direct order via the global owner exchange, which
     doubled owner's actual Bybit position (config-keys path + DB-keys path). Removed 2026-05-21.
     """
+    symbol = f"{coin}/USDT:USDT"
+
+    # Paper-trade hook (Council 2026-05-22): capture signal even when trading off,
+    # so we accumulate paper data for thesis validation.
+    try:
+        import ccxt as _ccxt
+        _ex = _ccxt.bybit({'enableRateLimit': True})
+        _ex.has['fetchCurrencies'] = False
+        _t = _ex.fetch_ticker(symbol, params={'category': 'linear'})
+        _entry = float(_t.get('last') or 0)
+        if _entry > 0:
+            from modules.paper_trader import paper_open
+            paper_open("cascade", symbol, action, LEVERAGE, _entry,
+                       sl_pct=SL_PCT, tp_pct=TP_PCT, variant="normal")
+    except Exception as _pe:
+        print(f"[CASCADE] paper_open err: {_pe}")
+
     if not CASCADE_TRADING:
         print(f"[CASCADE]  {coin} {action} — торгівля вимкнена (CASCADE_TRADING=False)")
         return
 
     try:
-        symbol = f"{coin}/USDT:USDT"
         from modules.saas_dispatcher import dispatch as _saas_dispatch
         _saas_dispatch({
             "source":   "cascade",

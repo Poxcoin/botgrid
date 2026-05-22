@@ -20,7 +20,7 @@ BOT_EMOJIS = {
     "sweep":       "",
     "fr_extreme":  "",
     "orderblock":  "",
-    "orderflow":   "",
+    
     "cascade":     "",
     "altcoin":     "",
     "signal":      "",

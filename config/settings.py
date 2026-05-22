@@ -141,3 +141,17 @@ SWEEP_TRADING = os.getenv("SWEEP_TRADING", "True").lower() == "true"
 OB_TRADING = os.getenv("OB_TRADING", "True").lower() == "true"
 
 # FR Extreme Reversal Bot retired 2026-05-21 — see project-strategy-roadmap memory
+
+# ─── OWNER LIVE — Signal-only override (2026-05-21) ──────────────────────────
+# When ALL of these are true:
+#   OWNER_LIVE_ENABLED == True
+#   signal source in OWNER_LIVE_SOURCES
+#   dispatched user_id == OWNER_LIVE_USER_ID
+# then dispatcher swaps the user's demo api_key/secret for the live ones below
+# and routes the trade to Bybit LIVE endpoint (is_demo=False).
+# All other users + all other sources stay on their existing demo path.
+OWNER_LIVE_ENABLED       = os.getenv('OWNER_LIVE_ENABLED', 'False').lower() == 'true'
+OWNER_LIVE_USER_ID       = int(os.getenv('OWNER_LIVE_USER_ID', '0') or '0')
+OWNER_LIVE_SOURCES       = tuple(s.strip() for s in os.getenv('OWNER_LIVE_SOURCES', 'news,dex').split(',') if s.strip())
+BYBIT_OWNER_LIVE_API_KEY = os.getenv('BYBIT_OWNER_LIVE_API_KEY', '')
+BYBIT_OWNER_LIVE_SECRET  = os.getenv('BYBIT_OWNER_LIVE_SECRET', '')
