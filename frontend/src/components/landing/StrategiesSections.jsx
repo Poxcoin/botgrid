@@ -2,6 +2,9 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import useScrollReveal from '@/lib/useScrollReveal';
 
+// Return ranges are conservative early-data estimates, NOT promises.
+// Updated 2026-05-22 after TP/SL fix inflection (2026-05-19); historical numbers
+// from before fix are not representative of current system.
 const DATA = [
   {
     id: 'strat-conservative',
@@ -9,14 +12,14 @@ const DATA = [
     num: '01',
     color: 'var(--neon-green)',
     bots: ['Grid Bot'],
-    est: '3–8%',
-    risk: 25,
-    desc: 'Grid bot runs 24/7 across SOL, BTC and ETH. Earns on price oscillation in any direction. No directional prediction, no news reading. Best for capital preservation with steady yield.',
-    pros: ['Zero directional risk', 'Works in sideways market', 'Consistent yield', 'Low drawdown'],
-    cons: ['Lower upside vs. event-driven bots', 'Requires adequate capital per level'],
+    est: '1–5%',
+    risk: 20,
+    desc: 'Grid bot runs 24/7 across SOL, BTC and ETH. Earns on price oscillation in any direction. No directional prediction, no news reading. Currently frozen during EMA downtrend; will resume when macro recovers.',
+    pros: ['Zero directional risk', 'Works in sideways market', 'Consistent yield when active', 'Low drawdown'],
+    cons: ['Frozen during current downtrend', 'Lower upside vs. event-driven bots', 'Requires adequate capital per level'],
     params: [
       ['Active bots', 'Grid Bot'],
-      ['Expected return', '3–8% / month'],
+      ['Expected return', '1–5% / month (when active)'],
       ['Risk level', 'Low'],
       ['Capital required', '~$500 recommended'],
     ],
@@ -26,17 +29,17 @@ const DATA = [
     label: 'Moderate',
     num: '02',
     color: 'var(--neon-green)',
-    bots: ['Grid Bot', 'News Bot'],
-    est: '10–25%',
-    risk: 55,
-    desc: 'Grid provides the baseline yield. News bot fires on high-confidence events — whale moves, listing announcements, macro crypto news — filtered through Groq and Claude AI.',
-    pros: ['Grid covers quiet periods', 'News bot captures high-impact moves', 'AI filtering reduces false signals', 'Two independent income streams'],
-    cons: ['News signals can miss during low-volatility periods', 'More exposure than grid-only'],
+    bots: ['Signal Bot', 'Funding Rate'],
+    est: '3–12%',
+    risk: 50,
+    desc: 'Signal bot processes news + smart-money + AI scoring — currently the strongest performer (71% WR on early post-fix sample). Funding rate bot captures perpetual mean-reversion at extreme funding levels. Conservative ranges; sample sizes still small.',
+    pros: ['Signal bot proven on small sample', 'Two independent uncorrelated sources', 'AI filtering reduces false signals', 'Consecutive-loss cooldown auto-pauses on bad regimes'],
+    cons: ['Sample sizes still small (n<30 per bot)', 'Signal bot needs news flow — quiet days = no trades', 'Funding rate trades are infrequent'],
     params: [
-      ['Active bots', 'Grid Bot + News Bot'],
-      ['Expected return', '10–25% / month'],
+      ['Active bots', 'Signal Bot + Funding Rate'],
+      ['Expected return', '3–12% / month (early data)'],
       ['Risk level', 'Medium'],
-      ['Signal threshold', 'Score ≥ 8 / 10'],
+      ['Signal threshold', 'Score ≥ 6 / 10'],
     ],
   },
   {
@@ -44,17 +47,17 @@ const DATA = [
     label: 'Aggressive',
     num: '03',
     color: 'var(--neon-green)',
-    bots: ['Grid Bot', 'News Bot', 'Listing Sniper', 'DEX Sniper'],
-    est: '50%+',
-    risk: 90,
-    desc: 'All four bots running simultaneously. Listing sniper and DEX sniper target high-volatility opportunities. Maximum edge but also maximum variance — individual trade results vary widely.',
-    pros: ['Highest potential upside', 'Catches CEX listings early', 'DEX entries before price discovery', 'Grid + news base always active'],
-    cons: ['High variance — monthly results unpredictable', 'DEX sniper needs BNB capital', 'Listing entries can gap through SL on illiquid pairs'],
+    bots: ['Signal', 'Sweep', 'Order Block', 'Cascade'],
+    est: 'Highly variable',
+    risk: 85,
+    desc: 'All bots running simultaneously. Liquidity Sweep + Order Block target structural reversals; Cascade follows liquidation momentum. Bots beyond Signal are in active tuning (post-fix data still accumulating). Expect drawdowns during regime mismatch.',
+    pros: ['Maximum coverage of market regimes', 'Multiple independent edges if all converge', 'ATR-adaptive stops added 2026-05-22', 'Consecutive-loss cooldown protects against cascades'],
+    cons: ['Sweep + OB + Cascade not yet validated post-fix (small n)', 'High variance — monthly results unpredictable', 'Drawdown periods expected while bots tune'],
     params: [
       ['Active bots', 'All 4 bots'],
-      ['Expected return', 'Up to 50%+ / month'],
+      ['Expected return', 'Highly variable (30 days data needed)'],
       ['Risk level', 'High'],
-      ['DEX capital needed', '0.1–0.2 BNB'],
+      ['Validation gate', 'Each bot must clear 50% WR @ n≥30 by 2026-06-21'],
     ],
   },
 ];
