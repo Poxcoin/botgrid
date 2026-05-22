@@ -264,7 +264,7 @@ async def add_security_headers(request: Request, call_next):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://static.cloudflareinsights.com https://connect.facebook.net; "
+            "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://connect.facebook.net https://telegram.org; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "connect-src 'self' wss://kadoclub.net ws://localhost:8000 ws://localhost:5173 "

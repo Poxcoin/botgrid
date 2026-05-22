@@ -22,6 +22,26 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <script>try{if((localStorage.getItem('kado_theme')??"dark")==="dark")document.documentElement.classList.add("dark")}catch(e){}</script>
+    <!-- Telegram WebApp: load only if inside Telegram (post-bridge nav from /webapp) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+    (function(){
+      var tg = window.Telegram && window.Telegram.WebApp;
+      if (!tg || !tg.initData) return;  // not inside Telegram → no-op
+      try { tg.ready(); } catch(e){}
+      try { tg.expand(); } catch(e){}
+      // Prevent vertical swipe-to-close conflicting with scroll on dashboard
+      if (tg.disableVerticalSwipes) { try { tg.disableVerticalSwipes(); } catch(e){} }
+      document.documentElement.classList.add('in-telegram');
+    })();
+    </script>
+    <style>
+      html.in-telegram, html.in-telegram body {
+        overflow-x: hidden;
+        overscroll-behavior-y: contain;
+        touch-action: pan-y;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
