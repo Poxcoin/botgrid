@@ -1,8 +1,16 @@
 """
-bybit_sync.py — Imports closed PnL from each user's Bybit account into UserTrade.
+bybit_sync.py — DEPRECATED (2026-05-22). Use modules/event_ingestor.py.
 
-Run on key-add and every 15 min from background loop in web_server.py.
-Dedup by (user_id, order_id) — safe to run multiple times.
+This module is retained for backwards compatibility with web_server.py background
+loop. New code MUST use the event-sourced pipeline:
+  modules/event_ingestor.py → trade_events (immutable ledger)
+  tools/derive_user_trades.py → user_trades (materialized view)
+
+Removal deadline: 2026-06-05 (14 days from deprecation) — after parallel-run
+verification that event-sourced pipeline maintains zero drift.
+
+Original purpose: imports closed PnL from Bybit. Now redundant with event_ingestor.
+Kept running to provide safety net during cutover period.
 """
 import logging
 import re

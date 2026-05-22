@@ -1,10 +1,14 @@
 """
-Position Closer — background service that polls Bybit every 5 minutes
-and closes SaaS trades that are no longer open on the exchange.
+Position Closer — DEPRECATED (2026-05-22). Use event-sourced pipeline.
 
-Flow:
-  Every 5 min → find users with open trades → query Bybit positions →
-  if symbol not open anymore → fetch closed PnL → update_trade_closed()
+This module retained until 2026-06-05 to provide closure for bot-tagged
+user_trades rows during the 14-day parallel-run verification period.
+
+After cutover: tools/derive_user_trades.py handles status='closed' transition
+by matching trade_events to bot rows via order_id or fuzzy (qty+time+symbol).
+
+Original purpose: 5-min poll Bybit positions → mark missing as closed.
+Replaced by: real-time event_ingestor + materialized derive.
 """
 import asyncio
 import traceback
