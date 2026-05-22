@@ -1,10 +1,14 @@
 """
-backtester_orderflow.py — Orderflow bot backtest
-VWAP mean-reversion + RSI oversold/overbought on 4h OHLCV.
-Price significantly below VWAP + RSI<35 → LONG (bounce back to VWAP)
-Price significantly above VWAP + RSI>65 → SHORT (fade the extension)
-Symbols: BTC/ETH/SOL, 90 days, Bybit via ccxt
-Fees: 0.11% round-trip × leverage
+backtester_orderflow_inverted.py — INVERTED orderflow test (Council 2026-05-22 Alt 3).
+
+Same detector as backtester_orderflow.py BUT entry direction flipped:
+  Price below VWAP + RSI oversold → SHORT (continuation, not bounce)
+  Price above VWAP + RSI overbought → LONG (continuation, not fade)
+
+Thesis: if original mean-revert is 33% WR, the same setup might be a
+67% WR continuation signal. This script answers the flip question.
+
+Run side-by-side with backtester_orderflow.py and compare.
 """
 import ccxt
 import time
@@ -13,7 +17,7 @@ from collections import defaultdict
 
 SYMBOLS = ["BTC/USDT:USDT", "ETH/USDT:USDT", "SOL/USDT:USDT"]
 TIMEFRAME = "4h"
-DAYS = int(__import__("os").getenv("BT_DAYS", 90))
+DAYS = 90
 CANDLES_NEEDED = int((DAYS * 24) / 4) + 60
 
 # Strategy params
@@ -146,17 +150,18 @@ def backtest_symbol(exchange, symbol):
         vol_avg = sum(vols[max(0, i - VWAP_WINDOW):i]) / VWAP_WINDOW
         vol_ok  = vols[i] >= vol_avg * VOL_MULT
 
+        # INVERTED (Alt 3): same detector, opposite direction
         if (vwap_dev <= -VWAP_DEV_MIN and abs(vwap_dev) <= VWAP_DEV_MAX
                 and rsi <= RSI_LONG_MAX and vol_ok):
             in_trade = True
-            direction = "LONG"
+            direction = "SHORT"   # was LONG — flip to continuation
             entry_price = closes[i]
             entry_i = i
 
         elif (vwap_dev >= VWAP_DEV_MIN and abs(vwap_dev) <= VWAP_DEV_MAX
                 and rsi >= RSI_SHORT_MIN and vol_ok):
             in_trade = True
-            direction = "SHORT"
+            direction = "LONG"    # was SHORT — flip to continuation
             entry_price = closes[i]
             entry_i = i
 

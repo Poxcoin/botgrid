@@ -14,13 +14,19 @@ import time
 # ─── Config ─────────────────────────────────────────────────────────────────
 SYMBOLS        = ["ETH/USDT:USDT", "SOL/USDT:USDT"]
 TIMEFRAME      = "4h"
-DAYS_HISTORY   = 90
+DAYS_HISTORY   = int(__import__("os").getenv("BT_DAYS", 90))
 SWING_LOOKBACK = 3          # candles each side for pivot detection
 SWING_MEMORY   = 20         # keep last N swing points
 SWEEP_MIN_PCT  = 0.05 / 100 # minimum sweep above/below level
 SWEEP_MAX_PCT  = 0.50 / 100 # maximum sweep (filter noise vs real sweeps)
 REVERSAL_BARS  = 3          # candles to confirm reversal
 SL_BUFFER_PCT  = 0.30 / 100 # SL = 0.3% beyond swept level
+
+# A/B variant switch — set via env or default False (static). See main().
+import os as _os
+USE_ATR_FLOOR  = _os.getenv("SWEEP_ATR_FLOOR", "0") == "1"
+ATR_PERIOD     = 14
+ATR_K          = 1.5
 TP_MIN_PCT     = 1.50 / 100 # minimum TP = 1.5% from entry
 TP_MULT        = 1.5        # TP = 1.5 × sweep distance (take larger)
 MAX_HOLD       = 24         # max candles to hold
@@ -152,6 +158,18 @@ def backtest(symbol: str, df: pd.DataFrame):
                         entry = df["close"].iloc[j]
                         sweep_dist = high_i - level
                         sl = high_i * (1 + SL_BUFFER_PCT)
+                        # ATR-floor variant: widen SL to at least 1.5×ATR%
+                        if USE_ATR_FLOOR and j >= ATR_PERIOD:
+                            highs = df["high"].iloc[j - ATR_PERIOD:j].tolist()
+                            lows  = df["low"].iloc[j - ATR_PERIOD:j].tolist()
+                            closes = df["close"].iloc[j - ATR_PERIOD - 1:j].tolist()
+                            trs = [max(highs[k] - lows[k],
+                                       abs(highs[k] - closes[k]),
+                                       abs(lows[k]  - closes[k])) for k in range(len(highs))]
+                            atr = sum(trs) / len(trs) if trs else 0
+                            atr_pct = atr / entry if entry > 0 else 0
+                            atr_floor_sl = entry * (1 + ATR_K * atr_pct)
+                            sl = max(sl, atr_floor_sl)  # higher price = wider SL for SHORT
                         tp_from_dist = entry - TP_MULT * sweep_dist
                         tp_from_pct  = entry * (1 - TP_MIN_PCT)
                         tp = min(tp_from_dist, tp_from_pct)  # lower price = better TP for short
@@ -183,6 +201,17 @@ def backtest(symbol: str, df: pd.DataFrame):
                         entry = df["close"].iloc[j]
                         sweep_dist = level - low_i
                         sl = low_i * (1 - SL_BUFFER_PCT)
+                        if USE_ATR_FLOOR and j >= ATR_PERIOD:
+                            highs = df["high"].iloc[j - ATR_PERIOD:j].tolist()
+                            lows  = df["low"].iloc[j - ATR_PERIOD:j].tolist()
+                            closes = df["close"].iloc[j - ATR_PERIOD - 1:j].tolist()
+                            trs = [max(highs[k] - lows[k],
+                                       abs(highs[k] - closes[k]),
+                                       abs(lows[k]  - closes[k])) for k in range(len(highs))]
+                            atr = sum(trs) / len(trs) if trs else 0
+                            atr_pct = atr / entry if entry > 0 else 0
+                            atr_floor_sl = entry * (1 - ATR_K * atr_pct)
+                            sl = min(sl, atr_floor_sl)  # lower price = wider SL for LONG
                         tp_from_dist = entry + TP_MULT * sweep_dist
                         tp_from_pct  = entry * (1 + TP_MIN_PCT)
                         tp = max(tp_from_dist, tp_from_pct)

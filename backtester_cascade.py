@@ -16,7 +16,7 @@ SYMBOLS = [
     "LINK/USDT:USDT",
 ]
 TIMEFRAME = "15m"
-DAYS = 90
+DAYS = int(__import__("os").getenv("BT_DAYS", 90))
 CANDLES_PER_DAY = 96  # 15min * 96 = 24h
 CANDLES_NEEDED = DAYS * CANDLES_PER_DAY + 50
 
