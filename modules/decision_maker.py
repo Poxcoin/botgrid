@@ -624,6 +624,34 @@ def generate_signal(news_item: dict) -> dict | None:
         elif age_min > 30:
             size_multiplier = round(size_multiplier * 0.75, 2)
 
+    # Shadow paper-test (Council follow-up 2026-05-22): sub-threshold band.
+    # If action=HOLD only because score < live_min by ≤1.0 — spawn paper trade.
+    # 30d gathers data on whether lowering long_min/short_min is +EV.
+    if action == "HOLD" and confidence >= 60 and not (coin_upper in _NEWS_BLOCKED):
+        _paper_side = None
+        if total_score >= (long_min - 1.0) and total_score < long_min:
+            _paper_side = "LONG"
+        elif total_score <= -(short_min - 1.0) and total_score > -short_min:
+            _paper_side = "SHORT"
+        if _paper_side:
+            try:
+                from modules.paper_trader import paper_open
+                _entry = market_data.get("current_price") or 0
+                if _entry > 0:
+                    paper_open(
+                        source=("smartmoney_shadow" if is_smart_wallet else "news_shadow"),
+                        symbol=f"{coin_upper}/USDT:USDT",
+                        side=_paper_side,
+                        leverage=4,
+                        entry_price=float(_entry),
+                        sl_pct=3.0,
+                        tp_pct=5.0,
+                        variant="normal",
+                    )
+                    print(f"[SHADOW PAPER] {coin_upper} {_paper_side} score={total_score:.1f} band=[{long_min - 1.0:.1f},{long_min:.1f})")
+            except Exception as _e:
+                print(f"shadow paper err: {_e}")
+
     return {
         "coin": coin,
         "action": action,
