@@ -19,6 +19,28 @@ from modules.bybit_client import build_from_key_row
 from tools.force_reconcile import reconcile_user
 
 DRIFT_THRESHOLD_USD = 5.0
+DELTA_NOTIFY_USD = 5.0  # only alert if drift changed by this much since last run
+STATE_FILE = '/opt/botgrid/reconcile_state.json'
+
+
+def _load_state() -> dict:
+    import json, os
+    if not os.path.exists(STATE_FILE):
+        return {}
+    try:
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_state(state: dict) -> None:
+    import json
+    try:
+        with open(STATE_FILE, 'w') as f:
+            json.dump(state, f, indent=2)
+    except Exception as e:
+        print(f"state save err: {e}")
 
 
 def _bybit_closed_pnl_sum_7d(ex) -> tuple[float, int]:
@@ -63,7 +85,9 @@ def main():
     db.close()
 
     report_lines = ['📊 <b>Daily Reconcile</b>', '']
-    has_drift = False
+    state = _load_state()
+    new_state = {}
+    alert_needed = False
     inserted_any = False
 
     for u in users:
@@ -71,14 +95,12 @@ def main():
         if not key:
             continue
 
-        # First: force-reconcile to insert any missing rows
         rec = reconcile_user(u.id)
         n_new = rec.get('inserted', 0)
         if n_new > 0:
             inserted_any = True
             report_lines.append(f"  user {u.id} ({u.username}): inserted {n_new} missing trades (${rec.get('sum_pnl', 0):+.2f})")
 
-        # Then: drift check
         try:
             ex = build_from_key_row(key)
             bybit_sum, bybit_n = _bybit_closed_pnl_sum_7d(ex)
@@ -93,16 +115,20 @@ def main():
             f"  {marker} user {u.id} ({u.username}): DB=${db_sum:+.2f} ({db_n}) "
             f"Bybit=${bybit_sum:+.2f} ({bybit_n})  drift=${drift:+.2f}"
         )
-        if abs(drift) > DRIFT_THRESHOLD_USD:
-            has_drift = True
 
+        prev_drift = float(state.get(str(u.id), {}).get('drift', 0))
+        new_state[str(u.id)] = {'drift': drift, 'ts': datetime.now(timezone.utc).isoformat()}
+        if abs(drift - prev_drift) > DELTA_NOTIFY_USD:
+            alert_needed = True
+
+    _save_state(new_state)
     msg = '\n'.join(report_lines)
     print(msg)
 
     try:
         from modules.tg_notifier import send_telegram_message
         from config.settings import TG_CHAT_ID
-        if TG_CHAT_ID and (has_drift or inserted_any):
+        if TG_CHAT_ID and (alert_needed or inserted_any):
             send_telegram_message(msg, TG_CHAT_ID)
     except Exception as e:
         print(f"tg err: {e}")

@@ -92,8 +92,8 @@ def reconcile_user(user_id: int) -> dict:
             exit_p = float(it.get('avgExitPrice') or 0)
             pnl = float(it.get('closedPnl') or 0)
             lev = int(float(it.get('leverage') or 3))
-            closed_dt = datetime.utcfromtimestamp(updated_ms / 1000)
-            opened_dt = datetime.utcfromtimestamp(int(it.get('createdTime') or updated_ms) / 1000)
+            closed_dt = datetime.fromtimestamp(updated_ms / 1000, timezone.utc).replace(tzinfo=None)
+            opened_dt = datetime.fromtimestamp(int(it.get('createdTime') or updated_ms) / 1000, timezone.utc).replace(tzinfo=None)
 
             new_row = UserTrade(
                 user_id=user_id,
