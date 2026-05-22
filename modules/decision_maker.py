@@ -474,8 +474,12 @@ def generate_signal(news_item: dict) -> dict | None:
     # Статистика: BTC 12%WR -$50, ETH 18.8%WR -$3, SOL 20%WR -$33. Grid/FR покривають.
     if coin_upper in _NEWS_BLOCKED:
         return None
+    # Smart wallet signals are higher-quality per-source — lower threshold OK.
+    # 2026-05-22: smart wallet 10→7 (Jump Trading buy with score 5.5 was rejected
+    # — historically these big-wallet signals are signal, not noise).
+    # News (Claude AI scored): stays at 13 — needs more confirmation.
     if is_smart_wallet:
-        min_score = 10.0
+        min_score = 7.0
     else:
         min_score = 13.0
 
