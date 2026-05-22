@@ -436,7 +436,6 @@ def report(as_json: bool = False):
     signal_on   = env.get("SIGNAL_BOT_TRADING", "False").lower() == "true"
     cascade_on  = env.get("CASCADE_TRADING", "False").lower() == "true"
     is_demo     = env.get("IS_DEMO_TRADING", "True").lower() == "true"
-    fr_on       = env.get("FR_TRADING", "False").lower() == "true"
 
     if as_json:
         print(json.dumps({

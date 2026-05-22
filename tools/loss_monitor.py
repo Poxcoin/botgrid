@@ -181,7 +181,7 @@ def main():
     try:
         from modules.cooldown import check_and_expire
         tracked = ("news", "dex", "sweep", "orderblock",
-                   "cascade", "liq_cascade", "fr", "trend")
+                   "cascade", "liq_cascade", "trend")
         for source in tracked:
             check_and_expire(
                 source,

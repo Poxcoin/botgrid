@@ -9,7 +9,7 @@
       "threshold_sl":  3,
       "window_sec":    14400,
       "duration_sec":  21600,
-      "tracked_sources": ["news", "dex", "sweep", "orderblock", "cascade", "liq_cascade", "fr", "trend"],
+      "tracked_sources": ["news", "dex", "sweep", "orderblock", "cascade", "liq_cascade", "trend"],
       "hypothesis":   "3 SL hits within 4h = regime mismatch, pause 6h to wait it out",
       "evidence":     "Defensive — no historical data needed",
       "removal_when": "If any winning bot (Signal 71% WR) hits cooldown >2/week → raise threshold to 4 or scope to losing bots only",

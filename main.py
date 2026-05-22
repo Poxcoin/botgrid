@@ -107,25 +107,6 @@ def _post_to_channel(signal: dict, source: str) -> None:
             )
             send_telegram_message(text, TELEGRAM_CHANNEL_ID)
 
-        elif source == "fr":
-            comp = signal.get("components", {})
-            fr   = comp.get("funding_rate", 0)
-            mins = comp.get("mins_to_funding", "?")
-            if action in ("BUY", "LONG"):
-                detail = f"shorts paying {abs(fr):.4f}% → long-side premium incoming"
-            else:
-                detail = f"longs paying {abs(fr):.4f}% → market overheated, short-side edge"
-            text = (
-                f" <b>FUNDING RATE OPPORTUNITY</b>\n\n"
-                f"<b>{coin}</b> · FR <b>{fr:+.4f}%</b>\n"
-                f"{detail}\n"
-                f"Funding settlement in <b>{mins} min</b>\n\n"
-                f"━━━━━━━━━━━━━━━\n"
-                f"{d_emoji} <b>{coin}</b> · {d_label}\n\n"
-                f" @KADO_c_BOT"
-            )
-            send_telegram_message(text, TELEGRAM_CHANNEL_ID)
-
         else:
             headline = (title[:120] if title else f"{coin} market signal").upper()
             text = (

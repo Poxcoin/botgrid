@@ -32,7 +32,7 @@ from modules.bybit_client import (
 
 # Cooldown hook (Council 2026-05-22) — register SL events for bot-attributed losing closes.
 # Only counts trades with source ∈ bot list (not 'bybit' which = legacy/unattrib).
-_TRACKED_SOURCES = {"news", "dex", "sweep", "orderblock", "cascade", "liq_cascade", "fr", "trend"}
+_TRACKED_SOURCES = {"news", "dex", "sweep", "orderblock", "cascade", "liq_cascade", "trend"}
 
 
 def _maybe_register_sl(source: str | None, pnl: float) -> None:
