@@ -16,7 +16,8 @@ load_dotenv('/opt/botgrid/.env')
 from database import SessionLocal, User
 from sqlalchemy.orm import joinedload
 from modules.bybit_client import build_from_key_row
-from tools.force_reconcile import reconcile_user
+from modules.event_ingestor import ingest_user
+from tools.derive_user_trades import derive_user
 
 DRIFT_THRESHOLD_USD = 5.0
 DELTA_NOTIFY_USD = 5.0  # only alert if drift changed by this much since last run
@@ -95,11 +96,14 @@ def main():
         if not key:
             continue
 
-        rec = reconcile_user(u.id)
-        n_new = rec.get('inserted', 0)
-        if n_new > 0:
-            inserted_any = True
-            report_lines.append(f"  user {u.id} ({u.username}): inserted {n_new} missing trades (${rec.get('sum_pnl', 0):+.2f})")
+        # Phase 4 pipeline: ingest fresh events → derive user_trades → check drift
+        ing = ingest_user(u.id)
+        if 'err' not in ing:
+            n_new_events = ing.get('closed_pnl', {}).get('inserted', 0) + ing.get('txn_log', {}).get('inserted', 0)
+            if n_new_events > 0:
+                report_lines.append(f"  user {u.id}: ingested {n_new_events} new events")
+                inserted_any = True
+        derive_user(u.id)
 
         try:
             ex = build_from_key_row(key)
