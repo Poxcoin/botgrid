@@ -179,6 +179,49 @@ def _fetch_1m_atr_pct(market_ex, symbol: str) -> float:
         return 0.0
 
 
+# Regime gate (2026-05-22): OB strategy only works in trending markets.
+# ADX < 25 = ranging, no follow-through after BOS retrace = strategy dies.
+# Backtest evidence: 30d range = 0/6 WR; 90d with trends = +14.88%/mo.
+# Direction bias: LONG only when price > EMA200 (uptrend), SHORT only when below.
+_ADX_TREND_MIN = 25.0
+
+
+def _compute_adx(ohlcv, period: int = 14) -> float:
+    """Simplified ADX over the OHLCV bars (uses last `period`×2 candles)."""
+    if not ohlcv or len(ohlcv) < period * 2:
+        return 0.0
+    highs  = [b[2] for b in ohlcv]
+    lows   = [b[3] for b in ohlcv]
+    closes = [b[4] for b in ohlcv]
+    dm_plus, dm_minus, trs = [], [], []
+    for j in range(1, len(ohlcv)):
+        up = highs[j] - highs[j - 1]
+        dn = lows[j - 1] - lows[j]
+        dm_plus.append(up if (up > dn and up > 0) else 0)
+        dm_minus.append(dn if (dn > up and dn > 0) else 0)
+        trs.append(max(highs[j] - lows[j],
+                       abs(highs[j] - closes[j - 1]),
+                       abs(lows[j] - closes[j - 1])))
+    atr = sum(trs[-period:]) / period
+    if atr == 0:
+        return 0.0
+    di_plus  = 100 * sum(dm_plus[-period:])  / (atr * period)
+    di_minus = 100 * sum(dm_minus[-period:]) / (atr * period)
+    denom = di_plus + di_minus
+    return (100 * abs(di_plus - di_minus) / denom) if denom > 0 else 0.0
+
+
+def _ema_value(values, period):
+    """EMA(period) over the values list — returns the latest EMA value."""
+    if len(values) < period:
+        return values[-1] if values else 0.0
+    k = 2 / (period + 1)
+    out = sum(values[:period]) / period
+    for v in values[period:]:
+        out = v * k + out * (1 - k)
+    return out
+
+
 def _calc_trade_params(
     ob: dict,
     direction: str,
@@ -338,11 +381,34 @@ def run_orderblock_engine() -> None:
                               f"{_VOL_SKIP_ATR_PCT}% (vol spike, wait calm)")
                         continue
 
+                # ── ADX trend gate (2026-05-22) ──────────────────────────────
+                # OB strategy needs trending market for BOS follow-through.
+                # ADX < 25 = ranging, OB retrace doesn't continue → SL hit.
+                # Compute on the 4h OHLCV we already have.
+                adx_val = _compute_adx(ohlcv, period=14)
+                if adx_val < _ADX_TREND_MIN:
+                    if ob_long or ob_short:
+                        print(f"[OB] {symbol} skip — ADX {adx_val:.1f} < {_ADX_TREND_MIN} (ranging)")
+                    continue
+
+                # Direction bias: only trade with macro trend (price vs EMA200)
+                closes_only = [b[4] for b in ohlcv]
+                ema200_val = _ema_value(closes_only, 200) if len(closes_only) >= 200 else None
+
                 signal_found = False
 
                 for direction, ob in (("LONG", ob_long), ("SHORT", ob_short)):
                     if ob is None:
                         continue
+
+                    # EMA200 direction bias
+                    if ema200_val is not None:
+                        if direction == "LONG" and price < ema200_val:
+                            print(f"[OB] {symbol} skip LONG — price < EMA200 (downtrend)")
+                            continue
+                        if direction == "SHORT" and price > ema200_val:
+                            print(f"[OB] {symbol} skip SHORT — price > EMA200 (uptrend)")
+                            continue
 
                     params = _calc_trade_params(ob, direction, price)
                     if params is None:
