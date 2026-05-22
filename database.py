@@ -100,6 +100,11 @@ from sqlalchemy import event as _sa_event
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False, "timeout": 30},
+    # 2026-05-22: 9+ processes share one SQLite. Stale pool connections threw
+    # "disk I/O error" on /api/users/login. pool_pre_ping validates connection
+    # liveness before checkout (cheap SELECT 1, negligible for local SQLite).
+    pool_pre_ping=True,
+    pool_recycle=3600,
 )
 _sa_event.listen(engine, "connect", _enable_wal)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
