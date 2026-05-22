@@ -546,13 +546,36 @@ class ApiKeyRequest(BaseModel):
     secret: str
     is_demo: bool = False
 
+def _db_retry(db: Session, query_fn, retries: int = 3):
+    """Run a DB query with retry on transient SQLite OperationalError.
+
+    Multi-process SQLite (8+ services share one file) occasionally throws
+    'disk I/O error' / 'database is locked' under write contention. Retry with
+    exponential backoff to ride out the lock.
+    """
+    import sqlalchemy
+    delay = 0.05
+    for attempt in range(retries):
+        try:
+            return query_fn()
+        except sqlalchemy.exc.OperationalError as e:
+            if attempt == retries - 1:
+                raise
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            time.sleep(delay)
+            delay *= 2
+
+
 def _get_user_from_token(token: str, db: Session):
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
     if payload.get("jti") and payload["jti"] in _revoked_jtis:
         raise HTTPException(status_code=401, detail="Token revoked — please login again")
-    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    user = _db_retry(db, lambda: db.query(User).filter(User.id == int(payload["sub"])).first())
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
     return user
@@ -1827,11 +1850,11 @@ async def get_user_analytics(
             "daily":     [], "by_coin": [], "by_source": [], "best": [], "worst": [],
         }
 
-    raw_rows = (
+    raw_rows = _db_retry(db, lambda: (
         db.query(UserTrade)
         .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
         .all()
-    )
+    ))
     rows = _filter_ghost_closes(_dedup_bybit_dupes(raw_rows))
     if not rows:
         return _empty()
