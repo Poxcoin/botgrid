@@ -2238,6 +2238,56 @@ async def admin_mark_invoice_paid(
     return {"ok": True}
 
 
+# ─── Admin billing (Phase 6 event-sourced sync) ───────────────────────────────
+
+@app.get("/api/admin/billing/check")
+async def admin_billing_check(token: str = Depends(require_auth)):
+    """Admin: drift safety check before any billing run.
+
+    Returns:
+      safe: bool — true if drift <= $5 for all users
+      issues: [str] — human-readable drift descriptions
+      per_user: detailed events vs Bybit comparison
+    """
+    from modules.billing_guard import check_billing_safe
+    return check_billing_safe()
+
+
+@app.post("/api/admin/billing/run")
+async def admin_billing_run(
+    year: Optional[int] = None,
+    week: Optional[int] = None,
+    force: bool = False,
+    token: str = Depends(require_auth),
+):
+    """Admin: run weekly performance fee billing.
+
+    Refuses if drift safety check fails (HTTP 409) unless force=true.
+    Uses event-sourced trade_events as PnL source.
+    """
+    from modules.billing_guard import check_billing_safe
+    from billing_cron_weekly import run as run_weekly_billing
+
+    safety = check_billing_safe()
+    if not safety['safe'] and not force:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "billing_unsafe",
+                "issues": safety['issues'],
+                "hint": "Fix drift before billing, or pass ?force=true to override"
+            }
+        )
+
+    results = run_weekly_billing(year, week)
+    return {
+        "ran_at": datetime.now(timezone.utc).isoformat(),
+        "year": year, "week": week,
+        "safety": safety,
+        "results": results,
+    }
+
+
 # ─── Admin summary stats ──────────────────────────────────────────────────────
 
 @app.get("/api/admin/stats")

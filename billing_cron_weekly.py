@@ -27,13 +27,20 @@ def _week_range(year: int, week: int):
 
 
 def _calc_weekly_pnl(db, user_id: int, year: int, week: int) -> float:
+    """Compute weekly PnL from trade_events (event-sourced ground truth).
+
+    Phase 4.5 onward: includes CLOSED_PNL + SETTLEMENT + FUNDING = NET basis.
+    Legacy user_trades.pnl_usdt sum is unreliable (bot-recorded projected values).
+    """
+    from database import TradeEvent
     start, end = _week_range(year, week)
-    result = db.query(func.sum(UserTrade.pnl_usdt)).filter(
-        UserTrade.user_id  == user_id,
-        UserTrade.status   == "closed",
-        UserTrade.pnl_usdt != None,
-        UserTrade.closed_at >= start,
-        UserTrade.closed_at <= end,
+    start_naive = start.replace(tzinfo=None)
+    end_naive   = end.replace(tzinfo=None)
+    result = db.query(func.sum(TradeEvent.pnl_usdt)).filter(
+        TradeEvent.user_id == user_id,
+        TradeEvent.event_type.in_(['CLOSED_PNL', 'SETTLEMENT', 'FUNDING']),
+        TradeEvent.event_ts >= start_naive,
+        TradeEvent.event_ts <= end_naive,
     ).scalar()
     return float(result or 0.0)
 
