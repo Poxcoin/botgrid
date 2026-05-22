@@ -22,9 +22,9 @@
   --bhi:rgba(255,255,255,.18);
   --g:#0ecb81;
   --r:#f6465d;
-  --gold:#f0b430;
-  --acc:#da7756;
-  --acc2:rgba(218,119,86,.15);
+  --gold:#00b894;
+  --acc:#00b894;
+  --acc2:rgba(0,184,148,.18);
   --sans:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --mono:'JetBrains Mono','SF Mono',monospace;
   --nav-h:62px;
@@ -73,7 +73,7 @@ input{font-family:inherit}
 
 /* ══ HOME ══ */
 .hero{padding:28px 20px 22px;position:relative;overflow:hidden}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 20% -10%,rgba(218,119,86,.08) 0%,transparent 60%);pointer-events:none}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 100% 100% at 20% -10%,rgba(0,184,148,.3) 0%,transparent 60%);pointer-events:none}
 .hero-lbl{font-size:11px;font-weight:500;color:var(--fg3);margin-bottom:10px;letter-spacing:.01em}
 .hero-bal{font-size:42px;font-weight:700;letter-spacing:-.03em;line-height:1;color:var(--fg)}
 .hero-unit{font-size:12px;color:var(--fg3);margin-top:6px;letter-spacing:.02em}
@@ -124,7 +124,7 @@ input{font-family:inherit}
 /* ══ BOTS ══ */
 .bot-card{display:flex;align-items:center;background:var(--card);border:1px solid var(--b);border-radius:var(--rad);padding:16px 18px;margin-bottom:8px;cursor:pointer;transition:background .15s}
 .bot-card:active{background:var(--card2)}
-.bot-ico{width:40px;height:40px;background:var(--acc2);border:1px solid rgba(218,119,86,.2);border-radius:var(--rad-s);display:flex;align-items:center;justify-content:center;margin-right:14px;flex-shrink:0}
+.bot-ico{width:40px;height:40px;background:var(--acc2);border:1px solid rgba(0,184,148,.3);border-radius:var(--rad-s);display:flex;align-items:center;justify-content:center;margin-right:14px;flex-shrink:0}
 .bot-body{flex:1;min-width:0}
 .bot-name{font-size:14px;font-weight:600;margin-bottom:4px}
 .bot-coins{font-family:var(--mono);font-size:9px;color:var(--fg3);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -178,15 +178,15 @@ input{font-family:inherit}
 .n-title{font-size:14px;font-weight:600;line-height:1.5;margin-bottom:8px}
 .n-foot{display:flex;align-items:center;justify-content:space-between}
 .n-src{font-size:11px;color:var(--fg3)}
-.n-link{font-size:11px;color:var(--acc);text-decoration:none;padding:4px 10px;border:1px solid rgba(218,119,86,.3);border-radius:20px}
+.n-link{font-size:11px;color:var(--acc);text-decoration:none;padding:4px 10px;border:1px solid rgba(0,184,148,.3);border-radius:20px}
 .n-desc{font-size:12px;color:var(--fg2);line-height:1.6;margin-top:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 /* ══ ACCOUNT ══ */
 .acc-hero{padding:28px 20px 22px;border-bottom:1px solid var(--b)}
-.acc-avatar{width:58px;height:58px;background:var(--acc2);border:2px solid rgba(218,119,86,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--acc);margin-bottom:16px}
+.acc-avatar{width:58px;height:58px;background:var(--acc2);border:2px solid rgba(0,184,148,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--acc);margin-bottom:16px}
 .acc-name{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
 .acc-email{font-size:12px;color:var(--fg3);margin-bottom:14px}
-.plan-badge{font-size:10px;font-weight:600;background:var(--acc2);border:1px solid rgba(218,119,86,.3);padding:4px 12px;border-radius:20px;color:var(--acc);letter-spacing:.04em;text-transform:uppercase}
+.plan-badge{font-size:10px;font-weight:600;background:var(--acc2);border:1px solid rgba(0,184,148,.3);padding:4px 12px;border-radius:20px;color:var(--acc);letter-spacing:.04em;text-transform:uppercase}
 .acc-section-lbl{font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--fg3);padding:20px 20px 8px}
 .acc-group{margin:0 16px;background:var(--card);border:1px solid var(--b);border-radius:var(--rad);overflow:hidden}
 .acc-item{display:flex;align-items:center;padding:16px 18px;border-bottom:1px solid var(--b);cursor:pointer;transition:background .15s}
@@ -273,6 +273,31 @@ input{font-family:inherit}
       <div class="ticker-wrap">
         <div class="ticker-track" id="ticker-track">
           <span style="padding:0 16px;font-family:var(--mono);font-size:9px;color:var(--fg3)">Loading…</span>
+        </div>
+      </div>
+
+      <!-- PnL summary (NEW 2026-05-22) -->
+      <div class="sec" style="padding-top:6px">
+        <div class="sec-hdr">
+          <span class="sec-title">PnL Summary</span>
+          <span id="h-pnl-wr" style="font-family:var(--mono);font-size:9px;color:var(--fg2)"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:0 14px">
+          <div style="background:var(--card);border:1px solid var(--b);border-radius:var(--rad-s);padding:14px 10px">
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:.15em;color:var(--fg3);text-transform:uppercase">Today</div>
+            <div id="h-pnl-today" style="font-size:18px;font-weight:700;margin-top:6px">—</div>
+            <div id="h-pnl-today-n" style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:2px">—</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--b);border-radius:var(--rad-s);padding:14px 10px">
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:.15em;color:var(--fg3);text-transform:uppercase">30d</div>
+            <div id="h-pnl-30d" style="font-size:18px;font-weight:700;margin-top:6px">—</div>
+            <div id="h-pnl-30d-wr" style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:2px">—</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--b);border-radius:var(--rad-s);padding:14px 10px">
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:.15em;color:var(--fg3);text-transform:uppercase">All-time</div>
+            <div id="h-pnl-all" style="font-size:18px;font-weight:700;margin-top:6px">—</div>
+            <div id="h-pnl-all-n" style="font-family:var(--mono);font-size:9px;color:var(--fg3);margin-top:2px">—</div>
+          </div>
         </div>
       </div>
 
@@ -376,7 +401,7 @@ input{font-family:inherit}
             <span class="acc-item-lbl">Strategies</span>
             <span class="acc-item-arr">›</span>
           </div>
-          <div class="acc-item" onclick="window.open('https://kadoclub.net/dashboard','_blank')">
+          <div class="acc-item" onclick="openExt('https://kadoclub.net/dashboard')">
             <span class="acc-item-lbl">Full Dashboard</span>
             <span class="acc-item-arr" style="font-size:14px">↗</span>
           </div>
@@ -401,7 +426,7 @@ input{font-family:inherit}
         </div>
         <div style="padding:20px 18px">
           <div style="font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.8;margin-bottom:14px">Manage your API keys on the full web dashboard.</div>
-          <a href="https://kadoclub.net/dashboard" target="_blank" class="btn btn-solid">Manage Keys →</a>
+          <button onclick="openExt('https://kadoclub.net/dashboard')" class="btn btn-solid">Manage Keys →</button>
         </div>
       </div>
 
@@ -417,7 +442,7 @@ input{font-family:inherit}
         </div>
         <div style="padding:20px 18px">
           <div style="font-family:var(--mono);font-size:10px;color:var(--fg3);line-height:1.8;margin-bottom:14px">2FA and password management available on the full dashboard.</div>
-          <a href="https://kadoclub.net/dashboard" target="_blank" class="btn btn-solid">Open Security →</a>
+          <button onclick="openExt('https://kadoclub.net/dashboard')" class="btn btn-solid">Open Security →</button>
         </div>
       </div>
 
@@ -429,7 +454,7 @@ input{font-family:inherit}
         <div style="padding:16px 18px 6px;font-family:var(--mono);font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--fg3)">Select your strategy</div>
         <div id="strat-list"></div>
         <div class="strat-disc">Estimated returns are not guaranteed. All trading involves risk.</div>
-        <div style="padding:16px 14px 24px"><a href="https://kadoclub.net/#pricing" target="_blank" class="btn btn-solid" style="width:100%">View Plans →</a></div>
+        <div style="padding:16px 14px 24px"><button onclick="openExt('https://kadoclub.net/#pricing')" class="btn btn-solid" style="width:100%">View Plans →</button></div>
       </div>
     </div>
 
@@ -475,6 +500,12 @@ input{font-family:inherit}
 <script>
 const tg=window.Telegram?.WebApp;
 if(tg){tg.ready();tg.expand()}
+
+// Open external URL inside Telegram's in-app browser (instead of ejecting).
+function openExt(url){
+  if(tg && tg.openLink){tg.openLink(url,{try_instant_view:false});}
+  else{window.open(url,'_blank','noopener');}
+}
 
 let _d=null,_token='',_paused=false;
 let _activePage='home',_activeSub=null;
@@ -561,6 +592,22 @@ function renderHome(d){
   $('h-free').textContent='$'+fmt(b.usdt_free);
   const ue=$('h-upnl');
   if(ue){ue.textContent=sign(upnl);ue.style.color=upnl>=0?'var(--g)':'var(--r)'}
+
+  // PnL summary cards
+  const p=d.pnl||{};
+  const setPnl=(id,v)=>{
+    const el=$(id); if(!el) return;
+    const num=+(v||0);
+    el.textContent=(num>=0?'+':'')+'$'+Math.abs(num).toFixed(2);
+    el.style.color=num>0?'var(--g)':(num<0?'var(--r)':'var(--fg2)');
+  };
+  setPnl('h-pnl-today', p.today);
+  setPnl('h-pnl-30d',   p.d30);
+  setPnl('h-pnl-all',   p.all_time);
+  const todayN=$('h-pnl-today-n'); if(todayN) todayN.textContent=(p.trades_today||0)+' trades';
+  const wrEl=$('h-pnl-30d-wr');    if(wrEl)    wrEl.textContent='WR '+(p.wr_d30||0).toFixed(0)+'%';
+  const allN=$('h-pnl-all-n');     if(allN)    allN.textContent=(p.trades_all||0)+' trades';
+  const wrTop=$('h-pnl-wr');       if(wrTop)   wrTop.textContent=(p.trades_all||0)+' trades · all-time';
   const pos=d.positions||[];
   $('h-pos-cnt').textContent=pos.length;
   html('h-positions',pos.length?pos.map(buildPosCard).join(''):'<div class="empty">No open positions</div>');
