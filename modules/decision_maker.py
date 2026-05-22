@@ -38,6 +38,44 @@ _BLOCKED_TITLE_RE = _re.compile(
 )
 
 
+# Asymmetric signal thresholds based on BTC macro trend (2026-05-22).
+# Cached 30 min to avoid hammering ccxt.
+import time as _time
+_REGIME_CACHE = {"val": None, "ts": 0.0}
+_REGIME_TTL = 30 * 60
+
+
+def _detect_btc_regime() -> str:
+    """Returns 'bear', 'bull', or 'neutral' based on BTC 4h vs EMA200(4h)."""
+    now = _time.time()
+    if _REGIME_CACHE["val"] is not None and now - _REGIME_CACHE["ts"] < _REGIME_TTL:
+        return _REGIME_CACHE["val"]
+    try:
+        import ccxt
+        ex = ccxt.bybit({"enableRateLimit": True})
+        bars = ex.fetch_ohlcv("BTC/USDT:USDT", "4h", limit=210,
+                              params={"category": "linear"})
+        if len(bars) < 200:
+            return "neutral"
+        closes = [b[4] for b in bars]
+        k = 2 / 201
+        ema = sum(closes[:200]) / 200
+        for v in closes[200:]:
+            ema = v * k + ema * (1 - k)
+        last = closes[-1]
+        if last < ema * 0.99:
+            regime = "bear"
+        elif last > ema * 1.01:
+            regime = "bull"
+        else:
+            regime = "neutral"
+        _REGIME_CACHE["val"] = regime
+        _REGIME_CACHE["ts"] = now
+        return regime
+    except Exception:
+        return "neutral"
+
+
 def generate_listing_signal(news_item: dict) -> dict | None:
     """
     Fast-path для анонсів лістингів бірж.
@@ -479,14 +517,29 @@ def generate_signal(news_item: dict) -> dict | None:
     # — historically these big-wallet signals are signal, not noise).
     # News (Claude AI scored): stays at 13 — needs more confirmation.
     if is_smart_wallet:
-        min_score = 7.0
+        long_min  = 7.0
+        short_min = 7.0
     else:
-        min_score = 13.0
+        long_min  = 13.0
+        short_min = 13.0
 
-    if total_score >= min_score and confidence >= 60:
+    # Asymmetric thresholds based on BTC macro trend (2026-05-22 bear-market tune).
+    # Detect bear regime via BTC 4h close vs EMA200 4h.
+    # Bear: lower SHORT threshold, raise LONG threshold (avoid catching falling knives).
+    # Bull: reverse.
+    regime = _detect_btc_regime()  # 'bear' / 'bull' / 'neutral'
+    if regime == "bear":
+        long_min  += 3.0   # 13 → 16  (smart 7 → 10)
+        short_min -= 3.0   # 13 → 10  (smart 7 → 4)
+    elif regime == "bull":
+        long_min  -= 3.0
+        short_min += 3.0
+
+    if total_score >= long_min and confidence >= 60:
         action = "LONG"
-    elif total_score <= -min_score and confidence >= 60:
+    elif total_score <= -short_min and confidence >= 60:
         action = "SHORT"
+    min_score = long_min  # for downstream tier sizing
 
     # size_multiplier: 0.4–2.0, ступенчатые тиры по скору + confidence + время суток
     # Высокий скор = больше денег в игру; низкий — осторожнее

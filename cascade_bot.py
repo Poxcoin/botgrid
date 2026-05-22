@@ -50,7 +50,7 @@ from config.settings import (
 
 # ─── Конфіг ───────────────────────────────────────────────────────────────────
 
-WATCHLIST = ["SOL"]  # 2026-05-21: backtest 90d ETH+0.10% / SOL+0.65% / DOGE-1.64% / LINK-1.90% per mo. Only SOL is profitable.
+WATCHLIST = ["SOL", "ETH", "BTC"]  # 2026-05-22: re-added ETH+BTC for bear market cascades (backtest ETH +0.10%/mo OK)
 
 TP_PCT    = 2.0
 SL_PCT    = 0.6
