@@ -4,8 +4,8 @@ import shutil
 import sqlite3
 from datetime import datetime, timezone
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Float,
-    Boolean, DateTime, ForeignKey, UniqueConstraint,
+    create_engine, Column, Integer, String, Float, Text,
+    Boolean, DateTime, ForeignKey, UniqueConstraint, Index,
 )
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 
@@ -304,6 +304,34 @@ class UserTrade(Base):
     closed_at   = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="trades")
+
+
+# ── Event-Sourced Trade Ledger (Phase 2 of sync rewrite, 2026-05-22) ──────────
+# Append-only ledger of all Bybit events. Source of truth for billing.
+# user_trades becomes a derived materialized view of these events.
+class TradeEvent(Base):
+    __tablename__ = "trade_events"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    bybit_event_id  = Column(String, nullable=False, index=True)  # dedup key
+    event_type      = Column(String, nullable=False, index=True)  # CLOSED_PNL | FILL | FUNDING | SETTLEMENT | DEPOSIT | WITHDRAW
+    source_channel  = Column(String, nullable=False)              # REST_CLOSED_PNL | REST_TXN_LOG | WS_EXECUTION | WS_POSITION
+    symbol          = Column(String, nullable=True, index=True)
+    side            = Column(String, nullable=True)               # LONG | SHORT (for position events)
+    qty             = Column(Float, nullable=True)
+    price           = Column(Float, nullable=True)
+    pnl_usdt        = Column(Float, nullable=True)
+    fee_usdt        = Column(Float, nullable=True)
+    order_id        = Column(String, nullable=True, index=True)
+    raw_json        = Column(Text, nullable=False)                # full Bybit payload — audit trail
+    event_ts        = Column(DateTime, nullable=False, index=True) # event time on Bybit (updatedTime / transactionTime)
+    ingested_at     = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+
+    __table_args__ = (
+        Index('idx_trade_events_user_event', 'user_id', 'bybit_event_id', unique=True),
+        Index('idx_trade_events_user_ts', 'user_id', 'event_ts'),
+    )
 
 
 # ── Monthly PnL & Performance Fee ─────────────────────────────────────────────
