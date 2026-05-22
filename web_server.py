@@ -3231,6 +3231,38 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
         except Exception:
             pass
 
+    # PnL summary: all-time, last 30d, today (2026-05-22)
+    pnl_summary = {"all_time": 0.0, "d30": 0.0, "today": 0.0, "trades_all": 0, "trades_today": 0, "wr_d30": 0.0}
+    if user:
+        try:
+            cutoff_30d = datetime.utcnow() - timedelta(days=30)
+            today_str  = datetime.utcnow().strftime("%Y-%m-%d")
+            raw = _db_retry(db, lambda: (
+                db.query(UserTrade)
+                .filter(UserTrade.user_id == user.id, UserTrade.status == "closed")
+                .all()
+            ))
+            rows = _filter_ghost_closes(_dedup_bybit_dupes(raw))
+            wins_30 = trades_30 = 0
+            for t in rows:
+                pnl_summary["all_time"] += float(t.pnl_usdt or 0)
+                pnl_summary["trades_all"] += 1
+                if t.closed_at and t.closed_at >= cutoff_30d:
+                    pnl_summary["d30"] += float(t.pnl_usdt or 0)
+                    trades_30 += 1
+                    if float(t.pnl_usdt or 0) > 0:
+                        wins_30 += 1
+                if t.closed_at and t.closed_at.strftime("%Y-%m-%d") == today_str:
+                    pnl_summary["today"] += float(t.pnl_usdt or 0)
+                    pnl_summary["trades_today"] += 1
+            if trades_30 > 0:
+                pnl_summary["wr_d30"] = round(wins_30 * 100.0 / trades_30, 1)
+            pnl_summary["all_time"] = round(pnl_summary["all_time"], 2)
+            pnl_summary["d30"]      = round(pnl_summary["d30"], 2)
+            pnl_summary["today"]    = round(pnl_summary["today"], 2)
+        except Exception:
+            pass
+
     # Issue short-lived opaque token for pause endpoint
     token = secrets.token_hex(16)
     _WEBAPP_TOKENS[token] = {
@@ -3246,6 +3278,7 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
             "balance":   balance,
             "positions": positions,
             "signals":   signals,
+            "pnl":       pnl_summary,
             "user": {
                 "email":    user.email    if user else None,
                 "username": user.username if user else None,
