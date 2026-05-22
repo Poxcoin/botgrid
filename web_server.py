@@ -3270,10 +3270,23 @@ async def webapp_init(body: WebAppInitRequest, db: Session = Depends(get_db)):
         "expires": time.time() + 3600,
     }
 
+    # Real JWT for React SPA bridge — lets user enter /account inside Telegram
+    # without re-login. Generated only if Telegram initData verified successfully.
+    jwt_token = create_token(user.id, user.email) if user else None
+    full_user = {
+        "id":             user.id,
+        "email":          user.email,
+        "username":       user.username,
+        "email_verified": bool(user.email_verified),
+        "totp_enabled":   bool(user.totp_enabled),
+    } if user else None
+
     from fastapi.responses import JSONResponse
     return JSONResponse(
         content={
             "token":     token,
+            "jwt":       jwt_token,
+            "full_user": full_user,
             "paused":    paused,
             "balance":   balance,
             "positions": positions,
