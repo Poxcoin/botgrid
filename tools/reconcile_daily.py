@@ -60,13 +60,14 @@ def _bybit_closed_pnl_sum_7d(ex) -> tuple[float, int]:
     return round(total, 2), len(all_rows)
 
 
-def _db_closed_pnl_sum_7d(user_id: int) -> tuple[float, int]:
+def _events_closed_pnl_sum_7d(user_id: int) -> tuple[float, int]:
+    """Sum CLOSED_PNL events for last 7d — primary check against Bybit truth."""
     import sqlite3
     conn = sqlite3.connect('/opt/botgrid/saas_database.sqlite')
     cur = conn.cursor()
     cur.execute(
-        "SELECT COALESCE(SUM(pnl_usdt),0), COUNT(*) FROM user_trades "
-        "WHERE user_id=? AND status='closed' AND closed_at >= datetime('now','-7 day')",
+        "SELECT COALESCE(SUM(pnl_usdt),0), COUNT(*) FROM trade_events "
+        "WHERE user_id=? AND event_type='CLOSED_PNL' AND event_ts >= datetime('now','-7 day')",
         (user_id,)
     )
     pnl, n = cur.fetchone()
@@ -112,11 +113,11 @@ def main():
             report_lines.append(f"  user {u.id}: bybit api err {e}")
             continue
 
-        db_sum, db_n = _db_closed_pnl_sum_7d(u.id)
-        drift = round(bybit_sum - db_sum, 2)
+        ev_sum, ev_n = _events_closed_pnl_sum_7d(u.id)
+        drift = round(bybit_sum - ev_sum, 2)
         marker = '🚨' if abs(drift) > DRIFT_THRESHOLD_USD else '✅'
         report_lines.append(
-            f"  {marker} user {u.id} ({u.username}): DB=${db_sum:+.2f} ({db_n}) "
+            f"  {marker} user {u.id} ({u.username}): events=${ev_sum:+.2f} ({ev_n}) "
             f"Bybit=${bybit_sum:+.2f} ({bybit_n})  drift=${drift:+.2f}"
         )
 

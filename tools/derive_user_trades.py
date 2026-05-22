@@ -31,8 +31,8 @@ _BOT_SOURCES = {
     "trend", "fr", "listing", "whale", "smartmoney",
 }
 _LEGACY_SOURCES = {"bybit", "bybit_manual", "bybit_event"}  # bybit_event is replaced fresh each run
-_QTY_TOL = 0.10        # 10% qty tolerance
-_TIME_TOL = timedelta(hours=1)
+_QTY_TOL = 0.05        # 5% qty tolerance (Council Phase 4.5: tightened from 10%)
+_TIME_TOL = timedelta(minutes=15)  # ±15 min (Council: tightened from ±2h)
 
 
 def _normalize_symbol(s: str | None) -> str:
@@ -42,19 +42,21 @@ def _normalize_symbol(s: str | None) -> str:
     return re.split(r"[/:]", s.upper())[0].removesuffix("USDT")
 
 
-def _match_event_to_bot_row(event: TradeEvent, bot_rows: list[UserTrade]) -> UserTrade | None:
+def _match_event_to_bot_row(event: TradeEvent, bot_rows: list[UserTrade], matched_ids: set[int]) -> UserTrade | None:
     """Returns the bot row this event corresponds to, if any."""
     # Direct: same order_id
     if event.order_id:
         for r in bot_rows:
+            if r.id in matched_ids:
+                continue
             if r.order_id and r.order_id == event.order_id:
                 return r
-    # Fuzzy: same coin + opened_at within 1h + qty within 10%
+    # Fuzzy: same coin + opened_at within tolerance + qty within tolerance
     e_coin = _normalize_symbol(event.symbol)
     if not e_coin or not event.qty:
         return None
     for r in bot_rows:
-        if r.matched_in_pass:
+        if r.id in matched_ids:
             continue
         if _normalize_symbol(r.symbol) != e_coin:
             continue
@@ -64,7 +66,7 @@ def _match_event_to_bot_row(event: TradeEvent, bot_rows: list[UserTrade]) -> Use
             continue
         if r.opened_at and event.event_ts:
             diff = abs((event.event_ts - r.opened_at.replace(tzinfo=None)).total_seconds())
-            if diff > _TIME_TOL.total_seconds() + 3600:  # 2h slack for fuzzy
+            if diff > _TIME_TOL.total_seconds():
                 continue
         return r
     return None
@@ -72,20 +74,24 @@ def _match_event_to_bot_row(event: TradeEvent, bot_rows: list[UserTrade]) -> Use
 
 def derive_user(user_id: int) -> dict:
     db = SessionLocal()
+    matched_row_ids: set[int] = set()
     try:
         events = (
             db.query(TradeEvent)
               .filter(TradeEvent.user_id == user_id, TradeEvent.event_type == 'CLOSED_PNL')
               .all()
         )
+        # Council Phase 4.5: skip open bot rows — they'll be closed by their own flow.
+        # Avoids race condition where derive sees event before position_closer matches.
         bot_rows = (
             db.query(UserTrade)
-              .filter(UserTrade.user_id == user_id, UserTrade.source.in_(_BOT_SOURCES))
+              .filter(
+                  UserTrade.user_id == user_id,
+                  UserTrade.source.in_(_BOT_SOURCES),
+                  UserTrade.status == 'closed',
+              )
               .all()
         )
-        for r in bot_rows:
-            r.matched_in_pass = False  # transient marker
-
         legacy_count = (
             db.query(UserTrade)
               .filter(UserTrade.user_id == user_id, UserTrade.source.in_(_LEGACY_SOURCES))
@@ -95,7 +101,7 @@ def derive_user(user_id: int) -> dict:
         updated_bot = 0
         new_event_rows = 0
         for ev in events:
-            match = _match_event_to_bot_row(ev, bot_rows)
+            match = _match_event_to_bot_row(ev, bot_rows, matched_row_ids)
             if match:
                 if (match.pnl_usdt or 0) != (ev.pnl_usdt or 0):
                     match.pnl_usdt = ev.pnl_usdt
@@ -104,9 +110,7 @@ def derive_user(user_id: int) -> dict:
                     match.exit_price = ev.price
                 if not match.closed_at:
                     match.closed_at = ev.event_ts
-                if match.status != 'closed':
-                    match.status = 'closed'
-                match.matched_in_pass = True
+                matched_row_ids.add(match.id)
             else:
                 row = UserTrade(
                     user_id=user_id,
@@ -128,14 +132,18 @@ def derive_user(user_id: int) -> dict:
 
         db.commit()
 
-        # Recompute monthly_pnl for this user
+        # Recompute monthly_pnl from trade_events directly (Council Phase 4.5).
+        # Includes CLOSED_PNL + SETTLEMENT/FUNDING — billing on NET realized PnL.
         agg = (
             db.query(
-                func.strftime('%Y', UserTrade.closed_at).label('y'),
-                func.strftime('%m', UserTrade.closed_at).label('m'),
-                func.coalesce(func.sum(UserTrade.pnl_usdt), 0.0).label('gross'),
+                func.strftime('%Y', TradeEvent.event_ts).label('y'),
+                func.strftime('%m', TradeEvent.event_ts).label('m'),
+                func.coalesce(func.sum(TradeEvent.pnl_usdt), 0.0).label('gross'),
             )
-            .filter(UserTrade.user_id == user_id, UserTrade.status == 'closed', UserTrade.closed_at.isnot(None))
+            .filter(
+                TradeEvent.user_id == user_id,
+                TradeEvent.event_type.in_(['CLOSED_PNL', 'SETTLEMENT', 'FUNDING']),
+            )
             .group_by('y', 'm')
             .all()
         )
