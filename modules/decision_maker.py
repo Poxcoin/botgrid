@@ -337,6 +337,42 @@ def generate_signal(news_item: dict) -> dict | None:
 
     total_score = float(news_score)
 
+    # Bearish keyword booster (2026-05-22 — bear market tune).
+    # If news title/description contains strong bearish keywords, push score
+    # toward SHORT. Catches macro events Claude AI might miss / underweight.
+    _title = (news_item.get("title", "") or "").lower()
+    _desc  = (news_item.get("description", "") or "").lower()
+    _text  = _title + " " + _desc
+
+    # Strong bearish (-3.0 each match, max 2 matches)
+    _BEARISH_STRONG = (
+        "hack", "exploit", "stolen", "drained", "rugpull", "rug pull",
+        "sec sues", "sec charges", "sec enforcement", "doj", "ban",
+        "delisting", "delisted", "halts trading", "trading halted",
+        "depeg", "insolvent", "bankruptcy", "filed for chapter",
+        "lawsuit", "subpoena", "indicted", "fraud charges",
+    )
+    # Medium bearish (-1.5 each match, max 3 matches)
+    _BEARISH_MEDIUM = (
+        "regulatory crackdown", "fine", "fined", "penalty",
+        "rejected", "denied", "withdrawal halted", "freeze",
+        "investigation", "raid", "seized", "warning",
+        "sell-off", "crash", "plunge", "tumble", "slump",
+        "fud", "panic", "fear", "capitulation",
+    )
+
+    _bear_strong_hits = sum(1 for kw in _BEARISH_STRONG if kw in _text)
+    _bear_medium_hits = sum(1 for kw in _BEARISH_MEDIUM if kw in _text)
+    _bear_strong_hits = min(_bear_strong_hits, 2)
+    _bear_medium_hits = min(_bear_medium_hits, 3)
+    _bear_boost = _bear_strong_hits * 3.0 + _bear_medium_hits * 1.5
+
+    if _bear_boost > 0:
+        total_score -= _bear_boost
+        print(f"[BEAR-KW] −{_bear_boost:.1f} score "
+              f"(strong×{_bear_strong_hits}, medium×{_bear_medium_hits}): "
+              f"{_title[:80]}")
+
     # Фактор А: Киты — объёмный спайк + реальные сделки с Binance
     vol_mult    = market_data["volume_multiplier"]
     whale_active = market_data["is_whale_active"]
