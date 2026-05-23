@@ -19,7 +19,7 @@ import ccxt
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from pydantic import EmailStr
@@ -27,7 +27,7 @@ from typing import Annotated
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID, USERBOT_TOKEN
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key, Application
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email, send_welcome_email, _smtp_enabled
@@ -2236,6 +2236,293 @@ async def admin_mark_invoice_paid(
     invoice.settled_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True}
+
+
+# ─── Application intake (Phase 0 fundraise — co-builder + investor forms) ────
+
+_APPLY_FORM_HTML = """<!DOCTYPE html>
+<html lang="{lang}"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KADO — {title}</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#050505;color:#e8e8e8;font-family:'Inter',-apple-system,sans-serif;min-height:100vh;padding:40px 16px}}
+.wrap{{max-width:560px;margin:0 auto}}
+.logo{{font-size:32px;font-weight:900;letter-spacing:-0.04em;color:#fff;margin-bottom:4px}}
+.tag{{font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#666;margin-bottom:32px}}
+h1{{font-size:24px;font-weight:700;margin-bottom:8px}}
+.intro{{color:#999;font-size:14px;line-height:1.6;margin-bottom:32px}}
+label{{display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin-top:20px;margin-bottom:8px}}
+input,textarea,select{{width:100%;background:#0f0f0f;border:1px solid #222;padding:14px;color:#fff;font-family:inherit;font-size:14px;border-radius:0}}
+textarea{{min-height:80px;resize:vertical}}
+input:focus,textarea:focus,select:focus{{outline:none;border-color:#00b894}}
+button{{margin-top:32px;width:100%;background:#00b894;color:#000;border:none;padding:16px;font-weight:700;font-size:13px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;font-family:inherit}}
+button:disabled{{opacity:0.5;cursor:not-allowed}}
+.ok{{background:#0f1f0f;border:1px solid #0a4a2a;padding:24px;color:#4ade80;margin-top:24px}}
+.err{{background:#2a0f0f;border:1px solid #5a1a1a;padding:14px;color:#f87171;margin-top:16px}}
+.req:after{{content:" *";color:#f87171}}
+.lang{{position:absolute;top:20px;right:20px;font-size:12px}}
+.lang a{{color:#666;margin-left:12px;text-decoration:none}}
+.lang a:hover{{color:#fff}}
+</style></head>
+<body>
+<div class="lang"><a href="?lang=en">EN</a><a href="?lang=ua">UA</a><a href="?lang=ru">RU</a></div>
+<div class="wrap">
+<div class="logo">KADO</div>
+<div class="tag">{tag}</div>
+<h1>{heading}</h1>
+<div class="intro">{intro}</div>
+<form id="f" onsubmit="return submit_form(event)">
+<input type="hidden" name="type" value="{type}">
+{fields}
+<button type="submit" id="b">{submit_label}</button>
+</form>
+<div id="result"></div>
+</div>
+<script>
+const OK_MSG = {ok_msg_json};
+const SUBMIT = {submit_json};
+const SUBMITTING = {submitting_json};
+async function submit_form(e){{
+  e.preventDefault();
+  const f=document.getElementById('f'); const btn=document.getElementById('b');
+  btn.disabled=true; btn.textContent=SUBMITTING;
+  const data=Object.fromEntries(new FormData(f));
+  const res=document.getElementById('result');
+  try{{
+    const r=await fetch('/api/applications',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(data)}});
+    if(r.ok){{
+      const d=document.createElement('div'); d.className='ok'; d.textContent=OK_MSG;
+      res.replaceChildren(d); f.style.display='none';
+    }} else {{
+      const e=await r.json();
+      const d=document.createElement('div'); d.className='err';
+      d.textContent=(e && e.detail)?String(e.detail):'Error';
+      res.replaceChildren(d); btn.disabled=false; btn.textContent=SUBMIT;
+    }}
+  }} catch(e){{
+    const d=document.createElement('div'); d.className='err'; d.textContent='Network error';
+    res.replaceChildren(d); btn.disabled=false; btn.textContent=SUBMIT;
+  }}
+  return false;
+}}
+</script></body></html>"""
+
+
+def _i18n(lang: str, key: str) -> str:
+    T = {
+        'cobuilder_tag':   {'en':'CO-BUILDER APPLICATION','ua':'CO-BUILDER ЗАЯВКА','ru':'CO-BUILDER ЗАЯВКА'},
+        'cobuilder_heading': {'en':'Join Kado as co-builder','ua':'Приєднайся до Kado як co-builder','ru':'Присоединяйся к Kado'},
+        'cobuilder_intro': {
+            'en':'Equity 0.2-15% · 15% perf fee (vs 25%) for life · Pre-IPO allocation · Deferred salary → market post-seed · Fully remote',
+            'ua':'Equity 0.2-15% · 15% perf fee (замість 25%) назавжди · Pre-IPO allocation · Deferred salary → market після seed · Fully remote',
+            'ru':'Equity 0.2-15% · 15% perf fee (вместо 25%) навсегда · Pre-IPO allocation · Deferred salary → market после seed · Fully remote',
+        },
+        'investor_tag':    {'en':'INVESTOR APPLICATION','ua':'INVESTOR ЗАЯВКА','ru':'INVESTOR ЗАЯВКА'},
+        'investor_heading':{'en':'Invest in KADO','ua':'Інвестувати в KADO','ru':'Инвестировать в KADO'},
+        'investor_intro': {
+            'en':'Pre-seed SAFE · $5M cap · $50K-$500K checks · Live platform with event-sourced billing · YC W27 planned',
+            'ua':'Pre-seed SAFE · $5M cap · $50K-$500K чеки · Live platform з event-sourced billing · YC W27 планується',
+            'ru':'Pre-seed SAFE · $5M cap · $50K-$500K чеки · Live platform с event-sourced billing · YC W27 планируется',
+        },
+        'name':       {'en':'Full name','ua':"Повне ім'я",'ru':'Полное имя'},
+        'email':      {'en':'Email','ua':'Email','ru':'Email'},
+        'telegram':   {'en':'Telegram (@username)','ua':'Telegram (@username)','ru':'Telegram (@username)'},
+        'role':       {'en':'Role of interest','ua':'Роль','ru':'Роль'},
+        'check_size': {'en':'Check size (USD)','ua':'Розмір чеку (USD)','ru':'Размер чека (USD)'},
+        'timezone':   {'en':'Timezone (e.g. UTC+2)','ua':'Timezone (наприклад UTC+2)','ru':'Timezone (например UTC+2)'},
+        'hours':      {'en':'Hours per week available','ua':'Годин на тиждень','ru':'Часов в неделю'},
+        'equity':     {'en':'Equity % expectation','ua':'Очікувана equity %','ru':'Ожидаемая equity %'},
+        'terms':      {'en':'Terms required (board / pro-rata / advisor)','ua':'Умови (board / pro-rata / advisor)','ru':'Условия (board / pro-rata / advisor)'},
+        'portfolio':  {'en':'Portfolio URL (GitHub/LinkedIn)','ua':'Portfolio URL (GitHub/LinkedIn)','ru':'Portfolio URL (GitHub/LinkedIn)'},
+        'fund':       {'en':'Fund / portfolio URL','ua':'Fund / portfolio URL','ru':'Fund / portfolio URL'},
+        'track':      {'en':'Track record relevant to role','ua':'Track record по ролі','ru':'Track record по роли'},
+        'previous':   {'en':'Previous portfolio investments (crypto/AI/fintech)','ua':'Попередні інвестиції (crypto/AI/fintech)','ru':'Предыдущие инвестиции (crypto/AI/fintech)'},
+        'why':        {'en':'Why Kado (3 sentences)','ua':'Чому Kado (3 речення)','ru':'Почему Kado (3 предложения)'},
+        'start':      {'en':'When can you start','ua':'Коли можеш стартувати','ru':'Когда можешь стартовать'},
+        'dd_time':    {'en':'Due diligence timeline (weeks)','ua':'Due diligence timeline (тижнів)','ru':'Due diligence timeline (недель)'},
+        'submit':     {'en':'Submit application','ua':'Подати заявку','ru':'Отправить заявку'},
+        'submitting': {'en':'Submitting...','ua':'Надсилається...','ru':'Отправка...'},
+        'ok_msg':     {'en':'Application received. We will reach out within 48h via email or Telegram.','ua':'Заявку отримано. Напишемо протягом 48 годин email або Telegram.','ru':'Заявка получена. Напишем в течение 48ч на email или Telegram.'},
+    }
+    return T.get(key, {}).get(lang, T.get(key, {}).get('en', key))
+
+
+def _build_fields(typ: str, lang: str) -> str:
+    def f(name, label_key, req=False, ta=False):
+        cls = ' class="req"' if req else ''
+        req_attr = ' required' if req else ''
+        label = _i18n(lang, label_key)
+        if ta:
+            return f'<label{cls}>{label}</label><textarea name="{name}"{req_attr}></textarea>'
+        return f'<label{cls}>{label}</label><input type="text" name="{name}"{req_attr}>'
+    if typ == 'cobuilder':
+        return ''.join([
+            f('name', 'name', req=True),
+            f('email', 'email', req=True),
+            f('telegram', 'telegram'),
+            f('role_or_check', 'role', req=True),
+            f('timezone', 'timezone'),
+            f('hours_per_week', 'hours'),
+            f('equity_or_terms', 'equity'),
+            f('portfolio_url', 'portfolio'),
+            f('track_record', 'track', ta=True),
+            f('why_kado', 'why', ta=True, req=True),
+            f('start_date', 'start'),
+        ])
+    return ''.join([
+        f('name', 'name', req=True),
+        f('email', 'email', req=True),
+        f('telegram', 'telegram'),
+        f('role_or_check', 'check_size', req=True),
+        f('portfolio_url', 'fund'),
+        f('equity_or_terms', 'terms'),
+        f('track_record', 'previous', ta=True),
+        f('why_kado', 'why', ta=True, req=True),
+        f('start_date', 'dd_time'),
+    ])
+
+
+def _render_form(lang: str, typ: str) -> str:
+    import json as _json
+    lang = lang if lang in ('en', 'ua', 'ru') else 'en'
+    return _APPLY_FORM_HTML.format(
+        lang=lang,
+        title=("Co-Builder Application" if typ == 'cobuilder' else "Investor Application"),
+        tag=_i18n(lang, f'{typ}_tag'),
+        heading=_i18n(lang, f'{typ}_heading'),
+        intro=_i18n(lang, f'{typ}_intro'),
+        type=typ,
+        fields=_build_fields(typ, lang),
+        submit_label=_i18n(lang, 'submit'),
+        submitting=_i18n(lang, 'submitting'),
+        ok_msg=_i18n(lang, 'ok_msg'),
+        ok_msg_json=_json.dumps(_i18n(lang, 'ok_msg')),
+        submit_json=_json.dumps(_i18n(lang, 'submit')),
+        submitting_json=_json.dumps(_i18n(lang, 'submitting')),
+    )
+
+
+@app.get("/apply/cobuilder", response_class=HTMLResponse)
+async def apply_cobuilder_page(lang: str = "en"):
+    return _render_form(lang, 'cobuilder')
+
+
+@app.get("/apply/investor", response_class=HTMLResponse)
+async def apply_investor_page(lang: str = "en"):
+    return _render_form(lang, 'investor')
+
+
+class ApplicationSubmit(BaseModel):
+    type: str
+    name: str
+    email: str
+    telegram: Optional[str] = None
+    role_or_check: Optional[str] = None
+    timezone: Optional[str] = None
+    hours_per_week: Optional[str] = None
+    equity_or_terms: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    track_record: Optional[str] = None
+    why_kado: Optional[str] = None
+    start_date: Optional[str] = None
+
+
+@app.post("/api/applications")
+async def submit_application(body: ApplicationSubmit, request: Request, db: Session = Depends(get_db)):
+    if body.type not in ('cobuilder', 'investor'):
+        raise HTTPException(status_code=400, detail="Invalid type")
+    if not body.name or not body.email or '@' not in body.email:
+        raise HTTPException(status_code=400, detail="Name and valid email required")
+    ip = _real_ip(request)
+    if not _check_rate_limit(f"app_{ip}", window=300, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many submissions, try later")
+
+    app_row = Application(
+        type=body.type, name=body.name[:200], email=body.email[:200],
+        telegram=(body.telegram or '')[:80],
+        role_or_check=(body.role_or_check or '')[:200],
+        timezone=(body.timezone or '')[:80],
+        hours_per_week=(body.hours_per_week or '')[:80],
+        equity_or_terms=(body.equity_or_terms or '')[:200],
+        portfolio_url=(body.portfolio_url or '')[:500],
+        track_record=(body.track_record or '')[:2000],
+        why_kado=(body.why_kado or '')[:2000],
+        start_date=(body.start_date or '')[:80],
+        ip_address=ip,
+    )
+    db.add(app_row)
+    db.commit()
+    db.refresh(app_row)
+
+    try:
+        from modules.tg_notifier import send_telegram_message
+        from config.settings import TG_CHAT_ID
+        if TG_CHAT_ID:
+            emoji = '🧑‍💻' if body.type == 'cobuilder' else '💰'
+            msg = (
+                f'{emoji} <b>New {body.type} application #{app_row.id}</b>\n'
+                f'Name: {body.name}\n'
+                f'Email: {body.email}\n'
+                f'TG: {body.telegram or "-"}\n'
+                f'Role/Check: {body.role_or_check or "-"}\n'
+                f'Hours: {body.hours_per_week or "-"}\n'
+                f'Equity/Terms: {body.equity_or_terms or "-"}\n'
+                f'Portfolio: {body.portfolio_url or "-"}\n'
+                f'Why: {(body.why_kado or "")[:300]}\n'
+                f'IP: {ip}'
+            )
+            send_telegram_message(msg, TG_CHAT_ID)
+    except Exception as e:
+        print(f'app TG notify err: {e}')
+
+    return {"ok": True, "id": app_row.id}
+
+
+@app.get("/api/admin/applications")
+async def admin_list_applications(
+    typ: Optional[str] = None,
+    status: Optional[str] = None,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    """Admin: list received applications, newest first."""
+    from sqlalchemy import desc
+    q = db.query(Application).order_by(desc(Application.created_at))
+    if typ:
+        q = q.filter(Application.type == typ)
+    if status:
+        q = q.filter(Application.status == status)
+    rows = q.limit(200).all()
+    return [
+        {
+            'id': r.id, 'type': r.type, 'status': r.status,
+            'name': r.name, 'email': r.email, 'telegram': r.telegram,
+            'role_or_check': r.role_or_check, 'timezone': r.timezone,
+            'hours_per_week': r.hours_per_week, 'equity_or_terms': r.equity_or_terms,
+            'portfolio_url': r.portfolio_url,
+            'track_record': r.track_record, 'why_kado': r.why_kado,
+            'start_date': r.start_date, 'ip_address': r.ip_address,
+            'created_at': r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/admin/applications/{app_id}/status")
+async def admin_set_app_status(
+    app_id: int, status: str,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    if status not in ('new', 'contacted', 'rejected', 'hired'):
+        raise HTTPException(status_code=400, detail='Invalid status')
+    row = db.query(Application).filter(Application.id == app_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail='Not found')
+    row.status = status
+    db.commit()
+    return {'ok': True, 'status': status}
 
 
 # ─── Admin billing (Phase 6 event-sourced sync) ───────────────────────────────

@@ -406,6 +406,28 @@ class TgLinkToken(Base):
 
 
 # ── Audit Log (immutable) ─────────────────────────────────────────────────────
+class Application(Base):
+    """Co-builder / investor intake applications (Phase 0 fundraise infra, 2026-05-23)."""
+    __tablename__ = "applications"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    type         = Column(String, nullable=False, index=True)   # 'cobuilder' | 'investor'
+    name         = Column(String, nullable=False)
+    email        = Column(String, nullable=False)
+    telegram     = Column(String, nullable=True)
+    role_or_check = Column(String, nullable=True)               # role applied OR check size
+    timezone     = Column(String, nullable=True)
+    hours_per_week = Column(String, nullable=True)
+    equity_or_terms = Column(String, nullable=True)
+    portfolio_url = Column(String, nullable=True)
+    track_record = Column(Text, nullable=True)
+    why_kado     = Column(Text, nullable=True)
+    start_date   = Column(String, nullable=True)
+    status       = Column(String, default="new", index=True)    # new | contacted | rejected | hired
+    ip_address   = Column(String, nullable=True)
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
 
