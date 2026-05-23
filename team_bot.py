@@ -131,13 +131,16 @@ async def cmd_help(msg: types.Message):
         "<b>Commands</b>\n\n"
         "/status — system overview\n"
         "/pnl — current month PnL\n"
-        "/apps — new applications\n"
+        "/apps — new applications (with action buttons)\n"
         "/outreach — CRM pipeline\n"
-        "/bots — services status\n"
+        "/bots — services status (with restart buttons)\n"
         "/drift — Bybit drift per user\n"
         "/sources — Bayesian quality\n"
+        "/recent — last 10 closed trades\n"
         "/links — admin URLs\n"
-        "/addprospect — guided CRM add\n"
+        "/addprospect — guided CRM add (4 steps)\n"
+        "/broadcast — post to TG channel\n"
+        "/cancel — cancel current flow\n"
         "/menu — show keyboard\n"
         "/help — this message"
     )
@@ -210,20 +213,54 @@ async def cmd_track(msg: types.Message):
 async def cmd_apps(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
-        "SELECT id, type, name, role_or_check, status, created_at FROM applications "
-        "WHERE status='new' ORDER BY id DESC LIMIT 10"
+        "SELECT id, type, name, role_or_check, status, telegram, email, why_kado, created_at "
+        "FROM applications WHERE status='new' ORDER BY id DESC LIMIT 10"
     )
     if not rows:
         await msg.answer(
             f'<b>📥 No new applications.</b>\n\n<a href="{BASE_URL}/admin/applications">Admin ↗</a>',
             reply_markup=main_kb()); return
-    lines = [f'<b>📥 New applications ({len(rows)})</b>', '']
+    await msg.answer(f'<b>📥 {len(rows)} new applications</b>\n\n<a href="{BASE_URL}/admin/applications">Open admin ↗</a>',
+                     reply_markup=main_kb())
     for r in rows:
         icon = '🧑‍💻' if r['type'] == 'cobuilder' else '💰'
         when = str(r['created_at'])[:16].replace('T', ' ')
-        lines.append(f"{icon} #{r['id']} <b>{r['name']}</b> · {r['role_or_check'] or '-'} · {when}")
-    lines.append(f"\n<a href='{BASE_URL}/admin/applications'>Open admin ↗</a>")
-    await msg.answer('\n'.join(lines), reply_markup=main_kb())
+        contact = []
+        if r['telegram']: contact.append(f"TG: @{r['telegram'].lstrip('@')}")
+        if r['email']: contact.append(f"<a href='mailto:{r['email']}'>{r['email']}</a>")
+        why = (r['why_kado'] or '')[:200]
+        card = (
+            f"{icon} <b>#{r['id']} {r['name']}</b>\n"
+            f"<b>{r['role_or_check'] or '-'}</b> · {when}\n"
+            f"{' · '.join(contact) if contact else ''}\n"
+        )
+        if why:
+            card += f"\n<i>{why}</i>\n"
+        kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text='✓ Contacted', callback_data=f'app_st:{r["id"]}:contacted'),
+            InlineKeyboardButton(text='✗ Reject', callback_data=f'app_st:{r["id"]}:rejected'),
+            InlineKeyboardButton(text='💼 Hire', callback_data=f'app_st:{r["id"]}:hired'),
+        ]])
+        await msg.answer(card, reply_markup=kb)
+
+
+@dp.callback_query(F.data.startswith('app_st:'))
+async def cb_app_status(call: types.CallbackQuery):
+    if not call.from_user or call.from_user.id not in ALLOWED_USERS:
+        await call.answer(); return
+    _, app_id, status = call.data.split(':')
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute('UPDATE applications SET status=? WHERE id=?', (status, int(app_id)))
+        conn.commit()
+    finally:
+        conn.close()
+    badge = {'contacted':'✓ Contacted', 'rejected':'✗ Rejected', 'hired':'💼 Hired'}.get(status, status)
+    await call.message.edit_text(
+        call.message.html_text + f'\n\n<b>→ {badge}</b>',
+        reply_markup=None
+    )
+    await call.answer(f'Status: {status}')
 
 
 @dp.message(F.text.in_({'🎯 CRM'}) | Command('outreach'))
@@ -258,19 +295,50 @@ async def cmd_bots(msg: types.Message):
     import subprocess
     try:
         out = subprocess.run(
-            ['systemctl', 'list-units', 'crypto-*', '--state=active', '--no-legend', '--no-pager'],
+            ['systemctl', 'list-units', 'crypto-*', 'kado-*', '--all', '--no-legend', '--no-pager'],
             capture_output=True, text=True, timeout=5
         )
-        lines = ['<b>🤖 Active bot services</b>', '']
+        active_services, inactive_services = [], []
         for line in out.stdout.strip().split('\n'):
-            if 'crypto-' in line:
-                name = line.split()[0]
-                lines.append(f'  ✅ {name}')
-        if len(lines) == 2:
-            lines.append('No active crypto-* services')
+            line = line.strip()
+            if not (line.startswith('crypto-') or line.startswith('kado-')):
+                continue
+            parts = line.split()
+            if len(parts) < 4: continue
+            name = parts[0]
+            if '.timer' in name: continue
+            sub = parts[3] if len(parts) > 3 else ''
+            (active_services if sub == 'running' else inactive_services).append(name)
+        lines = ['<b>🤖 Bot services</b>', '', f'<b>Active ({len(active_services)}):</b>']
+        for s in active_services:
+            lines.append(f'  ✅ {s}')
+        if inactive_services:
+            lines.append(f'\n<b>Inactive ({len(inactive_services)}):</b>')
+            for s in inactive_services[:10]:
+                lines.append(f'  ⚫ {s}')
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='🔄 Restart web', callback_data='svc_restart:crypto-web')],
+            [InlineKeyboardButton(text='🔄 Restart signal bot', callback_data='svc_restart:crypto-bot')],
+        ])
+        await msg.answer('\n'.join(lines), reply_markup=kb)
+        await msg.answer('—', reply_markup=main_kb())
     except Exception as e:
-        lines = [f'systemctl err: {e}']
-    await msg.answer('\n'.join(lines), reply_markup=main_kb())
+        await msg.answer(f'systemctl err: {e}', reply_markup=main_kb())
+
+
+@dp.callback_query(F.data.startswith('svc_restart:'))
+async def cb_svc_restart(call: types.CallbackQuery):
+    if not call.from_user or call.from_user.id not in ALLOWED_USERS:
+        await call.answer(); return
+    import subprocess
+    svc = call.data.split(':', 1)[1]
+    if svc not in ('crypto-web', 'crypto-bot', 'crypto-trend', 'crypto-grid'):
+        await call.answer('Not allowed', show_alert=True); return
+    try:
+        subprocess.run(['systemctl', 'restart', svc], check=True, timeout=20)
+        await call.answer(f'{svc} restarted ✓', show_alert=True)
+    except Exception as e:
+        await call.answer(f'Err: {e}', show_alert=True)
 
 
 @dp.message(F.text.in_({'🔄 Drift'}) | Command('drift'))
@@ -417,6 +485,61 @@ async def add_step_hook(msg: types.Message, state: FSMContext):
         f"<a href='{BASE_URL}/admin/outreach'>Open CRM ↗</a>",
         reply_markup=main_kb()
     )
+
+
+@dp.message(Command('recent'))
+async def cmd_recent(msg: types.Message):
+    if not allowed(msg): return
+    rows = db_query(
+        "SELECT user_id, source, symbol, side, ROUND(pnl_usdt,2) pnl, datetime(closed_at,'localtime') ts "
+        "FROM user_trades WHERE status='closed' AND closed_at IS NOT NULL "
+        "ORDER BY closed_at DESC LIMIT 10"
+    )
+    if not rows:
+        await msg.answer('No recent trades.', reply_markup=main_kb()); return
+    lines = ['<b>🕐 Last 10 closed trades</b>', '']
+    for r in rows:
+        emoji = '🟢' if (r['pnl'] or 0) > 0 else '🔴' if (r['pnl'] or 0) < 0 else '⚪'
+        coin = (r['symbol'] or '').replace('/USDT:USDT', '').replace('USDT', '')
+        when = str(r['ts'])[5:16]
+        lines.append(f"{emoji} u{r['user_id']} {coin} {r['side'] or '-'} {r['source']:>10s} ${r['pnl']:+.2f}  {when}")
+    await msg.answer('\n'.join(lines), reply_markup=main_kb())
+
+
+class Broadcast(StatesGroup):
+    text = State()
+
+
+@dp.message(Command('broadcast'))
+async def cmd_broadcast_start(msg: types.Message, state: FSMContext):
+    if not allowed(msg): return
+    await state.set_state(Broadcast.text)
+    await msg.answer(
+        '<b>Broadcast to TG channel</b>\n\nSend message text (HTML supported).\nOr /cancel.',
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+
+@dp.message(Command('cancel'))
+async def cmd_cancel(msg: types.Message, state: FSMContext):
+    if not allowed(msg): return
+    await state.clear()
+    await msg.answer('Cancelled.', reply_markup=main_kb())
+
+
+@dp.message(Broadcast.text)
+async def broadcast_send(msg: types.Message, state: FSMContext):
+    if not allowed(msg): return
+    await state.clear()
+    channel_id = os.getenv('TELEGRAM_CHANNEL_ID')
+    if not channel_id:
+        await msg.answer('TELEGRAM_CHANNEL_ID not configured', reply_markup=main_kb()); return
+    try:
+        from modules.tg_notifier import send_telegram_message, tg_footer
+        ok = send_telegram_message(msg.html_text + tg_footer('channel'), channel_id)
+        await msg.answer(f'{"✅ Sent" if ok else "❌ Failed"} to channel.', reply_markup=main_kb())
+    except Exception as e:
+        await msg.answer(f'Err: {e}', reply_markup=main_kb())
 
 
 # ─── Silent ignore unauthorized users ────────────────────────────────────────
