@@ -2662,6 +2662,18 @@ tr:hover{background:#0a0a0a}
 .empty{text-align:center;padding:60px;color:#666}
 .meta{color:#555;font-size:10px;font-family:'JetBrains Mono',monospace}
 a{color:#00b894;text-decoration:none}
+a:hover{text-decoration:underline}
+tr.clickable{cursor:pointer}
+td.toggle{width:24px;color:#555;text-align:center;font-size:10px}
+tr.clickable:hover td.toggle{color:#00b894}
+tr.detail{background:#080808}
+td.detail-cell{padding:20px 16px !important;border-bottom:2px solid #1a1a1a !important}
+.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 24px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field-full{grid-column:1/-1}
+.field-label{font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#666;font-weight:600}
+.field-value{color:#ccc;font-size:12px;word-break:break-word}
+.field-long{white-space:pre-wrap;line-height:1.6;background:#050505;padding:10px;border:1px solid #1a1a1a;max-height:160px;overflow:auto}
 </style></head>
 <body>
 <div id="login-view" class="login" style="display:none">
@@ -2742,13 +2754,15 @@ function render(apps){
   const tbl = document.createElement('table');
   const thead = document.createElement('thead');
   const trh = document.createElement('tr');
-  ['ID','Type','Status','Name / Contact','Role/Check','Hours/Equity','Why','When','Actions'].forEach(h=>{
+  ['','ID','Type','Status','Name / Contact','Role/Check','Hours/Equity','When','Actions'].forEach(h=>{
     const th = document.createElement('th'); th.textContent = h; trh.appendChild(th);
   });
   thead.appendChild(trh); tbl.appendChild(thead);
   const tbody = document.createElement('tbody');
   apps.forEach(a=>{
-    const tr = document.createElement('tr');
+    const tr = document.createElement('tr'); tr.className='clickable'; tr.dataset.id=a.id;
+    const tdToggle = document.createElement('td'); tdToggle.className='toggle'; tdToggle.textContent='▶';
+    tr.appendChild(tdToggle);
     const tdId = document.createElement('td'); tdId.className='meta'; tdId.textContent='#'+a.id; tr.appendChild(tdId);
     const tdType = document.createElement('td'); tdType.appendChild(badge('b-'+a.type, a.type)); tr.appendChild(tdType);
     const tdStatus = document.createElement('td'); tdStatus.appendChild(badge('b-'+a.status, a.status)); tr.appendChild(tdStatus);
@@ -2760,20 +2774,61 @@ function render(apps){
     const tdHours = document.createElement('td');
     tdHours.textContent = (a.hours_per_week||'-') + ' / ' + (a.equity_or_terms||'-');
     tr.appendChild(tdHours);
-    const tdWhy = document.createElement('td'); tdWhy.className='cell-why'; tdWhy.textContent = a.why_kado || '-'; tr.appendChild(tdWhy);
     const tdWhen = document.createElement('td'); tdWhen.className='meta';
     tdWhen.textContent = (a.created_at||'').substring(0,16).replace('T',' '); tr.appendChild(tdWhen);
     const tdAct = document.createElement('td');
-    const wrap = document.createElement('div'); wrap.className='status-btns';
+    const actwrap = document.createElement('div'); actwrap.className='status-btns';
     ['contacted','hired','rejected'].forEach(st=>{
       if (a.status === st) return;
       const b = document.createElement('button'); b.className='btn-'+st; b.textContent=st;
-      b.onclick = () => setStatus(a.id, st);
-      wrap.appendChild(b);
+      b.onclick = (e) => { e.stopPropagation(); setStatus(a.id, st); };
+      actwrap.appendChild(b);
     });
-    tdAct.appendChild(wrap);
+    tdAct.appendChild(actwrap);
     tr.appendChild(tdAct);
     tbody.appendChild(tr);
+
+    // Expanded detail row (hidden by default)
+    const detTr = document.createElement('tr'); detTr.className='detail'; detTr.dataset.id=a.id; detTr.style.display='none';
+    const detTd = document.createElement('td'); detTd.colSpan = 9; detTd.className='detail-cell';
+    const grid = document.createElement('div'); grid.className='detail-grid';
+    function field(label, value, isLink) {
+      const w = document.createElement('div'); w.className='field';
+      const lab = document.createElement('div'); lab.className='field-label'; lab.textContent=label;
+      const val = document.createElement('div'); val.className='field-value';
+      if (isLink && value) {
+        const link = document.createElement('a'); link.href=value; link.target='_blank'; link.rel='noopener'; link.textContent=value;
+        val.appendChild(link);
+      } else {
+        val.textContent = value || '—';
+      }
+      w.appendChild(lab); w.appendChild(val);
+      return w;
+    }
+    grid.appendChild(field('Email', a.email));
+    grid.appendChild(field('Telegram', a.telegram));
+    grid.appendChild(field('Timezone', a.timezone));
+    grid.appendChild(field('Role / Check size', a.role_or_check));
+    grid.appendChild(field('Hours / Equity terms', (a.hours_per_week||'—') + ' / ' + (a.equity_or_terms||'—')));
+    grid.appendChild(field('Portfolio / Fund URL', a.portfolio_url, true));
+    grid.appendChild(field('Start date / DD timeline', a.start_date));
+    grid.appendChild(field('IP address', a.ip_address));
+    grid.appendChild(field('Submitted', a.created_at));
+    const trackW = document.createElement('div'); trackW.className='field field-full';
+    const trackL = document.createElement('div'); trackL.className='field-label'; trackL.textContent='Track record / Previous portfolio';
+    const trackV = document.createElement('div'); trackV.className='field-value field-long'; trackV.textContent = a.track_record || '—';
+    trackW.appendChild(trackL); trackW.appendChild(trackV); grid.appendChild(trackW);
+    const whyW = document.createElement('div'); whyW.className='field field-full';
+    const whyL = document.createElement('div'); whyL.className='field-label'; whyL.textContent='Why Kado';
+    const whyV = document.createElement('div'); whyV.className='field-value field-long'; whyV.textContent = a.why_kado || '—';
+    whyW.appendChild(whyL); whyW.appendChild(whyV); grid.appendChild(whyW);
+    detTd.appendChild(grid); detTr.appendChild(detTd); tbody.appendChild(detTr);
+
+    tr.addEventListener('click', () => {
+      const open = detTr.style.display !== 'none';
+      detTr.style.display = open ? 'none' : 'table-row';
+      tdToggle.textContent = open ? '▶' : '▼';
+    });
   });
   tbl.appendChild(tbody);
   wrap.appendChild(tbl);
