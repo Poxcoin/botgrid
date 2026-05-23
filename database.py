@@ -406,6 +406,30 @@ class TgLinkToken(Base):
 
 
 # ── Audit Log (immutable) ─────────────────────────────────────────────────────
+class OutreachProspect(Base):
+    """Cofounder/investor outreach CRM (Phase 0 fundraise, 2026-05-23)."""
+    __tablename__ = "outreach_prospects"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    name         = Column(String, nullable=False)
+    persona      = Column(String, nullable=True, index=True)  # academic | ex-quant | founder | crypto-quant | faang-ml | yc-alum | github
+    target_type  = Column(String, default="cofounder", index=True)  # cofounder | investor | advisor
+    linkedin_url = Column(String, nullable=True)
+    twitter      = Column(String, nullable=True)
+    email        = Column(String, nullable=True)
+    company      = Column(String, nullable=True)
+    role         = Column(String, nullable=True)
+    hook         = Column(Text, nullable=True)               # specific personalization angle
+    dm_draft     = Column(Text, nullable=True)               # prepared DM message
+    status       = Column(String, default="new", index=True)
+    # status: new | dm_sent | followed_up | replied | call_booked | passed | hired | rejected
+    notes        = Column(Text, nullable=True)
+    dm_sent_at   = Column(DateTime, nullable=True)
+    replied_at   = Column(DateTime, nullable=True)
+    last_contact = Column(DateTime, nullable=True)
+    created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+
 class SourceQuality(Base):
     """Bayesian per-source quality tracker (Phase 1 of math edge layer, 2026-05-23).
 

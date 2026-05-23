@@ -27,7 +27,7 @@ from typing import Annotated
 from config.settings import BYBIT_API_KEY, BYBIT_SECRET, IS_DEMO_TRADING, DASHBOARD_PASSWORD, USDT_WALLET_TRC20, TG_BOT_TOKEN, TG_CHAT_ID, USERBOT_TOKEN
 
 PERF_CRON_SECRET = os.environ.get("STRIPE_PERFORMANCE_CRON_SECRET", "")
-from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key, Application
+from database import get_db, User, WaitlistEntry, UserApiKey, UserTrade, MonthlyPnl, WeeklyPnl, Subscription, TgLinkToken, ReferralEarning, AuditLog, UserMt5Key, Application, OutreachProspect
 from utils.auth import hash_password, verify_password, create_token, decode_token
 from utils.crypto import encrypt_field, decrypt_field
 from utils.email import send_verification_email, send_login_otp_email, send_welcome_email, _smtp_enabled
@@ -3128,6 +3128,426 @@ setInterval(load, 60000);  // refresh every minute
 @app.get("/track-record", response_class=HTMLResponse)
 async def track_record_page():
     return _TRACK_RECORD_HTML
+
+
+# ─── Outreach CRM (Phase 0 fundraise — cofounder + investor tracking) ────────
+
+class OutreachCreate(BaseModel):
+    name: str
+    persona: Optional[str] = None
+    target_type: Optional[str] = "cofounder"
+    linkedin_url: Optional[str] = None
+    twitter: Optional[str] = None
+    email: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    hook: Optional[str] = None
+    dm_draft: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OutreachUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    dm_draft: Optional[str] = None
+    hook: Optional[str] = None
+
+
+@app.get("/api/admin/outreach")
+async def admin_outreach_list(
+    target: Optional[str] = None,
+    status: Optional[str] = None,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    from sqlalchemy import desc
+    q = db.query(OutreachProspect).order_by(desc(OutreachProspect.id))
+    if target:
+        q = q.filter(OutreachProspect.target_type == target)
+    if status:
+        q = q.filter(OutreachProspect.status == status)
+    rows = q.limit(500).all()
+    return [
+        {
+            'id': r.id, 'name': r.name, 'persona': r.persona, 'target_type': r.target_type,
+            'linkedin_url': r.linkedin_url, 'twitter': r.twitter, 'email': r.email,
+            'company': r.company, 'role': r.role, 'hook': r.hook,
+            'dm_draft': r.dm_draft, 'status': r.status, 'notes': r.notes,
+            'dm_sent_at': r.dm_sent_at.isoformat() if r.dm_sent_at else None,
+            'replied_at': r.replied_at.isoformat() if r.replied_at else None,
+            'last_contact': r.last_contact.isoformat() if r.last_contact else None,
+            'created_at': r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/admin/outreach")
+async def admin_outreach_create(
+    body: OutreachCreate,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    row = OutreachProspect(
+        name=body.name[:200],
+        persona=(body.persona or '')[:80] or None,
+        target_type=(body.target_type or 'cofounder')[:40],
+        linkedin_url=(body.linkedin_url or '')[:500] or None,
+        twitter=(body.twitter or '')[:200] or None,
+        email=(body.email or '')[:200] or None,
+        company=(body.company or '')[:200] or None,
+        role=(body.role or '')[:200] or None,
+        hook=(body.hook or '')[:2000] or None,
+        dm_draft=(body.dm_draft or '')[:4000] or None,
+        notes=(body.notes or '')[:4000] or None,
+    )
+    db.add(row); db.commit(); db.refresh(row)
+    return {'ok': True, 'id': row.id}
+
+
+@app.post("/api/admin/outreach/{prospect_id}")
+async def admin_outreach_update(
+    prospect_id: int,
+    body: OutreachUpdate,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    row = db.query(OutreachProspect).filter(OutreachProspect.id == prospect_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail='Not found')
+    if body.status is not None:
+        if body.status not in ('new', 'dm_sent', 'followed_up', 'replied', 'call_booked', 'passed', 'hired', 'rejected'):
+            raise HTTPException(status_code=400, detail='Invalid status')
+        old = row.status
+        row.status = body.status
+        row.last_contact = datetime.now(timezone.utc)
+        if body.status == 'dm_sent' and old != 'dm_sent':
+            row.dm_sent_at = datetime.now(timezone.utc)
+        if body.status == 'replied' and old != 'replied':
+            row.replied_at = datetime.now(timezone.utc)
+    if body.notes is not None:
+        row.notes = body.notes[:4000]
+    if body.dm_draft is not None:
+        row.dm_draft = body.dm_draft[:4000]
+    if body.hook is not None:
+        row.hook = body.hook[:2000]
+    db.commit()
+    return {'ok': True}
+
+
+@app.delete("/api/admin/outreach/{prospect_id}")
+async def admin_outreach_delete(
+    prospect_id: int,
+    token: str = Depends(require_auth),
+    db: Session = Depends(get_db),
+):
+    row = db.query(OutreachProspect).filter(OutreachProspect.id == prospect_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail='Not found')
+    db.delete(row); db.commit()
+    return {'ok': True}
+
+
+_OUTREACH_HTML = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KADO Admin — Outreach CRM</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;color:#e8e8e8;font-family:-apple-system,sans-serif;padding:20px;font-size:13px}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1a1a1a;flex-wrap:wrap;gap:12px}
+h1{font-size:20px;font-weight:800;letter-spacing:-0.02em}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+select,input,textarea,button{background:#0f0f0f;border:1px solid #222;color:#fff;padding:8px 12px;font-family:inherit;font-size:12px}
+button{background:#00b894;color:#000;border:none;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.1em}
+button:hover{background:#04d39c}
+button.danger{background:#3a0a1a;color:#f87171}
+button.danger:hover{background:#5a0a2a}
+button.sec{background:#1a1a1a;color:#ccc;border:1px solid #333}
+button.sec:hover{background:#2a2a2a}
+.login{max-width:320px;margin:80px auto;text-align:center}
+.login input{width:100%;margin-bottom:12px;padding:14px}
+.login button{width:100%;padding:14px}
+.add{background:#0a0a0a;border:1px solid #1a1a1a;padding:16px;margin-bottom:20px}
+.add-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.add input,.add select{padding:10px}
+.add textarea{width:100%;margin-top:8px;padding:10px;min-height:60px;resize:vertical;font-size:11px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:20px}
+.stat{background:#0a0a0a;border:1px solid #1a1a1a;padding:14px}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#666}
+.stat-value{font-size:22px;font-weight:800;color:#fff;margin-top:4px}
+table{width:100%;border-collapse:collapse;margin-top:12px}
+th{text-align:left;color:#666;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;padding:8px;border-bottom:1px solid #1a1a1a;font-weight:600}
+td{padding:10px 8px;border-bottom:1px solid #111;vertical-align:top}
+tr:hover{background:#0a0a0a}
+.badge{padding:3px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;display:inline-block}
+.b-new{background:#0a2a4a;color:#7dc4ff}
+.b-dm_sent{background:#2a2a0a;color:#ffd57d}
+.b-followed_up{background:#3a2a0a;color:#ffac7d}
+.b-replied{background:#0a4a2a;color:#7dffac}
+.b-call_booked{background:#1a4a3a;color:#7dffac;animation:pulse 2s infinite}
+.b-hired{background:#0a5a2a;color:#4ade80;font-weight:700}
+.b-passed,.b-rejected{background:#3a0a0a;color:#ff7d8c}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
+.meta{color:#555;font-size:10px;font-family:monospace}
+.name-cell{font-weight:600;color:#fff}
+.role-cell{color:#999;font-size:11px}
+.actions{display:flex;flex-direction:column;gap:4px}
+.actions button{padding:4px 6px;font-size:9px;letter-spacing:0.03em}
+.detail-cell{padding:16px !important;background:#080808}
+.detail-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.field{display:flex;flex-direction:column}
+.field-label{font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#666;margin-bottom:4px}
+.field-value{color:#ccc;font-size:12px;line-height:1.5}
+.field textarea{width:100%;min-height:60px;font-size:11px}
+.field input{width:100%}
+a{color:#00b894;text-decoration:none}
+.empty{text-align:center;padding:60px;color:#666}
+</style></head>
+<body>
+
+<div id="login-view" class="login" style="display:none">
+<h1>KADO Admin</h1>
+<input type="password" id="pw" placeholder="Admin password" autofocus>
+<button onclick="doLogin()">Login</button>
+<div id="login-err" style="color:#f87171;margin-top:12px;font-size:12px"></div>
+</div>
+
+<div id="main-view" style="display:none">
+
+<div class="head">
+<h1>Outreach CRM</h1>
+<div class="filters">
+<select id="f-target" onchange="load()">
+<option value="">All targets</option>
+<option value="cofounder">Cofounder</option>
+<option value="investor">Investor</option>
+<option value="advisor">Advisor</option>
+</select>
+<select id="f-status" onchange="load()">
+<option value="">All statuses</option>
+<option value="new">New</option>
+<option value="dm_sent">DM Sent</option>
+<option value="followed_up">Followed up</option>
+<option value="replied">Replied</option>
+<option value="call_booked">Call Booked</option>
+<option value="passed">Passed</option>
+<option value="hired">Hired</option>
+</select>
+<a href="/admin/applications" style="background:#1a1a1a;color:#999;padding:8px 12px;border:1px solid #333">Apps →</a>
+<button class="sec" onclick="logout()">Logout</button>
+</div>
+</div>
+
+<div id="stats" class="stats"></div>
+
+<div class="add">
+<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#666;margin-bottom:10px">+ Add prospect</div>
+<div class="add-grid">
+<input id="a-name" placeholder="Name *">
+<select id="a-target"><option value="cofounder">Cofounder</option><option value="investor">Investor</option><option value="advisor">Advisor</option></select>
+<select id="a-persona"><option value="">Persona...</option><option value="academic">Academic</option><option value="ex-quant">Ex-Quant</option><option value="founder">Founder</option><option value="crypto-quant">Crypto Quant</option><option value="faang-ml">FAANG ML</option><option value="yc-alum">YC Alum</option><option value="github">GitHub</option><option value="angel">Angel</option><option value="vc">VC</option></select>
+<input id="a-role" placeholder="Role / title">
+<input id="a-company" placeholder="Company">
+<input id="a-linkedin" placeholder="LinkedIn URL">
+<input id="a-twitter" placeholder="Twitter @">
+<input id="a-email" placeholder="Email">
+</div>
+<textarea id="a-hook" placeholder="Hook — specific personalization angle (paper, tweet, OSS contribution)"></textarea>
+<textarea id="a-notes" placeholder="Notes — context, mutual connections, timezone"></textarea>
+<div style="margin-top:10px;display:flex;gap:8px">
+<button onclick="doAdd()">Add prospect</button>
+<button class="sec" onclick="clearAdd()">Clear</button>
+</div>
+</div>
+
+<div id="table-wrap"></div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('kado_admin_token');
+
+function show(v){
+  document.getElementById('login-view').style.display = v==='login'?'block':'none';
+  document.getElementById('main-view').style.display = v==='main'?'block':'none';
+}
+
+async function doLogin(){
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('login-err'); err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password: pw})});
+    if (!r.ok) { err.textContent = 'Invalid password'; return; }
+    const d = await r.json();
+    TOKEN = d.token; localStorage.setItem('kado_admin_token', TOKEN);
+    show('main'); load();
+  } catch(e){ err.textContent = 'Network error'; }
+}
+function logout(){ localStorage.removeItem('kado_admin_token'); TOKEN=null; show('login'); }
+
+function clearAdd(){
+  ['a-name','a-role','a-company','a-linkedin','a-twitter','a-email','a-hook','a-notes'].forEach(id => document.getElementById(id).value = '');
+}
+
+async function doAdd(){
+  const name = document.getElementById('a-name').value.trim();
+  if (!name) { alert('Name required'); return; }
+  const body = {
+    name,
+    target_type: document.getElementById('a-target').value,
+    persona: document.getElementById('a-persona').value || null,
+    role: document.getElementById('a-role').value || null,
+    company: document.getElementById('a-company').value || null,
+    linkedin_url: document.getElementById('a-linkedin').value || null,
+    twitter: document.getElementById('a-twitter').value || null,
+    email: document.getElementById('a-email').value || null,
+    hook: document.getElementById('a-hook').value || null,
+    notes: document.getElementById('a-notes').value || null,
+  };
+  const r = await fetch('/api/admin/outreach', {method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+TOKEN}, body: JSON.stringify(body)});
+  if (r.ok) { clearAdd(); load(); }
+}
+
+async function setStatus(id, status){
+  const r = await fetch('/api/admin/outreach/'+id, {method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+TOKEN}, body: JSON.stringify({status})});
+  if (r.ok) load();
+}
+
+async function delProspect(id){
+  if (!confirm('Delete this prospect?')) return;
+  const r = await fetch('/api/admin/outreach/'+id, {method:'DELETE', headers:{'Authorization':'Bearer '+TOKEN}});
+  if (r.ok) load();
+}
+
+async function saveField(id, field, value){
+  const body = {}; body[field] = value;
+  await fetch('/api/admin/outreach/'+id, {method:'POST', headers:{'Content-Type':'application/json', 'Authorization':'Bearer '+TOKEN}, body: JSON.stringify(body)});
+}
+
+function badge(cls, text){
+  const s = document.createElement('span'); s.className='badge ' + cls; s.textContent=text.replace(/_/g,' '); return s;
+}
+
+function renderStats(prospects){
+  const wrap = document.getElementById('stats');
+  wrap.replaceChildren();
+  const total = prospects.length;
+  const counts = {new:0, dm_sent:0, replied:0, call_booked:0, hired:0};
+  prospects.forEach(p => { if (counts.hasOwnProperty(p.status)) counts[p.status]++; });
+  const reply_rate = counts.dm_sent ? Math.round(counts.replied * 100 / counts.dm_sent) : 0;
+  const cards = [
+    ['Total', total], ['New', counts.new], ['DM Sent', counts.dm_sent],
+    ['Replied', counts.replied], ['Reply%', reply_rate + '%'],
+    ['Calls', counts.call_booked], ['Hired', counts.hired],
+  ];
+  cards.forEach(([l, v]) => {
+    const c = document.createElement('div'); c.className='stat';
+    const lab = document.createElement('div'); lab.className='stat-label'; lab.textContent=l;
+    const val = document.createElement('div'); val.className='stat-value'; val.textContent=v;
+    c.appendChild(lab); c.appendChild(val); wrap.appendChild(c);
+  });
+}
+
+async function load(){
+  if (!TOKEN) { show('login'); return; }
+  const t = document.getElementById('f-target').value;
+  const s = document.getElementById('f-status').value;
+  let url = '/api/admin/outreach';
+  const params = [];
+  if (t) params.push('target='+t);
+  if (s) params.push('status='+s);
+  if (params.length) url += '?' + params.join('&');
+  const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
+  if (r.status === 401) { logout(); return; }
+  const data = await r.json();
+  renderStats(data);
+  render(data);
+}
+
+function render(prospects){
+  const wrap = document.getElementById('table-wrap');
+  wrap.replaceChildren();
+  if (!prospects.length){
+    const d = document.createElement('div'); d.className='empty'; d.textContent='No prospects yet. Add one above.';
+    wrap.appendChild(d); return;
+  }
+  const tbl = document.createElement('table');
+  const thead = document.createElement('thead'); const trh = document.createElement('tr');
+  ['','Name / Company', 'Target', 'Persona', 'Contact', 'Status', 'Actions'].forEach(h => {
+    const th = document.createElement('th'); th.textContent=h; trh.appendChild(th);
+  });
+  thead.appendChild(trh); tbl.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  prospects.forEach(p => {
+    const tr = document.createElement('tr'); tr.dataset.id=p.id; tr.style.cursor='pointer';
+    const tdT = document.createElement('td'); tdT.textContent='▶'; tdT.style.color='#555'; tr.appendChild(tdT);
+    const tdN = document.createElement('td');
+    const n = document.createElement('div'); n.className='name-cell'; n.textContent=p.name; tdN.appendChild(n);
+    if (p.company || p.role) {
+      const r = document.createElement('div'); r.className='role-cell';
+      r.textContent = [p.role, p.company].filter(Boolean).join(' · '); tdN.appendChild(r);
+    }
+    tr.appendChild(tdN);
+    const tdTar = document.createElement('td'); tdTar.appendChild(badge('b-new', p.target_type||'-')); tr.appendChild(tdTar);
+    const tdP = document.createElement('td'); tdP.textContent = p.persona||'-'; tr.appendChild(tdP);
+    const tdC = document.createElement('td'); tdC.style.fontSize='10px';
+    if (p.linkedin_url) { const a = document.createElement('a'); a.href=p.linkedin_url; a.target='_blank'; a.textContent='LI'; a.onclick=(e)=>e.stopPropagation(); tdC.appendChild(a); tdC.appendChild(document.createTextNode(' ')); }
+    if (p.twitter) { const t = document.createElement('span'); t.textContent='@'+p.twitter.replace(/^@/,''); t.style.color='#888'; tdC.appendChild(t); tdC.appendChild(document.createTextNode(' ')); }
+    if (p.email) { const e = document.createElement('a'); e.href='mailto:'+p.email; e.textContent='✉'; e.onclick=(ev)=>ev.stopPropagation(); tdC.appendChild(e); }
+    tr.appendChild(tdC);
+    const tdS = document.createElement('td'); tdS.appendChild(badge('b-'+p.status, p.status)); tr.appendChild(tdS);
+    const tdA = document.createElement('td');
+    const act = document.createElement('div'); act.className='actions';
+    const transitions = {
+      'new': ['dm_sent'], 'dm_sent': ['replied', 'followed_up'], 'followed_up': ['replied', 'passed'],
+      'replied': ['call_booked', 'passed'], 'call_booked': ['hired', 'passed']
+    };
+    (transitions[p.status]||[]).forEach(next => {
+      const b = document.createElement('button'); b.textContent='→ '+next.replace(/_/g,' '); b.className='sec';
+      b.onclick=(e)=>{e.stopPropagation(); setStatus(p.id, next);}; act.appendChild(b);
+    });
+    const d = document.createElement('button'); d.textContent='×'; d.className='danger'; d.style.marginTop='2px';
+    d.onclick=(e)=>{e.stopPropagation(); delProspect(p.id);}; act.appendChild(d);
+    tdA.appendChild(act); tr.appendChild(tdA);
+    tbody.appendChild(tr);
+
+    // Detail row
+    const detTr = document.createElement('tr'); detTr.style.display='none'; detTr.className='detail';
+    const detTd = document.createElement('td'); detTd.colSpan=7; detTd.className='detail-cell';
+    const grid = document.createElement('div'); grid.className='detail-grid';
+    function field(label, key, val, multi){
+      const w = document.createElement('div'); w.className='field';
+      const lab = document.createElement('div'); lab.className='field-label'; lab.textContent=label; w.appendChild(lab);
+      const inp = multi ? document.createElement('textarea') : document.createElement('input');
+      inp.value = val || ''; if (!multi) inp.type='text';
+      inp.onblur = () => { if (inp.value !== (val||'')) saveField(p.id, key, inp.value); };
+      w.appendChild(inp); return w;
+    }
+    grid.appendChild(field('Hook (personalization)', 'hook', p.hook, true));
+    grid.appendChild(field('DM Draft', 'dm_draft', p.dm_draft, true));
+    grid.appendChild(field('Notes', 'notes', p.notes, true));
+    const meta = document.createElement('div'); meta.className='field-value'; meta.style.color='#555'; meta.style.fontSize='10px';
+    meta.textContent = `Created: ${(p.created_at||'').substring(0,16).replace('T',' ')} · DM sent: ${(p.dm_sent_at||'—').substring(0,16).replace('T',' ')} · Replied: ${(p.replied_at||'—').substring(0,16).replace('T',' ')} · Last contact: ${(p.last_contact||'—').substring(0,16).replace('T',' ')}`;
+    grid.appendChild(meta);
+    detTd.appendChild(grid); detTr.appendChild(detTd); tbody.appendChild(detTr);
+
+    tr.addEventListener('click', () => {
+      const open = detTr.style.display !== 'none';
+      detTr.style.display = open ? 'none' : 'table-row';
+      tdT.textContent = open ? '▶' : '▼';
+    });
+  });
+  tbl.appendChild(tbody); wrap.appendChild(tbl);
+}
+
+if (TOKEN) { show('main'); load(); } else { show('login'); }
+</script>
+</body></html>"""
+
+
+@app.get("/admin/outreach", response_class=HTMLResponse)
+async def admin_outreach_page():
+    return _OUTREACH_HTML
 
 
 @app.get("/apply/cobuilder", response_class=HTMLResponse)
