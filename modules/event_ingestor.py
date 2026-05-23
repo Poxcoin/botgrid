@@ -113,17 +113,35 @@ def _txn_to_event(user_id: int, it: dict) -> dict | None:
 
 
 def _bulk_insert(db, rows: Iterable[dict]) -> int:
-    """Insert rows skipping duplicates (UNIQUE constraint on user_id+bybit_event_id)."""
+    """Insert rows skipping duplicates (UNIQUE constraint on user_id+bybit_event_id).
+
+    Pre-fetch existing bybit_event_ids to avoid IntegrityError + rollback() which
+    would wipe ALL prior successful inserts in the same session.
+    """
+    rows = list(rows)
+    if not rows:
+        return 0
+    user_ids = {r['user_id'] for r in rows}
+    existing = {
+        (r[0], r[1])
+        for r in db.query(TradeEvent.user_id, TradeEvent.bybit_event_id)
+                   .filter(TradeEvent.user_id.in_(user_ids))
+                   .all()
+    }
     inserted = 0
     for row in rows:
+        key = (row['user_id'], row['bybit_event_id'])
+        if key in existing:
+            continue
+        db.add(TradeEvent(**row))
+        existing.add(key)  # in-batch dedup too
+        inserted += 1
+    if inserted:
         try:
-            db.add(TradeEvent(**row))
-            db.flush()
-            inserted += 1
+            db.commit()
         except IntegrityError:
             db.rollback()
-            continue
-    db.commit()
+            return 0
     return inserted
 
 
