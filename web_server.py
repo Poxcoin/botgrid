@@ -2238,6 +2238,213 @@ async def admin_mark_invoice_paid(
     return {"ok": True}
 
 
+# ─── Careers landing page (vacancy showcase + role pre-fill) ─────────────────
+
+_ROLES = {
+    'ml':       {'icon':'🧠','equity':'5-15%','hours':'30+'},
+    'backend':  {'icon':'⚙️','equity':'0.5-2%','hours':'15-30'},
+    'frontend': {'icon':'🎨','equity':'0.3-1.5%','hours':'15-30'},
+    'quant':    {'icon':'🔬','equity':'0.5-2%','hours':'15-25'},
+    'growth':   {'icon':'📈','equity':'0.5-2%','hours':'15-30'},
+    'devops':   {'icon':'🛡️','equity':'0.3-1.5%','hours':'10-20'},
+    'community':{'icon':'🤝','equity':'0.2-0.8%','hours':'10-20'},
+}
+
+_CAREERS_I18N = {
+    'ru': {
+        'title': 'Вакансии', 'tag': 'ПРИСОЕДИНЯЙСЯ К KADO',
+        'hero_title': 'Строим AI trading platform 2027',
+        'hero_sub': 'Live продукт. Event-sourced billing. Свой AI dataset. Telegram-native. Pre-seed → YC W27.',
+        'why_title': 'Почему сейчас',
+        'why': [
+            '✓ Live платформа kadoclub.net — не vapor',
+            '✓ Event-sourced billing инфраструктура — defensible accounting',
+            '✓ Proprietary "Regret Engine" — counterfactual signal auto-tuning (никто другой не делает)',
+            '✓ 4,797 архивных новостей с апреля — свой dataset для AI training',
+            '✓ Telegram-native distribution — CAC ≈ $0',
+            '✓ AI + crypto convergence 2026-2027 — perfect timing',
+        ],
+        'comp_title': 'Что даём всем co-builders',
+        'comp': [
+            '💎 Equity 0.2-15% (4 года vest, 1 год cliff)',
+            '🤖 15% performance fee на наши боты вместо 25% — НАВСЕГДА',
+            '🔓 Early access ко всем новым AI стратегиям',
+            '📈 Pre-IPO / token allocation — гарантировано',
+            '💵 Deferred salary → market post-seed (запуск Q1 2027)',
+            '🌍 Fully remote, async, 10-30 часов/неделю',
+        ],
+        'roles_title': 'Открытые позиции',
+        'roles': {
+            'ml':       {'title':'ML / AI Co-Founder', 'desc':'Fine-tuning LLM (Llama/Mistral) на trading datasets · RL агенты для strategy optimization · Эволюция Regret Engine. Бонус: ex-Renaissance / Two Sigma / Citadel или сильная AI research лаба.'},
+            'backend':  {'title':'Senior Backend Engineer (Python)', 'desc':'FastAPI + SQLAlchemy + event-sourcing patterns · Bybit V5 API integration · Reliability в multi-process среде.'},
+            'frontend': {'title':'Senior Frontend Developer (React)', 'desc':'React 18 + Vite + Tailwind · Mobile-first dashboard · Real-time WebSocket UI · i18n 6 языков уже есть.'},
+            'quant':    {'title':'Quant Researcher', 'desc':'Backtesting framework expansion · Market microstructure analysis · Strategy validation · Бонус: orderflow / SMC background.'},
+            'growth':   {'title':'Growth / Marketing Lead', 'desc':'Telegram-native growth · Crypto Twitter operator · Content strategy · CAC near zero — нужно понимать viral mechanics.'},
+            'devops':   {'title':'DevOps / Security Engineer', 'desc':'Multi-tenant scaling · SOC2 prep · SSL/CSP/encrypted credentials · Hetzner+Cloudflare stack.'},
+            'community':{'title':'Community / Customer Success', 'desc':'Telegram community management · Onboarding flow optimization · First-line support для платных subscribers.'},
+        },
+        'cta_apply': 'Подать заявку →',
+        'cta_invest': 'Я инвестор →',
+        'foot': 'Вопросы? @Poxcoin в Telegram или glorimanunited@gmail.com',
+    },
+    'ua': {
+        'title': 'Вакансії', 'tag': 'ПРИЄДНУЙСЯ ДО KADO',
+        'hero_title': 'Будуємо AI trading platform 2027',
+        'hero_sub': 'Live продукт. Event-sourced billing. Власний AI dataset. Telegram-native. Pre-seed → YC W27.',
+        'why_title': 'Чому зараз',
+        'why': [
+            '✓ Live платформа kadoclub.net — не vapor',
+            '✓ Event-sourced billing інфраструктура — defensible accounting',
+            '✓ Proprietary "Regret Engine" — counterfactual signal auto-tuning (ніхто інший не робить)',
+            '✓ 4,797 архівних новин з квітня — власний dataset для AI training',
+            '✓ Telegram-native distribution — CAC ≈ $0',
+            '✓ AI + crypto convergence 2026-2027 — perfect timing',
+        ],
+        'comp_title': 'Що даємо всім co-builders',
+        'comp': [
+            '💎 Equity 0.2-15% (4 роки vest, 1 рік cliff)',
+            '🤖 15% performance fee на наші боти замість 25% — НАЗАВЖДИ',
+            '🔓 Early access до всіх нових AI стратегій',
+            '📈 Pre-IPO / token allocation — гарантовано',
+            '💵 Deferred salary → market post-seed (запуск Q1 2027)',
+            '🌍 Fully remote, async, 10-30 годин/тиждень',
+        ],
+        'roles_title': 'Відкриті позиції',
+        'roles': {
+            'ml':       {'title':'ML / AI Co-Founder', 'desc':'Fine-tuning LLM (Llama/Mistral) на trading datasets · RL агенти для strategy optimization · Еволюція Regret Engine. Бонус: ex-Renaissance / Two Sigma / Citadel.'},
+            'backend':  {'title':'Senior Backend Engineer (Python)', 'desc':'FastAPI + SQLAlchemy + event-sourcing · Bybit V5 API integration · Reliability в multi-process середовищі.'},
+            'frontend': {'title':'Senior Frontend Developer (React)', 'desc':'React 18 + Vite + Tailwind · Mobile-first dashboard · Real-time WebSocket UI · i18n 6 мов вже є.'},
+            'quant':    {'title':'Quant Researcher', 'desc':'Backtesting framework expansion · Market microstructure · Strategy validation · Бонус: orderflow / SMC background.'},
+            'growth':   {'title':'Growth / Marketing Lead', 'desc':'Telegram-native growth · Crypto Twitter operator · Content strategy · CAC near zero — треба розуміти viral mechanics.'},
+            'devops':   {'title':'DevOps / Security Engineer', 'desc':'Multi-tenant scaling · SOC2 prep · SSL/CSP/encrypted credentials · Hetzner + Cloudflare stack.'},
+            'community':{'title':'Community / Customer Success', 'desc':'Telegram community management · Onboarding flow optimization · First-line support для платних subscribers.'},
+        },
+        'cta_apply': 'Подати заявку →',
+        'cta_invest': 'Я інвестор →',
+        'foot': 'Питання? @Poxcoin в Telegram або glorimanunited@gmail.com',
+    },
+    'en': {
+        'title': 'Careers', 'tag': 'JOIN KADO',
+        'hero_title': 'Building the AI trading platform of 2027',
+        'hero_sub': 'Live product. Event-sourced billing. Own AI dataset. Telegram-native. Pre-seed → YC W27.',
+        'why_title': 'Why now',
+        'why': [
+            '✓ Live platform kadoclub.net — not vapor',
+            '✓ Event-sourced billing infrastructure — defensible accounting',
+            '✓ Proprietary "Regret Engine" — counterfactual signal auto-tuning (no competitor)',
+            '✓ 4,797 archived news since April — own dataset for AI training',
+            '✓ Telegram-native distribution — CAC ≈ $0',
+            '✓ AI + crypto convergence 2026-2027 — perfect timing',
+        ],
+        'comp_title': 'What every co-builder gets',
+        'comp': [
+            '💎 Equity 0.2-15% (4yr vest, 1yr cliff)',
+            '🤖 15% performance fee on our bots vs standard 25% — FOR LIFE',
+            '🔓 Early access to all new AI strategies',
+            '📈 Pre-IPO / token allocation guaranteed',
+            '💵 Deferred salary → market post-seed (Q1 2027)',
+            '🌍 Fully remote, async, 10-30 hrs/week',
+        ],
+        'roles_title': 'Open positions',
+        'roles': {
+            'ml':       {'title':'ML / AI Co-Founder', 'desc':'Fine-tune LLM (Llama/Mistral) on trading datasets · RL agents for strategy optimization · Regret Engine evolution. Bonus: ex-Renaissance / Two Sigma / Citadel.'},
+            'backend':  {'title':'Senior Backend Engineer (Python)', 'desc':'FastAPI + SQLAlchemy + event-sourcing · Bybit V5 API integration · Reliability in multi-process env.'},
+            'frontend': {'title':'Senior Frontend Developer (React)', 'desc':'React 18 + Vite + Tailwind · Mobile-first dashboard · Real-time WebSocket UI · 6 languages i18n.'},
+            'quant':    {'title':'Quant Researcher', 'desc':'Backtesting framework expansion · Market microstructure · Strategy validation. Bonus: orderflow / SMC.'},
+            'growth':   {'title':'Growth / Marketing Lead', 'desc':'Telegram-native growth · Crypto Twitter operator · Content strategy · CAC near zero proof.'},
+            'devops':   {'title':'DevOps / Security Engineer', 'desc':'Multi-tenant scaling · SOC2 prep · SSL/CSP/encrypted credentials · Hetzner + Cloudflare.'},
+            'community':{'title':'Community / Customer Success', 'desc':'Telegram community management · Onboarding flow · First-line support for paying subs.'},
+        },
+        'cta_apply': 'Apply →',
+        'cta_invest': "I'm an investor →",
+        'foot': 'Questions? @Poxcoin on Telegram or glorimanunited@gmail.com',
+    },
+}
+
+
+def _render_careers(lang: str) -> str:
+    lang = lang if lang in _CAREERS_I18N else 'ru'
+    t = _CAREERS_I18N[lang]
+
+    role_cards = ''
+    for key, meta in _ROLES.items():
+        r = t['roles'][key]
+        role_cards += (
+            f'<div class="role">'
+            f'<div class="role-h"><span class="icon">{meta["icon"]}</span>'
+            f'<div><div class="role-title">{r["title"]}</div>'
+            f'<div class="role-meta">Equity {meta["equity"]} · {meta["hours"]} hrs/week</div></div></div>'
+            f'<div class="role-desc">{r["desc"]}</div>'
+            f'<a class="role-cta" href="/apply/cobuilder?lang={lang}&role={key}">{t["cta_apply"]}</a>'
+            f'</div>'
+        )
+
+    why_html = ''.join(f'<li>{x}</li>' for x in t['why'])
+    comp_html = ''.join(f'<li>{x}</li>' for x in t['comp'])
+
+    return f"""<!DOCTYPE html>
+<html lang="{lang}"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KADO — {t['title']}</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#050505;color:#e8e8e8;font-family:'Inter',-apple-system,sans-serif;min-height:100vh;padding:40px 16px}}
+.wrap{{max-width:720px;margin:0 auto}}
+.lang{{position:fixed;top:16px;right:16px;font-size:11px;background:rgba(0,0,0,0.6);padding:6px 10px}}
+.lang a{{color:#666;margin-left:10px;text-decoration:none;font-weight:600}}
+.lang a:hover{{color:#fff}}
+.logo{{font-size:36px;font-weight:900;letter-spacing:-0.04em;color:#fff}}
+.tag{{font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#666;margin-top:4px;margin-bottom:48px}}
+h1{{font-size:30px;font-weight:800;line-height:1.15;margin-bottom:12px}}
+.hero-sub{{color:#999;font-size:16px;line-height:1.6;margin-bottom:48px}}
+.section{{margin-bottom:48px}}
+.section h2{{font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.1em}}
+.section ul{{list-style:none}}
+.section li{{padding:8px 0;color:#ccc;font-size:14px;line-height:1.6;border-bottom:1px solid #111}}
+.section li:last-child{{border-bottom:none}}
+.role{{background:#0a0a0a;border:1px solid #1a1a1a;padding:24px;margin-bottom:16px;transition:border-color 0.2s}}
+.role:hover{{border-color:#00b894}}
+.role-h{{display:flex;align-items:center;margin-bottom:12px}}
+.icon{{font-size:32px;margin-right:16px}}
+.role-title{{font-size:18px;font-weight:700;color:#fff;margin-bottom:2px}}
+.role-meta{{font-size:11px;color:#666;letter-spacing:0.08em;text-transform:uppercase}}
+.role-desc{{color:#bbb;font-size:14px;line-height:1.6;margin-bottom:20px}}
+.role-cta{{display:inline-block;background:#00b894;color:#000;padding:12px 20px;font-weight:700;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;text-decoration:none}}
+.role-cta:hover{{background:#04d39c}}
+.foot{{margin-top:48px;padding-top:32px;border-top:1px solid #1a1a1a;text-align:center;color:#666;font-size:13px}}
+.foot a{{color:#00b894;text-decoration:none}}
+.invest-box{{background:#0a0f0a;border:1px solid #0a3a2a;padding:20px;text-align:center;margin-top:32px}}
+.invest-box a{{color:#00b894;text-decoration:none;font-weight:700;font-size:14px}}
+</style></head>
+<body>
+<div class="lang"><a href="?lang=en">EN</a><a href="?lang=ua">UA</a><a href="?lang=ru">RU</a></div>
+<div class="wrap">
+<div class="logo">KADO</div>
+<div class="tag">{t['tag']}</div>
+<h1>{t['hero_title']}</h1>
+<div class="hero-sub">{t['hero_sub']}</div>
+
+<div class="section"><h2>{t['why_title']}</h2><ul>{why_html}</ul></div>
+<div class="section"><h2>{t['comp_title']}</h2><ul>{comp_html}</ul></div>
+
+<div class="section"><h2>{t['roles_title']}</h2>
+{role_cards}
+</div>
+
+<div class="invest-box">
+<a href="/apply/investor?lang={lang}">{t['cta_invest']}</a>
+</div>
+
+<div class="foot">{t['foot']}</div>
+</div>
+</body></html>"""
+
+
+@app.get("/careers", response_class=HTMLResponse)
+async def careers_page(lang: str = "ru"):
+    return _render_careers(lang)
+
+
 # ─── Application intake (Phase 0 fundraise — co-builder + investor forms) ────
 
 _APPLY_FORM_HTML = """<!DOCTYPE html>
@@ -2348,20 +2555,34 @@ def _i18n(lang: str, key: str) -> str:
     return T.get(key, {}).get(lang, T.get(key, {}).get('en', key))
 
 
-def _build_fields(typ: str, lang: str) -> str:
-    def f(name, label_key, req=False, ta=False):
+_ROLE_PREFILL_LABELS = {
+    'ml':       {'en':'ML / AI Co-Founder','ua':'ML / AI Co-Founder','ru':'ML / AI Co-Founder'},
+    'backend':  {'en':'Senior Backend Engineer','ua':'Senior Backend Engineer','ru':'Senior Backend Engineer'},
+    'frontend': {'en':'Senior Frontend Developer','ua':'Senior Frontend Developer','ru':'Senior Frontend Developer'},
+    'quant':    {'en':'Quant Researcher','ua':'Quant Researcher','ru':'Quant Researcher'},
+    'growth':   {'en':'Growth / Marketing Lead','ua':'Growth / Marketing Lead','ru':'Growth / Marketing Lead'},
+    'devops':   {'en':'DevOps / Security Engineer','ua':'DevOps / Security Engineer','ru':'DevOps / Security Engineer'},
+    'community':{'en':'Community / Customer Success','ua':'Community / Customer Success','ru':'Community / Customer Success'},
+}
+
+
+def _build_fields(typ: str, lang: str, prefill_role: str = '') -> str:
+    import html as _html
+    def f(name, label_key, req=False, ta=False, value=''):
         cls = ' class="req"' if req else ''
         req_attr = ' required' if req else ''
         label = _i18n(lang, label_key)
+        val_attr = f' value="{_html.escape(value)}"' if value else ''
         if ta:
-            return f'<label{cls}>{label}</label><textarea name="{name}"{req_attr}></textarea>'
-        return f'<label{cls}>{label}</label><input type="text" name="{name}"{req_attr}>'
+            return f'<label{cls}>{label}</label><textarea name="{name}"{req_attr}>{_html.escape(value)}</textarea>'
+        return f'<label{cls}>{label}</label><input type="text" name="{name}"{val_attr}{req_attr}>'
     if typ == 'cobuilder':
+        role_value = _ROLE_PREFILL_LABELS.get(prefill_role, {}).get(lang, '')
         return ''.join([
             f('name', 'name', req=True),
             f('email', 'email', req=True),
             f('telegram', 'telegram'),
-            f('role_or_check', 'role', req=True),
+            f('role_or_check', 'role', req=True, value=role_value),
             f('timezone', 'timezone'),
             f('hours_per_week', 'hours'),
             f('equity_or_terms', 'equity'),
@@ -2383,7 +2604,7 @@ def _build_fields(typ: str, lang: str) -> str:
     ])
 
 
-def _render_form(lang: str, typ: str) -> str:
+def _render_form(lang: str, typ: str, prefill_role: str = '') -> str:
     import json as _json
     lang = lang if lang in ('en', 'ua', 'ru') else 'en'
     return _APPLY_FORM_HTML.format(
@@ -2393,7 +2614,7 @@ def _render_form(lang: str, typ: str) -> str:
         heading=_i18n(lang, f'{typ}_heading'),
         intro=_i18n(lang, f'{typ}_intro'),
         type=typ,
-        fields=_build_fields(typ, lang),
+        fields=_build_fields(typ, lang, prefill_role),
         submit_label=_i18n(lang, 'submit'),
         submitting=_i18n(lang, 'submitting'),
         ok_msg=_i18n(lang, 'ok_msg'),
@@ -2404,8 +2625,8 @@ def _render_form(lang: str, typ: str) -> str:
 
 
 @app.get("/apply/cobuilder", response_class=HTMLResponse)
-async def apply_cobuilder_page(lang: str = "en"):
-    return _render_form(lang, 'cobuilder')
+async def apply_cobuilder_page(lang: str = "en", role: str = ""):
+    return _render_form(lang, 'cobuilder', role)
 
 
 @app.get("/apply/investor", response_class=HTMLResponse)
