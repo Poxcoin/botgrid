@@ -406,6 +406,37 @@ class TgLinkToken(Base):
 
 
 # ── Audit Log (immutable) ─────────────────────────────────────────────────────
+class SourceQuality(Base):
+    """Bayesian per-source quality tracker (Phase 1 of math edge layer, 2026-05-23).
+
+    Beta-Binomial conjugate posterior over per-source win rate.
+    Prior Beta(2,2) = neutral 50% with low confidence.
+    Each closed trade updates α (win) or β (loss).
+    """
+    __tablename__ = "source_quality"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    source          = Column(String, unique=True, nullable=False, index=True)
+    n_trades        = Column(Integer, default=0)
+    n_wins          = Column(Integer, default=0)
+    n_losses        = Column(Integer, default=0)
+    wr_alpha        = Column(Float, default=2.0)  # Beta α parameter
+    wr_beta         = Column(Float, default=2.0)  # Beta β parameter
+    posterior_mean  = Column(Float, nullable=True)
+    posterior_std   = Column(Float, nullable=True)
+    ci95_low        = Column(Float, nullable=True)
+    ci95_high       = Column(Float, nullable=True)
+    avg_win_usd     = Column(Float, nullable=True)
+    avg_loss_usd    = Column(Float, nullable=True)
+    payoff_ratio    = Column(Float, nullable=True)
+    break_even_wr   = Column(Float, nullable=True)
+    edge_pp         = Column(Float, nullable=True)  # posterior_mean - break_even_wr, percentage points
+    total_pnl_usd   = Column(Float, default=0.0)
+    status          = Column(String, default="insufficient_data", index=True)
+    # status values: insufficient_data | positive_edge | marginal | negative_edge | killed
+    last_updated    = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class Application(Base):
     """Co-builder / investor intake applications (Phase 0 fundraise infra, 2026-05-23)."""
     __tablename__ = "applications"
