@@ -131,16 +131,20 @@ def _check_user(u: User, state: dict, now: float) -> None:
             f'Threshold: {LOSS_PCT_THRESHOLD}% for {MIN_LOSS_DURATION_SEC // 60} min'
         )
 
+        from modules.tg_notifier import tg_footer
+        user_msg = msg + tg_footer('user')
+        admin_msg = msg + tg_footer('admin')
+
         if u.tg_chat_id:
             try:
-                send_telegram_message(msg, u.tg_chat_id)
+                send_telegram_message(user_msg, u.tg_chat_id)
                 print(f'user={uid} alert sent for {key} ({loss_pct:.1f}%, {mins}min)')
             except Exception as e:
                 print(f'user={uid} TG err: {e}')
 
         if TG_CHAT_ID and str(u.tg_chat_id) != str(TG_CHAT_ID):
             try:
-                send_telegram_message(msg, TG_CHAT_ID)
+                send_telegram_message(admin_msg, TG_CHAT_ID)
             except Exception:
                 pass
 

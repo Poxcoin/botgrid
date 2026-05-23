@@ -42,7 +42,8 @@ def main():
         has_action = any(rec["action"] not in ("hold", "wait") for rec in recs14)
         if has_action or r14.get("n_decisions", 0) >= 50:
             try:
-                send_telegram_message(msg, TG_CHAT_ID)
+                from modules.tg_notifier import tg_footer
+                send_telegram_message(msg + tg_footer('admin'), TG_CHAT_ID)
             except Exception as e:
                 print(f"TG err: {e}")
 

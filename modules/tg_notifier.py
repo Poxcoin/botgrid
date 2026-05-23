@@ -20,6 +20,30 @@ _SOURCE_LABELS = {
     "altcoin":     "Altcoin",
 }
 
+# Footer templates — applied via tg_footer() (Council 2026-05-23: TG link audit)
+_BASE_URL = "https://kadoclub.net"
+_FOOTERS = {
+    'user':    f'\n\n<a href="{_BASE_URL}/account">Open dashboard ↗</a>',
+    'channel': f'\n\n<a href="{_BASE_URL}">Join KADO ↗</a> · @KADO_c_BOT',
+    'admin':   f'\n\n<a href="{_BASE_URL}/track-record">Live PnL ↗</a> · <a href="{_BASE_URL}/admin/applications">Admin ↗</a>',
+    'track':   f'\n\n<a href="{_BASE_URL}/track-record">View live ↗</a>',
+    'apply':   f'\n\n<a href="{_BASE_URL}/careers">Join the team ↗</a> · <a href="{_BASE_URL}/apply/investor">Invest ↗</a>',
+}
+
+
+def tg_footer(kind: str = 'user') -> str:
+    """Returns appropriate hyperlink footer for TG HTML message.
+
+    Kinds: 'user' | 'channel' | 'admin' | 'track' | 'apply'
+    """
+    return _FOOTERS.get(kind, '')
+
+
+def tg_escape(s) -> str:
+    """HTML-escape dynamic text for TG parse_mode='HTML'."""
+    import html as _html
+    return _html.escape(str(s) if s is not None else '')
+
 
 def send_telegram_message(text, chat_id):
     """Send a message via @KADO_c_BOT to any chat_id."""
@@ -100,8 +124,9 @@ def notify_user_trade(user_id: int, event: str, trade_data: dict) -> None:
             source = trade_data.get("source", "")
             label  = _SOURCE_LABELS.get(source, source.capitalize())
             text = (
-                f"{side_emoji} <b>{coin} {side} x{lev}</b> відкрито\n"
-                f"@ {price} | {label}"
+                f"{side_emoji} <b>{tg_escape(coin)} {side} x{lev}</b> відкрито\n"
+                f"@ {price} | {tg_escape(label)}"
+                f"{tg_footer('user')}"
             )
 
         elif event == "close":
@@ -121,8 +146,9 @@ def notify_user_trade(user_id: int, event: str, trade_data: dict) -> None:
                     duration = f" | {secs // 60}хв"
             pnl_emoji = "" if pnl >= 0 else ""
             text = (
-                f"{pnl_emoji} <b>{coin} {side}</b> закрито\n"
+                f"{pnl_emoji} <b>{tg_escape(coin)} {side}</b> закрито\n"
                 f"PnL: <b>{pnl:+.2f} USDT</b>{duration}"
+                f"{tg_footer('user')}"
             )
 
         else:

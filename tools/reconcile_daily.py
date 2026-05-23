@@ -131,10 +131,10 @@ def main():
     print(msg)
 
     try:
-        from modules.tg_notifier import send_telegram_message
+        from modules.tg_notifier import send_telegram_message, tg_footer
         from config.settings import TG_CHAT_ID
         if TG_CHAT_ID and (alert_needed or inserted_any):
-            send_telegram_message(msg, TG_CHAT_ID)
+            send_telegram_message(msg + tg_footer('track'), TG_CHAT_ID)
     except Exception as e:
         print(f"tg err: {e}")
 

@@ -477,9 +477,9 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
                 )
                 print(alert)
                 try:
-                    from modules.tg_notifier import send_telegram_message
+                    from modules.tg_notifier import send_telegram_message, tg_footer, tg_escape
                     from config.settings import TG_CHAT_ID
-                    send_telegram_message(f" <b>SYNC DRIFT</b>\n{alert[:400]}", TG_CHAT_ID)
+                    send_telegram_message(f" <b>SYNC DRIFT</b>\n{tg_escape(alert[:400])}" + tg_footer('admin'), TG_CHAT_ID)
                 except Exception:
                     pass
         except Exception as _ic:

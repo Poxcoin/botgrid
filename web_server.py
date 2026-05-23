@@ -3607,17 +3607,19 @@ async def submit_application(body: ApplicationSubmit, request: Request, db: Sess
         from config.settings import TG_CHAT_ID
         if TG_CHAT_ID:
             emoji = '🧑‍💻' if body.type == 'cobuilder' else '💰'
+            from modules.tg_notifier import tg_escape
             msg = (
-                f'{emoji} <b>New {body.type} application #{app_row.id}</b>\n'
-                f'Name: {body.name}\n'
-                f'Email: {body.email}\n'
-                f'TG: {body.telegram or "-"}\n'
-                f'Role/Check: {body.role_or_check or "-"}\n'
-                f'Hours: {body.hours_per_week or "-"}\n'
-                f'Equity/Terms: {body.equity_or_terms or "-"}\n'
-                f'Portfolio: {body.portfolio_url or "-"}\n'
-                f'Why: {(body.why_kado or "")[:300]}\n'
-                f'IP: {ip}'
+                f'{emoji} <b>New {tg_escape(body.type)} application #{app_row.id}</b>\n'
+                f'Name: {tg_escape(body.name)}\n'
+                f'Email: {tg_escape(body.email)}\n'
+                f'TG: {tg_escape(body.telegram or "-")}\n'
+                f'Role/Check: {tg_escape(body.role_or_check or "-")}\n'
+                f'Hours: {tg_escape(body.hours_per_week or "-")}\n'
+                f'Equity/Terms: {tg_escape(body.equity_or_terms or "-")}\n'
+                f'Portfolio: {tg_escape(body.portfolio_url or "-")}\n'
+                f'Why: {tg_escape((body.why_kado or "")[:300])}\n'
+                f'IP: {tg_escape(ip)}\n\n'
+                f'<a href="https://kadoclub.net/admin/applications">Open in admin ↗</a>'
             )
             send_telegram_message(msg, TG_CHAT_ID)
     except Exception as e:

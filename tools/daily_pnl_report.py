@@ -165,10 +165,14 @@ def main():
         msg = _format_user_msg(username, pnl, n, wr, db_data.get(uid, []),
                                 top_winners, top_losers, balance)
 
+        from modules.tg_notifier import tg_footer
+        user_msg = msg + tg_footer('user')
+        admin_msg = msg + tg_footer('admin')
+
         # Send to per-user TG if set
         if u.tg_chat_id:
             try:
-                send_telegram_message(msg, u.tg_chat_id)
+                send_telegram_message(user_msg, u.tg_chat_id)
                 print(f'user={uid} sent to {u.tg_chat_id}')
             except Exception as e:
                 print(f'user={uid} TG err: {e}')
@@ -176,7 +180,7 @@ def main():
         # Also send to admin (owner's TG_CHAT_ID) for visibility on all users
         if TG_CHAT_ID and (not u.tg_chat_id or str(u.tg_chat_id) != str(TG_CHAT_ID)):
             try:
-                send_telegram_message(msg, TG_CHAT_ID)
+                send_telegram_message(admin_msg, TG_CHAT_ID)
                 print(f'admin copy sent for user={uid}')
             except Exception as e:
                 print(f'admin TG err for user={uid}: {e}')
@@ -196,7 +200,8 @@ def main():
                     f"n={row['n']:3d}  WR={row['wr']:.0f}%  "
                     f"{sign}{row['total_pnl_pct']:.2f}%"
                 )
-            send_telegram_message('\n'.join(lines), TG_CHAT_ID)
+            from modules.tg_notifier import tg_footer
+            send_telegram_message('\n'.join(lines) + tg_footer('admin'), TG_CHAT_ID)
     except Exception as e:
         print(f'paper stats err: {e}')
 

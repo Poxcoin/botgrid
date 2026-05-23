@@ -75,9 +75,10 @@ def _post_to_channel(signal: dict, source: str) -> None:
         d_emoji  = "🟢" if action in ("BUY", "LONG") else ""
         d_label  = "LONG" if action in ("BUY", "LONG") else "SHORT"
 
+        from modules.tg_notifier import tg_footer, tg_escape
         if source in ("news", "dex"):
-            headline = (title[:180] + "…" if len(title) > 180 else title).upper()
-            snippet  = (desc[:280] + "…" if len(desc) > 280 else desc) if desc else ""
+            headline = tg_escape((title[:180] + "…" if len(title) > 180 else title).upper())
+            snippet  = tg_escape((desc[:280] + "…" if len(desc) > 280 else desc) if desc else "")
             conf_str = f" · {conf}%" if conf else ""
             is_real_link = link and not link.startswith(("cg://", "liq://", "dex://", "sw://"))
 
@@ -85,12 +86,12 @@ def _post_to_channel(signal: dict, source: str) -> None:
             if snippet:
                 text += f"{snippet}\n\n"
             text += "━━━━━━━━━━━━━━━\n"
-            text += f"{d_emoji} <b>{coin}</b> · {d_label}{conf_str}\n"
+            text += f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label}{conf_str}\n"
             if src_name:
-                text += f" {src_name}\n"
+                text += f" {tg_escape(src_name)}\n"
             if is_real_link:
-                text += f"\n <a href=\"{link}\">Full article ↗</a>\n"
-            text += f"\n @KADO_c_BOT"
+                text += f"\n <a href=\"{tg_escape(link)}\">Full article ↗</a>\n"
+            text += tg_footer('channel')
 
             send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, image_url)
 
@@ -100,20 +101,20 @@ def _post_to_channel(signal: dict, source: str) -> None:
             momentum  = "bullish continuation" if action in ("BUY", "LONG") else "bearish continuation"
             text = (
                 f" <b>LIQUIDATION CASCADE</b>\n\n"
-                f"<b>${cascade_m:.0f}M</b> in <b>{coin}</b> {side_text} — {momentum}\n\n"
+                f"<b>${cascade_m:.0f}M</b> in <b>{tg_escape(coin)}</b> {side_text} — {momentum}\n\n"
                 f"━━━━━━━━━━━━━━━\n"
-                f"{d_emoji} <b>{coin}</b> · {d_label} · <b>${cascade_m:.0f}M</b> cascade\n\n"
-                f" @KADO_c_BOT"
+                f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label} · <b>${cascade_m:.0f}M</b> cascade"
+                f"{tg_footer('channel')}"
             )
             send_telegram_message(text, TELEGRAM_CHANNEL_ID)
 
         else:
-            headline = (title[:120] if title else f"{coin} market signal").upper()
+            headline = tg_escape((title[:120] if title else f"{coin} market signal").upper())
             text = (
                 f" <b>{headline}</b>\n\n"
-                f"{d_emoji} <b>{coin}</b> · {d_label}\n"
-                f" {src_name or source.upper()}\n\n"
-                f" @KADO_c_BOT"
+                f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label}\n"
+                f" {tg_escape(src_name or source.upper())}"
+                f"{tg_footer('channel')}"
             )
             send_telegram_message(text, TELEGRAM_CHANNEL_ID)
 
