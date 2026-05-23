@@ -2624,6 +2624,176 @@ def _render_form(lang: str, typ: str, prefill_role: str = '') -> str:
     )
 
 
+_ADMIN_APPLICATIONS_HTML = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KADO Admin — Applications</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;color:#e8e8e8;font-family:-apple-system,sans-serif;padding:20px;font-size:13px}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #1a1a1a}
+h1{font-size:20px;font-weight:800;letter-spacing:-0.02em}
+.filters{display:flex;gap:8px}
+select,input,button{background:#0f0f0f;border:1px solid #222;color:#fff;padding:8px 12px;font-family:inherit;font-size:12px}
+button{background:#00b894;color:#000;border:none;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.1em}
+button:hover{background:#04d39c}
+.login{max-width:320px;margin:80px auto;text-align:center}
+.login input{width:100%;margin-bottom:12px;padding:14px}
+.login button{width:100%;padding:14px}
+table{width:100%;border-collapse:collapse;margin-top:16px}
+th{text-align:left;color:#666;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;padding:10px 8px;border-bottom:1px solid #1a1a1a;font-weight:600}
+td{padding:12px 8px;border-bottom:1px solid #111;vertical-align:top}
+tr:hover{background:#0a0a0a}
+.badge{padding:3px 8px;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600}
+.b-new{background:#0a2a4a;color:#7dc4ff}
+.b-contacted{background:#4a3a0a;color:#ffd57d}
+.b-hired{background:#0a4a2a;color:#7dffac}
+.b-rejected{background:#4a0a1a;color:#ff7d8c}
+.b-cobuilder{background:#3a0a4a;color:#d77dff}
+.b-investor{background:#4a2a0a;color:#ffac7d}
+.cell-name{font-weight:600;color:#fff}
+.cell-email{color:#999;font-size:11px}
+.cell-why{color:#bbb;max-width:280px;font-size:11px;line-height:1.5}
+.status-btns{display:flex;gap:4px;flex-wrap:wrap}
+.status-btns button{padding:4px 8px;font-size:9px;letter-spacing:0.05em}
+.btn-contacted{background:#4a3a0a;color:#ffd57d}
+.btn-hired{background:#0a4a2a;color:#7dffac}
+.btn-rejected{background:#4a0a1a;color:#ff7d8c}
+.empty{text-align:center;padding:60px;color:#666}
+.meta{color:#555;font-size:10px;font-family:'JetBrains Mono',monospace}
+a{color:#00b894;text-decoration:none}
+</style></head>
+<body>
+<div id="login-view" class="login" style="display:none">
+<h1>KADO Admin</h1>
+<input type="password" id="pw" placeholder="Admin password" autofocus>
+<button onclick="doLogin()">Login</button>
+<div id="login-err" style="color:#f87171;margin-top:12px;font-size:12px"></div>
+</div>
+
+<div id="main-view" style="display:none">
+<div class="head">
+<h1>Applications</h1>
+<div class="filters">
+<select id="f-type" onchange="load()"><option value="">All types</option><option value="cobuilder">Co-builder</option><option value="investor">Investor</option></select>
+<select id="f-status" onchange="load()"><option value="">All statuses</option><option value="new">New</option><option value="contacted">Contacted</option><option value="rejected">Rejected</option><option value="hired">Hired</option></select>
+<button onclick="logout()">Logout</button>
+</div>
+</div>
+<div id="table-wrap"></div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('kado_admin_token');
+
+function show(view){
+  document.getElementById('login-view').style.display = view==='login'?'block':'none';
+  document.getElementById('main-view').style.display = view==='main'?'block':'none';
+}
+
+async function doLogin(){
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('login-err');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password: pw})});
+    if (!r.ok) { err.textContent = 'Invalid password'; return; }
+    const d = await r.json();
+    TOKEN = d.token;
+    localStorage.setItem('kado_admin_token', TOKEN);
+    show('main'); load();
+  } catch(e) { err.textContent = 'Network error'; }
+}
+
+function logout(){
+  localStorage.removeItem('kado_admin_token'); TOKEN=null;
+  show('login');
+}
+
+async function load(){
+  if (!TOKEN) { show('login'); return; }
+  const t = document.getElementById('f-type').value;
+  const s = document.getElementById('f-status').value;
+  let url = '/api/admin/applications';
+  const params = [];
+  if (t) params.push('typ='+t);
+  if (s) params.push('status='+s);
+  if (params.length) url += '?' + params.join('&');
+  const r = await fetch(url, {headers:{'Authorization':'Bearer '+TOKEN}});
+  if (r.status === 401) { logout(); return; }
+  const apps = await r.json();
+  render(apps);
+}
+
+function badge(cls, text) {
+  const s = document.createElement('span');
+  s.className = 'badge ' + cls;
+  s.textContent = text;
+  return s;
+}
+
+function render(apps){
+  const wrap = document.getElementById('table-wrap');
+  wrap.replaceChildren();
+  if (!apps.length) {
+    const d = document.createElement('div'); d.className='empty'; d.textContent='No applications';
+    wrap.appendChild(d); return;
+  }
+  const tbl = document.createElement('table');
+  const thead = document.createElement('thead');
+  const trh = document.createElement('tr');
+  ['ID','Type','Status','Name / Contact','Role/Check','Hours/Equity','Why','When','Actions'].forEach(h=>{
+    const th = document.createElement('th'); th.textContent = h; trh.appendChild(th);
+  });
+  thead.appendChild(trh); tbl.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  apps.forEach(a=>{
+    const tr = document.createElement('tr');
+    const tdId = document.createElement('td'); tdId.className='meta'; tdId.textContent='#'+a.id; tr.appendChild(tdId);
+    const tdType = document.createElement('td'); tdType.appendChild(badge('b-'+a.type, a.type)); tr.appendChild(tdType);
+    const tdStatus = document.createElement('td'); tdStatus.appendChild(badge('b-'+a.status, a.status)); tr.appendChild(tdStatus);
+    const tdName = document.createElement('td');
+    const nm = document.createElement('div'); nm.className='cell-name'; nm.textContent = a.name || '-'; tdName.appendChild(nm);
+    const em = document.createElement('div'); em.className='cell-email'; em.textContent = a.email + (a.telegram?' · @'+a.telegram.replace(/^@/,''):''); tdName.appendChild(em);
+    tr.appendChild(tdName);
+    const tdRole = document.createElement('td'); tdRole.textContent = a.role_or_check || '-'; tr.appendChild(tdRole);
+    const tdHours = document.createElement('td');
+    tdHours.textContent = (a.hours_per_week||'-') + ' / ' + (a.equity_or_terms||'-');
+    tr.appendChild(tdHours);
+    const tdWhy = document.createElement('td'); tdWhy.className='cell-why'; tdWhy.textContent = a.why_kado || '-'; tr.appendChild(tdWhy);
+    const tdWhen = document.createElement('td'); tdWhen.className='meta';
+    tdWhen.textContent = (a.created_at||'').substring(0,16).replace('T',' '); tr.appendChild(tdWhen);
+    const tdAct = document.createElement('td');
+    const wrap = document.createElement('div'); wrap.className='status-btns';
+    ['contacted','hired','rejected'].forEach(st=>{
+      if (a.status === st) return;
+      const b = document.createElement('button'); b.className='btn-'+st; b.textContent=st;
+      b.onclick = () => setStatus(a.id, st);
+      wrap.appendChild(b);
+    });
+    tdAct.appendChild(wrap);
+    tr.appendChild(tdAct);
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrap.appendChild(tbl);
+}
+
+async function setStatus(id, status){
+  const r = await fetch('/api/admin/applications/'+id+'/status?status='+status, {method:'POST', headers:{'Authorization':'Bearer '+TOKEN}});
+  if (r.ok) load();
+}
+
+if (TOKEN) { show('main'); load(); } else { show('login'); }
+</script>
+</body></html>"""
+
+
+@app.get("/admin/applications", response_class=HTMLResponse)
+async def admin_applications_page():
+    return _ADMIN_APPLICATIONS_HTML
+
+
 @app.get("/apply/cobuilder", response_class=HTMLResponse)
 async def apply_cobuilder_page(lang: str = "en", role: str = ""):
     return _render_form(lang, 'cobuilder', role)
