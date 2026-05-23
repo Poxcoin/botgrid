@@ -964,15 +964,25 @@ def run_signal_engine():
                                         print(f" {coin} об'єм ${vol/1e6:.1f}M < $5M — пропускаємо")
                                     else:
                                         dyn_lev = _dynamic_leverage(signal, is_btc_eth=False)
-                                        _src = "dex" if news_item.get("is_dex_spike") else "news"
-                                        print(f" Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
+                                        if news_item.get("is_smart_wallet"):
+                                            _src = "smartmoney"
+                                        elif news_item.get("is_dex_spike"):
+                                            _src = "dex"
+                                        else:
+                                            _src = "news"
+                                        print(f" Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f}) src={_src}")
                                         _saas_dispatch(signal, _src,
                                             dyn_lev, ALT_TP, ALT_SL, ALT_SIZE)
                                         _post_to_channel(signal, _src)
                                 else:
                                     dyn_lev = _dynamic_leverage(signal, is_btc_eth=True)
-                                    _src = "dex" if news_item.get("is_dex_spike") else "news"
-                                    print(f" Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f})")
+                                    if news_item.get("is_smart_wallet"):
+                                        _src = "smartmoney"
+                                    elif news_item.get("is_dex_spike"):
+                                        _src = "dex"
+                                    else:
+                                        _src = "news"
+                                    print(f" Dynamic lev={dyn_lev}x size×{signal.get('size_multiplier',1):.2f} (score={signal['total_score']:.1f}) src={_src}")
                                     _saas_dispatch(signal, _src,
                                         dyn_lev, TAKE_PROFIT_PERCENT, STOP_LOSS_PERCENT, TRADE_PERCENT_SIZE)
                                     _post_to_channel(signal, _src)
