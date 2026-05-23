@@ -2269,7 +2269,7 @@ _CAREERS_I18N = {
             '💎 Equity 0.2-15% (4 года vest, 1 год cliff)',
             '🤖 15% performance fee на наши боты вместо 25% — НАВСЕГДА',
             '🔓 Early access ко всем новым AI стратегиям',
-            '📈 Pre-IPO / token allocation — гарантировано',
+            '📈 Pre-IPO / token allocation eligibility (subject to future financing terms)',
             '💵 Deferred salary → market post-seed (запуск Q1 2027)',
             '🌍 Fully remote, async, 10-30 часов/неделю',
         ],
@@ -2285,7 +2285,8 @@ _CAREERS_I18N = {
         },
         'cta_apply': 'Подать заявку →',
         'cta_invest': 'Я инвестор →',
-        'foot': 'Вопросы? @Poxcoin в Telegram или glorimanunited@gmail.com',
+        'response_time': 'Отвечаем в течение 48 часов (Europe daytime)',
+        'foot': 'Вопросы? @Poxcoin в Telegram или <a href="mailto:glorimanunited@gmail.com">glorimanunited@gmail.com</a>',
     },
     'ua': {
         'title': 'Вакансії', 'tag': 'ПРИЄДНУЙСЯ ДО KADO',
@@ -2305,7 +2306,7 @@ _CAREERS_I18N = {
             '💎 Equity 0.2-15% (4 роки vest, 1 рік cliff)',
             '🤖 15% performance fee на наші боти замість 25% — НАЗАВЖДИ',
             '🔓 Early access до всіх нових AI стратегій',
-            '📈 Pre-IPO / token allocation — гарантовано',
+            '📈 Pre-IPO / token allocation eligibility (subject to future financing terms)',
             '💵 Deferred salary → market post-seed (запуск Q1 2027)',
             '🌍 Fully remote, async, 10-30 годин/тиждень',
         ],
@@ -2321,7 +2322,8 @@ _CAREERS_I18N = {
         },
         'cta_apply': 'Подати заявку →',
         'cta_invest': 'Я інвестор →',
-        'foot': 'Питання? @Poxcoin в Telegram або glorimanunited@gmail.com',
+        'response_time': 'Відповідаємо протягом 48 годин (Europe daytime)',
+        'foot': 'Питання? @Poxcoin в Telegram або <a href="mailto:glorimanunited@gmail.com">glorimanunited@gmail.com</a>',
     },
     'en': {
         'title': 'Careers', 'tag': 'JOIN KADO',
@@ -2341,7 +2343,7 @@ _CAREERS_I18N = {
             '💎 Equity 0.2-15% (4yr vest, 1yr cliff)',
             '🤖 15% performance fee on our bots vs standard 25% — FOR LIFE',
             '🔓 Early access to all new AI strategies',
-            '📈 Pre-IPO / token allocation guaranteed',
+            '📈 Pre-IPO / token allocation eligibility (subject to future financing terms)',
             '💵 Deferred salary → market post-seed (Q1 2027)',
             '🌍 Fully remote, async, 10-30 hrs/week',
         ],
@@ -2357,7 +2359,8 @@ _CAREERS_I18N = {
         },
         'cta_apply': 'Apply →',
         'cta_invest': "I'm an investor →",
-        'foot': 'Questions? @Poxcoin on Telegram or glorimanunited@gmail.com',
+        'response_time': 'We respond within 48h (Europe daytime)',
+        'foot': 'Questions? @Poxcoin on Telegram or <a href="mailto:glorimanunited@gmail.com">glorimanunited@gmail.com</a>',
     },
 }
 
@@ -2382,6 +2385,7 @@ def _render_careers(lang: str) -> str:
     why_html = ''.join(f'<li>{x}</li>' for x in t['why'])
     comp_html = ''.join(f'<li>{x}</li>' for x in t['comp'])
 
+    quick_apply_label = t['cta_apply'].replace(' →', '')
     return f"""<!DOCTYPE html>
 <html lang="{lang}"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -2396,7 +2400,9 @@ body{{background:#050505;color:#e8e8e8;font-family:'Inter',-apple-system,sans-se
 .logo{{font-size:36px;font-weight:900;letter-spacing:-0.04em;color:#fff}}
 .tag{{font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#666;margin-top:4px;margin-bottom:48px}}
 h1{{font-size:30px;font-weight:800;line-height:1.15;margin-bottom:12px}}
-.hero-sub{{color:#999;font-size:16px;line-height:1.6;margin-bottom:48px}}
+.hero-sub{{color:#999;font-size:16px;line-height:1.6;margin-bottom:24px}}
+.hero-cta{{display:inline-block;background:#00b894;color:#000;padding:14px 28px;font-weight:700;font-size:13px;letter-spacing:0.15em;text-transform:uppercase;text-decoration:none;margin-bottom:48px;transition:background 0.2s}}
+.hero-cta:hover{{background:#04d39c}}
 .section{{margin-bottom:48px}}
 .section h2{{font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.1em}}
 .section ul{{list-style:none}}
@@ -2423,11 +2429,12 @@ h1{{font-size:30px;font-weight:800;line-height:1.15;margin-bottom:12px}}
 <div class="tag">{t['tag']}</div>
 <h1>{t['hero_title']}</h1>
 <div class="hero-sub">{t['hero_sub']}</div>
+<a class="hero-cta" href="#roles">↓ {quick_apply_label}</a>
 
 <div class="section"><h2>{t['why_title']}</h2><ul>{why_html}</ul></div>
 <div class="section"><h2>{t['comp_title']}</h2><ul>{comp_html}</ul></div>
 
-<div class="section"><h2>{t['roles_title']}</h2>
+<div class="section" id="roles"><h2>{t['roles_title']}</h2>
 {role_cards}
 </div>
 
@@ -2435,7 +2442,7 @@ h1{{font-size:30px;font-weight:800;line-height:1.15;margin-bottom:12px}}
 <a href="/apply/investor?lang={lang}">{t['cta_invest']}</a>
 </div>
 
-<div class="foot">{t['foot']}</div>
+<div class="foot">{t['response_time']}<br>{t['foot']}</div>
 </div>
 </body></html>"""
 
@@ -2528,9 +2535,9 @@ def _i18n(lang: str, key: str) -> str:
         'investor_tag':    {'en':'INVESTOR APPLICATION','ua':'INVESTOR ЗАЯВКА','ru':'INVESTOR ЗАЯВКА'},
         'investor_heading':{'en':'Invest in KADO','ua':'Інвестувати в KADO','ru':'Инвестировать в KADO'},
         'investor_intro': {
-            'en':'Pre-seed SAFE · $5M cap · $50K-$500K checks · Live platform with event-sourced billing · YC W27 planned',
-            'ua':'Pre-seed SAFE · $5M cap · $50K-$500K чеки · Live platform з event-sourced billing · YC W27 планується',
-            'ru':'Pre-seed SAFE · $5M cap · $50K-$500K чеки · Live platform с event-sourced billing · YC W27 планируется',
+            'en':'Pre-seed SAFE · checks $50K-$500K · Live platform with event-sourced billing · YC W27 planned · terms discussed 1:1',
+            'ua':'Pre-seed SAFE · чеки $50K-$500K · Live platform з event-sourced billing · YC W27 планується · умови 1:1',
+            'ru':'Pre-seed SAFE · чеки $50K-$500K · Live platform с event-sourced billing · YC W27 планируется · условия 1:1',
         },
         'name':       {'en':'Full name','ua':"Повне ім'я",'ru':'Полное имя'},
         'email':      {'en':'Email','ua':'Email','ru':'Email'},
