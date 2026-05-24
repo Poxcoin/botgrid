@@ -154,8 +154,16 @@ def _format_tg(results: list[dict]) -> str:
         'killed':        '☠️',
         'insufficient_data': '❓',
     }
+    # Hide killed sources + non-bot 'bybit_event' from main report (Council 2026-05-24).
+    # Killed/bybit_event preserved in DB for audit, just not in daily TG noise.
+    _HIDE_FROM_REPORT = {'bybit_event', 'test'}
+    active_results = [r for r in results
+                      if r['status'] != 'killed' and r['source'] not in _HIDE_FROM_REPORT]
+    killed_results = [r for r in results
+                      if r['status'] == 'killed' or r['source'] in _HIDE_FROM_REPORT]
+
     lines = ['🧮 <b>Bayesian source quality</b>', '<i>posterior WR (CI95) · edge vs break-even</i>', '']
-    for r in results:
+    for r in active_results:
         mark = icon.get(r['status'], '?')
         ci = r['ci']
         wr = r['wr']
@@ -168,6 +176,10 @@ def _format_tg(results: list[dict]) -> str:
                 line += f"  edge={edge_sign}{r['edge_pp']}pp"
         line += f"  PnL=${r['total_pnl']:+.0f}"
         lines.append(line)
+    if killed_results:
+        names = ', '.join(f"{r['source']}({r['n']})" for r in killed_results)
+        lines.append('')
+        lines.append(f"<i>☠️ Killed/excluded: {names}</i>")
     return '\n'.join(lines)
 
 

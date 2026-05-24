@@ -2864,16 +2864,22 @@ async def public_track_record(db: Session = Depends(get_db)):
     from sqlalchemy import func, case
     from database import TradeEvent
 
-    # Aggregate per-day across CLOSED_PNL events (sum across all active users)
+    # Bot-attributed sources only — exclude bybit_event (manual demo activity),
+    # test, and killed sources from public view.
+    _BOT_SOURCES_LIVE = ('news', 'fr', 'trend', 'dex', 'pump_scanner', 'smartmoney')
+
+    # Aggregate per-day from bot-attributed user_trades (not raw events).
+    # This way bybit_event/manual demo activity doesn't pollute public stats.
     daily = db.query(
-        func.date(TradeEvent.event_ts).label('d'),
-        func.coalesce(func.sum(TradeEvent.pnl_usdt), 0.0).label('pnl'),
-        func.count(TradeEvent.id).label('n'),
-        func.coalesce(func.sum(case((TradeEvent.pnl_usdt > 0, 1), else_=0)), 0).label('wins'),
-        func.coalesce(func.sum(case((TradeEvent.pnl_usdt < 0, 1), else_=0)), 0).label('losses'),
+        func.date(UserTrade.closed_at).label('d'),
+        func.coalesce(func.sum(UserTrade.pnl_usdt), 0.0).label('pnl'),
+        func.count(UserTrade.id).label('n'),
+        func.coalesce(func.sum(case((UserTrade.pnl_usdt > 0, 1), else_=0)), 0).label('wins'),
+        func.coalesce(func.sum(case((UserTrade.pnl_usdt < 0, 1), else_=0)), 0).label('losses'),
     ).filter(
-        TradeEvent.event_type == 'CLOSED_PNL',
-        TradeEvent.event_ts >= '2026-05-19 21:06:00',  # baseline (Phase 0 start)
+        UserTrade.status == 'closed',
+        UserTrade.source.in_(_BOT_SOURCES_LIVE),
+        UserTrade.closed_at >= '2026-05-19 21:06:00',
     ).group_by('d').order_by('d').all()
 
     days = []
@@ -2895,14 +2901,14 @@ async def public_track_record(db: Session = Depends(get_db)):
 
     wr = round(total_wins * 100.0 / max(total_wins + total_losses, 1), 1)
 
-    # Per-source from user_trades (live tags)
+    # Per-source from user_trades — only bot-attributed (no manual demo activity).
     sources = db.query(
         UserTrade.source,
         func.count(UserTrade.id),
         func.coalesce(func.sum(UserTrade.pnl_usdt), 0.0),
     ).filter(
         UserTrade.status == 'closed',
-        UserTrade.source.notin_(('bybit_event', 'bybit', 'bybit_manual', 'test')),
+        UserTrade.source.in_(_BOT_SOURCES_LIVE),
         UserTrade.closed_at >= '2026-05-19 21:06:00',
     ).group_by(UserTrade.source).order_by(func.sum(UserTrade.pnl_usdt).desc()).all()
     per_source = [{'source': s, 'n': int(n), 'pnl': round(float(p), 2)} for s, n, p in sources]
