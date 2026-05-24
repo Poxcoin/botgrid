@@ -600,6 +600,42 @@ def generate_signal(news_item: dict) -> dict | None:
         size_multiplier = min(2.0, size_multiplier * 1.5)
         print(f"    High-WR boost: {coin} → size×1.5 ({size_multiplier:.2f})")
 
+    # Convergence filter (Council 2026-05-24, validated by TAO +$160 anatomy).
+    # Count INDEPENDENT bullish/bearish confirmations for the chosen direction.
+    # ≥5 convergence → 1.3× size boost (high-conviction setup like TAO)
+    # <3 convergence → reject signal (weak setup like LINK -$36 trades)
+    convergence = 0
+    is_long = action == "LONG"
+    if is_long or action == "SHORT":
+        # 1. AI directional confidence
+        if (is_long and news_score >= 6) or (not is_long and news_score <= -6):
+            convergence += 1
+        # 2. Trend alignment
+        if trend_aligned:
+            convergence += 1
+        # 3. Whale activity matching direction
+        if whale_active and ((is_long and whale_side == "BUY") or (not is_long and whale_side == "SELL")):
+            convergence += 1
+        # 4. Funding rate extreme = squeeze setup against shorts (for LONG) or longs (for SHORT)
+        if (is_long and funding_rate < -0.003) or (not is_long and funding_rate > 0.005):
+            convergence += 1
+        # 5. OI growing = committed money entering
+        if abs(oi_change) > 0.02:
+            convergence += 1
+        # 6. High-tier source weight
+        if source_weight >= 0.8:
+            convergence += 1
+        # 7. Macro on-chain support (whale withdraw bullish / deposit bearish)
+        if (is_long and onchain_boost > 0) or (not is_long and onchain_boost < 0):
+            convergence += 1
+
+        if convergence < 3:
+            print(f"    ⊘ Convergence {convergence}/7 < 3 — rejecting weak signal ({coin} {action} score={total_score:.1f})")
+            action = "HOLD"
+        elif convergence >= 5:
+            size_multiplier = min(2.0, size_multiplier * 1.3)
+            print(f"    🎯 Convergence {convergence}/7 ≥ 5 — boost: size×1.3 → {size_multiplier:.2f}")
+
     size_multiplier = round(size_multiplier, 2)
 
     # ==========================================
