@@ -306,7 +306,11 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
     uid             = user["user_id"]
     source          = signal.get("source", "news")
     symbol          = signal["symbol"]
-    side            = signal["side"]           # LONG | SHORT
+    # Accept both 'side' (canonical) and 'action' (legacy from okx_trending, pump_scanner).
+    side            = signal.get("side") or signal.get("action")
+    if side not in ("LONG", "SHORT"):
+        print(f"[DISPATCHER] SKIP user={uid} {symbol} — invalid side={side!r}")
+        return False
     leverage        = signal.get("leverage", 3)
     size_pct        = signal.get("size_pct", 3.0)
     tp_pct          = signal.get("tp_pct",  10.0)
