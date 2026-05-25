@@ -26,12 +26,27 @@ from userbot.exchange import bybit_balance, bybit_positions, init_user_exchange
 log = logging.getLogger("userbot")
 
 WEBAPP_URL = "https://kadoclub.net/webapp"
+DASHBOARD_URL = "https://kadoclub.net/account"
 
 
 def _webapp_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text=" Open App", web_app=WebAppInfo(url=WEBAPP_URL))
+        InlineKeyboardButton(text="Open App", web_app=WebAppInfo(url=WEBAPP_URL))
     ]])
+
+
+def _section_kb(view: str = "account") -> InlineKeyboardMarkup:
+    """Inline keyboard appended to each section response: open relevant dashboard tab + main app."""
+    url_map = {
+        "account":   f"{DASHBOARD_URL}#account",
+        "balance":   f"{DASHBOARD_URL}#balance",
+        "positions": f"{DASHBOARD_URL}#positions",
+        "history":   f"{DASHBOARD_URL}#history",
+    }
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Open dashboard", url=url_map.get(view, DASHBOARD_URL))],
+        [InlineKeyboardButton(text="Open App", web_app=WebAppInfo(url=WEBAPP_URL))],
+    ])
 
 
 def _menu_keyboard() -> ReplyKeyboardMarkup:
@@ -160,6 +175,7 @@ async def _send_account(message: Message):
                 created_at=_fmt_dt(user.created_at),
             ),
             parse_mode="HTML",
+            reply_markup=_section_kb("account"),
         )
     finally:
         db.close()
@@ -206,6 +222,7 @@ async def _send_balance(message: Message):
                 upnl_sign="+" if upnl >= 0 else "",
             ),
             parse_mode="HTML",
+            reply_markup=_section_kb("balance"),
         )
     finally:
         db.close()
@@ -247,7 +264,7 @@ async def _send_positions(message: Message):
 
             lines = []
             for p in positions:
-                icon = "🟢" if p["side"] == "LONG" else ""
+                icon = "+" if p["side"] == "LONG" else "-"
                 lev  = f"x{p['leverage']}" if p["leverage"] else ""
                 ep   = f"@ {p['entry_price']:g}" if p["entry_price"] else ""
                 pnl  = p["unrealized_pnl"]
@@ -260,6 +277,7 @@ async def _send_positions(message: Message):
             await message.answer(
                 texts.POSITIONS_LIST.format(count=len(positions), items="\n".join(lines)),
                 parse_mode="HTML",
+                reply_markup=_section_kb("positions"),
             )
             return
 
@@ -278,7 +296,7 @@ async def _send_positions(message: Message):
         lines = []
         for t in trades:
             coin = (t.symbol or "").split("/")[0].replace("USDT", "") or "?"
-            icon = "🟢" if t.side == "LONG" else ""
+            icon = "+" if t.side == "LONG" else "-"
             lev  = f"x{t.leverage}" if t.leverage else ""
             ep   = f"@ {float(t.entry_price):.4f}" if t.entry_price else ""
             lines.append(f"{icon} <b>{coin}</b> {t.side} {lev} {ep}  [{t.source}]")
@@ -286,6 +304,7 @@ async def _send_positions(message: Message):
         await message.answer(
             texts.POSITIONS_LIST.format(count=len(trades), items="\n".join(lines)),
             parse_mode="HTML",
+            reply_markup=_section_kb("positions"),
         )
     finally:
         db.close()
@@ -337,7 +356,7 @@ async def cmd_status(message: Message):
         if positions:
             lines = []
             for p in positions[:5]:
-                icon = "🟢" if p["side"] == "LONG" else ""
+                icon = "+" if p["side"] == "LONG" else "-"
                 pnl  = p["unrealized_pnl"]
                 sign = "+" if pnl >= 0 else ""
                 lines.append(f"{icon} {p['symbol']} {sign}{pnl:.2f}")
@@ -470,6 +489,7 @@ async def _send_history(message: Message):
                 all_total=a_total, all_pnl=a_pnl, all_pnl_sign=_sign(a_pnl),
             ),
             parse_mode="HTML",
+            reply_markup=_section_kb("history"),
         )
     finally:
         db.close()

@@ -4,10 +4,10 @@ Mostly RU/UA — matches dashboard tone.
 """
 
 # ── Reply-keyboard button labels (used as F.text filters in handlers) ────────
-BTN_ACCOUNT   = " Акаунт"
-BTN_BALANCE   = " Баланс"
-BTN_POSITIONS = " Позиції"
-BTN_HISTORY   = " Історія"
+BTN_ACCOUNT   = "Акаунт"
+BTN_BALANCE   = "Баланс"
+BTN_POSITIONS = "Позиції"
+BTN_HISTORY   = "Історія"
 
 
 WELCOME_LINKED = (
@@ -76,14 +76,14 @@ PNL_STATS = (
 POSITIONS_EMPTY = "Відкритих позицій немає."
 
 POSITIONS_LIST = (
-    " <b>Відкриті позиції ({count})</b>\n\n"
+    "<b>Відкриті позиції ({count})</b>\n\n"
     "{items}"
 )
 
 
 # ── Account view (new) ────────────────────────────────────────────────────────
 ACCOUNT_INFO = (
-    " <b>Акаунт</b>\n\n"
+    "<b>Акаунт</b>\n\n"
     "Email: <code>{email}</code>\n"
     "Username: <code>{username}</code>\n"
     "План: <b>{plan}</b>{trial_line}\n"
@@ -96,7 +96,7 @@ ACCOUNT_INFO = (
 
 # ── Balance view (new) ───────────────────────────────────────────────────────
 BALANCE_INFO = (
-    " <b>Баланс Bybit</b>{testnet_tag}\n\n"
+    "<b>Баланс Bybit</b>{testnet_tag}\n\n"
     "Wallet:      <b>{wallet:.2f}</b> USDT\n"
     "Equity:      <b>{equity:.2f}</b> USDT\n"
     "Available:   <b>{free:.2f}</b> USDT\n"
@@ -104,12 +104,12 @@ BALANCE_INFO = (
 )
 
 NO_API_KEYS = (
-    " У тебе ще не підключені API-ключі Bybit.\n\n"
+    "<b>API-ключі Bybit не підключені</b>\n\n"
     "Зайди на kadoclub.net → Settings → Bybit API і підключи ключі — тоді я зможу показувати баланс."
 )
 
 EXCHANGE_ERROR = (
-    " Не вдалося отримати дані з Bybit зараз.\n"
+    "<b>Помилка з'єднання з Bybit</b>\n\n"
     "Спробуй за хвилину. Якщо повторюється — перевір ключі в особистому кабінеті."
 )
 
