@@ -962,8 +962,8 @@ def _run_single(cfg: dict) -> None:
                             _qty = abs(float(_p.get("contracts") or 0))
                             if _qty <= 0:
                                 continue
-                            _side = _p.get("side", "").lower()
-                            _close_side = "sell" if _side == "long" else "buy"
+                            _side = _p.get("side", "").lower()  # "buy" або "sell"
+                            _close_side = "sell" if _side == "buy" else "buy"
                             try:
                                 exchange.create_order(
                                     symbol, "market", _close_side, _qty,

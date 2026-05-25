@@ -51,7 +51,31 @@ COOLDOWN   = 8 * 3600  # 8h per symbol after entry
 TREND_TRADING = os.getenv("TREND_TRADING", "False").lower() == "true"
 
 _cooldowns: dict[str, float] = {}
-_open_symbols: set[str] = set()
+
+
+def _has_open_trend_position(symbol: str) -> bool:
+    """DB-backed check: any open user_trade with source='trend' on this symbol.
+
+    Replaces the legacy in-memory `_open_symbols` set which was never cleared
+    on close (would permanently block a symbol after first trade).
+    """
+    try:
+        from database import SessionLocal, UserTrade
+    except Exception as e:
+        print(f"[TREND]  open-check import err: {e}")
+        return False
+    db = SessionLocal()
+    try:
+        return db.query(UserTrade).filter(
+            UserTrade.source == 'trend',
+            UserTrade.symbol == symbol,
+            UserTrade.status == 'open',
+        ).first() is not None
+    except Exception as e:
+        print(f"[TREND]  open-check query err: {e}")
+        return False
+    finally:
+        db.close()
 
 
 def _make_ex() -> ccxt.bybit:
@@ -114,7 +138,7 @@ def run_trend_engine():
                 cd = _cooldowns.get(symbol, 0)
                 if now < cd:
                     continue
-                if symbol in _open_symbols:
+                if _has_open_trend_position(symbol):
                     continue
 
                 try:
@@ -187,7 +211,6 @@ def run_trend_engine():
                             "sl_pct":   sl_pct,
                             "size_pct": SIZE_PCT,
                         })
-                        _open_symbols.add(symbol)
                         send_telegram_message(tg_body, TG_CHAT_ID)
                     except Exception as e:
                         print(f"[TREND]  dispatch err {symbol}: {e}")

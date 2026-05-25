@@ -54,7 +54,8 @@ LEVERAGE = 4
 SIZE_PCT = 3.0                     # 3% of balance per trade
 
 _last_signal_ts: dict[str, float] = {}  # coin -> last signal unix ts
-_open_signals_count = 0
+# NOTE: MAX_OPEN_SIGNALS gate not enforced here — cap is implicit via 12h per-symbol
+# cooldown + dispatcher-side position limits. Removed dead _open_signals_count counter.
 
 
 def _log(msg: str) -> None:
@@ -118,8 +119,8 @@ def _scan_iteration(ex: ccxt.Exchange) -> None:
         if not daily or len(daily) < 7:
             continue
         # Last 7 days (excluding today) avg quote-vol
-        # OHLCV format: [ts, o, h, l, c, base_volume]. Quote = vol × close.
-        prev_qvols = [bar[5] * bar[4] for bar in daily[-8:-1]]
+        # Bybit linear perps via ccxt: bar[5] is ALREADY quote volume (turnover).
+        prev_qvols = [bar[5] for bar in daily[-8:-1]]
         if not prev_qvols:
             continue
         avg_prev_qvol = sum(prev_qvols) / len(prev_qvols)
@@ -156,6 +157,7 @@ def _scan_iteration(ex: ccxt.Exchange) -> None:
             'confidence': 65,
             'size_multiplier': 1.0,
             'leverage': LEVERAGE,
+            'size_pct': SIZE_PCT,
             'tp_pct': TP_PCT,
             'sl_pct': SL_PCT,
             '_market': {'quote_volume_24h': qv24, 'vol_ratio': vol_ratio,
