@@ -76,32 +76,23 @@ def _center_text(d, text: str, font, y: int, W: int, color=FG):
 
 
 def brand_static_image() -> str:
-    """Generates the master KADO brand image. Run once, served by web_server."""
+    """Master KADO brand image. Pure black + white. No accent colors, no decorations."""
     W, H = 1080, 1080
     img, d = _draw_brand_frame(W, H)
 
-    # KADO wordmark center
-    wm = _font(220, bold=True)
+    # KADO wordmark centered — large, white, sole element
+    wm = _font(260, bold=True)
     bbox = d.textbbox((0, 0), 'KADO', font=wm)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x = (W - tw) / 2
-    y = (H - th) / 2 - 40
+    y = (H - th) / 2 - 20
     d.text((x, y), 'KADO', font=wm, fill=FG)
 
-    # Single accent line under "KADO"
-    line_y = y + th + 30
-    line_w = 280
+    # Single thin white horizontal underline — no green accent
+    line_y = y + th + 40
+    line_w = 180
     line_x = (W - line_w) / 2
-    d.rectangle([line_x, line_y, line_x + line_w, line_y + 5], fill=ACCENT)
-
-    # Subtitle
-    sub = _font(28, bold=False)
-    _center_text(d, 'AI TRADING PLATFORM', sub, line_y + 30, W, color=MUTED)
-
-    # Bottom corners
-    foot = _font(22, bold=False)
-    d.text((40, H - 50), 'kadoclub.net', font=foot, fill=MUTED)
-    d.text((W - 130, H - 50), 'pre-seed', font=foot, fill=MUTED)
+    d.rectangle([line_x, line_y, line_x + line_w, line_y + 2], fill=FG)
 
     out = STATIC_DIR / 'kado-brand.png'
     img.save(out, 'PNG', optimize=True)
@@ -110,53 +101,32 @@ def brand_static_image() -> str:
 
 def brand_signal_image(coin: str, action: str = '', score: float | None = None,
                         subtitle: str = '') -> str:
-    """Dynamic per-signal image. Returns local file path."""
+    """Dynamic per-signal image. Pure black + white. No accent colors."""
     W, H = 1080, 1080
     img, d = _draw_brand_frame(W, H)
 
-    # Header: KADO top-left
-    hd = _font(56, bold=True)
-    d.text((40, 30), 'KADO', font=hd, fill=FG)
-    tag = _font(18, bold=False)
-    d.text((40, 95), 'AI TRADING', font=tag, fill=MUTED)
+    # Top: KADO wordmark
+    hd = _font(48, bold=True)
+    bbox = d.textbbox((0, 0), 'KADO', font=hd)
+    tw = bbox[2] - bbox[0]
+    d.text(((W - tw) / 2, 60), 'KADO', font=hd, fill=FG)
 
-    # Center: coin symbol HUGE
+    # Center: coin symbol large
     coin_clean = (coin or '?').upper()[:6]
-    cf_size = 320 if len(coin_clean) <= 4 else 240
+    cf_size = 280 if len(coin_clean) <= 4 else 220
     cf = _font(cf_size, bold=True)
     bbox = d.textbbox((0, 0), coin_clean, font=cf)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    y_coin = (H - th) / 2 - 100
+    y_coin = (H - th) / 2 - 40
     d.text(((W - tw) / 2, y_coin), coin_clean, font=cf, fill=FG)
 
-    # Accent line below coin
+    # White underline (no green)
     line_y = y_coin + th + 30
-    line_w = 200
+    line_w = 160
     line_x = (W - line_w) / 2
-    d.rectangle([line_x, line_y, line_x + line_w, line_y + 6], fill=ACCENT)
+    d.rectangle([line_x, line_y, line_x + line_w, line_y + 2], fill=FG)
 
-    # Action/score below line
-    if action or score is not None:
-        meta_parts = []
-        if action:
-            meta_parts.append(action.upper())
-        if score is not None:
-            meta_parts.append(f"SCORE {score:.1f}")
-        meta = '  ·  '.join(meta_parts)
-        mf = _font(40, bold=True)
-        _center_text(d, meta, mf, line_y + 30, W, color=FG)
-
-    if subtitle:
-        sf = _font(24, bold=False)
-        _center_text(d, subtitle[:60], sf, line_y + 90, W, color=MUTED)
-
-    # Bottom: hash + url
-    foot = _font(22, bold=False)
-    d.text((40, H - 50), 'kadoclub.net', font=foot, fill=MUTED)
-    d.text((W - 200, H - 50), 'kadoclub.net/track-record', font=foot, fill=MUTED)
-
-    slug = _slug(f"{coin}_{action}_{int(score or 0)}")
-    out = POSTS_DIR / f"{slug}_{hashlib.md5(slug.encode()).hexdigest()[:8]}.png"
+    out = POSTS_DIR / f"{_slug(coin)}_{hashlib.md5(coin.encode()).hexdigest()[:6]}.png"
     img.save(out, 'PNG', optimize=True)
     return str(out)
 
