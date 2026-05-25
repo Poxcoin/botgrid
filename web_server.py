@@ -379,13 +379,42 @@ def _purge_admin_sessions():
         _admin_2fa_pending.pop(k, None)
 
 
+def _admin_ip_allowed(ip: str) -> bool:
+    """Optional global IP allowlist for admin pages (env: ADMIN_IP_ALLOWLIST, comma-separated CIDRs).
+
+    If env not set OR empty, allow all (per-account allowlist still applies in authenticate()).
+    """
+    allowlist = os.getenv('ADMIN_IP_ALLOWLIST', '').strip()
+    if not allowlist:
+        return True
+    import ipaddress
+    try:
+        addr = ipaddress.ip_address(ip)
+    except (ValueError, TypeError):
+        return False
+    for entry in [c.strip() for c in allowlist.split(',') if c.strip()]:
+        try:
+            if '/' in entry:
+                if addr in ipaddress.ip_network(entry, strict=False):
+                    return True
+            elif addr == ipaddress.ip_address(entry):
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def require_admin_session(request: Request, db: Session = Depends(get_db)):
     """New admin auth: cookie-based session backed by AdminUser table + role.
 
     Returns dict {user: AdminUser, session: dict}.
     Raises 401 if no/invalid session.
+    Enforces global IP allowlist if ADMIN_IP_ALLOWLIST env is set.
     """
     from database import AdminUser
+    ip = _real_ip(request)
+    if not _admin_ip_allowed(ip):
+        raise HTTPException(status_code=403, detail='IP not in admin allowlist')
     _purge_admin_sessions()
     token = request.cookies.get(ADMIN_SESSION_COOKIE)
     if not token:
@@ -4223,6 +4252,108 @@ if (TOKEN) { show('main'); load(); setInterval(load, 30000); } else { show('logi
 @app.get("/admin/dashboard", response_class=HTMLResponse)
 async def admin_dashboard_page():
     return _ADMIN_DASH_HTML
+
+
+_ADMIN_LOGIN_PAGE = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KADO Admin — Sign in</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;color:#e8e8e8;font-family:-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wrap{max-width:360px;width:100%;background:#0a0a0a;border:1px solid #1a1a1a;padding:32px}
+.logo{font-size:28px;font-weight:900;letter-spacing:-0.04em;color:#fff;text-align:center;margin-bottom:8px}
+.tag{font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:#666;text-align:center;margin-bottom:32px}
+label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#888;margin-top:18px;margin-bottom:6px}
+input{width:100%;padding:14px;background:#050505;border:1px solid #222;color:#fff;font-family:inherit;font-size:14px}
+input:focus{outline:none;border-color:#fff}
+button{margin-top:24px;width:100%;background:#fff;color:#000;border:none;padding:14px;font-weight:700;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;font-family:inherit}
+button:hover{background:#e8e8e8}
+.err{color:#f87171;margin-top:14px;font-size:12px;text-align:center}
+.note{color:#555;font-size:11px;text-align:center;margin-top:24px}
+.note a{color:#888;text-decoration:none}
+.note a:hover{color:#fff}
+</style></head>
+<body>
+<div class="wrap">
+<div class="logo">KADO</div>
+<div class="tag">ADMIN ACCESS</div>
+
+<div id="step1">
+  <label>Username or email</label>
+  <input id="lg-user" autocomplete="username" autofocus>
+  <label>Password</label>
+  <input id="lg-pw" type="password" autocomplete="current-password">
+  <button onclick="doLogin()">Sign in</button>
+</div>
+
+<div id="step2" style="display:none">
+  <label>2FA code (6 digits)</label>
+  <input id="lg-totp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+  <button onclick="doVerify2FA()">Verify</button>
+</div>
+
+<div id="err" class="err"></div>
+<div class="note">Audit logged · 2FA required · Session 8h</div>
+</div>
+
+<script>
+let PENDING = null;
+async function doLogin(){
+  const user = document.getElementById('lg-user').value.trim();
+  const pw   = document.getElementById('lg-pw').value;
+  const err  = document.getElementById('err'); err.textContent='';
+  if (!user || !pw) { err.textContent='All fields required'; return; }
+  try {
+    const r = await fetch('/api/admin/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({username:user, password:pw}),
+    });
+    if (r.status === 429){ err.textContent='Too many attempts (5/5min)'; return; }
+    if (r.status === 423){ err.textContent='Account locked (15 min)'; return; }
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok){ err.textContent = d.detail || 'Invalid credentials'; return; }
+    if (d.status === 'totp_required'){
+      PENDING = d.pending_token;
+      document.getElementById('step1').style.display='none';
+      document.getElementById('step2').style.display='block';
+      document.getElementById('lg-totp').focus();
+      return;
+    }
+    location.href = '/admin/dashboard';
+  } catch(e){ err.textContent='Network error'; }
+}
+
+async function doVerify2FA(){
+  const code = document.getElementById('lg-totp').value.trim();
+  const err  = document.getElementById('err'); err.textContent='';
+  if (code.length !== 6){ err.textContent='6-digit code required'; return; }
+  try {
+    const r = await fetch('/api/admin/auth/verify-2fa', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({pending_token: PENDING, totp_code: code}),
+    });
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok){ err.textContent = d.detail || 'Invalid code'; return; }
+    location.href = '/admin/dashboard';
+  } catch(e){ err.textContent='Network error'; }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter'){
+    if (document.getElementById('step1').style.display !== 'none') doLogin();
+    else doVerify2FA();
+  }
+});
+</script>
+</body></html>"""
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page():
+    return _ADMIN_LOGIN_PAGE
 
 
 @app.get("/admin", response_class=HTMLResponse)
