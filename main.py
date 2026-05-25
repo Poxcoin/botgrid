@@ -77,7 +77,7 @@ def _post_to_channel(signal: dict, source: str) -> None:
 
         from modules.tg_notifier import tg_footer, tg_escape
         is_real_link = bool(link) and link.startswith(('http://', 'https://'))
-        _KADO_IMG = 'https://kadoclub.net/og-image.png'
+        _KADO_IMG = 'https://kadoclub.net/kado-brand.png'
 
         if source in ("news", "dex"):
             headline_text = (title[:180] + "…" if len(title) > 180 else title).upper()

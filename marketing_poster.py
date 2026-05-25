@@ -173,7 +173,7 @@ _TG_FOOTER = (
     "🤖 <a href=\"https://kadoclub.net\">KADO</a> · "
     "<a href=\"https://t.me/KADO_c_BOT\">Try the bot →</a>"
 )
-_BRAND_IMAGE_URL = "https://kadoclub.net/og-image.png"  # fallback if news has no image
+_BRAND_IMAGE_URL = "https://kadoclub.net/kado-brand.png"  # clean minimalist brand image
 
 
 def format_news_post(item: dict) -> str:
