@@ -194,11 +194,16 @@ def _check_user(user: dict) -> int:
         if mkt_id in open_market_ids:
             continue
 
-        # Fetch closed PnL for this symbol from Bybit (V5 API)
-        # Try twice: first with startTime (fast path), then without (catches delayed records)
+        # Fetch closed PnL for this symbol from Bybit (V5 API).
+        # Per memory feedback_position_closer_pnl_match: sort ASC + qty within 5%
+        # (not DESC + first timestamp pass). Wrong-trade attribution if multiple
+        # trades on same symbol close in same window.
         exit_price = float(trade.entry_price or 0)
         pnl_usdt   = 0.0
         opened_ms  = int(opened_ts.timestamp() * 1000)
+        trade_qty  = float(trade.qty or 0)
+        # Bybit closed_pnl 'side' is the CLOSE side: LONG opens with Buy + closes with Sell
+        expected_close_side = "Sell" if (trade.side or "").upper() == "LONG" else "Buy"
         pnl_found  = False
         for pnl_params in [
             {"category": "linear", "symbol": mkt_id, "startTime": opened_ms, "limit": 50},
@@ -208,18 +213,32 @@ def _check_user(user: dict) -> int:
                 break
             try:
                 resp  = ex.private_get_v5_position_closed_pnl(pnl_params)
-                items = resp.get("result", {}).get("list", [])
+                items = resp.get("result", {}).get("list", []) or []
+                # Filter to plausible matches: time>=opened, qty within 5%, side matches
+                candidates = []
                 for item in items:
-                    # 5s tolerance for Bybit timestamp vs local clock skew
-                    if float(item.get("createdTime", 0)) >= opened_ms - 5000:
-                        ep = float(item.get("avgExitPrice") or 0)
-                        if ep > 0:
-                            exit_price = ep
-                            pnl_usdt   = float(item.get("closedPnl", 0))
-                            pnl_found  = True
-                            break
-            except Exception:
-                pass
+                    ts_ms = float(item.get("createdTime", 0) or 0)
+                    if ts_ms < opened_ms - 5000:
+                        continue
+                    item_qty = float(item.get("qty", 0) or item.get("closedSize", 0) or 0)
+                    if trade_qty > 0 and item_qty > 0:
+                        diff_pct = abs(item_qty - trade_qty) / trade_qty
+                        if diff_pct > 0.05:  # tolerance 5%
+                            continue
+                    item_side = (item.get("side") or "").strip()
+                    if expected_close_side and item_side and item_side != expected_close_side:
+                        continue
+                    ep = float(item.get("avgExitPrice") or 0)
+                    if ep <= 0:
+                        continue
+                    candidates.append((ts_ms, ep, float(item.get("closedPnl", 0) or 0)))
+                if candidates:
+                    # ASC by createdTime → pick oldest matching (first close after open)
+                    candidates.sort(key=lambda x: x[0])
+                    _, exit_price, pnl_usdt = candidates[0]
+                    pnl_found = True
+            except Exception as _pe:
+                print(f"[CLOSER] closed_pnl fetch err {trade.symbol}: {_pe}")
 
         # No PnL record found — only close if old enough to be a ghost
         if not pnl_found:

@@ -116,7 +116,9 @@ def _bulk_insert(db, rows: Iterable[dict]) -> int:
     """Insert rows skipping duplicates (UNIQUE constraint on user_id+bybit_event_id).
 
     Pre-fetch existing bybit_event_ids to avoid IntegrityError + rollback() which
-    would wipe ALL prior successful inserts in the same session.
+    would wipe ALL prior successful inserts in the same session. On race-condition
+    IntegrityError (another process inserted same event between our pre-fetch and
+    commit), fall back to per-row inserts so one collision doesn't lose the batch.
     """
     rows = list(rows)
     if not rows:
@@ -128,21 +130,41 @@ def _bulk_insert(db, rows: Iterable[dict]) -> int:
                    .filter(TradeEvent.user_id.in_(user_ids))
                    .all()
     }
-    inserted = 0
+    candidates = []
     for row in rows:
         key = (row['user_id'], row['bybit_event_id'])
         if key in existing:
             continue
-        db.add(TradeEvent(**row))
+        candidates.append(row)
         existing.add(key)  # in-batch dedup too
-        inserted += 1
-    if inserted:
-        try:
-            db.commit()
-        except IntegrityError:
-            db.rollback()
-            return 0
-    return inserted
+    if not candidates:
+        return 0
+    # First attempt: single batch commit
+    for row in candidates:
+        db.add(TradeEvent(**row))
+    try:
+        db.commit()
+        return len(candidates)
+    except IntegrityError as e:
+        # Race condition — another process inserted some of our rows between
+        # pre-fetch and commit. Rollback and retry per-row so one collision
+        # doesn't lose the entire batch (audit finding Q4).
+        db.rollback()
+        print(f'[event_ingestor]  batch IntegrityError ({str(e)[:120]}), falling back to per-row')
+        inserted = 0
+        for row in candidates:
+            try:
+                db.add(TradeEvent(**row))
+                db.commit()
+                inserted += 1
+            except IntegrityError:
+                db.rollback()  # only loses this one row
+                continue
+            except Exception as _e:
+                db.rollback()
+                print(f'[event_ingestor]  per-row insert err uid={row.get("user_id")} eid={row.get("bybit_event_id")}: {_e}')
+                continue
+        return inserted
 
 
 def ingest_user(user_id: int) -> dict:

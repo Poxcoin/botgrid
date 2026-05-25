@@ -42,13 +42,46 @@ def _duration_for(source: str) -> int:
     return _DURATION_PER_SOURCE.get(source, DURATION_SEC)
 
 _lock = threading.Lock()
+_LOCK_FILE = Path("/opt/botgrid/loss_cooldown_state.lock")
+
+
+class _CrossProcessLock:
+    """fcntl.flock wrapper — cross-process read-modify-write safety.
+
+    Per audit Q3: threading.Lock is per-process; 5+ systemd services share this
+    JSON file. Without fcntl.flock, two services concurrently incrementing
+    recent_sl_ts will race-overwrite each other → lost SL counts.
+    """
+    def __init__(self, path: Path):
+        self.path = path
+        self.fd = None
+
+    def __enter__(self):
+        import fcntl
+        self.path.touch(exist_ok=True)
+        self.fd = open(self.path, "r+")
+        fcntl.flock(self.fd.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *args):
+        import fcntl
+        try:
+            fcntl.flock(self.fd.fileno(), fcntl.LOCK_UN)
+            self.fd.close()
+        except Exception:
+            pass
 
 
 def _load_state() -> dict:
     if _STATE_FILE.exists():
         try:
             return json.loads(_STATE_FILE.read_text())
-        except Exception:
+        except json.JSONDecodeError as e:
+            # Corrupted state file — log but do NOT silently wipe all cooldowns.
+            print(f"[cooldown]  state file corrupted: {e} — using empty state (will overwrite on next save)")
+            return {}
+        except Exception as e:
+            print(f"[cooldown]  state file read err: {type(e).__name__}: {e}")
             return {}
     return {}
 
@@ -60,7 +93,7 @@ def _save_state(s: dict) -> None:
 
 
 def is_in_cooldown(source: str) -> tuple[bool, float]:
-    """Returns (is_blocked, cooldown_until_ts)."""
+    """Returns (is_blocked, cooldown_until_ts). Read-only; no cross-process lock needed."""
     with _lock:
         s = _load_state()
     src = s.get(source, {})
@@ -73,16 +106,17 @@ def is_in_cooldown(source: str) -> tuple[bool, float]:
 def register_sl(source: str, send_tg: Optional[Callable[[str], None]] = None) -> bool:
     """Record an SL for `source`. Returns True if cooldown was just triggered.
 
+    Cross-process safe via fcntl.flock — 5+ services may call concurrently.
     `send_tg` (optional): callable that takes a message string. Used for TG alerts.
     """
-    with _lock:
+    with _CrossProcessLock(_LOCK_FILE), _lock:
         s = _load_state()
         now = time.time()
         src = s.setdefault(source, {"recent_sl_ts": [], "cooldown_until": 0})
 
         # Already in cooldown — don't accumulate more
         if src.get("cooldown_until", 0) > now:
-            _save_state(s)
+            # No state change — skip pointless write.
             return False
 
         src["recent_sl_ts"].append(now)
@@ -114,8 +148,11 @@ def register_sl(source: str, send_tg: Optional[Callable[[str], None]] = None) ->
 
 
 def check_and_expire(source: str, send_tg: Optional[Callable[[str], None]] = None) -> bool:
-    """Detect expiry transition. Returns True if cooldown just expired (and emits TG)."""
-    with _lock:
+    """Detect expiry transition. Returns True if cooldown just expired (and emits TG).
+
+    Cross-process safe: state mutation wrapped in fcntl.flock.
+    """
+    with _CrossProcessLock(_LOCK_FILE), _lock:
         s = _load_state()
         src = s.get(source, {})
         until = float(src.get("cooldown_until", 0) or 0)

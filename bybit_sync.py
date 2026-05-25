@@ -106,6 +106,9 @@ def sync_user_trades(user_id: int) -> int:
                 open_by_coin.setdefault(c, []).append(t)
 
         new_count = 0
+        # Collect SL registrations to fire AFTER successful commit — prevents
+        # double-SL counts if commit rolls back (audit finding Q2 cross-process).
+        pending_sl_registrations: list[tuple[str, float]] = []
         for it in items:
             order_id = it.get("orderId") or ""
             if not order_id:
@@ -117,7 +120,8 @@ def sync_user_trades(user_id: int) -> int:
             pnl       = float(it.get("closedPnl") or 0)
             coin      = _normalize_coin(it.get("symbol", ""))
             closed_ms = int(it.get("updatedTime") or 0)
-            closed_dt = datetime.utcfromtimestamp(closed_ms / 1000) if closed_ms else None
+            # tz-aware UTC; later .replace(tzinfo=None) when comparing to DB naive datetimes
+            closed_dt = datetime.fromtimestamp(closed_ms / 1000, tz=timezone.utc).replace(tzinfo=None) if closed_ms else None
             entry_p   = float(it.get("avgEntryPrice") or 0)
             exit_p    = float(it.get("avgExitPrice") or 0)
             qty       = float(it.get("qty") or 0)
@@ -168,7 +172,8 @@ def sync_user_trades(user_id: int) -> int:
                     t.pnl_usdt   = pnl
                     t.status     = "closed"
                     t.closed_at  = closed_dt
-                    _maybe_register_sl(t.source, pnl)
+                    if pnl < 0:
+                        pending_sl_registrations.append((t.source, pnl))
                 break
             if already_exists:
                 existing_order_ids.add(order_id)
@@ -185,7 +190,8 @@ def sync_user_trades(user_id: int) -> int:
                     t.opened_at.replace(tzinfo=None) <= closed_dt + timedelta(minutes=10)
                 ]
                 if valid:
-                    matched = min(valid, key=lambda t: t.opened_at or datetime.min)
+                    # datetime.min naive; ensure same naivete to avoid TypeError
+                    matched = min(valid, key=lambda t: (t.opened_at.replace(tzinfo=None) if t.opened_at and t.opened_at.tzinfo else t.opened_at) or datetime.min)
 
             if matched:
                 matched.exit_price = exit_p
@@ -195,7 +201,8 @@ def sync_user_trades(user_id: int) -> int:
                 if not matched.order_id:
                     matched.order_id = order_id
                 open_by_coin[coin] = [t for t in candidates if t.id != matched.id]
-                _maybe_register_sl(matched.source, pnl)
+                if pnl < 0:
+                    pending_sl_registrations.append((matched.source, pnl))
             else:
                 # Completely new trade — insert as standalone "bybit" record
                 # Bybit closed_pnl "side" = closing order direction:
@@ -225,11 +232,21 @@ def sync_user_trades(user_id: int) -> int:
         if new_count:
             db.commit()
             logger.info(f"[bybit_sync] user={user_id} updated/inserted {new_count} trades")
+            # Fire SL registrations ONLY after successful commit.
+            # Per memory feedback_sqlite_concurrent_writes: if commit raised,
+            # SL counts would have been double-registered next sync.
+            for src, pnl in pending_sl_registrations:
+                _maybe_register_sl(src, pnl)
         return new_count
 
     except Exception as e:
-        logger.error(f"[bybit_sync] sync_user_trades({user_id}): {e}")
-        db.rollback()
+        # Surface SQLite 'malformed' / OperationalError explicitly — was hidden
+        # in audit (bare except → silent return 0).
+        logger.error(f"[bybit_sync] sync_user_trades({user_id}): {type(e).__name__}: {e}")
+        try:
+            db.rollback()
+        except Exception as _rb:
+            logger.error(f"[bybit_sync] rollback failed: {_rb}")
         return 0
     finally:
         db.close()
