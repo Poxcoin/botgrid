@@ -59,6 +59,11 @@ ALLOWED_USERS = {
 DB_PATH = '/opt/botgrid/saas_database.sqlite'
 BASE_URL = 'https://kadoclub.net'
 
+# Bot-attributed sources only (exclude bybit_event manual demo, killed sources, test)
+_ACTIVE_BOT_SOURCES = ('news', 'fr', 'dex', 'trend', 'pump_scanner', 'smartmoney', 'okx_trending')
+_BASELINE = '2026-05-19 21:06:00'
+_SRC_SQL = "(" + ",".join(f"'{s}'" for s in _ACTIVE_BOT_SOURCES) + ")"
+
 
 # ─── Reply keyboard (persistent bottom menu) ──────────────────────────────────
 
@@ -152,8 +157,7 @@ async def cmd_help(msg: types.Message):
 async def cmd_status(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
-        "SELECT COUNT(*) AS n, COALESCE(SUM(pnl_usdt),0) AS pnl "
-        "FROM user_trades WHERE status='closed' AND closed_at >= datetime('now','-1 day')"
+        "SELECT COUNT(*) AS n, COALESCE(SUM(pnl_usdt),0) AS pnl FROM user_trades WHERE status='closed' AND source IN " + _SRC_SQL + " AND closed_at >= datetime('now','-1 day')"
     )
     n_24h, pnl_24h = rows[0]['n'], rows[0]['pnl']
 
@@ -499,16 +503,17 @@ async def cmd_users(msg: types.Message):
     if not rows:
         await msg.answer('No active users.', reply_markup=main_kb()); return
 
-    lines = ['<b>Active users</b>', '']
+    lines = ['<b>Active users</b>', '<i>Bot-attributed trades only, post-baseline 2026-05-19</i>', '']
     for u in rows:
         uid = u['id']
         trades = db_query(
             "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
-            "WHERE user_id=? AND status='closed'", (uid,)
+            "WHERE user_id=? AND status='closed' AND source IN " + _SRC_SQL +
+            " AND closed_at >= '" + _BASELINE + "'", (uid,)
         )[0]
         last30 = db_query(
             "SELECT COUNT(*) n FROM user_trades WHERE user_id=? AND status='closed' "
-            "AND closed_at >= datetime('now','-30 day')", (uid,)
+            "AND source IN " + _SRC_SQL + " AND closed_at >= datetime('now','-30 day')", (uid,)
         )[0]['n']
         mpnl = db_query(
             "SELECT ROUND(SUM(gross_pnl),2) g FROM monthly_pnl WHERE user_id=?", (uid,)
@@ -517,8 +522,8 @@ async def cmd_users(msg: types.Message):
         plan = u['subscription_plan'] or '-'
         lines.append(
             f"<b>#{uid}</b> {u['email']}\n"
-            f"  plan: {plan}  ·  total trades: {trades['n']}  ·  30d: {last30}\n"
-            f"  all-time PnL: ${trades['pnl']:+.2f}  ·  monthly: ${m_total:+.2f}\n"
+            f"  plan: {plan}  ·  bot trades: {trades['n']}  ·  30d: {last30}\n"
+            f"  bot PnL: ${trades['pnl']:+.2f}  ·  events monthly: ${m_total:+.2f}\n"
         )
     lines.append('Type <code>/user 1</code> or <code>/user 2</code> for detail.')
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
@@ -538,32 +543,36 @@ async def cmd_user_detail(msg: types.Message):
         await msg.answer(f'User {uid} not found.', reply_markup=main_kb()); return
     u = user[0]
 
+    bot_filter = "AND source IN " + _SRC_SQL + " AND closed_at >= '" + _BASELINE + "'"
     t_total = db_query(
         "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl, "
         "COALESCE(SUM(CASE WHEN pnl_usdt>0 THEN 1 ELSE 0 END),0) w, "
         "COALESCE(SUM(CASE WHEN pnl_usdt<0 THEN 1 ELSE 0 END),0) l "
-        "FROM user_trades WHERE user_id=? AND status='closed'", (uid,)
+        "FROM user_trades WHERE user_id=? AND status='closed' " + bot_filter, (uid,)
     )[0]
     wr = round(t_total['w'] * 100 / max(t_total['w'] + t_total['l'], 1), 1)
 
     t_24h = db_query(
         "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
-        "WHERE user_id=? AND status='closed' AND closed_at >= datetime('now','-1 day')", (uid,)
+        "WHERE user_id=? AND status='closed' " + bot_filter +
+        " AND closed_at >= datetime('now','-1 day')", (uid,)
     )[0]
     t_7d = db_query(
         "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
-        "WHERE user_id=? AND status='closed' AND closed_at >= datetime('now','-7 day')", (uid,)
+        "WHERE user_id=? AND status='closed' " + bot_filter +
+        " AND closed_at >= datetime('now','-7 day')", (uid,)
     )[0]
 
     src_rows = db_query(
         "SELECT source, COUNT(*) n, ROUND(SUM(pnl_usdt),2) pnl "
-        "FROM user_trades WHERE user_id=? AND status='closed' "
-        "GROUP BY source ORDER BY pnl DESC", (uid,)
+        "FROM user_trades WHERE user_id=? AND status='closed' " + bot_filter +
+        " GROUP BY source ORDER BY pnl DESC", (uid,)
     )
     last_trades = db_query(
         "SELECT source, symbol, side, ROUND(pnl_usdt,2) pnl, "
         "datetime(closed_at,'localtime') ts FROM user_trades "
-        "WHERE user_id=? AND status='closed' ORDER BY closed_at DESC LIMIT 5", (uid,)
+        "WHERE user_id=? AND status='closed' " + bot_filter +
+        " ORDER BY closed_at DESC LIMIT 5", (uid,)
     )
 
     balance_str = '—'
@@ -612,8 +621,8 @@ async def cmd_recent(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
         "SELECT user_id, source, symbol, side, ROUND(pnl_usdt,2) pnl, datetime(closed_at,'localtime') ts "
-        "FROM user_trades WHERE status='closed' AND closed_at IS NOT NULL "
-        "ORDER BY closed_at DESC LIMIT 10"
+        "FROM user_trades WHERE status='closed' AND source IN " + _SRC_SQL +
+        " AND closed_at >= '" + _BASELINE + "' ORDER BY closed_at DESC LIMIT 10"
     )
     if not rows:
         await msg.answer('No recent trades.', reply_markup=main_kb()); return
