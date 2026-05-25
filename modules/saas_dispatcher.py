@@ -399,6 +399,18 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         # Kinder has 0.5 to compensate for larger absolute balance → lower notional risk.
         risk_mult = float(user.get("risk_multiplier", 1.0) or 1.0)
         size_pct = size_pct * risk_mult
+
+        # Adaptive sizing (Council 2026-05-25 Alt 1): rolling (symbol, source) PnL → 0.2x..1.5x.
+        # Feature flag via ADAPTIVE_SIZING_SOURCES env; default empty → no-op.
+        try:
+            from modules.adaptive_sizing import get_size_multiplier
+            adaptive_mult = get_size_multiplier(symbol, signal.get("source", ""))
+            if adaptive_mult != 1.0:
+                size_pct = size_pct * adaptive_mult
+                print(f"[DISPATCHER] adaptive×{adaptive_mult:.2f} {symbol}/{signal.get('source','')} → size_pct={size_pct:.3f}%")
+        except Exception as _ae:
+            print(f"[DISPATCHER] adaptive_sizing err (non-blocking): {_ae}")
+
         size_usd = balance * (size_pct / 100) * leverage
 
         # Market price

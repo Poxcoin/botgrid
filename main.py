@@ -738,9 +738,29 @@ def run_signal_engine():
                     print(f"    Whale Alert: {news_item['title'][:60]}...")
                     signal = generate_whale_signal(news_item)
                 elif news_item.get("is_smart_wallet"):
-                    # 2026-05-25: smartmoney fully disabled — n=2 demo losses (-$21),
-                    # backtest showed 2% WR over 220 signals (Council 2026-05-23).
-                    # No live execution AND no demo signal emission until 14d Bayesian review.
+                    # 2026-05-25 Council #2: shadow paper mode for 30d.
+                    # Kill criteria pre-registered: <55% WR @ N>=20 paper trades → permanent kill.
+                    # Generate signal → route to paper_trader, no live/demo execution.
+                    signal = generate_whale_signal(news_item)
+                    if signal and signal.get("action") in ("LONG", "SHORT"):
+                        try:
+                            from modules.paper_trader import paper_open
+                            coin = signal.get("coin", "")
+                            mkt = signal.get("_market", {}) or {}
+                            entry = mkt.get("last_price") or mkt.get("price") or 0
+                            if entry > 0 and coin:
+                                paper_open(
+                                    "smartmoney",
+                                    f"{coin}/USDT:USDT",
+                                    signal["action"],
+                                    leverage=4,
+                                    entry_price=entry,
+                                    sl_pct=2.0, tp_pct=5.0,
+                                    variant="normal",
+                                )
+                                print(f"   📝 SHADOW PAPER: smartmoney {signal['action']} {coin} @ {entry}")
+                        except Exception as _pe:
+                            print(f"   ⚠ smartmoney paper_open err: {_pe}")
                     continue
                 else:
                     print(f"   Анализ: {news_item['title'][:60]}...")
