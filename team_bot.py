@@ -65,14 +65,15 @@ BASE_URL = 'https://kadoclub.net'
 def main_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text='📊 Status'), KeyboardButton(text='💰 PnL'), KeyboardButton(text='📈 Track')],
-            [KeyboardButton(text='📥 Apps'), KeyboardButton(text='🎯 CRM'), KeyboardButton(text='🤖 Bots')],
-            [KeyboardButton(text='🧠 Sources'), KeyboardButton(text='🔄 Drift'), KeyboardButton(text='🔗 Links')],
-            [KeyboardButton(text='➕ Prospect'), KeyboardButton(text='❓ Help')],
+            [KeyboardButton(text='Status'), KeyboardButton(text='PnL'), KeyboardButton(text='Users')],
+            [KeyboardButton(text='Apps'), KeyboardButton(text='CRM'), KeyboardButton(text='Bots')],
+            [KeyboardButton(text='Sources'), KeyboardButton(text='Drift'), KeyboardButton(text='Recent')],
+            [KeyboardButton(text='Track'), KeyboardButton(text='Links'), KeyboardButton(text='Prospect')],
+            [KeyboardButton(text='Help')],
         ],
         resize_keyboard=True,
         is_persistent=True,
-        input_field_placeholder='Tap a button or type /command',
+        input_field_placeholder='Tap or /command',
     )
 
 
@@ -147,7 +148,7 @@ async def cmd_help(msg: types.Message):
     await msg.answer(text, reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'📊 Status'}) | Command('status'))
+@dp.message(F.text.in_({'Status'}) | Command('status'))
 async def cmd_status(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -172,7 +173,7 @@ async def cmd_status(msg: types.Message):
     last_event = rows4[0]['last'] or 'never'
 
     text = (
-        f"<b>📊 KADO Status</b>\n\n"
+        f"<b>KADO Status</b>\n\n"
         f"<b>Last 24h:</b> {n_24h} trades · ${pnl_24h:+.2f}\n"
         f"<b>New apps:</b> {apps_new}\n"
         f"<b>CRM active:</b> {crm_active}\n"
@@ -182,7 +183,7 @@ async def cmd_status(msg: types.Message):
     await msg.answer(text, reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'💰 PnL'}) | Command('pnl'))
+@dp.message(F.text.in_({'PnL'}) | Command('pnl'))
 async def cmd_pnl(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -191,25 +192,25 @@ async def cmd_pnl(msg: types.Message):
     )
     if not rows:
         await msg.answer('No monthly_pnl data yet.', reply_markup=main_kb()); return
-    lines = ['<b>💰 Monthly PnL</b>', '']
+    lines = ['<b>Monthly PnL</b>', '']
     for r in rows:
         lines.append(f"user {r['user_id']} · {r['year']}-{r['month']:02d}  gross ${r['g']:+.2f}  net ${r['n']:+.2f}")
     lines.append(f"\n<a href='{BASE_URL}/track-record'>View live ↗</a>")
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'📈 Track'}) | Command('track'))
+@dp.message(F.text.in_({'Track'}) | Command('track'))
 async def cmd_track(msg: types.Message):
     if not allowed(msg): return
     await msg.answer(
-        f"<b>📈 Public Track Record</b>\n\n"
+        f"<b>Public Track Record</b>\n\n"
         f"<a href='{BASE_URL}/track-record'>Open dashboard ↗</a>\n"
         f"Updates every 60s · Bybit verified · drift $0.00",
         reply_markup=main_kb()
     )
 
 
-@dp.message(F.text.in_({'📥 Apps'}) | Command('apps'))
+@dp.message(F.text.in_({'Apps'}) | Command('apps'))
 async def cmd_apps(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -218,12 +219,12 @@ async def cmd_apps(msg: types.Message):
     )
     if not rows:
         await msg.answer(
-            f'<b>📥 No new applications.</b>\n\n<a href="{BASE_URL}/admin/applications">Admin ↗</a>',
+            f'<b>No new applications</b>\n\n<a href="{BASE_URL}/admin/applications">Admin ↗</a>',
             reply_markup=main_kb()); return
-    await msg.answer(f'<b>📥 {len(rows)} new applications</b>\n\n<a href="{BASE_URL}/admin/applications">Open admin ↗</a>',
+    await msg.answer(f'<b>{len(rows)} new applications</b>\n\n<a href="{BASE_URL}/admin/applications">Open admin ↗</a>',
                      reply_markup=main_kb())
     for r in rows:
-        icon = '🧑‍💻' if r['type'] == 'cobuilder' else '💰'
+        icon = '[B]' if r['type'] == 'cobuilder' else '[I]'
         when = str(r['created_at'])[:16].replace('T', ' ')
         contact = []
         if r['telegram']: contact.append(f"TG: @{r['telegram'].lstrip('@')}")
@@ -263,7 +264,7 @@ async def cb_app_status(call: types.CallbackQuery):
     await call.answer(f'Status: {status}')
 
 
-@dp.message(F.text.in_({'🎯 CRM'}) | Command('outreach'))
+@dp.message(F.text.in_({'CRM'}) | Command('outreach'))
 async def cmd_outreach(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -275,7 +276,7 @@ async def cmd_outreach(msg: types.Message):
     replied = counts.get('replied', 0) + counts.get('call_booked', 0) + counts.get('hired', 0)
     reply_rate = round(replied * 100 / sent, 1) if sent else 0
     text = (
-        f"<b>🎯 Outreach Pipeline</b>\n\n"
+        f"<b>Outreach Pipeline</b>\n\n"
         f"Total: {total}\n"
         f"New: {counts.get('new', 0)}\n"
         f"DM sent: {counts.get('dm_sent', 0)}\n"
@@ -289,7 +290,7 @@ async def cmd_outreach(msg: types.Message):
     await msg.answer(text, reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'🤖 Bots'}) | Command('bots'))
+@dp.message(F.text.in_({'Bots'}) | Command('bots'))
 async def cmd_bots(msg: types.Message):
     if not allowed(msg): return
     import subprocess
@@ -309,7 +310,7 @@ async def cmd_bots(msg: types.Message):
             if '.timer' in name: continue
             sub = parts[3] if len(parts) > 3 else ''
             (active_services if sub == 'running' else inactive_services).append(name)
-        lines = ['<b>🤖 Bot services</b>', '', f'<b>Active ({len(active_services)}):</b>']
+        lines = ['<b>Bot services</b>', '', f'<b>Active ({len(active_services)}):</b>']
         for s in active_services:
             lines.append(f'  ✅ {s}')
         if inactive_services:
@@ -317,8 +318,8 @@ async def cmd_bots(msg: types.Message):
             for s in inactive_services[:10]:
                 lines.append(f'  ⚫ {s}')
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text='🔄 Restart web', callback_data='svc_restart:crypto-web')],
-            [InlineKeyboardButton(text='🔄 Restart signal bot', callback_data='svc_restart:crypto-bot')],
+            [InlineKeyboardButton(text='Restart web', callback_data='svc_restart:crypto-web')],
+            [InlineKeyboardButton(text='Restart signal bot', callback_data='svc_restart:crypto-bot')],
         ])
         await msg.answer('\n'.join(lines), reply_markup=kb)
         await msg.answer('—', reply_markup=main_kb())
@@ -341,7 +342,7 @@ async def cb_svc_restart(call: types.CallbackQuery):
         await call.answer(f'Err: {e}', show_alert=True)
 
 
-@dp.message(F.text.in_({'🔄 Drift'}) | Command('drift'))
+@dp.message(F.text.in_({'Drift'}) | Command('drift'))
 async def cmd_drift(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -351,7 +352,7 @@ async def cmd_drift(msg: types.Message):
     )
     if not rows:
         await msg.answer('No events in last 7d.', reply_markup=main_kb()); return
-    lines = ['<b>🔄 7d Events PnL (vs Bybit truth)</b>', '']
+    lines = ['<b>7d Events PnL (vs Bybit truth)</b>', '']
     for r in rows:
         lines.append(f"  user {r['user_id']}: ${r['ev_pnl']:+.2f} ({r['n']} events)")
     lines.append("\n<i>Drift detection runs daily 23:50 UTC via sync_health</i>")
@@ -359,7 +360,7 @@ async def cmd_drift(msg: types.Message):
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'🧠 Sources'}) | Command('sources'))
+@dp.message(F.text.in_({'Sources'}) | Command('sources'))
 async def cmd_sources(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -370,7 +371,7 @@ async def cmd_sources(msg: types.Message):
     if not rows:
         await msg.answer('source_quality empty — run cron first', reply_markup=main_kb()); return
     icon = {'positive_edge':'✅','marginal':'🟡','negative_edge':'🟠','killed':'☠️','insufficient_data':'❓'}
-    lines = ['<b>🧠 Bayesian source quality</b>', '']
+    lines = ['<b>Bayesian source quality</b>', '']
     for r in rows:
         ic = icon.get(r['status'], '?')
         edge_s = f"{r['edge'] or 0:+.1f}pp" if r['edge'] is not None else 'n/a'
@@ -378,24 +379,24 @@ async def cmd_sources(msg: types.Message):
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'🔗 Links'}) | Command('links'))
+@dp.message(F.text.in_({'Links'}) | Command('links'))
 async def cmd_links(msg: types.Message):
     if not allowed(msg): return
     text = (
-        "<b>🔗 Quick admin URLs</b>\n\n"
-        f"📈 <a href='{BASE_URL}/track-record'>Live PnL dashboard</a>\n"
-        f"📥 <a href='{BASE_URL}/admin/applications'>Applications</a>\n"
-        f"🎯 <a href='{BASE_URL}/admin/outreach'>Outreach CRM</a>\n"
-        f"🌐 <a href='{BASE_URL}/careers'>Careers public page</a>\n"
-        f"💰 <a href='{BASE_URL}/apply/investor'>Investor application</a>\n"
-        f"🏠 <a href='{BASE_URL}'>Main site</a>"
+        "<b>Quick admin URLs</b>\n\n"
+        f"• <a href='{BASE_URL}/track-record'>Live PnL dashboard</a>\n"
+        f"• <a href='{BASE_URL}/admin/applications'>Applications</a>\n"
+        f"Conv: <a href='{BASE_URL}/admin/outreach'>Outreach CRM</a>\n"
+        f"• <a href='{BASE_URL}/careers'>Careers public page</a>\n"
+        f"• <a href='{BASE_URL}/apply/investor'>Investor application</a>\n"
+        f"• <a href='{BASE_URL}'>Main site</a>"
     )
     await msg.answer(text, reply_markup=main_kb())
 
 
 # ─── /addprospect FSM flow ───────────────────────────────────────────────────
 
-@dp.message(F.text.in_({'➕ Prospect'}) | Command('addprospect'))
+@dp.message(F.text.in_({'Prospect'}) | Command('addprospect'))
 async def cmd_addprospect_start(msg: types.Message, state: FSMContext):
     if not allowed(msg): return
     await state.set_state(AddProspect.name)
@@ -487,7 +488,126 @@ async def add_step_hook(msg: types.Message, state: FSMContext):
     )
 
 
-@dp.message(Command('recent'))
+@dp.message(F.text.in_({'Users'}) | Command('users'))
+async def cmd_users(msg: types.Message):
+    """List all active users with key stats + balance."""
+    if not allowed(msg): return
+    rows = db_query(
+        "SELECT u.id, u.email, u.username, u.subscription_plan FROM users u "
+        "WHERE u.is_active = 1 ORDER BY u.id"
+    )
+    if not rows:
+        await msg.answer('No active users.', reply_markup=main_kb()); return
+
+    lines = ['<b>Active users</b>', '']
+    for u in rows:
+        uid = u['id']
+        trades = db_query(
+            "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
+            "WHERE user_id=? AND status='closed'", (uid,)
+        )[0]
+        last30 = db_query(
+            "SELECT COUNT(*) n FROM user_trades WHERE user_id=? AND status='closed' "
+            "AND closed_at >= datetime('now','-30 day')", (uid,)
+        )[0]['n']
+        mpnl = db_query(
+            "SELECT ROUND(SUM(gross_pnl),2) g FROM monthly_pnl WHERE user_id=?", (uid,)
+        )
+        m_total = (mpnl[0]['g'] or 0) if mpnl else 0
+        plan = u['subscription_plan'] or '-'
+        lines.append(
+            f"<b>#{uid}</b> {u['email']}\n"
+            f"  plan: {plan}  ·  total trades: {trades['n']}  ·  30d: {last30}\n"
+            f"  all-time PnL: ${trades['pnl']:+.2f}  ·  monthly: ${m_total:+.2f}\n"
+        )
+    lines.append('Type <code>/user 1</code> or <code>/user 2</code> for detail.')
+    await msg.answer('\n'.join(lines), reply_markup=main_kb())
+
+
+@dp.message(Command('user'))
+async def cmd_user_detail(msg: types.Message):
+    """/user <id> — full breakdown for specific user."""
+    if not allowed(msg): return
+    parts = (msg.text or '').split()
+    if len(parts) < 2 or not parts[1].isdigit():
+        await msg.answer('Usage: <code>/user 1</code>', reply_markup=main_kb()); return
+    uid = int(parts[1])
+
+    user = db_query("SELECT id, email, username, subscription_plan, tg_chat_id FROM users WHERE id=?", (uid,))
+    if not user:
+        await msg.answer(f'User {uid} not found.', reply_markup=main_kb()); return
+    u = user[0]
+
+    t_total = db_query(
+        "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl, "
+        "COALESCE(SUM(CASE WHEN pnl_usdt>0 THEN 1 ELSE 0 END),0) w, "
+        "COALESCE(SUM(CASE WHEN pnl_usdt<0 THEN 1 ELSE 0 END),0) l "
+        "FROM user_trades WHERE user_id=? AND status='closed'", (uid,)
+    )[0]
+    wr = round(t_total['w'] * 100 / max(t_total['w'] + t_total['l'], 1), 1)
+
+    t_24h = db_query(
+        "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
+        "WHERE user_id=? AND status='closed' AND closed_at >= datetime('now','-1 day')", (uid,)
+    )[0]
+    t_7d = db_query(
+        "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
+        "WHERE user_id=? AND status='closed' AND closed_at >= datetime('now','-7 day')", (uid,)
+    )[0]
+
+    src_rows = db_query(
+        "SELECT source, COUNT(*) n, ROUND(SUM(pnl_usdt),2) pnl "
+        "FROM user_trades WHERE user_id=? AND status='closed' "
+        "GROUP BY source ORDER BY pnl DESC", (uid,)
+    )
+    last_trades = db_query(
+        "SELECT source, symbol, side, ROUND(pnl_usdt,2) pnl, "
+        "datetime(closed_at,'localtime') ts FROM user_trades "
+        "WHERE user_id=? AND status='closed' ORDER BY closed_at DESC LIMIT 5", (uid,)
+    )
+
+    balance_str = '—'
+    open_pos = 0
+    try:
+        from database import SessionLocal, UserApiKey
+        from modules.bybit_client import build_from_key_row, get_balance, get_positions
+        _db = SessionLocal()
+        try:
+            k = _db.query(UserApiKey).filter_by(user_id=uid, exchange='bybit').first()
+            if k:
+                ex = build_from_key_row(k)
+                bal = get_balance(ex)
+                balance_str = f"${bal.get('total_equity', 0):.2f} ({'DEMO' if k.is_demo else 'LIVE'})"
+                pos = get_positions(ex) or []
+                open_pos = len([p for p in pos if float(p.get('size', 0) or 0) > 0])
+        finally:
+            _db.close()
+    except Exception as e:
+        balance_str = f'err {type(e).__name__}'
+
+    lines = [
+        f"<b>User #{uid}</b>",
+        f"{u['email']} · plan: {u['subscription_plan'] or '-'}",
+        f"Bybit balance: <b>{balance_str}</b> · open positions: {open_pos}",
+        "",
+        f"<b>All-time:</b> {t_total['n']} trades · WR {wr}% · ${t_total['pnl']:+.2f}",
+        f"<b>7d:</b> {t_7d['n']} trades · ${t_7d['pnl']:+.2f}",
+        f"<b>24h:</b> {t_24h['n']} trades · ${t_24h['pnl']:+.2f}",
+        "",
+        "<b>Per source:</b>",
+    ]
+    for s in src_rows:
+        lines.append(f"  {s['source']:14s} {s['n']:>3} trades · ${s['pnl']:+.2f}")
+    lines += ["", "<b>Last 5 closed:</b>"]
+    for t in last_trades:
+        sign = '+' if (t['pnl'] or 0) > 0 else '-' if (t['pnl'] or 0) < 0 else '·'
+        coin = (t['symbol'] or '').replace('/USDT:USDT', '').replace('USDT', '')
+        lines.append(f"  {sign} {coin} {t['side'] or '-'} {t['source']:11s} ${t['pnl']:+.2f}  {str(t['ts'])[5:16]}")
+
+    await msg.answer('\n'.join(lines), reply_markup=main_kb())
+
+
+@dp.message(F.text.in_({'Recent'}) | Command('recent'))
 async def cmd_recent(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -497,7 +617,7 @@ async def cmd_recent(msg: types.Message):
     )
     if not rows:
         await msg.answer('No recent trades.', reply_markup=main_kb()); return
-    lines = ['<b>🕐 Last 10 closed trades</b>', '']
+    lines = ['<b>Last 10 closed trades</b>', '']
     for r in rows:
         emoji = '🟢' if (r['pnl'] or 0) > 0 else '🔴' if (r['pnl'] or 0) < 0 else '⚪'
         coin = (r['symbol'] or '').replace('/USDT:USDT', '').replace('USDT', '')
