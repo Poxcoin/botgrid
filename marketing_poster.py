@@ -157,6 +157,25 @@ def get_bot_stats(days: int = 7) -> dict:
     return stats
 
 
+def _is_real_url(link: str) -> bool:
+    """True only for real http(s) URLs. Pseudo-URLs (cg://, sw://, etc.) NOT clickable in TG."""
+    return bool(link) and link.startswith(('http://', 'https://'))
+
+
+def _esc(s) -> str:
+    """HTML-escape dynamic content for TG parse_mode='HTML'."""
+    import html as _html
+    return _html.escape(str(s) if s is not None else '')
+
+
+_TG_FOOTER = (
+    "\n\n─────────────────\n"
+    "🤖 <a href=\"https://kadoclub.net\">KADO</a> · "
+    "<a href=\"https://t.me/KADO_c_BOT\">Try the bot →</a>"
+)
+_BRAND_IMAGE_URL = "https://kadoclub.net/og-image.png"  # fallback if news has no image
+
+
 def format_news_post(item: dict) -> str:
     title  = item.get("title", "").strip()
     source = item.get("source", "").strip()
@@ -169,13 +188,13 @@ def format_news_post(item: dict) -> str:
     if len(short_desc) > 280:
         short_desc = short_desc[:277] + "…"
 
-    text = f" <b>{title}</b>"
+    text = f"📊 <b>{_esc(title)}</b>"
     if short_desc:
-        text += f"\n\n{short_desc}"
-    text += f"\n\n<i>Джерело: {source}</i>"
-    if link:
-        text += f"\n <a href='{link}'>Читати повністю</a>"
-    text += "\n\n─────────────────\n <b>KADO</b> · kadoclub.net"
+        text += f"\n\n{_esc(short_desc)}"
+    text += f"\n\n<i>Джерело: {_esc(source)}</i>"
+    if _is_real_url(link):
+        text += f"\n🔗 <a href=\"{_esc(link)}\">Читати повністю ↗</a>"
+    text += _TG_FOOTER
     return text
 
 
@@ -191,10 +210,11 @@ def post_news():
     for item in items:
         caption = format_news_post(item)
         img = (item.get("image_url") or "").strip()
-        if img and img.startswith("http"):
-            result = send_photo(img, caption)
-        else:
-            result = send_text(caption)
+        if not (img and img.startswith("http")):
+            img = _BRAND_IMAGE_URL  # fallback to KADO brand image
+        result = send_photo(img, caption)
+        if not result.get("ok"):
+            result = send_text(caption)  # final fallback if even brand image fails
 
         if result.get("ok"):
             state["posted_links"].append(item["link"])
@@ -220,29 +240,30 @@ def post_briefing():
 
     if not items:
         body = "Ринок відносно спокійний. Значних новин за останні 12 годин не зафіксовано."
-        result = send_text(header + body + "\n\n─────────────────\n <b>KADO</b> · kadoclub.net")
+        result = send_text(header + body + _TG_FOOTER)
         return
 
     lines = []
     for i, item in enumerate(items, 1):
-        t = item["title"].strip()
+        t = _esc(item["title"].strip())
         link = item.get("link", "")
-        if link:
-            lines.append(f"{i}. <a href='{link}'>{t}</a>")
+        if _is_real_url(link):
+            lines.append(f"{i}. <a href=\"{_esc(link)}\">{t}</a>")
         else:
             lines.append(f"{i}. {t}")
-        if item.get("link"):
-            state.setdefault("posted_links", []).append(item["link"])
+        if link:
+            state.setdefault("posted_links", []).append(link)
 
     body = "\n".join(lines)
-    footer = "\n\n─────────────────\n <b>KADO</b> — AI trading bots · kadoclub.net"
+    footer = "\n\n─────────────────\n🤖 <a href=\"https://kadoclub.net\">KADO</a> — AI trading bots · <a href=\"https://t.me/KADO_c_BOT\">Try the bot →</a>"
     full = header + body + footer
 
-    # Use image from first item if available
-    img = (items[0].get("image_url") or "").strip()
-    if img and img.startswith("http"):
-        result = send_photo(img, full)
-    else:
+    # Use image from first item if available, else brand fallback
+    img = (items[0].get("image_url") or "").strip() if items else ""
+    if not (img and img.startswith("http")):
+        img = _BRAND_IMAGE_URL
+    result = send_photo(img, full)
+    if not result.get("ok"):
         result = send_text(full)
 
     save_state(state)
@@ -282,9 +303,8 @@ def post_stats():
             f"  • Grid Bot: BTC/ETH/SOL, 5–8 рівнів, плечо ×2\n"
             f"  • Altcoin Bot: топ-15 монет по об'єму\n\n"
             f"<b>Модель оплати:</b> 20% тільки від прибутку.\n"
-            f"Немає прибутку — немає комісії.\n\n"
-            f"─────────────────\n"
-            f" <b>KADO</b> · kadoclub.net"
+            f"Немає прибутку — немає комісії."
+            f"{_TG_FOOTER}"
         )
     else:
         text = (
@@ -297,9 +317,8 @@ def post_stats():
             f"<b>Загалом:</b> {s['total_trades']} угод · "
             f"WR {s['total_wr']}% · "
             f"PnL {'+'if s['total_pnl']>=0 else ''}{s['total_pnl']:.2f} USDT\n\n"
-            f"<b>Комісія:</b> 20% від прибутку · 0% якщо в мінусі\n\n"
-            f"─────────────────\n"
-            f" <b>KADO</b> · kadoclub.net"
+            f"<b>Комісія:</b> 20% від прибутку · 0% якщо в мінусі"
+            f"{_TG_FOOTER}"
         )
 
     result = send_text(text)
@@ -313,11 +332,10 @@ def post_update(title: str, body: str):
     """Manual product/feature announcement."""
     now_kyiv = datetime.now(timezone.utc) + timedelta(hours=3)
     text = (
-        f" <b>{title}</b>\n"
+        f" <b>{_esc(title)}</b>\n"
         f"<i>{now_kyiv.strftime('%d.%m.%Y')}</i>\n\n"
-        f"{body}\n\n"
-        f"─────────────────\n"
-        f" <b>KADO</b> · kadoclub.net"
+        f"{body}"
+        f"{_TG_FOOTER}"
     )
     result = send_text(text)
     if result.get("ok"):
