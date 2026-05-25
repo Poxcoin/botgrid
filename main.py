@@ -38,6 +38,26 @@ from config.settings import (
 )
 import ccxt
 
+# OWNER_LIVE preflight (Council 2026-05-25): when live enabled, refuse to start
+# without valid API key/secret in env. Prevents silent "running but no orders" mode.
+from config.settings import (
+    OWNER_LIVE_ENABLED, OWNER_LIVE_SOURCES, BYBIT_OWNER_LIVE_API_KEY, BYBIT_OWNER_LIVE_SECRET,
+)
+if OWNER_LIVE_ENABLED:
+    if len(BYBIT_OWNER_LIVE_API_KEY or "") < 10 or len(BYBIT_OWNER_LIVE_SECRET or "") < 10:
+        msg = (f"🚨 <b>STARTUP ABORT</b>\n\n"
+               f"OWNER_LIVE_ENABLED=True but credentials missing\n"
+               f"  api_key length: {len(BYBIT_OWNER_LIVE_API_KEY or '')}\n"
+               f"  secret length:  {len(BYBIT_OWNER_LIVE_SECRET or '')}\n\n"
+               f"Refusing to start in live mode without valid keys.")
+        try:
+            send_telegram_message(msg, TG_CHAT_ID)
+        except Exception:
+            pass
+        print(msg)
+        raise SystemExit(1)
+    print(f"[OWNER_LIVE] ✅ enabled · sources={OWNER_LIVE_SOURCES} · key_len={len(BYBIT_OWNER_LIVE_API_KEY)}")
+
 # Путь к файлу истории
 LEDGER_FILE = "signals_log.json"
 
@@ -77,7 +97,7 @@ def _post_to_channel(signal: dict, source: str) -> None:
 
         from modules.tg_notifier import tg_footer, tg_escape
         is_real_link = bool(link) and link.startswith(('http://', 'https://'))
-        _KADO_IMG = 'https://kadoclub.net/kado-brand.png'
+        _KADO_IMG = 'https://kadoclub.net/kado-brand-v3.png'
 
         if source in ("news", "dex"):
             headline_text = (title[:180] + "…" if len(title) > 180 else title).upper()

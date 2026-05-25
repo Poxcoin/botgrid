@@ -33,7 +33,13 @@ from typing import Callable, Optional
 _STATE_FILE   = Path("/opt/botgrid/loss_cooldown_state.json")
 THRESHOLD_SL  = 3
 WINDOW_SEC    = 4 * 3600          # 4h rolling window for counting SLs
-DURATION_SEC  = 6 * 3600          # 6h block once triggered
+DURATION_SEC  = 6 * 3600          # 6h block once triggered (default)
+# Per-source overrides for stricter sources (Council 2026-05-25 live news enable: 24h pause)
+_DURATION_PER_SOURCE = {"news": 24 * 3600}
+
+
+def _duration_for(source: str) -> int:
+    return _DURATION_PER_SOURCE.get(source, DURATION_SEC)
 
 _lock = threading.Lock()
 
@@ -85,8 +91,9 @@ def register_sl(source: str, send_tg: Optional[Callable[[str], None]] = None) ->
         src["recent_sl_ts"] = [ts for ts in src["recent_sl_ts"] if ts >= cutoff]
 
         triggered = False
+        dur = _duration_for(source)
         if len(src["recent_sl_ts"]) >= THRESHOLD_SL:
-            src["cooldown_until"] = now + DURATION_SEC
+            src["cooldown_until"] = now + dur
             src["recent_sl_ts"] = []
             src.pop("alerted_expired", None)
             triggered = True
@@ -94,7 +101,7 @@ def register_sl(source: str, send_tg: Optional[Callable[[str], None]] = None) ->
 
     if triggered and send_tg:
         until_str = datetime.fromtimestamp(
-            time.time() + DURATION_SEC, timezone.utc
+            time.time() + dur, timezone.utc
         ).strftime("%H:%M UTC")
         try:
             send_tg(

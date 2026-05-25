@@ -400,6 +400,13 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         risk_mult = float(user.get("risk_multiplier", 1.0) or 1.0)
         size_pct = size_pct * risk_mult
 
+        # Council 2026-05-25 (live news enable): owner_live trial uses HALF size for first
+        # 30 live trades. Demo unchanged. Promoted to full when sample/Sharpe validated.
+        if user.get("is_live_override"):
+            owner_live_mult = float(os.getenv("OWNER_LIVE_SIZE_MULT", "0.5"))
+            size_pct = size_pct * owner_live_mult
+            print(f"[DISPATCHER] owner_live×{owner_live_mult:.2f} → size_pct={size_pct:.3f}%")
+
         # Adaptive sizing (Council 2026-05-25 Alt 1): rolling (symbol, source) PnL → 0.2x..1.5x.
         # Feature flag via ADAPTIVE_SIZING_SOURCES env; default empty → no-op.
         try:
