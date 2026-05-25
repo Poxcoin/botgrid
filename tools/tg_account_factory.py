@@ -384,7 +384,8 @@ async def create_one_account(
 
 
 async def run_factory(count: int, country: str, service: str, delay: int,
-                      proxy_file: str | None = None, max_per_ip: int = 5):
+                      proxy_file: str | None = None, max_per_ip: int = 5,
+                      mix: str | None = None):
     if not API_ID or not API_HASH:
         sys.exit("[error] TELEGRAM_API_ID / TELEGRAM_API_HASH missing")
 
@@ -420,10 +421,16 @@ async def run_factory(count: int, country: str, service: str, delay: int,
         except Exception as e:
             print(f"⚠ Cannot check balance: {e}")
 
+        country_queue = build_country_queue(count, mix, country)
+        if mix:
+            from collections import Counter
+            dist = Counter(country_queue)
+            print(f"Country mix: {dict(dist)}")
+
         ok = failed = 0
-        for i in range(1, count + 1):
+        for i, acct_country in enumerate(country_queue, 1):
             proxy = rotator.next() if rotator else None
-            success = await create_one_account(sms_provider, country, i, proxy=proxy)
+            success = await create_one_account(sms_provider, acct_country, i, proxy=proxy)
             if success:
                 ok += 1
             else:
@@ -459,10 +466,41 @@ def list_sessions():
     print(f"Total: {len(accounts)} accounts\n")
 
 
+def build_country_queue(count: int, mix: str | None, country: str) -> list[str]:
+    """
+    Build ordered list of country codes for N accounts.
+    mix format: "ua:40,ru:30,kz:20,pl:10"  (percentages, auto-normalized)
+    If mix not set — use single country.
+    """
+    if not mix:
+        return [country] * count
+
+    parts = [p.strip() for p in mix.split(",")]
+    weights: dict[str, float] = {}
+    for p in parts:
+        code, _, w = p.partition(":")
+        weights[code.strip()] = float(w.strip()) if w else 1.0
+
+    total = sum(weights.values())
+    queue: list[str] = []
+    for code, w in weights.items():
+        n = round(count * w / total)
+        queue.extend([code] * n)
+
+    # fix rounding diff
+    while len(queue) < count:
+        queue.append(max(weights, key=weights.get))
+    queue = queue[:count]
+    random.shuffle(queue)
+    return queue
+
+
 def main():
     parser = argparse.ArgumentParser(description="Bulk TG account creator")
     parser.add_argument("--count",      type=int, default=5,   help="Number of accounts to create")
-    parser.add_argument("--country",    default="ua",           help="Country: ua/ru/kz/pl/in/ph")
+    parser.add_argument("--country",    default="ua",           help="Single country: ua/ru/kz/pl/in/ph")
+    parser.add_argument("--mix",        default=None,
+                        help='Country mix: "ua:40,ru:30,kz:20,pl:10" (percentages)')
     parser.add_argument("--service",    choices=["sms-activate", "5sim"], default="sms-activate")
     parser.add_argument("--delay",      type=int, default=45,  help="Seconds between accounts")
     parser.add_argument("--proxies",    default=None,           help="Path to proxy list file")
@@ -477,6 +515,7 @@ def main():
     asyncio.run(run_factory(
         args.count, args.country, args.service, args.delay,
         proxy_file=args.proxies, max_per_ip=args.max_per_ip,
+        mix=args.mix,
     ))
 
 
