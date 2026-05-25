@@ -189,16 +189,25 @@ async def cmd_status(msg: types.Message):
 
 @dp.message(or_f(F.text == 'PnL', Command('pnl')))
 async def cmd_pnl(msg: types.Message):
+    """Per-user bot PnL — filtered to active bot sources, post-baseline."""
     if not allowed(msg): return
     rows = db_query(
-        "SELECT user_id, year, month, ROUND(gross_pnl,2) g, ROUND(net_pnl,2) n FROM monthly_pnl "
-        "ORDER BY year DESC, month DESC LIMIT 10"
+        "SELECT user_id, COUNT(*) n, "
+        "ROUND(SUM(pnl_usdt),2) total, "
+        "ROUND(SUM(CASE WHEN pnl_usdt>0 THEN 1 ELSE 0 END)*100.0/COUNT(*),0) wr "
+        "FROM user_trades WHERE status='closed' AND source IN " + _SRC_SQL +
+        " AND closed_at >= '" + _BASELINE + "' "
+        "GROUP BY user_id ORDER BY user_id"
     )
     if not rows:
-        await msg.answer('No monthly_pnl data yet.', reply_markup=main_kb()); return
-    lines = ['<b>Monthly PnL</b>', '']
+        await msg.answer('No bot trades yet post-baseline.', reply_markup=main_kb()); return
+    lines = ['<b>Bot PnL per user</b>',
+             '<i>Active bot sources only, post 2026-05-19</i>', '']
+    total_all = 0.0
     for r in rows:
-        lines.append(f"user {r['user_id']} · {r['year']}-{r['month']:02d}  gross ${r['g']:+.2f}  net ${r['n']:+.2f}")
+        total_all += r['total'] or 0
+        lines.append(f"user {r['user_id']}: {r['n']} trades · WR {r['wr']:.0f}% · ${r['total']:+.2f}")
+    lines.append(f"\n<b>Total:</b> ${total_all:+.2f}")
     lines.append(f"\n<a href='{BASE_URL}/track-record'>View live ↗</a>")
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
@@ -370,16 +379,18 @@ async def cmd_sources(msg: types.Message):
     rows = db_query(
         "SELECT source, n_trades, ROUND(posterior_mean*100,1) wr, "
         "ROUND(edge_pp,1) edge, ROUND(total_pnl_usd,2) pnl, status "
-        "FROM source_quality ORDER BY edge_pp DESC NULLS LAST"
+        "FROM source_quality WHERE source IN " + _SRC_SQL + " "
+        "ORDER BY edge_pp DESC NULLS LAST"
     )
     if not rows:
-        await msg.answer('source_quality empty — run cron first', reply_markup=main_kb()); return
-    icon = {'positive_edge':'✅','marginal':'🟡','negative_edge':'🟠','killed':'☠️','insufficient_data':'❓'}
-    lines = ['<b>Bayesian source quality</b>', '']
+        await msg.answer('No active bot sources tracked yet — run cron first.', reply_markup=main_kb()); return
+    status_label = {'positive_edge':'[+]','marginal':'[~]','negative_edge':'[-]',
+                    'killed':'[X]','insufficient_data':'[?]'}
+    lines = ['<b>Bayesian source quality</b>', '<i>Active bot sources only</i>', '']
     for r in rows:
-        ic = icon.get(r['status'], '?')
+        st = status_label.get(r['status'], '[?]')
         edge_s = f"{r['edge'] or 0:+.1f}pp" if r['edge'] is not None else 'n/a'
-        lines.append(f"{ic} <b>{r['source']:11s}</b> n={r['n_trades']:>3}  WR {r['wr']:.0f}%  edge {edge_s}  PnL ${r['pnl']:+.0f}")
+        lines.append(f"{st} <b>{r['source']:11s}</b> n={r['n_trades']:>3}  WR {r['wr']:.0f}%  edge {edge_s}  PnL ${r['pnl']:+.0f}")
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
