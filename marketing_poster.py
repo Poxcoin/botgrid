@@ -178,7 +178,6 @@ _BRAND_IMAGE_URL = "https://kadoclub.net/og-image.png"  # fallback if news has n
 
 def format_news_post(item: dict) -> str:
     title  = item.get("title", "").strip()
-    source = item.get("source", "").strip()
     link   = item.get("link", "").strip()
     desc   = (item.get("description") or "").strip()
 
@@ -188,12 +187,13 @@ def format_news_post(item: dict) -> str:
     if len(short_desc) > 280:
         short_desc = short_desc[:277] + "…"
 
-    text = f"📊 <b>{_esc(title)}</b>"
+    # Headline: clickable if real article URL, plain text otherwise
+    if _is_real_url(link):
+        text = f"<b><a href=\"{_esc(link)}\">{_esc(title)}</a></b>"
+    else:
+        text = f"<b>{_esc(title)}</b>"
     if short_desc:
         text += f"\n\n{_esc(short_desc)}"
-    text += f"\n\n<i>Джерело: {_esc(source)}</i>"
-    if _is_real_url(link):
-        text += f"\n🔗 <a href=\"{_esc(link)}\">Читати повністю ↗</a>"
     text += _TG_FOOTER
     return text
 

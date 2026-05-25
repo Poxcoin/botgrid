@@ -76,47 +76,51 @@ def _post_to_channel(signal: dict, source: str) -> None:
         d_label  = "LONG" if action in ("BUY", "LONG") else "SHORT"
 
         from modules.tg_notifier import tg_footer, tg_escape
+        is_real_link = bool(link) and link.startswith(('http://', 'https://'))
+        _KADO_IMG = 'https://kadoclub.net/og-image.png'
+
         if source in ("news", "dex"):
-            headline = tg_escape((title[:180] + "…" if len(title) > 180 else title).upper())
+            headline_text = (title[:180] + "…" if len(title) > 180 else title).upper()
+            headline = tg_escape(headline_text)
             snippet  = tg_escape((desc[:280] + "…" if len(desc) > 280 else desc) if desc else "")
             conf_str = f" · {conf}%" if conf else ""
-            is_real_link = link and not link.startswith(("cg://", "liq://", "dex://", "sw://"))
 
-            text  = f" <b>{headline}</b>\n\n"
+            # Headline clickable if real article URL, plain otherwise
+            if is_real_link:
+                text = f"<b><a href=\"{tg_escape(link)}\">{headline}</a></b>\n\n"
+            else:
+                text = f"<b>{headline}</b>\n\n"
             if snippet:
                 text += f"{snippet}\n\n"
             text += "━━━━━━━━━━━━━━━\n"
-            text += f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label}{conf_str}\n"
-            if src_name:
-                text += f" {tg_escape(src_name)}\n"
-            if is_real_link:
-                text += f"\n <a href=\"{tg_escape(link)}\">Full article ↗</a>\n"
+            text += f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label}{conf_str}"
             text += tg_footer('channel')
 
-            send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, image_url)
+            # Image: real article photo if available, else KADO brand
+            img = image_url if (image_url and image_url.startswith('http')) else _KADO_IMG
+            send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, img)
 
         elif source == "liq_cascade":
             cascade_m = signal.get("cascade_usd", 0) / 1_000_000
             side_text = "shorts liquidated" if action in ("BUY", "LONG") else "longs liquidated"
             momentum  = "bullish continuation" if action in ("BUY", "LONG") else "bearish continuation"
             text = (
-                f" <b>LIQUIDATION CASCADE</b>\n\n"
+                f"<b>LIQUIDATION CASCADE</b>\n\n"
                 f"<b>${cascade_m:.0f}M</b> in <b>{tg_escape(coin)}</b> {side_text} — {momentum}\n\n"
                 f"━━━━━━━━━━━━━━━\n"
                 f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label} · <b>${cascade_m:.0f}M</b> cascade"
                 f"{tg_footer('channel')}"
             )
-            send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+            send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, _KADO_IMG)
 
         else:
             headline = tg_escape((title[:120] if title else f"{coin} market signal").upper())
             text = (
-                f" <b>{headline}</b>\n\n"
-                f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label}\n"
-                f" {tg_escape(src_name or source.upper())}"
+                f"<b>{headline}</b>\n\n"
+                f"{d_emoji} <b>{tg_escape(coin)}</b> · {d_label}"
                 f"{tg_footer('channel')}"
             )
-            send_telegram_message(text, TELEGRAM_CHANNEL_ID)
+            send_telegram_photo_or_text(TELEGRAM_CHANNEL_ID, text, _KADO_IMG)
 
     except Exception:
         pass

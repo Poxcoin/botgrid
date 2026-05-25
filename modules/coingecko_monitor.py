@@ -50,9 +50,9 @@ def _fetch_trending() -> list[dict]:
             name   = item.get("name", "")
             rank   = item.get("market_cap_rank") or 9999
             score  = item.get("score", 0)  # 0 = найтрендовіший
-            image  = item.get("large") or item.get("small") or item.get("thumb") or ""
-            results.append({"symbol": symbol, "name": name, "rank": rank,
-                            "score": score, "image_url": image})
+            # Note: NOT including coin logo — user feedback "не источников фото".
+            # Trending signals get KADO brand image via marketing_poster fallback.
+            results.append({"symbol": symbol, "name": name, "rank": rank, "score": score})
         return results
     except Exception as e:
         print(f"[CG] trending fetch error: {e}")
@@ -104,7 +104,6 @@ def _trending_loop():
                         f"Usually precedes increased CEX volume and potential listing."
                     ),
                     "link":         f"cg://trending/{symbol}/{int(time.time() // 3600)}",
-                    "image_url":    coin.get("image_url", ""),
                     "published":    datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000"),
                     "published_dt": datetime.now(timezone.utc).isoformat(),
                     "source":       "CoinGecko Trending",
