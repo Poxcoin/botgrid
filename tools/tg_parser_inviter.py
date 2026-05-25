@@ -52,7 +52,9 @@ from telethon.tl.types import ChannelParticipantsSearch, User
 
 API_ID      = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH    = os.getenv("TELEGRAM_API_HASH", "")
-SESSION_STR = os.getenv("TELEGRAM_SESSION", "")
+# TG_OPERATOR_SESSION — окремий бернер-акаунт для парсингу/інвайтів.
+# Якщо не встановлено — fallback на основний TELEGRAM_SESSION (небажано).
+SESSION_STR = os.getenv("TG_OPERATOR_SESSION") or os.getenv("TELEGRAM_SESSION", "")
 DB_PATH     = Path(__file__).resolve().parent.parent / "saas_database.sqlite"
 
 OUR_CHANNEL = os.getenv("TG_OUR_CHANNEL", "@kadoclub07")

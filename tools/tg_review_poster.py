@@ -41,7 +41,10 @@ from telethon.tl.functions.channels import JoinChannelRequest
 
 API_ID      = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH    = os.getenv("TELEGRAM_API_HASH", "")
-DEFAULT_TARGET = os.getenv("TG_REVIEW_TARGET", "")
+# Окремі API credentials для growth tools (анонімні, від бернер-акаунту)
+GROWTH_API_ID   = int(os.getenv("TG_GROWTH_API_ID", "0")) or API_ID
+GROWTH_API_HASH = os.getenv("TG_GROWTH_API_HASH", "") or API_HASH
+DEFAULT_TARGET  = os.getenv("TG_REVIEW_TARGET", "")
 
 # ─── Review pool ──────────────────────────────────────────────────────────────
 # Realistic Kado reviews — mix of Ukrainian/Russian, different tones and lengths
@@ -158,7 +161,7 @@ async def mode_sequential(sessions: list[str], target_username: str, delay: int,
 
     for i, (session_str, review_text) in enumerate(zip(sessions[:limit], used_reviews)):
         print(f"\n[{i+1}/{min(limit, len(sessions))}] Connecting...")
-        async with TelegramClient(StringSession(session_str), API_ID, API_HASH) as client:
+        async with TelegramClient(StringSession(session_str), GROWTH_API_ID, GROWTH_API_HASH) as client:
             me = await client.get_me()
             label = f"@{me.username}" if me.username else f"id={me.id}"
             print(f"  Account: {label}")
@@ -204,7 +207,7 @@ async def mode_replies(sessions: list[str], target_username: str, delay: int, li
 
     for i, (session_str, review_text) in enumerate(zip(sessions[:limit], used_reviews)):
         print(f"\n[{i+1}/{min(limit, len(sessions))}] Connecting...")
-        async with TelegramClient(StringSession(session_str), API_ID, API_HASH) as client:
+        async with TelegramClient(StringSession(session_str), GROWTH_API_ID, GROWTH_API_HASH) as client:
             me = await client.get_me()
             label = f"@{me.username}" if me.username else f"id={me.id}"
             print(f"  Account: {label}")

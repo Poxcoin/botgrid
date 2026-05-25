@@ -59,8 +59,8 @@ from telethon.errors import (
 )
 from telethon.sessions import StringSession
 
-API_ID      = int(os.getenv("TELEGRAM_API_ID", "0"))
-API_HASH    = os.getenv("TELEGRAM_API_HASH", "")
+API_ID      = int(os.getenv("TG_GROWTH_API_ID", "0")) or int(os.getenv("TELEGRAM_API_ID", "0"))
+API_HASH    = os.getenv("TG_GROWTH_API_HASH", "") or os.getenv("TELEGRAM_API_HASH", "")
 SMS_KEY     = os.getenv("SMS_ACTIVATE_KEY", "")
 FIVESIM_KEY = os.getenv("FIVESIM_KEY", "")
 PROXY_FILE  = os.getenv("PROXY_LIST_FILE", "proxies.txt")
