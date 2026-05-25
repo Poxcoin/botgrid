@@ -400,25 +400,26 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         risk_mult = float(user.get("risk_multiplier", 1.0) or 1.0)
         size_pct = size_pct * risk_mult
 
-        # Council 2026-05-25 (live news enable): owner_live trial uses HALF size for first
-        # 30 live trades. Demo unchanged. Promoted to full when sample/Sharpe validated.
+        # Council 2026-05-25 v2 (live news fixed-notional): on small balance ($40),
+        # score² amplifier concentrated capital into losing high-score signals.
+        # For owner_live: REPLACE score²/adaptive/risk_mult with FIXED notional via env.
         if user.get("is_live_override"):
-            owner_live_mult = float(os.getenv("OWNER_LIVE_SIZE_MULT", "0.5"))
-            size_pct = size_pct * owner_live_mult
-            print(f"[DISPATCHER] owner_live×{owner_live_mult:.2f} → size_pct={size_pct:.3f}%")
+            fixed_notional = float(os.getenv("OWNER_LIVE_NOTIONAL_USD", "9.60"))
+            size_usd = fixed_notional
+            print(f"[DISPATCHER] owner_live FIXED notional=${fixed_notional:.2f} (bypass score²/adaptive/risk_mult)")
+        else:
+            # Adaptive sizing (Council 2026-05-25 Alt 1): rolling (symbol, source) PnL → 0.2x..1.5x.
+            # Feature flag via ADAPTIVE_SIZING_SOURCES env; default empty → no-op.
+            try:
+                from modules.adaptive_sizing import get_size_multiplier
+                adaptive_mult = get_size_multiplier(symbol, signal.get("source", ""))
+                if adaptive_mult != 1.0:
+                    size_pct = size_pct * adaptive_mult
+                    print(f"[DISPATCHER] adaptive×{adaptive_mult:.2f} {symbol}/{signal.get('source','')} → size_pct={size_pct:.3f}%")
+            except Exception as _ae:
+                print(f"[DISPATCHER] adaptive_sizing err (non-blocking): {_ae}")
 
-        # Adaptive sizing (Council 2026-05-25 Alt 1): rolling (symbol, source) PnL → 0.2x..1.5x.
-        # Feature flag via ADAPTIVE_SIZING_SOURCES env; default empty → no-op.
-        try:
-            from modules.adaptive_sizing import get_size_multiplier
-            adaptive_mult = get_size_multiplier(symbol, signal.get("source", ""))
-            if adaptive_mult != 1.0:
-                size_pct = size_pct * adaptive_mult
-                print(f"[DISPATCHER] adaptive×{adaptive_mult:.2f} {symbol}/{signal.get('source','')} → size_pct={size_pct:.3f}%")
-        except Exception as _ae:
-            print(f"[DISPATCHER] adaptive_sizing err (non-blocking): {_ae}")
-
-        size_usd = balance * (size_pct / 100) * leverage
+            size_usd = balance * (size_pct / 100) * leverage
 
         # Market price
         ticker = ex.fetch_ticker(symbol)
