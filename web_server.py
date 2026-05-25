@@ -3556,6 +3556,416 @@ async def admin_outreach_page():
     return _OUTREACH_HTML
 
 
+# ─── Unified dev dashboard /admin/dashboard ──────────────────────────────────
+
+_ACTIVE_BOT_SOURCES_DASH = ('news', 'fr', 'dex', 'trend', 'pump_scanner', 'smartmoney', 'okx_trending')
+_BASELINE_DASH = '2026-05-19 21:06:00'
+
+
+@app.get("/api/admin/dashboard")
+async def admin_dashboard_api(token: str = Depends(require_auth), db: Session = Depends(get_db)):
+    """Aggregate everything the dev/ops team needs in one payload."""
+    from sqlalchemy import func, case, text as sa_text
+    import subprocess
+
+    src_in = "(" + ",".join(f"'{s}'" for s in _ACTIVE_BOT_SOURCES_DASH) + ")"
+
+    # 24h bot-only trades
+    t24 = db.execute(
+        sa_text(
+            "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
+            "WHERE status='closed' AND source IN " + src_in +
+            " AND closed_at >= datetime('now','-1 day')"
+        )
+    ).fetchone()
+    # 7d
+    t7d = db.execute(
+        sa_text(
+            "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
+            "WHERE status='closed' AND source IN " + src_in +
+            " AND closed_at >= datetime('now','-7 day')"
+        )
+    ).fetchone()
+    # All bot
+    tall = db.execute(
+        sa_text(
+            "SELECT COUNT(*) n, COALESCE(SUM(pnl_usdt),0) pnl FROM user_trades "
+            "WHERE status='closed' AND source IN " + src_in +
+            " AND closed_at >= '" + _BASELINE_DASH + "'"
+        )
+    ).fetchone()
+
+    # New apps + active outreach
+    apps_new = db.query(Application).filter(Application.status == 'new').count()
+    crm_active = db.query(OutreachProspect).filter(
+        OutreachProspect.status.in_(('new', 'dm_sent', 'followed_up', 'replied', 'call_booked'))
+    ).count()
+
+    # Last event time
+    last_ev = db.execute(sa_text("SELECT MAX(ingested_at) FROM trade_events")).fetchone()
+    last_event = str(last_ev[0])[:19] if last_ev and last_ev[0] else 'never'
+
+    # Drift (events vs db trades 7d) — quick check
+    ev_pnl_row = db.execute(
+        sa_text(
+            "SELECT COALESCE(SUM(pnl_usdt),0) FROM trade_events "
+            "WHERE event_type='CLOSED_PNL' AND event_ts >= datetime('now','-7 day')"
+        )
+    ).fetchone()
+    ev_pnl_7d = float(ev_pnl_row[0]) if ev_pnl_row else 0
+
+    # Services
+    services = []
+    try:
+        out = subprocess.run(
+            ['systemctl', 'list-units', 'crypto-*', 'kado-*', '--all', '--no-legend', '--no-pager'],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in out.stdout.strip().split('\n'):
+            line = line.strip()
+            if not line.startswith(('crypto-', 'kado-')):
+                continue
+            parts = line.split()
+            if len(parts) < 4 or '.timer' in parts[0]:
+                continue
+            services.append({'name': parts[0], 'state': parts[3]})
+    except Exception:
+        pass
+
+    # Recent 10 bot trades
+    recent_rows = db.execute(
+        sa_text(
+            "SELECT user_id, source, symbol, side, ROUND(pnl_usdt,2) pnl, "
+            "datetime(closed_at,'localtime') ts FROM user_trades "
+            "WHERE status='closed' AND source IN " + src_in +
+            " ORDER BY closed_at DESC LIMIT 10"
+        )
+    ).fetchall()
+    recent = [
+        {'user': r[0], 'source': r[1], 'symbol': r[2], 'side': r[3], 'pnl': r[4], 'ts': r[5]}
+        for r in recent_rows
+    ]
+
+    # Source quality (bot sources)
+    src_rows = db.execute(
+        sa_text(
+            "SELECT source, n_trades, ROUND(posterior_mean*100,1) wr, "
+            "ROUND(edge_pp,1) edge, ROUND(total_pnl_usd,2) pnl, status "
+            "FROM source_quality WHERE source IN " + src_in +
+            " ORDER BY edge_pp DESC NULLS LAST"
+        )
+    ).fetchall()
+    sources = [
+        {'source': r[0], 'n': r[1], 'wr': r[2], 'edge': r[3], 'pnl': r[4], 'status': r[5]}
+        for r in src_rows
+    ]
+
+    # New apps preview (top 5)
+    apps_preview_rows = db.query(Application).filter(
+        Application.status == 'new'
+    ).order_by(Application.id.desc()).limit(5).all()
+    apps_preview = [
+        {'id': a.id, 'type': a.type, 'name': a.name, 'role': a.role_or_check,
+         'ts': a.created_at.isoformat() if a.created_at else None}
+        for a in apps_preview_rows
+    ]
+
+    # Outreach counts by status
+    outreach_status = {}
+    for status, n in db.execute(
+        sa_text("SELECT status, COUNT(*) FROM outreach_prospects GROUP BY status")
+    ).fetchall():
+        outreach_status[status] = n
+
+    # Per-user balance + bot PnL
+    users_rows = db.query(User).filter(User.is_active == True).all()
+    users = []
+    for u in users_rows:
+        upnl = db.execute(
+            sa_text(
+                "SELECT COUNT(*), COALESCE(SUM(pnl_usdt),0) FROM user_trades "
+                "WHERE user_id=:uid AND status='closed' AND source IN " + src_in +
+                " AND closed_at >= :base"
+            ),
+            {'uid': u.id, 'base': _BASELINE_DASH}
+        ).fetchone()
+        users.append({
+            'id': u.id, 'email': u.email,
+            'bot_trades': upnl[0], 'bot_pnl': round(float(upnl[1]), 2),
+        })
+
+    return {
+        'updated_at': datetime.now(timezone.utc).isoformat(),
+        'kpis': {
+            't24h_n': int(t24[0]), 't24h_pnl': round(float(t24[1]), 2),
+            't7d_n': int(t7d[0]), 't7d_pnl': round(float(t7d[1]), 2),
+            'tall_n': int(tall[0]), 'tall_pnl': round(float(tall[1]), 2),
+            'apps_new': apps_new, 'crm_active': crm_active,
+            'last_event': last_event, 'ev_pnl_7d': round(ev_pnl_7d, 2),
+            'services_active': sum(1 for s in services if s['state'] == 'running'),
+        },
+        'services': services,
+        'recent': recent,
+        'sources': sources,
+        'apps_preview': apps_preview,
+        'outreach_status': outreach_status,
+        'users': users,
+    }
+
+
+_ADMIN_DASH_HTML = """<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KADO — Dev Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#050505;color:#e8e8e8;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:13px;padding:16px}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid #1a1a1a;flex-wrap:wrap;gap:8px}
+h1{font-size:18px;font-weight:800;letter-spacing:-0.02em}
+.nav a{color:#666;margin-left:14px;text-decoration:none;font-size:12px}
+.nav a:hover{color:#00b894}
+button{background:#1a1a1a;color:#ccc;border:1px solid #333;padding:6px 10px;font-family:inherit;font-size:11px;cursor:pointer;letter-spacing:0.05em}
+button:hover{background:#2a2a2a;color:#fff}
+button.green{background:#00b894;color:#000;border:none;font-weight:700}
+button.danger{background:#3a0a1a;color:#f87171;border:1px solid #5a1a2a}
+.login{max-width:300px;margin:80px auto;text-align:center}
+.login input{width:100%;padding:14px;background:#0f0f0f;border:1px solid #222;color:#fff;font-family:inherit;margin-bottom:10px}
+.login button{width:100%;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px}
+.card{background:#0a0a0a;border:1px solid #1a1a1a;padding:16px}
+.card h2{font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#666;font-weight:600;margin-bottom:10px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:18px}
+.kpi{background:#0a0a0a;border:1px solid #1a1a1a;padding:12px}
+.kpi-label{font-size:9px;text-transform:uppercase;letter-spacing:0.12em;color:#666}
+.kpi-value{font-size:22px;font-weight:800;color:#fff;margin-top:4px}
+.pos{color:#4ade80}.neg{color:#f87171}.muted{color:#666}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;color:#666;font-size:9px;text-transform:uppercase;letter-spacing:0.1em;padding:6px;border-bottom:1px solid #1a1a1a;font-weight:600}
+td{padding:8px 6px;border-bottom:1px solid #111;font-size:12px}
+.tag{display:inline-block;padding:2px 6px;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;border-radius:0}
+.tag-on{background:#0a2a1a;color:#4ade80}
+.tag-off{background:#1a0a0a;color:#666}
+.tag-warn{background:#2a1a0a;color:#ffd57d}
+.refresh{font-size:10px;color:#555;font-family:'JetBrains Mono',monospace}
+a{color:#00b894;text-decoration:none}
+a:hover{text-decoration:underline}
+</style></head>
+<body>
+
+<div id="login-view" class="login" style="display:none">
+<h1>KADO Admin</h1>
+<input type="password" id="pw" placeholder="Admin password" autofocus>
+<button class="green" onclick="doLogin()">Login</button>
+<div id="login-err" style="color:#f87171;margin-top:8px;font-size:11px"></div>
+</div>
+
+<div id="main-view" style="display:none">
+<div class="head">
+  <h1>KADO · Dev Dashboard</h1>
+  <div class="nav">
+    <a href="/admin/applications">Apps</a>
+    <a href="/admin/outreach">CRM</a>
+    <a href="/track-record" target="_blank">Track Record ↗</a>
+    <a href="https://github.com/Poxcoin/botgrid" target="_blank">Repo ↗</a>
+    <button onclick="load()">↻ Refresh</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div id="kpis" class="kpis"></div>
+<div id="dash" class="grid"></div>
+<div class="refresh" id="refresh-meta"></div>
+
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('kado_admin_token');
+
+function show(v){ document.getElementById('login-view').style.display = v==='login'?'block':'none'; document.getElementById('main-view').style.display = v==='main'?'block':'none'; }
+
+async function doLogin(){
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('login-err'); err.textContent='';
+  try {
+    const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    if (!r.ok) { err.textContent='Invalid password'; return; }
+    const d = await r.json(); TOKEN=d.token; localStorage.setItem('kado_admin_token',TOKEN);
+    show('main'); load();
+  } catch(e){ err.textContent='Network error'; }
+}
+function logout(){ localStorage.removeItem('kado_admin_token'); TOKEN=null; show('login'); }
+
+function el(tag, cls, txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
+
+function kpi(label, val, cls){
+  const c = el('div','kpi');
+  c.appendChild(el('div','kpi-label',label));
+  const v = el('div','kpi-value' + (cls?' '+cls:''), val);
+  c.appendChild(v); return c;
+}
+
+function renderKpis(k){
+  const wrap = document.getElementById('kpis'); wrap.replaceChildren();
+  const sign = v => (v>=0?'+':'') + '$' + v.toFixed(2);
+  const c = v => v>=0?'pos':'neg';
+  wrap.appendChild(kpi('Bot trades 24h', k.t24h_n));
+  wrap.appendChild(kpi('PnL 24h', sign(k.t24h_pnl), c(k.t24h_pnl)));
+  wrap.appendChild(kpi('PnL 7d', sign(k.t7d_pnl), c(k.t7d_pnl)));
+  wrap.appendChild(kpi('PnL all', sign(k.tall_pnl), c(k.tall_pnl)));
+  wrap.appendChild(kpi('New apps', k.apps_new));
+  wrap.appendChild(kpi('CRM active', k.crm_active));
+  wrap.appendChild(kpi('Services up', k.services_active));
+  wrap.appendChild(kpi('Last event', k.last_event.substring(5,16)));
+}
+
+function renderServices(services){
+  const c = el('div','card');
+  c.appendChild(el('h2',null,'Services'));
+  const tbl = el('table');
+  const tb = el('tbody');
+  services.forEach(s => {
+    const tr = el('tr');
+    tr.appendChild(el('td',null,s.name));
+    const tdT = el('td');
+    const t = el('span','tag '+(s.state==='running'?'tag-on':'tag-off'), s.state);
+    tdT.appendChild(t);
+    tr.appendChild(tdT);
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb); c.appendChild(tbl);
+  return c;
+}
+
+function renderRecent(recent){
+  const c = el('div','card');
+  c.appendChild(el('h2',null,'Recent trades (bot-only)'));
+  if (!recent.length){ c.appendChild(el('div','muted','No recent bot trades.')); return c; }
+  const tbl = el('table');
+  const th = el('thead'); const trh=el('tr');
+  ['u','source','sym','side','pnl','when'].forEach(h=>{const t=el('th',null,h); trh.appendChild(t);});
+  th.appendChild(trh); tbl.appendChild(th);
+  const tb = el('tbody');
+  recent.forEach(r => {
+    const tr = el('tr');
+    tr.appendChild(el('td',null,'#'+r.user));
+    tr.appendChild(el('td',null,r.source));
+    const coin = (r.symbol||'').replace('/USDT:USDT','').replace('USDT','');
+    tr.appendChild(el('td',null,coin));
+    tr.appendChild(el('td',null,r.side||'-'));
+    tr.appendChild(el('td', r.pnl>=0?'pos':'neg', (r.pnl>=0?'+':'')+'$'+(r.pnl||0).toFixed(2)));
+    tr.appendChild(el('td','muted',(r.ts||'').substring(5,16)));
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb); c.appendChild(tbl);
+  return c;
+}
+
+function renderSources(sources){
+  const c = el('div','card');
+  c.appendChild(el('h2',null,'Bayesian source quality'));
+  if (!sources.length){ c.appendChild(el('div','muted','No active sources yet.')); return c; }
+  const tbl = el('table'); const th=el('thead'); const trh=el('tr');
+  ['source','n','WR%','edge pp','pnl','status'].forEach(h=>{trh.appendChild(el('th',null,h));});
+  th.appendChild(trh); tbl.appendChild(th);
+  const tb = el('tbody');
+  const tagMap = {positive_edge:'tag-on',marginal:'tag-warn',negative_edge:'tag-off',killed:'tag-off',insufficient_data:'tag-off'};
+  sources.forEach(s => {
+    const tr = el('tr');
+    tr.appendChild(el('td',null,s.source));
+    tr.appendChild(el('td',null,s.n));
+    tr.appendChild(el('td',null,s.wr!=null?s.wr+'%':'-'));
+    tr.appendChild(el('td', s.edge>0?'pos':(s.edge<0?'neg':''), s.edge!=null?((s.edge>=0?'+':'')+s.edge+'pp'):'-'));
+    tr.appendChild(el('td', s.pnl>=0?'pos':'neg', (s.pnl>=0?'+':'')+'$'+(s.pnl||0).toFixed(0)));
+    const tdS = el('td');
+    tdS.appendChild(el('span','tag '+(tagMap[s.status]||'tag-off'), s.status.replace('_',' ')));
+    tr.appendChild(tdS);
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb); c.appendChild(tbl); return c;
+}
+
+function renderApps(apps){
+  const c = el('div','card');
+  const h = el('div'); h.style.display='flex'; h.style.justifyContent='space-between'; h.style.alignItems='center'; h.style.marginBottom='10px';
+  h.appendChild(el('h2',null,'New applications'));
+  const a = el('a',null,'Open ↗'); a.href='/admin/applications'; a.style.fontSize='10px';
+  h.appendChild(a); c.appendChild(h);
+  if (!apps.length){ c.appendChild(el('div','muted','No new applications.')); return c; }
+  apps.forEach(a => {
+    const row = el('div'); row.style.padding='8px 0'; row.style.borderBottom='1px solid #111'; row.style.fontSize='12px';
+    const top = el('div'); top.appendChild(el('strong',null,'#'+a.id+' '+a.name));
+    row.appendChild(top);
+    const meta = el('div','muted', (a.type+' · '+(a.role||'-')+' · '+(a.ts||'').substring(5,16)));
+    meta.style.fontSize='10px'; row.appendChild(meta);
+    c.appendChild(row);
+  });
+  return c;
+}
+
+function renderOutreach(counts){
+  const c = el('div','card');
+  const h = el('div'); h.style.display='flex'; h.style.justifyContent='space-between'; h.style.marginBottom='10px';
+  h.appendChild(el('h2',null,'Outreach CRM'));
+  const a = el('a',null,'Open ↗'); a.href='/admin/outreach'; a.style.fontSize='10px';
+  h.appendChild(a); c.appendChild(h);
+  const items = [['new','New'],['dm_sent','DM sent'],['followed_up','Followed up'],['replied','Replied'],['call_booked','Call booked'],['hired','Hired']];
+  items.forEach(([k,label])=>{
+    const row = el('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.padding='6px 0'; row.style.borderBottom='1px solid #111';
+    row.appendChild(el('div','muted',label));
+    row.appendChild(el('div',null,counts[k]||0));
+    c.appendChild(row);
+  });
+  return c;
+}
+
+function renderUsers(users){
+  const c = el('div','card');
+  c.appendChild(el('h2',null,'Users (bot PnL)'));
+  if (!users.length){ c.appendChild(el('div','muted','No users.')); return c; }
+  users.forEach(u => {
+    const row = el('div'); row.style.padding='8px 0'; row.style.borderBottom='1px solid #111'; row.style.fontSize='12px';
+    const top = el('div'); top.appendChild(el('strong',null,'#'+u.id+' '+u.email));
+    row.appendChild(top);
+    const meta = el('div','muted'); meta.style.fontSize='10px';
+    meta.textContent = u.bot_trades+' bot trades · ';
+    meta.appendChild(el('span', u.bot_pnl>=0?'pos':'neg', (u.bot_pnl>=0?'+':'')+'$'+u.bot_pnl.toFixed(2)));
+    row.appendChild(meta);
+    c.appendChild(row);
+  });
+  return c;
+}
+
+async function load(){
+  if (!TOKEN) { show('login'); return; }
+  const r = await fetch('/api/admin/dashboard',{headers:{'Authorization':'Bearer '+TOKEN}});
+  if (r.status === 401){ logout(); return; }
+  const d = await r.json();
+  renderKpis(d.kpis);
+  const grid = document.getElementById('dash'); grid.replaceChildren();
+  grid.appendChild(renderRecent(d.recent));
+  grid.appendChild(renderSources(d.sources));
+  grid.appendChild(renderServices(d.services));
+  grid.appendChild(renderUsers(d.users));
+  grid.appendChild(renderApps(d.apps_preview));
+  grid.appendChild(renderOutreach(d.outreach_status));
+  document.getElementById('refresh-meta').textContent = 'Updated: ' + d.updated_at.substring(0,19);
+}
+
+if (TOKEN) { show('main'); load(); setInterval(load, 30000); } else { show('login'); }
+</script>
+</body></html>"""
+
+
+@app.get("/admin/dashboard", response_class=HTMLResponse)
+async def admin_dashboard_page():
+    return _ADMIN_DASH_HTML
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_root_redirect():
+    return _ADMIN_DASH_HTML
+
+
 @app.get("/apply/cobuilder", response_class=HTMLResponse)
 async def apply_cobuilder_page(lang: str = "en", role: str = ""):
     return _render_form(lang, 'cobuilder', role)
