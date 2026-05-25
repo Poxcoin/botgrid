@@ -430,6 +430,57 @@ class OutreachProspect(Base):
     created_at   = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
 
+class AdminUser(Base):
+    """Admin/team user with role-based permissions.
+
+    Separate from User (which is a Kado SaaS customer).
+    Each cofounder/co-builder gets one AdminUser row.
+
+    Roles:
+      admin   — full access including billing actions
+      ops     — services restart, view all data, no billing
+      viewer  — read-only access to all dashboards
+    """
+    __tablename__ = "admin_users"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    email           = Column(String, unique=True, nullable=False, index=True)
+    username        = Column(String, unique=True, nullable=False, index=True)
+    password_hash   = Column(String, nullable=False)
+    role            = Column(String, nullable=False, default="viewer", index=True)
+    # 2FA
+    totp_secret_enc = Column(String, nullable=True)        # Fernet-encrypted TOTP secret
+    totp_verified   = Column(Boolean, default=False)
+    # Access control
+    is_active       = Column(Boolean, default=True, index=True)
+    allowed_ips     = Column(String, nullable=True)        # comma-separated CIDRs; null = any
+    # Auth state
+    last_login_at   = Column(DateTime, nullable=True)
+    last_login_ip   = Column(String, nullable=True)
+    failed_attempts = Column(Integer, default=0)
+    locked_until    = Column(DateTime, nullable=True)
+    # Audit
+    created_at      = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_by_id   = Column(Integer, ForeignKey("admin_users.id"), nullable=True)
+
+
+class AdminAuditLog(Base):
+    """Hash-chained audit log for admin actions (compliance-grade)."""
+    __tablename__ = "admin_audit_log"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    admin_user_id = Column(Integer, ForeignKey("admin_users.id"), nullable=True, index=True)
+    action        = Column(String, nullable=False, index=True)
+    resource      = Column(String, nullable=True)
+    resource_id   = Column(String, nullable=True)
+    detail_enc    = Column(String, nullable=True)          # Fernet JSON detail
+    ip_address    = Column(String, nullable=True)
+    user_agent    = Column(String, nullable=True)
+    prev_hash     = Column(String, nullable=True)          # tamper-evident chain
+    row_hash      = Column(String, nullable=False)
+    ts            = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True)
+
+
 class SourceQuality(Base):
     """Bayesian per-source quality tracker (Phase 1 of math edge layer, 2026-05-23).
 
