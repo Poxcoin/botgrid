@@ -27,7 +27,7 @@ from modules.shadow_filter import shadow_score_check, shadow_tod_check
 # Until 14-day shadow validation proves them, live keys may only execute Signal bot signals.
 # Council 2026-05-23: added 'smartmoney' — backtest 220 signals showed 2% WR, -3.7%/trade
 # in bear regime. Demoted to paper-trader-only pending 14d real-data observation.
-_LIVE_RESTRICTED_SOURCES = ("sweep", "orderblock", "cascade", "liq_cascade", "smartmoney", "pump_scanner")
+_LIVE_RESTRICTED_SOURCES = ("sweep", "orderblock", "cascade", "liq_cascade", "smartmoney", "pump_scanner", "okx_trending")
 
 # Max parallel user executions per signal
 _EXECUTOR = ThreadPoolExecutor(max_workers=20)
