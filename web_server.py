@@ -404,12 +404,17 @@ def _admin_ip_allowed(ip: str) -> bool:
     return False
 
 
+_UNSAFE_METHODS = {'POST', 'PUT', 'PATCH', 'DELETE'}
+
+
 def require_admin_session(request: Request, db: Session = Depends(get_db)):
     """New admin auth: cookie-based session backed by AdminUser table + role.
 
     Returns dict {user: AdminUser, session: dict}.
     Raises 401 if no/invalid session.
     Enforces global IP allowlist if ADMIN_IP_ALLOWLIST env is set.
+    For unsafe HTTP methods on cookie-authenticated requests, validates the
+    X-CSRF-Token header against session.csrf_token.
     """
     from database import AdminUser
     ip = _real_ip(request)
@@ -418,7 +423,8 @@ def require_admin_session(request: Request, db: Session = Depends(get_db)):
     _purge_admin_sessions()
     token = request.cookies.get(ADMIN_SESSION_COOKIE)
     if not token:
-        # Backwards compat: accept legacy Bearer token while we migrate UIs
+        # Backwards compat: accept legacy Bearer token while we migrate UIs.
+        # Bearer is CSRF-immune (browser does not auto-attach), so no token check.
         auth_hdr = request.headers.get('Authorization', '')
         if auth_hdr.startswith('Bearer '):
             legacy = auth_hdr[7:]
@@ -433,6 +439,13 @@ def require_admin_session(request: Request, db: Session = Depends(get_db)):
     if not user or not user.is_active:
         _admin_sessions.pop(token, None)
         raise HTTPException(status_code=401, detail='User inactive')
+    # CSRF: cookie-auth + unsafe method must carry header matching session token
+    if request.method in _UNSAFE_METHODS:
+        sent = request.headers.get('X-CSRF-Token', '')
+        expected = sess.get('csrf_token', '')
+        import hmac as _hmac
+        if not expected or not _hmac.compare_digest(sent, expected):
+            raise HTTPException(status_code=403, detail='CSRF token missing or invalid')
     return {'user': user, 'session': sess, 'role': user.role}
 
 
@@ -650,9 +663,11 @@ async def admin_login(body: AdminLoginRequest, request: Request, response: Respo
 
     # Login successful — issue session
     sess_token = secrets.token_hex(32)
+    csrf_token = secrets.token_urlsafe(32)
     _admin_sessions[sess_token] = {
         'admin_user_id': user.id, 'role': user.role, 'ip': ip,
         'exp': time.time() + ADMIN_SESSION_TTL,
+        'csrf_token': csrf_token,
     }
     response.set_cookie(
         key=ADMIN_SESSION_COOKIE, value=sess_token,
@@ -660,7 +675,8 @@ async def admin_login(body: AdminLoginRequest, request: Request, response: Respo
         path='/',
     )
     audit_log(user.id, 'admin_login_ok', ip=ip, ua=ua)
-    return {'status': 'ok', 'user': {'id': user.id, 'username': user.username, 'role': user.role}}
+    return {'status': 'ok', 'csrf_token': csrf_token,
+            'user': {'id': user.id, 'username': user.username, 'role': user.role}}
 
 
 class TwoFAVerifyRequest(BaseModel):
@@ -697,9 +713,11 @@ async def admin_verify_2fa(body: TwoFAVerifyRequest, request: Request, response:
         # Issue session
         _admin_2fa_pending.pop(body.pending_token, None)
         sess_token = secrets.token_hex(32)
+        csrf_token = secrets.token_urlsafe(32)
         _admin_sessions[sess_token] = {
             'admin_user_id': user.id, 'role': user.role, 'ip': ip,
             'exp': time.time() + ADMIN_SESSION_TTL,
+            'csrf_token': csrf_token,
         }
         response.set_cookie(
             key=ADMIN_SESSION_COOKIE, value=sess_token,
@@ -707,7 +725,8 @@ async def admin_verify_2fa(body: TwoFAVerifyRequest, request: Request, response:
             path='/',
         )
         audit_log(user.id, 'admin_login_2fa_ok', ip=ip, ua=ua)
-        return {'status': 'ok', 'user': {'id': user.id, 'username': user.username, 'role': user.role}}
+        return {'status': 'ok', 'csrf_token': csrf_token,
+                'user': {'id': user.id, 'username': user.username, 'role': user.role}}
     finally:
         db.close()
 
@@ -727,12 +746,14 @@ async def admin_logout(request: Request, response: Response):
 @app.get("/api/admin/auth/me")
 async def admin_me(auth: dict = Depends(require_admin_session)):
     user = auth.get('user')
+    sess = auth.get('session', {})
     if not user:
         return {'role': auth.get('role', 'admin'), 'legacy': True}
     return {
         'id': user.id, 'username': user.username, 'email': user.email,
         'role': user.role, 'totp_verified': user.totp_verified,
         'last_login_at': user.last_login_at.isoformat() if user.last_login_at else None,
+        'csrf_token': sess.get('csrf_token', ''),
     }
 
 @app.post("/api/auth/logout")
@@ -3782,7 +3803,7 @@ _BASELINE_DASH = '2026-05-19 21:06:00'
 
 
 @app.get("/api/admin/dashboard")
-async def admin_dashboard_api(token: str = Depends(require_auth), db: Session = Depends(get_db)):
+async def admin_dashboard_api(auth: dict = Depends(require_admin_session), db: Session = Depends(get_db)):
     """Aggregate everything the dev/ops team needs in one payload."""
     from sqlalchemy import func, case, text as sa_text
     import subprocess
@@ -4045,13 +4066,6 @@ a:hover{text-decoration:underline}
 </style></head>
 <body>
 
-<div id="login-view" class="login" style="display:none">
-<h1>KADO Admin</h1>
-<input type="password" id="pw" placeholder="Admin password" autofocus>
-<button class="green" onclick="doLogin()">Login</button>
-<div id="login-err" style="color:#f87171;margin-top:8px;font-size:11px"></div>
-</div>
-
 <div id="main-view" style="display:none">
 <div class="head">
   <h1>KADO · Dev Dashboard</h1>
@@ -4072,21 +4086,26 @@ a:hover{text-decoration:underline}
 </div>
 
 <script>
-let TOKEN = localStorage.getItem('kado_admin_token');
+// In-memory only — never localStorage (XSS-immune).
+let CSRF = '';
+let ME = null;
 
-function show(v){ document.getElementById('login-view').style.display = v==='login'?'block':'none'; document.getElementById('main-view').style.display = v==='main'?'block':'none'; }
-
-async function doLogin(){
-  const pw = document.getElementById('pw').value;
-  const err = document.getElementById('login-err'); err.textContent='';
-  try {
-    const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
-    if (!r.ok) { err.textContent='Invalid password'; return; }
-    const d = await r.json(); TOKEN=d.token; localStorage.setItem('kado_admin_token',TOKEN);
-    show('main'); load();
-  } catch(e){ err.textContent='Network error'; }
+function show(v){
+  document.getElementById('main-view').style.display = v==='main'?'block':'none';
 }
-function logout(){ localStorage.removeItem('kado_admin_token'); TOKEN=null; show('login'); }
+
+function gotoLogin(){ window.location.href = '/admin/login'; }
+
+async function logout(){
+  try {
+    await fetch('/api/admin/auth/logout', {
+      method:'POST', credentials:'include',
+      headers: { 'X-CSRF-Token': CSRF },
+    });
+  } catch(e) {}
+  CSRF = ''; ME = null;
+  gotoLogin();
+}
 
 function el(tag, cls, txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
 
@@ -4228,10 +4247,24 @@ function renderUsers(users){
   return c;
 }
 
+async function bootstrap(){
+  // 1) Fetch /me first to acquire CSRF token for any subsequent unsafe writes.
+  let me;
+  try {
+    const r = await fetch('/api/admin/auth/me', { credentials:'include' });
+    if (r.status === 401){ gotoLogin(); return; }
+    me = await r.json();
+  } catch(e){ gotoLogin(); return; }
+  CSRF = me.csrf_token || '';
+  ME = me;
+  show('main');
+  await load();
+  setInterval(load, 30000);
+}
+
 async function load(){
-  if (!TOKEN) { show('login'); return; }
-  const r = await fetch('/api/admin/dashboard',{headers:{'Authorization':'Bearer '+TOKEN}});
-  if (r.status === 401){ logout(); return; }
+  const r = await fetch('/api/admin/dashboard', { credentials:'include' });
+  if (r.status === 401){ gotoLogin(); return; }
   const d = await r.json();
   renderKpis(d.kpis);
   const grid = document.getElementById('dash'); grid.replaceChildren();
@@ -4241,10 +4274,11 @@ async function load(){
   grid.appendChild(renderUsers(d.users));
   grid.appendChild(renderApps(d.apps_preview));
   grid.appendChild(renderOutreach(d.outreach_status));
-  document.getElementById('refresh-meta').textContent = 'Updated: ' + d.updated_at.substring(0,19);
+  const who = ME ? ' · ' + (ME.username || '') + ' (' + (ME.role || '') + ')' : '';
+  document.getElementById('refresh-meta').textContent = 'Updated: ' + d.updated_at.substring(0,19) + who;
 }
 
-if (TOKEN) { show('main'); load(); setInterval(load, 30000); } else { show('login'); }
+bootstrap();
 </script>
 </body></html>"""
 
