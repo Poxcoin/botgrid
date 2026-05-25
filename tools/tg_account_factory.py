@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
 """
-tg_account_factory.py — Bulk Telegram account creator via SMS-Activate API
+tg_account_factory.py — Bulk Telegram account creator via SMS-Activate API + proxy rotation
 
 Flow per account:
-  1. Buy virtual number on SMS-Activate (country: UA/RU/KZ/PL etc.)
-  2. Register Telegram account with Telethon
-  3. Receive SMS code via SMS-Activate API
-  4. Save StringSession to sessions/ directory + append to .env
+  1. Pick next proxy from proxy list (residential IP rotation)
+  2. Buy virtual number on SMS-Activate (country: UA/RU/KZ/PL etc.)
+  3. Register Telegram account with Telethon through that proxy
+  4. Receive SMS code via SMS-Activate API
+  5. Save StringSession + assigned proxy to sessions/ directory
 
 Usage:
   python tools/tg_account_factory.py --count 10 --country ua
-  python tools/tg_account_factory.py --count 5  --country ru --service 5sim
-  python tools/tg_account_factory.py --list-sessions   # show saved sessions
+  python tools/tg_account_factory.py --count 100 --country in --proxies proxies.txt
+  python tools/tg_account_factory.py --list-sessions
+
+Proxy file format (proxies.txt) — one per line:
+  socks5://user:pass@host:port
+  http://user:pass@host:port
+  socks5://192.168.1.1:1080
+  host:port:user:pass          (auto-detected as socks5)
 
 Config (.env):
-  SMS_ACTIVATE_KEY   — API key from sms-activate.org
-  FIVESIM_KEY        — API key from 5sim.net (alternative)
+  SMS_ACTIVATE_KEY   — sms-activate.org API key
+  FIVESIM_KEY        — 5sim.net API key (alternative)
+  PROXY_LIST_FILE    — path to proxy list (default: proxies.txt in project root)
   TELEGRAM_API_ID, TELEGRAM_API_HASH
 
-Notes:
-  - Cost: ~$0.10-0.30 per UA/RU number on SMS-Activate
-  - Telegram may require phone verification later if account looks suspicious
-  - Space creation: default 45s delay between accounts
-  - Sessions saved to: sessions/account_N.session_str + sessions/accounts.json
+Scale guide:
+  10   accounts → 1 IP is ok (built-in delays)
+  100  accounts → 20-30 residential IPs (5 accounts per IP max)
+  1000 accounts → rotating residential pool (Smartproxy/Bright Data)
 """
 from __future__ import annotations
 
@@ -56,14 +63,80 @@ API_ID      = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH    = os.getenv("TELEGRAM_API_HASH", "")
 SMS_KEY     = os.getenv("SMS_ACTIVATE_KEY", "")
 FIVESIM_KEY = os.getenv("FIVESIM_KEY", "")
+PROXY_FILE  = os.getenv("PROXY_LIST_FILE", "proxies.txt")
 
-SESSIONS_DIR = Path(__file__).resolve().parent.parent / "sessions"
+SESSIONS_DIR  = Path(__file__).resolve().parent.parent / "sessions"
 ACCOUNTS_FILE = SESSIONS_DIR / "accounts.json"
 ENV_FILE      = Path(__file__).resolve().parent.parent / ".env"
 
 FIRST_NAMES = ["Alex", "Ivan", "Olena", "Max", "Daria", "Artem", "Natalia", "Dmytro",
                "Sofiia", "Bohdan", "Oksana", "Mykola", "Iryna", "Andrii", "Viktoria"]
 LAST_NAMES  = ["K", "S", "M", "P", "V", "B", "H", "L", "R", "T"]
+
+
+# ── Proxy loader ──────────────────────────────────────────────────────────────
+
+def parse_proxy_line(line: str) -> dict | None:
+    """Parse proxy line into Telethon proxy tuple dict."""
+    line = line.strip()
+    if not line or line.startswith("#"):
+        return None
+    import re
+    # socks5://user:pass@host:port  or  http://...
+    m = re.match(r"(socks5|socks4|http)://(?:([^:]+):([^@]+)@)?([^:]+):(\d+)", line)
+    if m:
+        proto, user, pwd, host, port = m.groups()
+        proxy_type = {"socks5": 2, "socks4": 1, "http": 3}.get(proto, 2)
+        return {"proxy_type": proxy_type, "addr": host, "port": int(port),
+                "rdns": True, "username": user, "password": pwd}
+    # host:port:user:pass
+    parts = line.split(":")
+    if len(parts) == 4:
+        host, port, user, pwd = parts
+        return {"proxy_type": 2, "addr": host, "port": int(port),
+                "rdns": True, "username": user, "password": pwd}
+    # host:port (no auth)
+    if len(parts) == 2:
+        host, port = parts
+        return {"proxy_type": 2, "addr": host, "port": int(port), "rdns": True}
+    return None
+
+
+def load_proxies(filepath: str | None = None) -> list[dict]:
+    path = Path(filepath or PROXY_FILE)
+    if not path.is_absolute():
+        path = Path(__file__).resolve().parent.parent / path
+    if not path.exists():
+        return []
+    proxies = []
+    for line in path.read_text().splitlines():
+        p = parse_proxy_line(line)
+        if p:
+            proxies.append(p)
+    return proxies
+
+
+class ProxyRotator:
+    """Cycles through proxy list, max N accounts per IP."""
+
+    def __init__(self, proxies: list[dict], max_per_ip: int = 5):
+        self.proxies = proxies
+        self.max_per_ip = max_per_ip
+        self._usage: dict[int, int] = {}
+        self._idx = 0
+
+    def next(self) -> dict | None:
+        if not self.proxies:
+            return None
+        for _ in range(len(self.proxies)):
+            p = self.proxies[self._idx % len(self.proxies)]
+            key = self._idx % len(self.proxies)
+            if self._usage.get(key, 0) < self.max_per_ip:
+                self._usage[key] = self._usage.get(key, 0) + 1
+                self._idx += 1
+                return p
+            self._idx += 1
+        return self.proxies[0]  # fallback: reuse first
 
 # SMS-Activate country codes for Telegram
 COUNTRY_CODES = {
@@ -183,7 +256,7 @@ def load_accounts() -> list[dict]:
     return []
 
 
-def save_account(phone: str, session_str: str, first_name: str):
+def save_account(phone: str, session_str: str, first_name: str, proxy: dict | None = None):
     SESSIONS_DIR.mkdir(exist_ok=True)
     accounts = load_accounts()
     idx = len(accounts) + 1
@@ -192,16 +265,15 @@ def save_account(phone: str, session_str: str, first_name: str):
         "phone": phone,
         "first_name": first_name,
         "session_file": f"account_{idx}.session_str",
+        "proxy": f"{proxy['addr']}:{proxy['port']}" if proxy else None,
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     accounts.append(entry)
     ACCOUNTS_FILE.write_text(json.dumps(accounts, indent=2))
 
-    # Save session string to file
     session_path = SESSIONS_DIR / f"account_{idx}.session_str"
     session_path.write_text(session_str)
 
-    # Append to .env as TG_TEST_SESSION_N
     env_line = f"TG_TEST_SESSION_{idx}={session_str}\n"
     with open(ENV_FILE, "a") as f:
         f.write(env_line)
@@ -216,10 +288,12 @@ async def create_one_account(
     sms: SmsActivate | FiveSim,
     country: str,
     idx: int,
+    proxy: dict | None = None,
 ) -> bool:
     first_name = random.choice(FIRST_NAMES)
     last_name  = random.choice(LAST_NAMES)
-    print(f"\n[{idx}] Creating account: {first_name} {last_name}")
+    proxy_label = f"{proxy['addr']}:{proxy['port']}" if proxy else "no proxy"
+    print(f"\n[{idx}] Creating account: {first_name} {last_name}  proxy={proxy_label}")
 
     # Get number
     try:
@@ -233,8 +307,18 @@ async def create_one_account(
     if hasattr(sms, "set_status"):
         await sms.set_status(activation_id, 1)
 
-    # Register with Telethon
-    async with TelegramClient(StringSession(), API_ID, API_HASH) as client:
+    # Register with Telethon (through proxy if provided)
+    client_kwargs = {}
+    if proxy:
+        client_kwargs["proxy"] = (
+            proxy["proxy_type"],
+            proxy["addr"],
+            proxy["port"],
+            proxy.get("rdns", True),
+            proxy.get("username"),
+            proxy.get("password"),
+        )
+    async with TelegramClient(StringSession(), API_ID, API_HASH, **client_kwargs) as client:
         try:
             sent = await client.send_code_request(f"+{phone}")
             print(f"  Code sent (type={sent.type}), waiting for SMS...")
@@ -295,11 +379,12 @@ async def create_one_account(
         actual_name = f"{me.first_name or ''} {me.last_name or ''}".strip() or str(me.id)
         print(f"  Account: {actual_name} (@{me.username or 'no_username'})")
 
-        save_account(f"+{phone}", session_str, actual_name)
+        save_account(f"+{phone}", session_str, actual_name, proxy=proxy)
         return True
 
 
-async def run_factory(count: int, country: str, service: str, delay: int):
+async def run_factory(count: int, country: str, service: str, delay: int,
+                      proxy_file: str | None = None, max_per_ip: int = 5):
     if not API_ID or not API_HASH:
         sys.exit("[error] TELEGRAM_API_ID / TELEGRAM_API_HASH missing")
 
@@ -311,6 +396,14 @@ async def run_factory(count: int, country: str, service: str, delay: int):
             sys.exit("[error] SMS_ACTIVATE_KEY missing in .env")
 
     SESSIONS_DIR.mkdir(exist_ok=True)
+
+    # Load proxies
+    proxies = load_proxies(proxy_file)
+    rotator = ProxyRotator(proxies, max_per_ip=max_per_ip) if proxies else None
+    if proxies:
+        print(f"Proxies loaded: {len(proxies)} IPs (max {max_per_ip} accounts per IP)")
+    else:
+        print("⚠ No proxies — all accounts will share VPS IP (safe up to ~10 accounts)")
 
     async with aiohttp.ClientSession() as http:
         if service == "5sim":
@@ -329,7 +422,8 @@ async def run_factory(count: int, country: str, service: str, delay: int):
 
         ok = failed = 0
         for i in range(1, count + 1):
-            success = await create_one_account(sms_provider, country, i)
+            proxy = rotator.next() if rotator else None
+            success = await create_one_account(sms_provider, country, i, proxy=proxy)
             if success:
                 ok += 1
             else:
@@ -367,18 +461,23 @@ def list_sessions():
 
 def main():
     parser = argparse.ArgumentParser(description="Bulk TG account creator")
-    parser.add_argument("--count",   type=int, default=5,    help="Number of accounts to create")
-    parser.add_argument("--country", default="ua",           help="Country code: ua/ru/kz/pl/in/ph")
-    parser.add_argument("--service", choices=["sms-activate", "5sim"], default="sms-activate")
-    parser.add_argument("--delay",   type=int, default=45,   help="Seconds between accounts (default 45)")
-    parser.add_argument("--list-sessions", action="store_true", help="Show existing sessions")
+    parser.add_argument("--count",      type=int, default=5,   help="Number of accounts to create")
+    parser.add_argument("--country",    default="ua",           help="Country: ua/ru/kz/pl/in/ph")
+    parser.add_argument("--service",    choices=["sms-activate", "5sim"], default="sms-activate")
+    parser.add_argument("--delay",      type=int, default=45,  help="Seconds between accounts")
+    parser.add_argument("--proxies",    default=None,           help="Path to proxy list file")
+    parser.add_argument("--max-per-ip", type=int, default=5,   help="Max accounts per proxy IP")
+    parser.add_argument("--list-sessions", action="store_true")
     args = parser.parse_args()
 
     if args.list_sessions:
         list_sessions()
         return
 
-    asyncio.run(run_factory(args.count, args.country, args.service, args.delay))
+    asyncio.run(run_factory(
+        args.count, args.country, args.service, args.delay,
+        proxy_file=args.proxies, max_per_ip=args.max_per_ip,
+    ))
 
 
 if __name__ == "__main__":
