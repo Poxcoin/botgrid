@@ -51,8 +51,10 @@ def _ensure_db_healthy() -> None:
             wal_empty = not os.path.exists(wal_path) or os.path.getsize(wal_path) == 0
             if wal_empty:
                 for p in (wal_path, shm_path):
-                    if os.path.exists(p):
+                    try:
                         os.remove(p)
+                    except FileNotFoundError:
+                        pass
             return
         conn.close()
         print(f"[DB]   integrity_check: {result[0] if result else '?'} — відновлення з бекапу...")
@@ -61,8 +63,10 @@ def _ensure_db_healthy() -> None:
 
     for ext in ("-wal", "-shm"):
         p = _DB_PATH + ext
-        if os.path.exists(p):
+        try:
             os.remove(p)
+        except FileNotFoundError:
+            pass
 
     backup = _find_latest_backup()
     if not backup:
