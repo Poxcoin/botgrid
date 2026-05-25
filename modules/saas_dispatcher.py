@@ -429,9 +429,19 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         ticker = ex.fetch_ticker(symbol)
         price  = ticker["last"]
 
-        qty = round(size_usd / price, 3)
+        # Per-symbol qty precision — hardcoded round(,3) silently zero'd small-price alts
+        # (e.g. HMSTR @ $0.0001 with $9 notional → qty 90000, fine; but $9/$1.5 = 6 LINK
+        # at round(,3) = 6.000 also fine; the real risk is round-down to lot-step).
+        raw_qty = size_usd / price
+        try:
+            qty = float(ex.amount_to_precision(symbol, raw_qty))
+        except Exception:
+            qty = round(raw_qty, 3)
+        min_qty = (ex.markets.get(symbol, {}).get('limits', {}).get('amount', {}) or {}).get('min') or 0
+        if qty < min_qty:
+            qty = float(ex.amount_to_precision(symbol, min_qty))
         if qty <= 0:
-            raise ValueError(f"qty={qty} too small (balance={balance:.2f})")
+            raise ValueError(f"qty={qty} too small after precision (raw={raw_qty}, min={min_qty}, balance={balance:.2f})")
 
         # Set leverage — ignore 110043 ("leverage not modified" = already correct)
         try:
@@ -461,19 +471,58 @@ def _execute_for_user(user: dict, signal: dict, signal_id: str) -> bool:
         tp_price = round(fill * (1 + tp_pct / 100), 6) if side == "LONG" else round(fill * (1 - tp_pct / 100), 6)
         sl_price = round(fill * (1 - sl_pct / 100), 6) if side == "LONG" else round(fill * (1 + sl_pct / 100), 6)
 
-        # Set TP (LastPrice — triggers on actual traded price) + SL (MarkPrice — harder to manipulate)
-        try:
-            ex.private_post_v5_position_trading_stop(params={
-                "category":    "linear",
-                "symbol":      symbol.replace("/", "").replace(":USDT", ""),
-                "takeProfit":  str(tp_price),
-                "stopLoss":    str(sl_price),
-                "tpTriggerBy": "LastPrice",
-                "slTriggerBy": "MarkPrice",
-                "positionIdx": 0,
-            })
-        except Exception as _tpsl_err:
-            print(f"[DISPATCHER]  TP/SL set failed {symbol}: {_tpsl_err}")
+        # Set TP (LastPrice — triggers on actual traded price) + SL (MarkPrice — harder to manipulate).
+        # CRITICAL: if TP/SL fails, position is UNPROTECTED on Bybit. Retry, then emergency close.
+        tpsl_ok = False
+        tpsl_last_err = None
+        for _attempt in range(3):
+            try:
+                ex.private_post_v5_position_trading_stop(params={
+                    "category":    "linear",
+                    "symbol":      symbol.replace("/", "").replace(":USDT", ""),
+                    "takeProfit":  str(tp_price),
+                    "stopLoss":    str(sl_price),
+                    "tpTriggerBy": "LastPrice",
+                    "slTriggerBy": "MarkPrice",
+                    "positionIdx": 0,
+                })
+                tpsl_ok = True
+                break
+            except Exception as _tpsl_err:
+                tpsl_last_err = _tpsl_err
+                print(f"[DISPATCHER]  TP/SL attempt {_attempt+1}/3 failed {symbol}: {_tpsl_err}")
+                time.sleep(0.5 * (_attempt + 1))
+        if not tpsl_ok:
+            # Emergency close — unprotected position is unacceptable
+            print(f"[DISPATCHER] 🚨 CRITICAL TP/SL FAILED {symbol} — emergency market close")
+            try:
+                close_side = "sell" if side == "LONG" else "buy"
+                ex.create_order(symbol, "market", close_side, qty, params={
+                    "category": "linear", "positionIdx": 0, "reduceOnly": True,
+                })
+                from modules.tg_notifier import send_telegram_message
+                send_telegram_message(
+                    f"🚨 <b>UNPROTECTED POSITION CLOSED</b>\n"
+                    f"user={uid} {symbol} {side} qty={qty}\n"
+                    f"TP/SL failed after 3 retries: {str(tpsl_last_err)[:200]}\n"
+                    f"Emergency market close fired.",
+                    TG_CHAT_ID,
+                )
+            except Exception as _emerg_err:
+                print(f"[DISPATCHER] 🆘 EMERGENCY CLOSE ALSO FAILED {symbol}: {_emerg_err}")
+                try:
+                    from modules.tg_notifier import send_telegram_message
+                    send_telegram_message(
+                        f"🆘 <b>MANUAL INTERVENTION REQUIRED</b>\n"
+                        f"user={uid} {symbol} {side} qty={qty}\n"
+                        f"Open position WITHOUT TP/SL on Bybit. Emergency close also failed.\n"
+                        f"TP/SL err: {str(tpsl_last_err)[:120]}\n"
+                        f"Close err: {str(_emerg_err)[:120]}",
+                        TG_CHAT_ID,
+                    )
+                except Exception:
+                    pass
+            return False
 
         _log_trade(uid, signal_id, source, symbol, side, leverage,
                    order.get("id"), fill, qty, "open")
@@ -553,8 +602,14 @@ def dispatch(signal: dict) -> dict:
         "sl_pct":   4.0,
     }
     """
-    source    = signal.get("source", "news")
+    source    = signal.get("source")
     signal_id = str(uuid.uuid4())
+
+    # Strict source validation — unknown/missing source must not silently bypass
+    # _LIVE_RESTRICTED_SOURCES filter by defaulting to 'news'.
+    if not source:
+        print(f"[DISPATCHER] REJECT signal missing 'source' field: {signal.get('symbol')}")
+        return {"ok": 0, "fail": 0, "signal_id": signal_id, "skipped": "missing_source"}
 
     # Consecutive-loss cooldown check (Council 2026-05-22)
     in_cd, until_ts = is_in_cooldown(source)
@@ -588,11 +643,30 @@ def dispatch(signal: dict) -> dict:
 
     ok = fail = 0
     for future in as_completed(futures, timeout=60):
+        uid_for_future = futures.get(future)
         try:
-            ok += 1 if future.result() else 0
-            fail += 0 if future.result() else 1
-        except Exception:
+            result = future.result()
+            if result:
+                ok += 1
+            else:
+                fail += 1
+        except Exception as fut_exc:
+            # CRITICAL: this is the bug pattern that hid action/side KeyError for months.
+            # Surface the actual traceback per-user instead of silently incrementing fail.
             fail += 1
+            tb = traceback.format_exception(type(fut_exc), fut_exc, fut_exc.__traceback__)
+            print(f"[DISPATCHER] 🔴 FUTURE EXCEPTION user={uid_for_future} source={source} symbol={signal.get('symbol')}")
+            print(''.join(tb)[-1500:])
+            try:
+                from modules.tg_notifier import send_telegram_message
+                send_telegram_message(
+                    f"🔴 <b>Dispatcher future exception</b>\n"
+                    f"user={uid_for_future} source={source} symbol={signal.get('symbol')}\n"
+                    f"<pre>{type(fut_exc).__name__}: {str(fut_exc)[:300]}</pre>",
+                    TG_CHAT_ID,
+                )
+            except Exception:
+                pass
 
     print(f"[DISPATCHER] Done — ok={ok} fail={fail}")
     return {"ok": ok, "fail": fail, "signal_id": signal_id}

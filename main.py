@@ -852,7 +852,19 @@ def run_signal_engine():
                                             print(f"[SIGNAL]  {coin} закрито, входимо в {signal['action']}")
                                             _coin_cooldown[coin] = 0  # скидаємо cooldown щоб одразу відкрити нову
                                     except Exception as e:
-                                        print(f"[SIGNAL]  Помилка закриття {coin}: {e}")
+                                        # CRITICAL: if close fails, code falls through and dispatches new opposite
+                                        # position → DUPLICATE HEDGE on Bybit. Skip the new dispatch.
+                                        print(f"[SIGNAL] 🔴 Помилка закриття {coin}: {e} — SKIP new dispatch to avoid hedge")
+                                        try:
+                                            send_telegram_message(
+                                                f"🔴 <b>Opposite-close FAIL</b>\n"
+                                                f"{coin} {signal.get('action')} — skip new entry\n"
+                                                f"<code>{str(e)[:200]}</code>",
+                                                TG_CHAT_ID,
+                                            )
+                                        except Exception:
+                                            pass
+                                        continue
 
                             last_ts = _coin_cooldown.get(coin, 0)
                             if now_ts - last_ts < COIN_COOLDOWN_SEC:
