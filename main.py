@@ -734,8 +734,10 @@ def run_signal_engine():
                     print(f"    Whale Alert: {news_item['title'][:60]}...")
                     signal = generate_whale_signal(news_item)
                 elif news_item.get("is_smart_wallet"):
-                    # Smart wallet ETH accumulation → scan ETH-ecosystem alts, bypass AI
-                    signal = generate_smart_wallet_signal(news_item)
+                    # 2026-05-25: smartmoney fully disabled — n=2 demo losses (-$21),
+                    # backtest showed 2% WR over 220 signals (Council 2026-05-23).
+                    # No live execution AND no demo signal emission until 14d Bayesian review.
+                    continue
                 else:
                     print(f"   Анализ: {news_item['title'][:60]}...")
                     signal = generate_signal(news_item)

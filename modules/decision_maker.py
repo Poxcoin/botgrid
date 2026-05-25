@@ -17,7 +17,7 @@ _NEWS_BLOCKED = frozenset({"BTC", "ETH", "SOL", "BNB", "BITCOIN", "ETHEREUM", "S
 # Монети з підтвердженим негативним PnL — заблоковані від news-signal торгівлі.
 # Дані (all-time analytics.db): STX -$73.67 33%WR, ZETA -$35.68 0%WR,
 # ATOM -$12.02 0%WR, OP -$7.69 0%WR, TRX -$5.36 0%WR, LTC -$3.43 0%WR, AAVE -$2.14 0%WR
-_COIN_BLACKLIST = frozenset({"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE"})
+_COIN_BLACKLIST = frozenset({"STX", "ZETA", "OP", "ATOM", "LTC", "TRX", "AAVE", "LINK", "UNI"})
 
 # Монети з підтвердженим позитивним PnL і високим WR — розмір позиції x1.5.
 # Дані: WLD +$90.93 71%WR (7 угод), ARB +$19.68 100%WR (2 угоди), JUP +$19.65 100%WR (1 угода)
