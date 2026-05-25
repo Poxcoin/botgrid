@@ -35,7 +35,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.filters import Command
+from aiogram.filters import Command, or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -148,7 +148,7 @@ async def cmd_help(msg: types.Message):
     await msg.answer(text, reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'Status'}) | Command('status'))
+@dp.message(or_f(F.text == 'Status', Command('status')))
 async def cmd_status(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -183,7 +183,7 @@ async def cmd_status(msg: types.Message):
     await msg.answer(text, reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'PnL'}) | Command('pnl'))
+@dp.message(or_f(F.text == 'PnL', Command('pnl')))
 async def cmd_pnl(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -199,7 +199,7 @@ async def cmd_pnl(msg: types.Message):
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'Track'}) | Command('track'))
+@dp.message(or_f(F.text == 'Track', Command('track')))
 async def cmd_track(msg: types.Message):
     if not allowed(msg): return
     await msg.answer(
@@ -210,7 +210,7 @@ async def cmd_track(msg: types.Message):
     )
 
 
-@dp.message(F.text.in_({'Apps'}) | Command('apps'))
+@dp.message(or_f(F.text == 'Apps', Command('apps')))
 async def cmd_apps(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -264,7 +264,7 @@ async def cb_app_status(call: types.CallbackQuery):
     await call.answer(f'Status: {status}')
 
 
-@dp.message(F.text.in_({'CRM'}) | Command('outreach'))
+@dp.message(or_f(F.text == 'CRM', Command('outreach')))
 async def cmd_outreach(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -290,7 +290,7 @@ async def cmd_outreach(msg: types.Message):
     await msg.answer(text, reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'Bots'}) | Command('bots'))
+@dp.message(or_f(F.text == 'Bots', Command('bots')))
 async def cmd_bots(msg: types.Message):
     if not allowed(msg): return
     import subprocess
@@ -342,7 +342,7 @@ async def cb_svc_restart(call: types.CallbackQuery):
         await call.answer(f'Err: {e}', show_alert=True)
 
 
-@dp.message(F.text.in_({'Drift'}) | Command('drift'))
+@dp.message(or_f(F.text == 'Drift', Command('drift')))
 async def cmd_drift(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -360,7 +360,7 @@ async def cmd_drift(msg: types.Message):
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'Sources'}) | Command('sources'))
+@dp.message(or_f(F.text == 'Sources', Command('sources')))
 async def cmd_sources(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
@@ -379,7 +379,7 @@ async def cmd_sources(msg: types.Message):
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'Links'}) | Command('links'))
+@dp.message(or_f(F.text == 'Links', Command('links')))
 async def cmd_links(msg: types.Message):
     if not allowed(msg): return
     text = (
@@ -396,7 +396,7 @@ async def cmd_links(msg: types.Message):
 
 # ─── /addprospect FSM flow ───────────────────────────────────────────────────
 
-@dp.message(F.text.in_({'Prospect'}) | Command('addprospect'))
+@dp.message(or_f(F.text == 'Prospect', Command('addprospect')))
 async def cmd_addprospect_start(msg: types.Message, state: FSMContext):
     if not allowed(msg): return
     await state.set_state(AddProspect.name)
@@ -488,7 +488,7 @@ async def add_step_hook(msg: types.Message, state: FSMContext):
     )
 
 
-@dp.message(F.text.in_({'Users'}) | Command('users'))
+@dp.message(or_f(F.text == 'Users', Command('users')))
 async def cmd_users(msg: types.Message):
     """List all active users with key stats + balance."""
     if not allowed(msg): return
@@ -607,7 +607,7 @@ async def cmd_user_detail(msg: types.Message):
     await msg.answer('\n'.join(lines), reply_markup=main_kb())
 
 
-@dp.message(F.text.in_({'Recent'}) | Command('recent'))
+@dp.message(or_f(F.text == 'Recent', Command('recent')))
 async def cmd_recent(msg: types.Message):
     if not allowed(msg): return
     rows = db_query(
