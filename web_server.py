@@ -358,6 +358,68 @@ def require_any_auth(
             return token
     raise HTTPException(status_code=401, detail="Invalid or expired token")
 
+
+# ─── Admin session storage (Phase 2+3: per-user accounts + httpOnly cookies) ─
+
+# {session_token: {"admin_user_id": int, "role": str, "exp": float, "ip": str}}
+_admin_sessions: dict[str, dict] = {}
+ADMIN_SESSION_COOKIE = 'kado_admin_sess'
+ADMIN_SESSION_TTL = 8 * 3600  # 8 hours
+
+# Pending 2FA: after password OK but before TOTP verify
+# {pending_token: {"admin_user_id": int, "exp": float, "ip": str}}
+_admin_2fa_pending: dict[str, dict] = {}
+
+
+def _purge_admin_sessions():
+    now = time.time()
+    for k in [k for k, v in _admin_sessions.items() if v.get('exp', 0) < now]:
+        _admin_sessions.pop(k, None)
+    for k in [k for k, v in _admin_2fa_pending.items() if v.get('exp', 0) < now]:
+        _admin_2fa_pending.pop(k, None)
+
+
+def require_admin_session(request: Request, db: Session = Depends(get_db)):
+    """New admin auth: cookie-based session backed by AdminUser table + role.
+
+    Returns dict {user: AdminUser, session: dict}.
+    Raises 401 if no/invalid session.
+    """
+    from database import AdminUser
+    _purge_admin_sessions()
+    token = request.cookies.get(ADMIN_SESSION_COOKIE)
+    if not token:
+        # Backwards compat: accept legacy Bearer token while we migrate UIs
+        auth_hdr = request.headers.get('Authorization', '')
+        if auth_hdr.startswith('Bearer '):
+            legacy = auth_hdr[7:]
+            if _active_tokens.get(legacy, 0) >= time.time():
+                return {'user': None, 'session': {'legacy': True}, 'role': 'admin'}
+        raise HTTPException(status_code=401, detail='No admin session')
+    sess = _admin_sessions.get(token)
+    if not sess or sess.get('exp', 0) < time.time():
+        _admin_sessions.pop(token, None)
+        raise HTTPException(status_code=401, detail='Session expired')
+    user = db.query(AdminUser).filter(AdminUser.id == sess['admin_user_id']).first()
+    if not user or not user.is_active:
+        _admin_sessions.pop(token, None)
+        raise HTTPException(status_code=401, detail='User inactive')
+    return {'user': user, 'session': sess, 'role': user.role}
+
+
+def require_perm(perm: str):
+    """Decorator factory: require specific permission for endpoint."""
+    def dep(auth: dict = Depends(require_admin_session)):
+        from modules.admin_auth import has_perm
+        user = auth.get('user')
+        # Legacy bearer = admin (during migration window)
+        if not user and auth.get('session', {}).get('legacy'):
+            return auth
+        if not has_perm(user, perm):
+            raise HTTPException(status_code=403, detail=f'Missing permission: {perm}')
+        return auth
+    return dep
+
 LEDGER_FILE = "signals_log.json"
 
 # ─── Backtest in-process runner ──────────────────────────────────────────────
@@ -515,6 +577,134 @@ async def login(body: LoginRequest, request: Request):
     token = secrets.token_hex(32)
     _active_tokens[token] = time.time() + _TOKEN_TTL
     return {"token": token}
+
+
+# ─── New admin auth: per-user accounts + 2FA + httpOnly cookie ────────────────
+
+class AdminLoginRequest(BaseModel):
+    username: str
+    password: str
+    totp_code: Optional[str] = None
+
+
+@app.post("/api/admin/auth/login")
+async def admin_login(body: AdminLoginRequest, request: Request, response: Response):
+    """Per-admin login with 2FA + httpOnly cookie session."""
+    from modules.admin_auth import authenticate, audit_log
+    ip = _real_ip(request)
+    ua = request.headers.get('User-Agent', '')[:200]
+    if not _check_rate_limit(f'admin_login_{ip}', window=300, max_hits=5):
+        raise HTTPException(status_code=429, detail="Too many attempts. Wait 5 min.")
+
+    user, status = authenticate(body.username, body.password, body.totp_code, ip=ip)
+
+    if status == 'totp_required':
+        # Issue short-lived pending token; client must POST /verify-2fa
+        pending = secrets.token_hex(32)
+        _admin_2fa_pending[pending] = {
+            'admin_user_id': user.id, 'exp': time.time() + 300, 'ip': ip
+        }
+        return {'status': 'totp_required', 'pending_token': pending}
+
+    if status != 'ok':
+        audit_log(None, 'admin_login_failed', detail={'username': body.username, 'status': status},
+                  ip=ip, ua=ua)
+        if status == 'locked':
+            raise HTTPException(status_code=423, detail='Account locked. Wait 15 min.')
+        if status == 'inactive':
+            raise HTTPException(status_code=403, detail='Account inactive.')
+        if status == 'ip_blocked':
+            raise HTTPException(status_code=403, detail='IP not allowed for this account.')
+        if status == 'totp_invalid':
+            raise HTTPException(status_code=401, detail='Invalid 2FA code.')
+        raise HTTPException(status_code=401, detail='Invalid credentials.')
+
+    # Login successful — issue session
+    sess_token = secrets.token_hex(32)
+    _admin_sessions[sess_token] = {
+        'admin_user_id': user.id, 'role': user.role, 'ip': ip,
+        'exp': time.time() + ADMIN_SESSION_TTL,
+    }
+    response.set_cookie(
+        key=ADMIN_SESSION_COOKIE, value=sess_token,
+        max_age=ADMIN_SESSION_TTL, httponly=True, secure=True, samesite='strict',
+        path='/',
+    )
+    audit_log(user.id, 'admin_login_ok', ip=ip, ua=ua)
+    return {'status': 'ok', 'user': {'id': user.id, 'username': user.username, 'role': user.role}}
+
+
+class TwoFAVerifyRequest(BaseModel):
+    pending_token: str
+    totp_code: str
+
+
+@app.post("/api/admin/auth/verify-2fa")
+async def admin_verify_2fa(body: TwoFAVerifyRequest, request: Request, response: Response):
+    from modules.admin_auth import verify_totp, audit_log, decrypt_field
+    from database import AdminUser
+    ip = _real_ip(request)
+    ua = request.headers.get('User-Agent', '')[:200]
+    _purge_admin_sessions()
+    pending = _admin_2fa_pending.get(body.pending_token)
+    if not pending or pending.get('exp', 0) < time.time():
+        raise HTTPException(status_code=401, detail='Pending session expired')
+    if pending.get('ip') != ip:
+        raise HTTPException(status_code=403, detail='IP mismatch')
+
+    db = SessionLocal()
+    try:
+        user = db.query(AdminUser).filter(AdminUser.id == pending['admin_user_id']).first()
+        if not user or not user.totp_secret_enc:
+            raise HTTPException(status_code=401, detail='Invalid state')
+        secret = decrypt_field(user.totp_secret_enc)
+        if not verify_totp(secret, body.totp_code):
+            audit_log(user.id, 'admin_2fa_failed', ip=ip, ua=ua)
+            raise HTTPException(status_code=401, detail='Invalid 2FA code')
+        user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        user.last_login_ip = ip
+        user.failed_attempts = 0
+        db.commit()
+        # Issue session
+        _admin_2fa_pending.pop(body.pending_token, None)
+        sess_token = secrets.token_hex(32)
+        _admin_sessions[sess_token] = {
+            'admin_user_id': user.id, 'role': user.role, 'ip': ip,
+            'exp': time.time() + ADMIN_SESSION_TTL,
+        }
+        response.set_cookie(
+            key=ADMIN_SESSION_COOKIE, value=sess_token,
+            max_age=ADMIN_SESSION_TTL, httponly=True, secure=True, samesite='strict',
+            path='/',
+        )
+        audit_log(user.id, 'admin_login_2fa_ok', ip=ip, ua=ua)
+        return {'status': 'ok', 'user': {'id': user.id, 'username': user.username, 'role': user.role}}
+    finally:
+        db.close()
+
+
+@app.post("/api/admin/auth/logout")
+async def admin_logout(request: Request, response: Response):
+    from modules.admin_auth import audit_log
+    token = request.cookies.get(ADMIN_SESSION_COOKIE)
+    if token:
+        sess = _admin_sessions.pop(token, None)
+        if sess:
+            audit_log(sess.get('admin_user_id'), 'admin_logout', ip=_real_ip(request))
+    response.delete_cookie(key=ADMIN_SESSION_COOKIE, path='/')
+    return {'ok': True}
+
+
+@app.get("/api/admin/auth/me")
+async def admin_me(auth: dict = Depends(require_admin_session)):
+    user = auth.get('user')
+    if not user:
+        return {'role': auth.get('role', 'admin'), 'legacy': True}
+    return {
+        'id': user.id, 'username': user.username, 'email': user.email,
+        'role': user.role, 'totp_verified': user.totp_verified,
+        'last_login_at': user.last_login_at.isoformat() if user.last_login_at else None,
+    }
 
 @app.post("/api/auth/logout")
 async def logout(token: str = Depends(require_any_auth)):
@@ -3713,6 +3903,80 @@ async def admin_dashboard_api(token: str = Depends(require_auth), db: Session = 
     }
 
 
+_ADMIN_LOGIN_FRAGMENT = """
+<div id="login-view" class="login" style="display:none">
+  <h2 style="margin-bottom:18px">KADO Admin</h2>
+  <div id="login-step1">
+    <input id="lg-user" placeholder="Username or email" autocomplete="username" autofocus>
+    <input id="lg-pw" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="green" onclick="doLogin()">Sign in</button>
+  </div>
+  <div id="login-step2" style="display:none">
+    <p style="color:#999;font-size:12px;margin-bottom:10px">Enter 6-digit code from your authenticator app</p>
+    <input id="lg-totp" placeholder="000000" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+    <button class="green" onclick="doVerify2FA()">Verify</button>
+  </div>
+  <div id="login-err" style="color:#f87171;margin-top:10px;font-size:11px"></div>
+</div>
+"""
+
+_ADMIN_LOGIN_SCRIPT = """
+let PENDING_TOKEN = null;
+async function doLogin(){
+  const user = document.getElementById('lg-user').value.trim();
+  const pw = document.getElementById('lg-pw').value;
+  const err = document.getElementById('login-err'); err.textContent='';
+  if (!user || !pw) { err.textContent='All fields required'; return; }
+  try {
+    const r = await fetch('/api/admin/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({username: user, password: pw})
+    });
+    if (r.status === 429) { err.textContent='Too many attempts'; return; }
+    if (r.status === 423) { err.textContent='Account locked. Wait 15 min.'; return; }
+    if (!r.ok) {
+      const d = await r.json().catch(()=>({}));
+      err.textContent = d.detail || 'Invalid credentials'; return;
+    }
+    const d = await r.json();
+    if (d.status === 'totp_required') {
+      PENDING_TOKEN = d.pending_token;
+      document.getElementById('login-step1').style.display='none';
+      document.getElementById('login-step2').style.display='block';
+      document.getElementById('lg-totp').focus();
+      return;
+    }
+    show('main'); load();
+  } catch(e) { err.textContent='Network error'; }
+}
+
+async function doVerify2FA(){
+  const code = document.getElementById('lg-totp').value.trim();
+  const err = document.getElementById('login-err'); err.textContent='';
+  try {
+    const r = await fetch('/api/admin/auth/verify-2fa', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({pending_token: PENDING_TOKEN, totp_code: code})
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(()=>({}));
+      err.textContent = d.detail || 'Invalid code'; return;
+    }
+    show('main'); load();
+  } catch(e) { err.textContent='Network error'; }
+}
+
+async function logout(){
+  await fetch('/api/admin/auth/logout', {method:'POST', credentials:'include'});
+  PENDING_TOKEN = null;
+  document.getElementById('login-step1').style.display='block';
+  document.getElementById('login-step2').style.display='none';
+  show('login');
+}
+"""
+
 _ADMIN_DASH_HTML = """<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -5447,9 +5711,10 @@ async def favicon_svg():
 # Root-level static files that crawlers, social platforms, and search engines
 # expect at exact paths (NOT under /static/...). Served before the SPA catch-all.
 _ROOT_STATIC_FILES = {
-    "robots.txt":   "text/plain; charset=utf-8",
-    "sitemap.xml":  "application/xml; charset=utf-8",
-    "og-image.png": "image/png",
+    "robots.txt":     "text/plain; charset=utf-8",
+    "sitemap.xml":    "application/xml; charset=utf-8",
+    "og-image.png":   "image/png",
+    "kado-brand.png": "image/png",
 }
 
 for _name, _mime in _ROOT_STATIC_FILES.items():
