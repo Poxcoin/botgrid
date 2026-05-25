@@ -76,23 +76,50 @@ def _center_text(d, text: str, font, y: int, W: int, color=FG):
 
 
 def brand_static_image() -> str:
-    """Master KADO brand image. Pure black + white. No accent colors, no decorations."""
-    W, H = 1080, 1080
+    """KADO OG-style image (1200×630) — same composition as original but B/W + site grid."""
+    W, H = 1200, 630
     img, d = _draw_brand_frame(W, H)
 
-    # KADO wordmark centered — large, white, sole element
-    wm = _font(260, bold=True)
-    bbox = d.textbbox((0, 0), 'KADO', font=wm)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x = (W - tw) / 2
-    y = (H - th) / 2 - 20
-    d.text((x, y), 'KADO', font=wm, fill=FG)
+    # Subtle background grid (like neural background on the site, white at low opacity)
+    GRID_COLOR = (28, 28, 28)   # ~ #1c1c1c — very subtle
+    STEP = 40
+    for x in range(0, W, STEP):
+        d.line([(x, 0), (x, H)], fill=GRID_COLOR, width=1)
+    for y in range(0, H, STEP):
+        d.line([(0, y), (W, y)], fill=GRID_COLOR, width=1)
 
-    # Single thin white horizontal underline — no green accent
-    line_y = y + th + 40
-    line_w = 180
-    line_x = (W - line_w) / 2
-    d.rectangle([line_x, line_y, line_x + line_w, line_y + 2], fill=FG)
+    # Few brighter horizontal accent lines (faint white) — visual rhythm
+    for y in (90, 540):
+        d.line([(60, y), (W - 60, y)], fill=(50, 50, 50), width=1)
+
+    # Top-left: small dot + caption (no green)
+    DOT_X, DOT_Y = 70, 56
+    d.ellipse([DOT_X, DOT_Y, DOT_X + 12, DOT_Y + 12], fill=FG)
+    cap = _font(15, bold=False)
+    d.text((DOT_X + 24, DOT_Y - 2), 'AI · SIGNAL · INTELLIGENCE', font=cap, fill=FG)
+
+    # KADO wordmark — left-aligned, huge
+    wm = _font(180, bold=True)
+    d.text((60, 200), 'KADO', font=wm, fill=FG)
+
+    # Tagline — two lines below (no false claims, no specific %)
+    tag = _font(28, bold=False)
+    d.text((60, 410), 'Automate crypto trading on Bybit.', font=tag, fill=FG)
+    d.text((60, 450), 'Performance fee only — you keep custody.', font=tag, fill=FG)
+
+    # Pill — white outlined badge, bottom-left
+    PILL_X, PILL_Y = 60, 540
+    PILL_W, PILL_H = 290, 40
+    d.rounded_rectangle([PILL_X, PILL_Y, PILL_X + PILL_W, PILL_Y + PILL_H],
+                         radius=20, outline=FG, width=2)
+    pill_font = _font(14, bold=True)
+    d.text((PILL_X + 22, PILL_Y + 12), 'PERFORMANCE FEE  ·  NO UPFRONT', font=pill_font, fill=FG)
+
+    # Bottom-right: url
+    url_font = _font(20, bold=True)
+    bbox = d.textbbox((0, 0), 'KADOCLUB.NET', font=url_font)
+    tw = bbox[2] - bbox[0]
+    d.text((W - tw - 60, H - 38), 'KADOCLUB.NET', font=url_font, fill=FG)
 
     out = STATIC_DIR / 'kado-brand.png'
     img.save(out, 'PNG', optimize=True)
