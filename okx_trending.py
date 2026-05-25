@@ -37,10 +37,10 @@ OKX_URL = 'https://www.okx.com/api/v5/market/tickers?instType=SPOT'
 SCAN_INTERVAL_SEC = 60
 COOLDOWN_SEC = 6 * 3600
 
-# Trigger thresholds
-MIN_PCT_CHANGE_24H = 8.0      # |chg| ≥ 8% in 24h
-MIN_VOL_USD = 3_000_000        # at least $3M 24h notional on OKX
-MIN_COMPOSITE_SCORE = 50.0    # |pct| × log10(vol_usd) ≥ 50
+# Trigger thresholds (loosened 2026-05-25: 0 triggers in 4 days at 8/3M/50)
+MIN_PCT_CHANGE_24H = 5.0      # |chg| ≥ 5% in 24h (was 8.0)
+MIN_VOL_USD = 1_000_000        # at least $1M 24h notional on OKX (was 3M)
+MIN_COMPOSITE_SCORE = 30.0    # |pct| × log10(vol_usd) ≥ 30 (was 50)
 
 BLOCKED_COINS = {'BTC', 'ETH', 'SOL', 'BNB', 'USDC', 'USDT', 'DAI', 'FDUSD',
                  'EUR', 'TRY', 'BRL', 'GBP'}

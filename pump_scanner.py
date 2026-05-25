@@ -39,9 +39,10 @@ from modules.saas_dispatcher import dispatch as _dispatch
 
 # ─── Parameters ──────────────────────────────────────────────────────────────
 SCAN_INTERVAL_SEC = 60
-VOL_MULT_THRESHOLD = 5.0           # 24h vol must be >= 5x past 7d avg
-MIN_DAILY_VOL_USD = 5_000_000      # $5M minimum daily volume
-MIN_PRICE_CHANGE_1H_PCT = 0.5      # must move at least +0.5% in last 1h to confirm momentum
+# Loosened 2026-05-25: 0 triggers in 4 days at 5x/5M/0.5%
+VOL_MULT_THRESHOLD = 3.0           # 24h vol must be >= 3x past 7d avg (was 5x)
+MIN_DAILY_VOL_USD = 3_000_000      # $3M minimum daily volume (was 5M)
+MIN_PRICE_CHANGE_1H_PCT = 0.3      # must move at least +0.3% in last 1h (was 0.5%)
 COOLDOWN_SEC = 12 * 3600           # 12h cooldown per symbol
 MAX_OPEN_SIGNALS = 3               # don't open >3 pump positions simultaneously
 
